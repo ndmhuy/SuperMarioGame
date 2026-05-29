@@ -1,0 +1,9 @@
+[2026-05-29 13:57:30] Branch: dev
+Prompt: Initialize AGENTS.md for new Super Mario Game. Clear former project info, set up branching, C++/OOP guidelines, logging, commit directives, and discuss-on-deviation rules.
+Files Modified: AGENTS.md, logs/agent_history.log
+Summary of Changes:
+- Created AGENTS.md based on clean, generic workspace templates.
+- Enforced branch policy: development on 'dev' (milestone releases only on 'main', tasks on subbranches).
+- Added rules for descriptive commits, strict OOP/C++ architecture, and user consultation on deviation.
+- Created logs/agent_history.log to automatically record agent prompts and outputs.
+---
