@@ -1,0 +1,120 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Packages ──
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{fancyhdr}
+
+% ── Code listing style ──
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    tabsize=4
+}
+
+% ── Header/Footer ──
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{CS202 Final Project}
+\fancyhead[R]{Super Mario Game}
+\fancyfoot[C]{\thepage}
+
+% ── Title ──
+\title{
+    \textbf{CS202 Final Project Report} \\
+    \vspace{0.5cm}
+    \Large Super Mario Bros. \\
+    \vspace{0.3cm}
+    \normalsize 2D Game Development in C++ with OOP and Design Patterns
+}
+\author{
+    Nguyễn Đình Minh Huy (25125083)
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ──────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+% TODO: Project objectives, scope, reference games (SMB 1985, New SMB DS)
+
+% ──────────────────────────────────────────
+\section{System Architecture}
+\label{sec:architecture}
+% TODO: Layered architecture overview, dependency diagram
+% Subsections: Core Layer, World Layer, Entity Layer, Physics Layer, Infrastructure Layer
+
+% ──────────────────────────────────────────
+\section{Object-Oriented Design Principles}
+\label{sec:oop}
+% TODO: Inheritance, Polymorphism, Encapsulation, Abstraction
+% Include class hierarchy diagrams
+
+% ──────────────────────────────────────────
+\section{Design Patterns}
+\label{sec:patterns}
+% TODO: Document 5+ patterns with code examples
+% Subsections: Factory, Singleton, State, Observer, Strategy
+
+% ──────────────────────────────────────────
+\section{Class Diagrams}
+\label{sec:diagrams}
+% TODO: UML class diagrams, sequence diagrams
+
+% ──────────────────────────────────────────
+\section{Implementation Details}
+\label{sec:implementation}
+% TODO: Per-module breakdown
+% Subsections: Core, Entities, Physics, Graphics, Utils
+
+% ──────────────────────────────────────────
+\section{Gameplay and Level Design}
+\label{sec:gameplay}
+% TODO: Physics constants, character abilities, level descriptions
+
+% ──────────────────────────────────────────
+\section{Testing and Results}
+\label{sec:testing}
+% TODO: Testing approach, screenshots, demo video link
+
+% ──────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+% TODO: Lessons learned, future improvements
+
+% ──────────────────────────────────────────
+\appendix
+\section{AI Usage Declaration}
+\label{sec:ai}
+% TODO: Describe AI tool usage per team member
+
+\section{Commit History}
+\label{sec:commits}
+% TODO: Summary of git commit history
+
+\section{Task Assignments}
+\label{sec:tasks}
+% TODO: Task assignment table
+
+\end{document}
