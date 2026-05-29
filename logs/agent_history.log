@@ -7,3 +7,16 @@ Summary of Changes:
 - Added rules for descriptive commits, strict OOP/C++ architecture, and user consultation on deviation.
 - Created logs/agent_history.log to automatically record agent prompts and outputs.
 ---
+[2026-05-29 14:08:30] Branch: dev
+Prompt: Clear the former project and setup new environment for Super Mario Game.
+Files Modified: .gitignore, CMakeLists.txt, CS202_FinalProject_SuperMario_Spec.md, README.md, src/main.cpp
+Summary of Changes:
+- Deleted all former CS163 DataStructureVisualizer project files, reports, and templates.
+- Created the clean directory structure layout (include/Core, include/Entities, include/Graphics, include/Physics, include/Utils, src/Core, src/Entities, src/Graphics, src/Physics, src/Utils, assets/textures, assets/sounds, assets/fonts).
+- Created root CMakeLists.txt configured to fetch and build SFML 3.0.2, ImGui v1.91.8, and ImGui-SFML v3.0.
+- Wrote baseline src/main.cpp to open a sf::RenderWindow (1024x768) with a Mario placeholder red circle and an ImGui developer tools panel.
+- Verified successful compilation (100% build target) using the cmake command.
+- Resolved non-portable header warning by correcting include casing to <imgui-SFML.h>.
+- Added and configured .gitignore.
+- Committed all environment setup files to the dev branch.
+---
