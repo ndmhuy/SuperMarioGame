@@ -16,6 +16,7 @@
 > **Key Files**:
 > - `SPEC.md` — **Frozen specification** (constants, behaviors, schemas). Read before implementing.
 > - `implementation_plan.md` — Architecture diagrams and user answers.
+> - `TASKS.md` — **Sequential task checklist** with checkboxes for keeping track of progress.
 > - `logs/agent_history.log` — Append your work summary after every task.
 
 ### Constants You'll Need Repeatedly
@@ -123,40 +124,46 @@ Power-down: Fire → Super → Small (step-down)
 ## Project Structure & Architecture
 
 ```text
-SuperMarioGame/
-├── AGENTS.md               # This file — agent instructions
-├── SPEC.md                 # Frozen specification (source of truth)
-├── implementation_plan.md  # Architecture diagrams + user answers
-├── CMakeLists.txt          # Build configuration
-├── README.md               # Project documentation
+SuperMarioGame/              # Git root
+├── AGENTS.md                # Agent instructions (this file)
+├── SPEC.md                  # Frozen specification (source of truth)
+├── implementation_plan.md   # Architecture diagrams + user answers
+├── TASKS.md                 # Global sequential tasks file
+├── README.md                # Project documentation
 ├── .gitignore
+├── logs/
+│   └── agent_history.log    # Agent interaction log
 │
-├── include/                # ── HEADER FILES (.hpp) ──
-│   ├── Core/               # Game, StateManager, Input, Resource, Sound, EventBus
-│   ├── Entities/           # Entity hierarchy, Factory, AI Strategies
-│   ├── Graphics/           # Animation, Camera, HUD, SpriteSheet, Particles
-│   ├── Physics/            # AABB, PhysicsEngine, Collision Detector/Resolver
-│   └── Utils/              # Constants, TileMap, LevelLoader, Serializer, Math
+├── Report/                  # ── REPORT FOLDER ──
+│   └── SuperMarioGame/      # LaTeX report files
+│       ├── main.tex
+│       └── README.md
 │
-├── src/                    # ── SOURCE FILES (.cpp) ──
-│   ├── main.cpp            # Entry point: Game::getInstance().run()
-│   ├── Core/               # Mirrors include/Core/
-│   ├── Entities/           # Mirrors include/Entities/
-│   ├── Graphics/           # Mirrors include/Graphics/
-│   ├── Physics/            # Mirrors include/Physics/
-│   └── Utils/              # Mirrors include/Utils/
-│
-├── assets/
-│   ├── textures/           # Sprite sheets, tilesets, backgrounds
-│   ├── sounds/sfx/         # WAV sound effects
-│   ├── sounds/music/       # OGG background music
-│   ├── fonts/              # PressStart2P.ttf or similar
-│   └── levels/             # level_1.json, level_2.json, level_3.json
-│
-├── saves/                  # Save files (slot_1.json, etc.)
-├── Report/SuperMarioGame/  # LaTeX report for submission
-└── logs/
-    └── agent_history.log   # Agent interaction log
+└── SuperMarioGame/          # ── APP CODE FOLDER (same name as parent) ──
+    ├── CMakeLists.txt       # CMake build configuration
+    ├── include/             # ── HEADER FILES (.hpp) ──
+    │   ├── Core/            # Game, StateManager, Input, Resource, Sound, EventBus
+    │   ├── Entities/        # Entity hierarchy, Factory, AI Strategies
+    │   ├── Graphics/        # Animation, Camera, HUD, SpriteSheet, Particles
+    │   ├── Physics/         # AABB, PhysicsEngine, Collision Detector/Resolver
+    │   └── Utils/           # Constants, TileMap, LevelLoader, Serializer, Math
+    │
+    ├── src/                 # ── SOURCE FILES (.cpp) ──
+    │   ├── main.cpp         # Entry point: Game::getInstance().run()
+    │   ├── Core/            # Mirrors include/Core/
+    │   ├── Entities/        # Mirrors include/Entities/
+    │   ├── Graphics/        # Mirrors include/Graphics/
+    │   ├── Physics/         # Mirrors include/Physics/
+    │   └── Utils/           # Mirrors include/Utils/
+    │
+    ├── assets/              # ── GAME ASSETS ──
+    │   ├── textures/        # Sprite sheets, tilesets, backgrounds
+    │   ├── sounds/sfx/      # WAV sound effects
+    │   ├── sounds/music/    # OGG background music
+    │   └── fonts/           # PressStart2P.ttf or similar
+    │
+    ├── saves/               # Save files (slot_1.json, etc.)
+    └── build/               # CMake build directory
 ```
 
 ---

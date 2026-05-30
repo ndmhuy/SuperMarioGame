@@ -20,3 +20,34 @@ Summary of Changes:
 - Added and configured .gitignore.
 - Committed all environment setup files to the dev branch.
 ---
+[2026-05-29 14:13:45] Branch: dev
+Prompt: Plan specs carefully — propose architecture, system design, folder tree, spec questionnaire, and recommend one game engine.
+Files Modified: implementation_plan.md (artifact)
+Summary of Changes:
+- Recommended SFML 3.0.2 as the game engine with detailed comparison table (vs SDL2, Raylib).
+- Designed layered system architecture (Core → World → Entity → Physics → Infrastructure) with Mermaid diagram.
+- Mapped 6 design patterns to concrete classes: Factory, Singleton, State, Observer, Strategy, Command.
+- Created comprehensive class hierarchy diagram (Entity → Character/Item/Block → derived classes).
+- Proposed detailed folder tree with 50+ files across include/ and src/ directories.
+- Created 30+ question spec questionnaire covering: architecture, physics, characters, items, levels, UI, graphics, audio, and bonus features.
+- Outlined 10-phase development roadmap with estimated durations.
+---
+[2026-05-29 14:17:00] Branch: dev
+Prompt: Recover the Report folder and create a SuperMarioGame subfolder for the project report.
+Files Modified: Report/SuperMarioGame/README.md, Report/SuperMarioGame/main.tex
+Summary of Changes:
+- Original Report/ was untracked and permanently deleted; could not recover from git.
+- Created fresh Report/SuperMarioGame/ directory for the new project report.
+- Created LaTeX report skeleton (main.tex) with sections matching the CS202 rubric.
+- Created README.md describing the report structure and build instructions.
+- Committed to dev branch.
+---
+[2026-05-30 08:35:00] Branch: dev
+Prompt: Compile user's questionnaire answers into frozen SPEC.md, write detailed sequential task list, create agent pre-instructions, incorporate 5 bonus features (Level Editor, Time Rewind, Shadow Mario, Dynamic Lighting, Procedural Generation).
+Files Modified: SPEC.md (NEW), AGENTS.md, task.md (artifact)
+Summary of Changes:
+- Created SPEC.md — 15-section frozen specification document covering all game constants, entity behaviors, level schemas, controls, audio, save/load format, 2P mode, and 5 bonus features.
+- Created task.md — 11-phase sequential task checklist with 100+ granular subtasks, commit messages, and acceptance criteria.
+- Rewrote AGENTS.md — added "Quick Context" pre-instructions section with all key constants, pattern mappings, entity hierarchy, player state chains, and SFML 3.0.2 API caveats to minimize context window usage for future agents.
+- Committed all documents to dev branch.
+---
