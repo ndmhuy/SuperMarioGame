@@ -51,3 +51,11 @@ Summary of Changes:
 - Rewrote AGENTS.md — added "Quick Context" pre-instructions section with all key constants, pattern mappings, entity hierarchy, player state chains, and SFML 3.0.2 API caveats to minimize context window usage for future agents.
 - Committed all documents to dev branch.
 ---
+[2026-05-30 08:41:00] Branch: dev
+Prompt: Create a global sequential tasks file with checkboxes in the workspace root, and update path references in the documentation to reflect the new nested directory structure where Report/ and SuperMarioGame/ subdirectories split from the main folder.
+Files Modified: TASKS.md (NEW), AGENTS.md, README.md, logs/agent_history.log
+Summary of Changes:
+- Created TASKS.md at the workspace root, containing the 11-phase sequential task checklist with checkboxes and clickable absolute file:/// links.
+- Restructured all relative and absolute path references in AGENTS.md, README.md, and TASKS.md to point to the nested SuperMarioGame/ app subdirectory for C++ source, header, asset, and build files.
+- Staged and committed the restructured files (including the moved CMakeLists.txt and src/main.cpp) to the dev branch.
+---
