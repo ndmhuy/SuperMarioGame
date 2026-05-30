@@ -59,3 +59,13 @@ Summary of Changes:
 - Restructured all relative and absolute path references in AGENTS.md, README.md, and TASKS.md to point to the nested SuperMarioGame/ app subdirectory for C++ source, header, asset, and build files.
 - Staged and committed the restructured files (including the moved CMakeLists.txt and src/main.cpp) to the dev branch.
 ---
+[2026-05-30 08:42:00] Branch: dev
+Prompt: Update the README.md to be more premium and professional, documenting controls, architecture, all design patterns, and bonus features.
+Files Modified: README.md, logs/agent_history.log
+Summary of Changes:
+- Expanded README.md to include comprehensive controls for both Solo and 2P modes.
+- Added detailed documentation for Layered Engine Architecture.
+- Tabulated all 6 mapped Software Design Patterns (Factory, Singleton, State, Observer, Strategy, Command).
+- Outlined the 5 Post-MVP Bonus Features (Level Editor, Time Rewind, Shadow Mario, Dynamic Lighting, Procedural levels).
+- Updated build and run instructions to reflect the nested workspace.
+---
