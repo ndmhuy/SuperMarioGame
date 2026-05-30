@@ -1,61 +1,122 @@
 # AGENTS.md — Super Mario Game
 
-> This file contains critical guidelines, workflows, and technical details for AI agents working on the Super Mario Game project.
+> This file contains critical guidelines, pre-instructions, and compact context for AI agents working on the Super Mario Game project. **Read this file FIRST before any task.**
+
+---
+
+## ⚡ Quick Context (Read This First — Saves Context Window)
+
+> [!IMPORTANT]
+> **PROJECT SUMMARY IN 30 SECONDS**
+>
+> **What**: 2D Mario platformer in C++17 using SFML 3.0.2 + ImGui-SFML.
+> **Build**: CMake with FetchContent. `mkdir build && cd build && cmake .. && make`.
+> **Architecture**: Layered — Core → World → Entity → Physics → Infrastructure.
+> **Patterns**: Factory, Singleton, State, Observer, Strategy, Command (6 total).
+> **Key Files**:
+> - `SPEC.md` — **Frozen specification** (constants, behaviors, schemas). Read before implementing.
+> - `implementation_plan.md` — Architecture diagrams and user answers.
+> - `logs/agent_history.log` — Append your work summary after every task.
+
+### Constants You'll Need Repeatedly
+
+```
+Window:      1280×720 px
+Tile:        32×32 px
+Gravity:     0.5 px/frame² (= 1800 px/s² at 60fps)  [ImGui-tunable]
+Walk Speed:  150 px/s                                  [ImGui-tunable]
+Run Speed:   300 px/s                                  [ImGui-tunable]
+Jump Height: ~4 tiles (128 px)                         [ImGui-tunable]
+Timestep:    1/60 s fixed, with interpolated rendering
+Level Size:  200 tiles wide × 22.5 tiles tall
+```
+
+### Luigi Modifiers (vs Mario)
+
+```
+Jump Force:     ×1.2
+Walk/Run Speed: ×0.85
+Airborne Gravity: ×0.9 (floatier)
+Special: Double jump
+```
+
+### Entity Hierarchy (Inheritance Tree)
+
+```
+Entity (abstract)
+├── Character (abstract) → Mario, Luigi
+│   └── Enemy (abstract) → Goomba, KoopaTroopa, KoopaParatroopa, Boo, Bowser
+├── Item (abstract) → Mushroom, FireFlower, Coin, Star, OneUpMushroom
+└── Block (abstract) → BrickBlock, QuestionBlock, Pipe, Flagpole
+```
+
+### Design Pattern → Class Mapping
+
+```
+Factory    → EntityFactory::create(type, pos)
+Singleton  → Game, ResourceManager, SoundManager (getInstance())
+State      → GameStateManager/IGameState, PlayerState (Small/Super/Fire/Star)
+Observer   → EventBus::publish/subscribe (CoinCollected, EnemyDefeated, etc.)
+Strategy   → IMovementStrategy → PatrolStrategy, ChaseStrategy, FlyStrategy
+Command    → ICommand → JumpCommand, MoveLeftCommand, FireCommand, etc.
+```
+
+### Player States Chain
+
+```
+Small ──(Mushroom)──▶ Super ──(FireFlower)──▶ Fire
+  ▲                     ▲                       │
+  └──────(Hit)──────────┘───────(Hit)───────────┘
+Star = temporary overlay on any state (10 seconds)
+Power-down: Fire → Super → Small (step-down)
+```
+
+---
 
 ## Critical Compliance Directives for AI Agents
 
 > [!IMPORTANT]
 > **MANDATORY RULES FOR AGENT EXECUTION**
-> 
+>
 > 1. **Git Branching Policy**:
 >    - All development process must take place on the `dev` branch.
 >    - The `main` branch is reserved only for delivery/releases after major milestone changes.
->    - For each main task, create and work on a subbranch created from the `dev` branch (e.g., `feature/movement`, `feature/collision-detection`).
+>    - For each main task, create and work on a subbranch created from the `dev` branch (e.g., `feature/core-engine`, `feature/physics`).
 >    - Switch branches cleanly and never commit directly to `main`.
-> 
+>
 > 2. **Commit Policy**:
 >    - Commit after completing each subtask/task.
 >    - Use clear, traceable commit messages that make it easy to follow the history (e.g., `feat: implement AABB collision detection`, `fix: resolve character jump gravity bug`).
-> 
+>
 > 3. **Automatic Task & Prompt Logging**:
 >    - Agents must automatically append a summary of each user prompt and the corresponding output/results to the local log file: [agent_history.log](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/logs/agent_history.log).
 >    - Do not skip this step; ensure the log is updated at the end of every interaction.
-> 
+>
 > 4. **Plan Deviations**:
 >    - If you plan to deviate from the approved implementation plan or do what is not in the plan, you **MUST** inform the user and discuss/obtain confirmation first.
-> 
+>
 > 5. **Strict C++ & OOP Design**:
->    - The codebase must be written in **C++** (targeting C++17 or C++20).
+>    - The codebase must be written in **C++17**.
 >    - Adhere strictly to Object-Oriented Programming (OOP) principles: encapsulation, inheritance, polymorphism, and abstraction.
 >    - Emphasize clean software architecture and system design to ensure long-term maintainability.
 >    - Avoid global state (unless using the Singleton pattern carefully) and spaghetti code.
-
----
-
-## Project Purpose
-
-Develop a modular, extensible, and high-performance 2D Mario-style game in C++ featuring:
-- Character system (Mario, Luigi, enemies) with distinct abilities and states.
-- Power-ups/items system (Mushroom, Coin, Fire Flower).
-- Multi-level game flow (at least 3 levels with increasing difficulty).
-- Collision detection and tilemap management.
-- Sound effects and music.
-- Save/load game progress serialization.
-- Level Editor (bonus feature).
+>
+> 6. **Read SPEC.md Before Implementing**:
+>    - Always check `SPEC.md` for exact values, schemas, and behavioral rules before writing code.
+>    - Do NOT guess physics constants, JSON schemas, or enemy behaviors — they are all defined in the spec.
 
 ---
 
 ## Technical Stack
 
-- **Language**: C++17 / C++20
-- **Libraries/Frameworks**: (Pending selection: e.g., SFML, SDL2, or Raylib)
-- **Build System**: CMake (cross-platform configuration)
-- **Design Patterns Required (Minimum 5)**:
-  1. **Factory Pattern**: Spawning entities, items, and enemies.
-  2. **Singleton Pattern**: Game engine instance, sound manager, or resource manager.
-  3. *State Pattern* (Recommended): Character states (Small Mario, Super Mario, Fire Mario).
-  4. *Observer Pattern* (Recommended): Event and UI scoring updates.
-  5. *Strategy Pattern* (Recommended): Enemy AI movement behaviors.
+| Component | Technology |
+| :--- | :--- |
+| **Language** | C++17 |
+| **Graphics/Window/Audio** | SFML 3.0.2 |
+| **Dev Tools / Level Editor** | ImGui v1.91.8 + ImGui-SFML v3.0 |
+| **Build System** | CMake with FetchContent |
+| **JSON Parsing** | nlohmann/json (header-only, via FetchContent) |
+| **Serialization** | JSON format for saves and level files |
 
 ---
 
@@ -63,23 +124,39 @@ Develop a modular, extensible, and high-performance 2D Mario-style game in C++ f
 
 ```text
 SuperMarioGame/
-├── include/                # Header files (.h / .hpp)
-│   ├── Core/               # Game loop, state managers, input handlers
-│   ├── Entities/           # Mario, Luigi, Goomba, Koopa, blocks, items
-│   ├── Graphics/           # Renderer wrappers, spritesheets, animations
-│   ├── Physics/            # Collision detection, bounding boxes
-│   └── Utils/              # File I/O, helpers, config constants
-├── src/                    # Source files (.cpp)
-│   ├── Core/
-│   ├── Entities/
-│   ├── Graphics/
-│   ├── Physics/
-│   └── Utils/
-├── assets/                 # Textures, fonts, audio files, tilemaps
-├── logs/                   # Agent and system run logs
-│   └── agent_history.log   # Automated agent prompt & output log
+├── AGENTS.md               # This file — agent instructions
+├── SPEC.md                 # Frozen specification (source of truth)
+├── implementation_plan.md  # Architecture diagrams + user answers
 ├── CMakeLists.txt          # Build configuration
-└── README.md               # Student and user documentation
+├── README.md               # Project documentation
+├── .gitignore
+│
+├── include/                # ── HEADER FILES (.hpp) ──
+│   ├── Core/               # Game, StateManager, Input, Resource, Sound, EventBus
+│   ├── Entities/           # Entity hierarchy, Factory, AI Strategies
+│   ├── Graphics/           # Animation, Camera, HUD, SpriteSheet, Particles
+│   ├── Physics/            # AABB, PhysicsEngine, Collision Detector/Resolver
+│   └── Utils/              # Constants, TileMap, LevelLoader, Serializer, Math
+│
+├── src/                    # ── SOURCE FILES (.cpp) ──
+│   ├── main.cpp            # Entry point: Game::getInstance().run()
+│   ├── Core/               # Mirrors include/Core/
+│   ├── Entities/           # Mirrors include/Entities/
+│   ├── Graphics/           # Mirrors include/Graphics/
+│   ├── Physics/            # Mirrors include/Physics/
+│   └── Utils/              # Mirrors include/Utils/
+│
+├── assets/
+│   ├── textures/           # Sprite sheets, tilesets, backgrounds
+│   ├── sounds/sfx/         # WAV sound effects
+│   ├── sounds/music/       # OGG background music
+│   ├── fonts/              # PressStart2P.ttf or similar
+│   └── levels/             # level_1.json, level_2.json, level_3.json
+│
+├── saves/                  # Save files (slot_1.json, etc.)
+├── Report/SuperMarioGame/  # LaTeX report for submission
+└── logs/
+    └── agent_history.log   # Agent interaction log
 ```
 
 ---
@@ -88,12 +165,57 @@ SuperMarioGame/
 
 | If you need to... | Modify / Create |
 | :--- | :--- |
-| **Change/Add game-wide configurations or paths** | `include/Core/Config.hpp` or similar settings file |
-| **Implement/Tweak movement physics or gravity** | Physics engine or player entity controllers in `src/Entities/` |
-| **Add a new design pattern or change entity spawning** | Factory class or managers in `src/Entities/` |
-| **Add level loading or serialization rules** | File parser / serialization utils in `src/Utils/` |
-| **Adjust graphics, UI overlays, or camera views** | Renderer, HUD, or view code in `src/Graphics/` |
-| **Add sound effects or audio playbacks** | Sound manager / Singleton in `src/Core/` |
+| **Change game constants** (gravity, speed, tile size) | `include/Utils/Constants.hpp` |
+| **Implement/Tweak physics or gravity** | `src/Physics/PhysicsEngine.cpp` |
+| **Add a new entity type** | Subclass in `include/Entities/` + register in `EntityFactory` |
+| **Change enemy AI behavior** | Implement new `IMovementStrategy` subclass |
+| **Add a new game screen** | Implement `IGameState` subclass in `src/Core/` |
+| **Add level loading or save/load** | `src/Utils/LevelLoader.cpp` or `src/Utils/Serializer.cpp` |
+| **Adjust graphics, UI, or camera** | `src/Graphics/` (HUD.cpp, Camera.cpp, etc.) |
+| **Add sound effects or audio** | `src/Core/SoundManager.cpp` + subscribe to `EventBus` |
+| **Expose value to ImGui** | Add slider in `PlayingState` ImGui panel |
+
+---
+
+## Coding Conventions
+
+### File Naming
+- Headers: `include/Module/ClassName.hpp`
+- Sources: `src/Module/ClassName.cpp`
+- One class per file (header + source pair)
+
+### Code Style
+```cpp
+// Use #pragma once for header guards
+#pragma once
+
+// Include order: std → SFML → project headers
+#include <memory>
+#include <vector>
+#include <SFML/Graphics.hpp>
+#include "Entities/Entity.hpp"
+
+// Namespace: none (flat) — use full class names
+// Naming: PascalCase for classes, camelCase for methods/vars, UPPER_SNAKE for constants
+// Smart pointers: std::unique_ptr for ownership, std::shared_ptr only when needed
+// Virtual destructors on ALL base classes
+```
+
+### Example Entity Pattern
+```cpp
+// include/Entities/NewEnemy.hpp
+#pragma once
+#include "Entities/Enemy.hpp"
+
+class NewEnemy : public Enemy {
+public:
+    explicit NewEnemy(sf::Vector2f position);
+    void update(float dt) override;
+    void render(sf::RenderTarget& target) override;
+    void onStomped() override;
+    void onHitByFireball() override;
+};
+```
 
 ---
 
@@ -112,6 +234,14 @@ SuperMarioGame/
 > [!IMPORTANT]
 > **MEMORY MANAGEMENT**
 > In C++, ensure no memory leaks occur. Prefer smart pointers (`std::unique_ptr` and `std::shared_ptr`) over raw pointers, especially in vectors of entities. Ensure destructors of base classes are marked `virtual`.
+
+> [!CAUTION]
+> **SFML 3.0.2 API DIFFERENCES**
+> SFML 3.0 has breaking changes from SFML 2.x:
+> - `sf::Texture::loadFromFile()` → use `sf::Texture("path")` or check 3.0 API
+> - `sf::Keyboard::isKeyPressed()` uses scoped enums: `sf::Keyboard::Key::W`
+> - Event types changed: `sf::Event::KeyPressed` → `sf::Event::is<sf::Event::KeyPressed>()`
+> - Always check SFML 3.0 documentation, NOT 2.x tutorials.
 
 > [!NOTE]
 > **AUTOMATIC LOG ENTRY FORMAT**
