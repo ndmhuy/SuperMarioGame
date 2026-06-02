@@ -69,3 +69,14 @@ Summary of Changes:
 - Outlined the 5 Post-MVP Bonus Features (Level Editor, Time Rewind, Shadow Mario, Dynamic Lighting, Procedural levels).
 - Updated build and run instructions to reflect the nested workspace.
 ---
+[2026-06-02 09:30:00] Branch: dev
+Prompt: Expand feature set to double (51→110 features), update all project documents, create TA justification
+Files Modified: SPEC.md, TASKS.md, README.md, AGENTS.md, FEATURE_PROPOSAL.md (new)
+Summary of Changes:
+- Created FEATURE_PROPOSAL.md: TA-facing justification document for expanded 110-feature scope
+- Updated SPEC.md v1.0→v2.0: Added 59 new features across 8 new sections (§4.3 Advanced Mechanics, §6.3-6.4 New Enemies, §7 Expanded Items, §8 Expanded Blocks, §9.3-9.5 World Map/Bonus/Special Sections, §15 Visual Effects, §16 Advanced Systems, §17 Accessibility, §18 Meta-Game)
+- Updated TASKS.md v2.0: Added Phase 10 (Advanced Systems), expanded all existing phases with [v2.0] markers
+- Updated README.md v2.0: Reflected 110 features, 10+ patterns, 4 characters, 13 enemies, 12 items, 9 blocks
+- Updated AGENTS.md: Quick Context updated with v2.0 entity hierarchy (25+ classes), 10+ patterns, 7 player states, new constants
+- Feature breakdown: +10 gameplay mechanics, +8 enemies, +6 items, +5 blocks, +6 level features, +6 UI/UX, +6 visual FX, +5 advanced systems, +3 accessibility, +4 meta-game
+---

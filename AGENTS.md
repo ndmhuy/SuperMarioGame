@@ -12,9 +12,11 @@
 > **What**: 2D Mario platformer in C++17 using SFML 3.0.2 + ImGui-SFML.
 > **Build**: CMake with FetchContent. `mkdir build && cd build && cmake .. && make`.
 > **Architecture**: Layered — Core → World → Entity → Physics → Infrastructure.
-> **Patterns**: Factory, Singleton, State, Observer, Strategy, Command (6 total).
+> **Patterns**: Factory, Singleton, State, Observer, Strategy, Command, Decorator, Memento, Object Pool, Template Method (10+ total).
+> **Scope**: 110 features across 20 categories (v2.0 expanded spec).
 > **Key Files**:
-> - `SPEC.md` — **Frozen specification** (constants, behaviors, schemas). Read before implementing.
+> - `SPEC.md` — **Frozen specification v2.0** (constants, behaviors, schemas). Read before implementing.
+> - `FEATURE_PROPOSAL.md` — TA justification for expanded scope.
 > - `implementation_plan.md` — Architecture diagrams and user answers.
 > - `TASKS.md` — **Sequential task checklist** with checkboxes for keeping track of progress.
 > - `logs/agent_history.log` — Append your work summary after every task.
@@ -22,14 +24,19 @@
 ### Constants You'll Need Repeatedly
 
 ```
-Window:      1280×720 px
-Tile:        32×32 px
-Gravity:     0.5 px/frame² (= 1800 px/s² at 60fps)  [ImGui-tunable]
-Walk Speed:  150 px/s                                  [ImGui-tunable]
-Run Speed:   300 px/s                                  [ImGui-tunable]
-Jump Height: ~4 tiles (128 px)                         [ImGui-tunable]
-Timestep:    1/60 s fixed, with interpolated rendering
-Level Size:  200 tiles wide × 22.5 tiles tall
+Window:        1280×720 px
+Tile:          32×32 px
+Gravity:       0.5 px/frame² (= 1800 px/s² at 60fps)  [ImGui-tunable]
+Walk Speed:    150 px/s                                  [ImGui-tunable]
+Run Speed:     300 px/s                                  [ImGui-tunable]
+Jump Height:   ~4 tiles (128 px)                         [ImGui-tunable]
+Timestep:      1/60 s fixed, with interpolated rendering
+Level Size:    200 tiles wide × 22.5 tiles tall
+Coyote Time:   6 frames (100ms)
+Jump Buffer:   6 frames (100ms)
+Wall Slide:    50 px/s (capped downward)
+Ground Pound:  600 px/s (instant slam)
+Combo Mult:    ×1, ×2, ×4, ×8
 ```
 
 ### Luigi Modifiers (vs Mario)
@@ -45,21 +52,31 @@ Special: Double jump
 
 ```
 Entity (abstract)
-├── Character (abstract) → Mario, Luigi
-│   └── Enemy (abstract) → Goomba, KoopaTroopa, KoopaParatroopa, Boo, Bowser
-├── Item (abstract) → Mushroom, FireFlower, Coin, Star, OneUpMushroom
-└── Block (abstract) → BrickBlock, QuestionBlock, Pipe, Flagpole
+├── Character (abstract) → Mario, Luigi, Toad*, Peach*
+│   └── Enemy (abstract) → Goomba, KoopaTroopa, KoopaParatroopa, Boo, Bowser,
+│                           PiranhaPlant, BulletBill, HammerBro, Thwomp,
+│                           ChainChomp, Lakitu, Spiny, BoomBoom
+├── Item (abstract) → Mushroom, FireFlower, Coin, Star, OneUpMushroom,
+│                     CapeFeather, MegaMushroom, MiniMushroom, POWBlock,
+│                     PSwitch, Trampoline, StarCoin
+└── Block (abstract) → BrickBlock, QuestionBlock, Pipe, Flagpole, HiddenBlock,
+                       MovingPlatform, FallingPlatform, IceBlock, ConveyorBelt
+(* = unlockable)     (25+ concrete classes total)
 ```
 
 ### Design Pattern → Class Mapping
 
 ```
-Factory    → EntityFactory::create(type, pos)
-Singleton  → Game, ResourceManager, SoundManager (getInstance())
-State      → GameStateManager/IGameState, PlayerState (Small/Super/Fire/Star)
-Observer   → EventBus::publish/subscribe (CoinCollected, EnemyDefeated, etc.)
-Strategy   → IMovementStrategy → PatrolStrategy, ChaseStrategy, FlyStrategy
-Command    → ICommand → JumpCommand, MoveLeftCommand, FireCommand, etc.
+Factory    → EntityFactory::create(type, pos) — 25+ types; Lakitu spawns Spinies
+Singleton  → Game, ResourceManager, SoundManager, AchievementManager
+State      → GameStateManager (9 states), PlayerState (7 forms), FallingPlatform, Thwomp
+Observer   → EventBus (15+ events) — HUD, Sound, Combo, Achievement, Stats subscribe
+Strategy   → 7+ strategies: Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger
+Command    → 8+ commands: Jump, Move, Fire, Crouch, GroundPound, WallJump + debug console
+Decorator  → StarOverlay, MegaState (temporary power-up wrappers)
+Memento    → GameSnapshot (time rewind, replay system)
+Pool       → ObjectPool<T> for fireballs, particles, projectiles
+Template   → Enemy::update() skeleton with overridable hooks
 ```
 
 ### Player States Chain
@@ -68,8 +85,12 @@ Command    → ICommand → JumpCommand, MoveLeftCommand, FireCommand, etc.
 Small ──(Mushroom)──▶ Super ──(FireFlower)──▶ Fire
   ▲                     ▲                       │
   └──────(Hit)──────────┘───────(Hit)───────────┘
+Super ──(CapeFeather)──▶ Cape
+Small ──(MegaMushroom)──▶ Mega (8s temporary)
+Small ──(MiniMushroom)──▶ Mini (half-tile)
 Star = temporary overlay on any state (10 seconds)
-Power-down: Fire → Super → Small (step-down)
+Power-down: Fire/Cape → Super → Small (step-down)
+7 total states: Small, Super, Fire, Cape, Mega, Mini, Star
 ```
 
 ---

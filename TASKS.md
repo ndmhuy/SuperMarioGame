@@ -1,7 +1,8 @@
 # Super Mario Game — Sequential Task Checklist
 
-> **Reference**: [SPEC.md](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SPEC.md) for all constants and specifications.
+> **Reference**: [SPEC.md](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SPEC.md) v2.0 for all constants and specifications.
 > **Rule**: Each phase = one feature branch off `dev`. Merge to `dev` when phase is complete.
+> **Version**: 2.0 — Updated 2026-06-02 with expanded 110-feature scope.
 
 ---
 
@@ -29,6 +30,9 @@
   - `MARIO_JUMP_HEIGHT=128.f`, `FIXED_TIMESTEP=1.0f/60.0f`
   - `LUIGI_JUMP_MULT=1.2f`, `LUIGI_SPEED_MULT=0.85f`, `LUIGI_GRAVITY_MULT=0.9f`
   - `STAR_DURATION=10.0f`, `LEVEL_TIME=300.0f`, `INITIAL_LIVES=3`
+  - `COYOTE_FRAMES=6`, `JUMP_BUFFER_FRAMES=6` [v2.0]
+  - `WALL_SLIDE_SPEED=50.f`, `GROUND_POUND_SPEED=600.f` [v2.0]
+  - `COMBO_MULTIPLIERS={1,2,4,8}` [v2.0]
 - [ ] Create [MathUtils.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/MathUtils.hpp) + [MathUtils.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Utils/MathUtils.cpp)
   - `clamp()`, `lerp()`, `sign()`, vector helpers
 - [ ] Commit: `feat: add game constants and math utilities`
@@ -51,27 +55,27 @@
   - `setSFXVolume(float)`, `setMusicVolume(float)`
   - Uses `ResourceManager` for sound buffers
   - `sf::Music` for streaming BGM
+  - Surface-dependent footstep support [v2.0]
 - [ ] Commit: `feat: implement SoundManager singleton`
 
 ### 1.4 Event Bus (Observer Pattern)
 - [ ] Create [EventBus.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/EventBus.hpp) + [EventBus.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/EventBus.cpp)
-  - `enum class EventType { CoinCollected, EnemyDefeated, PlayerDied, PowerUpCollected, LevelComplete, ... }`
+  - `enum class EventType { CoinCollected, EnemyDefeated, PlayerDied, PowerUpCollected, LevelComplete, ComboHit, AchievementUnlocked, StarCoinCollected, PSwitchActivated, BossDefeated, ... }` [v2.0: expanded from 4 to 15+ types]
   - `struct GameEvent { EventType type; std::any data; }`
   - `subscribe(EventType, std::function<void(const GameEvent&)>)` → returns subscription ID
   - `unsubscribe(subscriptionId)`
   - `publish(GameEvent)`
-  - Thread-safe not required (single-threaded game loop)
 - [ ] Commit: `feat: implement EventBus observer pattern`
 
 ### 1.5 Input Manager (Command Pattern)
 - [ ] Create [InputManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/InputManager.hpp) + [InputManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/InputManager.cpp)
   - `ICommand` interface: `virtual void execute(Character&) = 0`
-  - Concrete commands: `JumpCommand`, `MoveLeftCommand`, `MoveRightCommand`, `FireCommand`, `RunCommand`
+  - Concrete commands: `JumpCommand`, `MoveLeftCommand`, `MoveRightCommand`, `FireCommand`, `RunCommand`, `CrouchCommand`, `GroundPoundCommand`, `WallJumpCommand` [v2.0: 8+ commands]
   - `InputManager` maps `sf::Keyboard::Key` → `std::unique_ptr<ICommand>`
   - `handleInput(sf::Event, Character&)` — processes key events
   - `update(Character&)` — processes held keys (continuous movement)
   - Support Player 1 (WASD) and Player 2 (Arrow keys) mappings
-  - Abstraction layer for future gamepad support
+  - Key rebinding support with persistence [v2.0]
 - [ ] Commit: `feat: implement InputManager with Command pattern`
 
 ### 1.6 Game State Manager (State Pattern)
@@ -87,6 +91,7 @@
   - `std::stack<std::unique_ptr<IGameState>>`
   - `getCurrentState()` → `IGameState*`
   - Calls enter/exit on transitions
+  - Support for 9 game states [v2.0: +WorldMapState, StatisticsState]
 - [ ] Commit: `feat: implement GameStateManager with state stack`
 
 ### 1.7 Game Class (Singleton, Main Loop)
@@ -94,18 +99,7 @@
   - Singleton: `static Game& getInstance()`
   - Owns `sf::RenderWindow` (1280×720)
   - Owns `GameStateManager`
-  - Fixed timestep game loop:
-    ```cpp
-    while (running) {
-      processEvents();
-      accumulator += frameTime;
-      while (accumulator >= FIXED_TIMESTEP) {
-        update(FIXED_TIMESTEP);
-        accumulator -= FIXED_TIMESTEP;
-      }
-      render(accumulator / FIXED_TIMESTEP); // interpolation alpha
-    }
-    ```
+  - Fixed timestep game loop with interpolation
   - `run()`, `quit()`
   - ImGui integration: `ImGui::SFML::Update()` in loop
   - Initial state: push `MenuState` (placeholder for now)
@@ -124,7 +118,7 @@
 
 ## Phase 2 — Physics Engine (`feature/physics`)
 
-> **Goal**: AABB collision, gravity, velocity, tile-based collision resolution.
+> **Goal**: AABB collision, gravity, velocity, tile-based collision resolution, spatial hashing.
 > **Branch**: `git checkout -b feature/physics dev`
 
 ### 2.1 AABB
@@ -136,33 +130,48 @@
   - `sf::Vector2f getCenter() const`
 - [ ] Commit: `feat: implement AABB collision primitive`
 
-### 2.2 Collision Detector
+### 2.2 Spatial Hash [v2.0]
+- [ ] Create [SpatialHash.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Physics/SpatialHash.hpp) + [SpatialHash.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Physics/SpatialHash.cpp)
+  - Grid cell size: 64×64 pixels
+  - `insert(Entity*, AABB)`, `query(AABB)` → `std::vector<Entity*>`
+  - `clear()` — called every frame before re-insertion
+  - O(n) average collision broadphase
+- [ ] Commit: `feat: implement SpatialHash for collision broadphase`
+
+### 2.3 Collision Detector
 - [ ] Create [CollisionDetector.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Physics/CollisionDetector.hpp) + [CollisionDetector.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Physics/CollisionDetector.cpp)
   - `struct CollisionInfo { bool collided; sf::Vector2f overlap; sf::Vector2f normal; Entity* other; }`
   - `checkEntityVsEntity(Entity&, Entity&)` → `CollisionInfo`
   - `checkEntityVsTileMap(Entity&, TileMap&)` → `std::vector<CollisionInfo>`
   - Direction detection: top, bottom, left, right collision normals
+  - Uses SpatialHash for broadphase [v2.0]
 - [ ] Commit: `feat: implement CollisionDetector with direction sensing`
 
-### 2.3 Collision Resolver
+### 2.4 Collision Resolver
 - [ ] Create [CollisionResolver.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Physics/CollisionResolver.hpp) + [CollisionResolver.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Physics/CollisionResolver.cpp)
   - `resolveEntityVsTile(Entity&, CollisionInfo&)` — push entity out of tile
   - `resolveEntityVsEntity(Entity&, Entity&, CollisionInfo&)` — stomp/damage/bounce
   - `resolvePlayerVsEnemy(Character&, Enemy&, CollisionInfo&)` — stomp vs side hit
   - `resolvePlayerVsItem(Character&, Item&, CollisionInfo&)` — collect/activate
   - Ground detection: set `onGround = true` when bottom collision with tile
+  - Wall detection: set `onWall = true` for wall slide/jump [v2.0]
+  - Surface type detection (ice, conveyor, water) [v2.0]
 - [ ] Commit: `feat: implement CollisionResolver with response logic`
 
-### 2.4 Physics Engine
+### 2.5 Physics Engine
 - [ ] Create [PhysicsEngine.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Physics/PhysicsEngine.hpp) + [PhysicsEngine.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Physics/PhysicsEngine.cpp)
-  - `applyGravity(Entity&, float dt)` — add gravity to velocity.y (use Constants::GRAVITY)
+  - `applyGravity(Entity&, float dt)` — with water/ice modifiers [v2.0]
   - `integrateVelocity(Entity&, float dt)` — position += velocity * dt
   - `update(std::vector<Entity*>&, TileMap&, float dt)`:
-    1. Apply gravity to all entities
-    2. Integrate velocities
-    3. Detect collisions (entity-vs-tile, entity-vs-entity)
-    4. Resolve collisions
-    5. Update ground states
+    1. Rebuild spatial hash
+    2. Apply gravity (with zone modifiers — water, etc.)
+    3. Apply surface effects (ice friction, conveyor push) [v2.0]
+    4. Integrate velocities
+    5. Detect collisions (broadphase via SpatialHash)
+    6. Resolve collisions
+    7. Update ground/wall states
+  - Coyote time and jump buffering logic [v2.0]
+  - Momentum and acceleration curves [v2.0]
   - ImGui debug: toggle collision box rendering, show velocity vectors
 - [ ] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt)
 - [ ] Write a test: place a rectangle on screen, verify it falls and stops on a floor tile
@@ -186,11 +195,14 @@
 
 ### 3.2 Character Base Class
 - [ ] Create [Character.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Character.hpp) + [Character.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Character.cpp)
-  - Inherits `Entity`. Members: `health`, `speed`, `jumpForce`, `onGround`, `facingRight`
+  - Inherits `Entity`. Members: `health`, `speed`, `jumpForce`, `onGround`, `onWall`, `facingRight`
   - Methods: `moveLeft()`, `moveRight()`, `jump()`, `run()`, `takeDamage()`
-  - `PlayerState` enum: `Small, Super, Fire, Star`
+  - `wallJump()`, `groundPound()`, `crouch()`, `slide()` [v2.0]
+  - `PlayerState` enum: `Small, Super, Fire, Cape, Mega, Mini, Star` [v2.0: expanded from 4 to 7]
   - State transitions: `powerUp(ItemType)`, `powerDown()`
   - Invincibility frames timer after hit
+  - Coyote time counter, jump buffer counter [v2.0]
+  - Combo counter [v2.0]
 - [ ] Commit: `feat: implement Character base class with state management`
 
 ### 3.3 Mario
@@ -198,7 +210,7 @@
   - Inherits `Character`
   - Physics values from `Constants.hpp`: walk=150, run=300, jump=4 tiles
   - `shootFireball()` — if Fire state, max 2 active
-  - Animation state tracking (idle, walk, run, jump, crouch, die)
+  - Animation state tracking (idle, walk, run, jump, crouch, slide, wall_slide, ground_pound, swim, climb, die) [v2.0: expanded]
 - [ ] Commit: `feat: implement Mario entity`
 
 ### 3.4 Luigi
@@ -206,122 +218,138 @@
   - Inherits `Character`
   - Modified physics: speed×0.85, jump×1.2, airGravity×0.9
   - `doubleJump()` — can jump once more while airborne
-  - Separate animation set
 - [ ] Commit: `feat: implement Luigi entity with double jump`
 
-### 3.5 Enemy Base + AI Strategies
+### 3.5 Unlockable Characters [v2.0]
+- [ ] Create [Toad.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Toad.hpp) + [Toad.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Toad.cpp)
+  - Inherits `Character`. Speed ×1.3, Jump ×0.8, no slide friction delay.
+- [ ] Create [Peach.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Peach.hpp) + [Peach.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Peach.cpp)
+  - Inherits `Character`. Float ability (hold jump to hover 1.5s), speed ×0.9.
+- [ ] Commit: `feat: implement unlockable characters Toad and Peach`
+
+### 3.6 Enemy Base + AI Strategies
 - [ ] Create [IMovementStrategy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/IMovementStrategy.hpp) — interface
   - `virtual void move(Enemy& enemy, float dt) = 0`
   - `virtual ~IMovementStrategy() = default`
-- [ ] Create [PatrolStrategy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/PatrolStrategy.hpp) + [PatrolStrategy.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/PatrolStrategy.cpp)
-  - Walk in one direction. Reverse on wall collision. Fall off ledges.
-- [ ] Create [ChaseStrategy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ChaseStrategy.hpp) + [ChaseStrategy.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/ChaseStrategy.cpp)
-  - Idle until target within 250px. Move toward target. Stop if target faces enemy (for Boo).
-- [ ] Create [FlyStrategy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FlyStrategy.hpp) + [FlyStrategy.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/FlyStrategy.cpp)
-  - Sinusoidal vertical movement while patrolling horizontally.
+- [ ] Create strategies:
+  - [ ] [PatrolStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/PatrolStrategy.hpp) — walk, reverse on wall, fall off (or ledge-aware for variants) [v2.0]
+  - [ ] [ChaseStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ChaseStrategy.hpp) — idle until within 250px, move toward target
+  - [ ] [FlyStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FlyStrategy.hpp) — sinusoidal vertical movement + horizontal patrol
+  - [ ] [TimerEmergenceStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp) — emerge/retreat on timer (Piranha Plant) [v2.0]
+  - [ ] [LinearStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/LinearStrategy.hpp) — straight-line travel (Bullet Bill) [v2.0]
+  - [ ] [HammerThrowStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/HammerThrowStrategy.hpp) — jump between platforms + arc throws [v2.0]
+  - [ ] [TetheredChaseStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp) — lunge toward player, snap back to anchor [v2.0]
+  - [ ] [ProximityTriggerStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp) — idle, slam, rise (Thwomp) [v2.0]
 - [ ] Create [Enemy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Enemy.hpp) + [Enemy.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Enemy.cpp)
   - Inherits `Character`. Holds `std::unique_ptr<IMovementStrategy>`
-  - `setStrategy(std::unique_ptr<IMovementStrategy>)`
-  - `onStomped()` — virtual, default: die
-  - `onHitByFireball()` — virtual, default: die
-  - Scoring: each enemy kill grants points
-- [ ] Commit: `feat: implement Enemy base class and AI movement strategies`
+  - Template Method: `update()` calls `applyStrategy() → checkBounds() → animate()` [v2.0]
+  - `onStomped()`, `onHitByFireball()` — virtual
+  - Scoring: each enemy kill grants points (configurable via JSON) [v2.0]
+- [ ] Commit: `feat: implement Enemy base class and 8 AI movement strategies`
 
-### 3.6 Concrete Enemies
-- [ ] Create [Goomba.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Goomba.hpp) + [Goomba.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Goomba.cpp)
-  - Uses `PatrolStrategy`. Stomped → squish animation → destroy.
-- [ ] Create [KoopaTroopa.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/KoopaTroopa.hpp) + [KoopaTroopa.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/KoopaTroopa.cpp)
-  - Uses `PatrolStrategy`. Stomped → shell state. `kickShell()` sends shell sliding.
-  - Shell can kill other enemies on contact.
-- [ ] Create [KoopaParatroopa.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/KoopaParatroopa.hpp) + [KoopaParatroopa.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/KoopaParatroopa.cpp)
-  - Uses `FlyStrategy`. Stomped → loses wings → becomes regular KoopaTroopa.
-- [ ] Create [Boo.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Boo.hpp) + [Boo.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Boo.cpp)
-  - Uses `ChaseStrategy`. Cannot be stomped/fireballed. Freezes when player faces it.
-- [ ] Commit: `feat: implement Goomba, KoopaTroopa, Paratroopa, and Boo enemies`
+### 3.7 Concrete Enemies (Original)
+- [ ] Create [Goomba.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Goomba.hpp) — PatrolStrategy, variant support (brown/red) [v2.0]
+- [ ] Create [KoopaTroopa.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/KoopaTroopa.hpp) — PatrolStrategy, shell state, variant support [v2.0]
+- [ ] Create [KoopaParatroopa.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/KoopaParatroopa.hpp) — FlyStrategy, variant support [v2.0]
+- [ ] Create [Boo.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Boo.hpp) — ChaseStrategy, invulnerable
+- [ ] Commit: `feat: implement Goomba, KoopaTroopa, Paratroopa, Boo with variants`
 
-### 3.7 Items
+### 3.8 Concrete Enemies (New in v2.0)
+- [ ] Create [PiranhaPlant.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/PiranhaPlant.hpp) — TimerEmergenceStrategy, pipe-bound
+- [ ] Create [BulletBill.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/BulletBill.hpp) — LinearStrategy, stompable, spawned from Bill Blaster
+- [ ] Create [HammerBro.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/HammerBro.hpp) — HammerThrowStrategy, arc projectiles
+- [ ] Create [Thwomp.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Thwomp.hpp) — ProximityTriggerStrategy, 3-state lifecycle
+- [ ] Create [ChainChomp.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ChainChomp.hpp) — TetheredChaseStrategy, 4-tile radius
+- [ ] Create [Lakitu.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Lakitu.hpp) — FlyStrategy + spawns Spinies via Factory
+- [ ] Create [Spiny.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Spiny.hpp) — PatrolStrategy, not stompable
+- [ ] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
+
+### 3.9 Items (Original)
 - [ ] Create [Item.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Item.hpp) + [Item.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Item.cpp)
   - Inherits `Entity`. `collected` flag. `virtual activate(Character&)`, `collect()`
-  - Pop-out animation (rises from block)
-- [ ] Create concrete items:
-  - [ ] [Mushroom.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Mushroom.hpp) + [Mushroom.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Mushroom.cpp) — Small→Super. Moves horizontally.
-  - [ ] [FireFlower.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FireFlower.hpp) + [FireFlower.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/FireFlower.cpp) — Super→Fire. Stationary.
-  - [ ] [Coin.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Coin.hpp) + [Coin.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Coin.cpp) — +1 coin, +200 score. EventBus `CoinCollected`.
-  - [ ] [Star.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Star.hpp) + [Star.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Star.cpp) — 10s invincibility. Bounces.
-  - [ ] [OneUpMushroom.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/OneUpMushroom.hpp) + [OneUpMushroom.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/OneUpMushroom.cpp) — +1 life. Moves horizontally.
-- [ ] Commit: `feat: implement all items (Mushroom, FireFlower, Coin, Star, 1-UP)`
+- [ ] Create: [Mushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Mushroom.hpp), [FireFlower.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FireFlower.hpp), [Coin.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Coin.hpp), [Star.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Star.hpp), [OneUpMushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/OneUpMushroom.hpp)
+- [ ] Commit: `feat: implement original 5 items (Mushroom, FireFlower, Coin, Star, 1-UP)`
 
-### 3.8 Blocks
+### 3.10 Items (New in v2.0)
+- [ ] Create [CapeFeather.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/CapeFeather.hpp) — grants Cape state (glide + swoop)
+- [ ] Create [MegaMushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/MegaMushroom.hpp) — temporary giant (8s, Decorator pattern)
+- [ ] Create [MiniMushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/MiniMushroom.hpp) — half-size, walk on water
+- [ ] Create [POWBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/POWBlock.hpp) — area-of-effect via EventBus
+- [ ] Create [PSwitch.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/PSwitch.hpp) — bricks↔coins for 15s (Command pattern)
+- [ ] Create [Trampoline.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Trampoline.hpp) — bounces player ~6 tiles, carriable
+- [ ] Create [StarCoin.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/StarCoin.hpp) — 3 per level, tracked in save data
+- [ ] Commit: `feat: implement 7 new items (Cape, Mega, Mini, POW, PSwitch, Trampoline, StarCoin)`
+
+### 3.11 Blocks (Original)
 - [ ] Create [Block.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Block.hpp) + [Block.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Block.cpp)
   - Inherits `Entity`. `breakable` flag. `virtual onHitFromBelow(Character&)`
-  - Bump animation when hit
-- [ ] Create concrete blocks:
-  - [ ] [BrickBlock.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/BrickBlock.hpp) + [BrickBlock.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/BrickBlock.cpp) — breakable if Super/Fire. Particles.
-  - [ ] [QuestionBlock.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/QuestionBlock.hpp) + [QuestionBlock.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/QuestionBlock.cpp) — contains item. Hit → spawn item + empty block.
-  - [ ] [Pipe.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Pipe.hpp) + [Pipe.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Pipe.cpp) — warp pipe. `warpTarget`. Enter animation.
-  - [ ] [Flagpole.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Flagpole.hpp) + [Flagpole.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Flagpole.cpp) — level end marker.
-- [ ] Commit: `feat: implement BrickBlock, QuestionBlock, Pipe, and Flagpole`
+- [ ] Create: [BrickBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/BrickBlock.hpp), [QuestionBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/QuestionBlock.hpp), [Pipe.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Pipe.hpp), [Flagpole.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Flagpole.hpp)
+- [ ] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
 
-### 3.9 Entity Factory (Factory Pattern)
+### 3.12 Blocks (New in v2.0)
+- [ ] Create [HiddenBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/HiddenBlock.hpp) — invisible until hit from below
+- [ ] Create [MovingPlatform.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/MovingPlatform.hpp) — path-based movement, carries player
+- [ ] Create [FallingPlatform.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FallingPlatform.hpp) — 4-state lifecycle (State pattern)
+- [ ] Create [IceBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/IceBlock.hpp) — reduced friction surface
+- [ ] Create [ConveyorBelt.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ConveyorBelt.hpp) — directional push force
+- [ ] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
+
+### 3.13 Entity Factory (Factory Pattern)
 - [ ] Create [EntityFactory.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/EntityFactory.hpp) + [EntityFactory.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/EntityFactory.cpp)
-  - `enum class EntityType { Mario, Luigi, Goomba, KoopaTroopa, Paratroopa, Boo, Mushroom, FireFlower, Coin, Star, OneUp, BrickBlock, QuestionBlock, Pipe, Flagpole }`
+  - `enum class EntityType { ... }` — 25+ types [v2.0]
   - `static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position)`
-  - `static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position, const json& config)` — for level loader
+  - `static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position, const json& config)` — for level loader and variants
+  - Config-driven entity definitions: reads from `entities.json` [v2.0]
 - [ ] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt) with all entity source files
 - [ ] Verify build compiles
-- [ ] Commit: `feat: implement EntityFactory for all entity types`
+- [ ] Commit: `feat: implement EntityFactory for all 25+ entity types`
 - [ ] **Merge**: `git checkout dev && git merge feature/entities`
 
 ---
 
 ## Phase 4 — Tilemap & Levels (`feature/tilemap-levels`)
 
-> **Goal**: Level loading from JSON, tilemap rendering, camera scrolling.
+> **Goal**: Level loading from JSON, tilemap rendering, camera scrolling, world map.
 > **Branch**: `git checkout -b feature/tilemap-levels dev`
 
 ### 4.1 TileMap
 - [ ] Create [TileMap.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/TileMap.hpp) + [TileMap.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Utils/TileMap.cpp)
-  - 2D grid: `std::vector<std::vector<int>> tileGrid` (tile IDs)
-  - Tile types: `Empty=0, Ground=1, Brick=2, Question=3, Pipe=4, ...`
-  - `loadFromGrid(grid data)`
-  - `render(sf::RenderTarget&, Camera&)` — only draw visible tiles (culling)
-  - `getTileAt(int gridX, int gridY)` → tile type
-  - `worldToGrid(sf::Vector2f)` → grid coords
-  - `gridToWorld(int x, int y)` → world position
-  - Tileset texture: single spritesheet, index to sub-rect
-- [ ] Commit: `feat: implement TileMap with tile-based rendering and culling`
+  - 2D grid with tile IDs and tile properties (friction, conveyor direction) [v2.0]
+  - Tile types: `Empty=0, Ground=1, Brick=2, Question=3, Pipe=4, Ice=5, Conveyor=6, Water=7, ...` [v2.0: expanded]
+  - `render(sf::RenderTarget&, Camera&)` — only draw visible tiles
+  - `getTileAt()`, `worldToGrid()`, `gridToWorld()`
+  - `getTileSurfaceType()` — returns Ice, Normal, Water, Conveyor for physics [v2.0]
+  - P-Switch support: `swapBricksAndCoins()` [v2.0]
+  - Water zone tracking [v2.0]
+- [ ] Commit: `feat: implement TileMap with surface types and water zones`
 
 ### 4.2 Level Loader
 - [ ] Create [LevelLoader.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/LevelLoader.hpp) + [LevelLoader.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Utils/LevelLoader.cpp)
   - `loadLevel(const std::string& jsonPath)` → `Level` struct
-  - `struct Level { TileMap tilemap; std::vector<std::unique_ptr<Entity>> entities; sf::Vector2f spawnPoint; std::vector<sf::Vector2f> checkpoints; sf::Vector2f flagpolePos; std::string theme; }`
-  - Parse JSON format from SPEC §8.3
-  - Uses `EntityFactory::create()` for all entities
-  - Validate level dimensions (200×23 tiles)
-- [ ] Add a JSON parsing library (nlohmann/json via FetchContent or header-only)
-- [ ] Commit: `feat: implement LevelLoader with JSON parsing`
+  - Parse expanded JSON format from SPEC §9.6 (star coins, water zones, moving platforms, variants) [v2.0]
+  - Uses `EntityFactory::create()` with variant config [v2.0]
+- [ ] Commit: `feat: implement LevelLoader with expanded JSON parsing`
 
 ### 4.3 Camera
 - [ ] Create [Camera.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/Camera.hpp) + [Camera.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Graphics/Camera.cpp)
-  - Wraps `sf::View`
-  - `follow(const Entity& target)` — smooth follow with lookahead
-  - `setBounds(float levelWidth, float levelHeight)` — clamp to level edges
-  - Horizontal scrolling only (vertical locked)
-  - `getVisibleBounds()` → `AABB` for tile/entity culling
-- [ ] Commit: `feat: implement Camera with horizontal scrolling and bounds clamping`
+  - `follow()` — smooth follow with lookahead
+  - `setBounds()` — clamp to level edges
+  - Multiple scroll modes: horizontal, vertical, autoscroll [v2.0]
+  - Screen shake support [v2.0]
+  - `getVisibleBounds()` → `AABB` for culling
+- [ ] Commit: `feat: implement Camera with multi-mode scrolling and screen shake`
 
 ### 4.4 Design Level Files
-- [ ] Create [level_1.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/level_1.json) — Overworld/Grassland
-  - Ground tiles, platforms, gaps, QuestionBlocks, BrickBlocks, Goombas, Koopas, Coins, 1 checkpoint, 1 flagpole, warp pipe
-- [ ] Create [level_2.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/level_2.json) — Underground/Cave
-  - Darker theme, pits, tighter platforms, more enemies, Paratroopas
-- [ ] Create [level_3.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/level_3.json) — Castle/Lava
-  - Lava pits (instant death), Boo ghosts, Bowser boss area
-- [ ] Commit: `feat: create 3 level JSON files (Overworld, Underground, Castle)`
+- [ ] Create [level_1.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/level_1.json) — Overworld/Grassland + swimming section [v2.0]
+- [ ] Create [level_2.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/level_2.json) — Underground/Cave + ice blocks + Boom Boom mid-boss [v2.0]
+- [ ] Create [level_3.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/level_3.json) — Castle/Lava + Thwomps + autoscroll section + Bowser [v2.0]
+- [ ] Create [bonus_1.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/levels/bonus_1.json) — Coin-filled bonus room [v2.0]
+- [ ] Create [entities.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/config/entities.json) — Config-driven entity definitions [v2.0]
+- [ ] Commit: `feat: create level files and entity config`
 
 ### 4.5 Integration Test
 - [ ] Wire `PlayingState` to load Level 1, render TileMap, spawn Mario
-- [ ] Verify camera follows Mario, tiles render correctly
+- [ ] Verify camera follows Mario, tiles render correctly, surface types work
 - [ ] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt)
 - [ ] Commit: `feat: integrate tilemap and level loading into PlayingState`
 - [ ] **Merge**: `git checkout dev && git merge feature/tilemap-levels`
@@ -330,46 +358,66 @@
 
 ## Phase 5 — Graphics & Animation (`feature/graphics`)
 
-> **Goal**: Sprite animations, HUD, parallax backgrounds, particles.
+> **Goal**: Sprite animations, HUD, parallax backgrounds, particles, visual effects.
 > **Branch**: `git checkout -b feature/graphics dev`
 
 ### 5.1 SpriteSheet Handler
-- [ ] Create [SpriteSheet.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/SpriteSheet.hpp) + [SpriteSheet.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Graphics/SpriteSheet.cpp)
-  - Load a texture atlas, support variable frame sizes
+- [ ] Create [SpriteSheet.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/SpriteSheet.hpp)
 - [ ] Commit: `feat: implement SpriteSheet texture atlas handler`
 
 ### 5.2 Animation System
-- [ ] Create [Animation.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/Animation.hpp) + [Animation.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Graphics/Animation.cpp)
-  - `Animation(SpriteSheet&, std::vector<int> frameIndices, float frameDuration, bool loop)`
-- [ ] Create [AnimationManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/AnimationManager.hpp) + [AnimationManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Graphics/AnimationManager.cpp)
-  - Load animation definitions from config (`mario_idle`, `mario_walk`, etc.)
+- [ ] Create [Animation.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/Animation.hpp)
+- [ ] Create [AnimationManager.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/AnimationManager.hpp)
+  - Expanded animation states: wall_slide, ground_pound, swim, climb, crouch, slide, skid [v2.0]
 - [ ] Commit: `feat: implement Animation and AnimationManager`
 
 ### 5.3 HUD
-- [ ] Create [HUD.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/HUD.hpp) + [HUD.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Graphics/HUD.cpp)
-  - Render overlay: Score, Coins, World, Time, Lives (matching SPEC §9.4)
-  - Retro font: `PressStart2P.ttf`
-- [ ] Source a pixel font and add to `assets/fonts/`
-- [ ] Commit: `feat: implement HUD with score, coins, time, and lives display`
+- [ ] Create [HUD.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/HUD.hpp)
+  - Render overlay: Score, Coins, World, Time, Lives
+  - Combo counter display [v2.0]
+  - P-Switch timer bar [v2.0]
+  - Boss health bar [v2.0]
+  - Star coin indicators [v2.0]
+  - Floating score text [v2.0]
+- [ ] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
 
-### 5.4 Parallax Background
-- [ ] Implement multi-layer background rendering in `PlayingState` or `Renderer`
-  - Sky gradient, slow clouds (~0.2× speed), mountains (~0.5× speed)
-- [ ] Source/create background tile assets
+### 5.4 Minimap [v2.0]
+- [ ] Create [Minimap.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/Minimap.hpp)
+  - 200×40 pixel overview, toggleable with M key
+  - Shows player (green), enemies (red), items (yellow)
+- [ ] Commit: `feat: implement minimap overlay`
+
+### 5.5 Parallax Background
+- [ ] Implement multi-layer background rendering
 - [ ] Commit: `feat: implement parallax scrolling backgrounds`
 
-### 5.5 Particle System
-- [ ] Create [ParticleSystem.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/ParticleSystem.hpp) + [ParticleSystem.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Graphics/ParticleSystem.cpp)
-  - Pre-allocated particle pool. Types: `BrickBreak`, `CoinSparkle`, `DeathPoof`, `Stomp`.
-- [ ] Commit: `feat: implement ParticleSystem with brick and coin effects`
+### 5.6 Particle System
+- [ ] Create [ParticleSystem.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Graphics/ParticleSystem.hpp)
+  - Object-pooled particles [v2.0]
+  - Types: BrickBreak, CoinSparkle, DeathPoof, Stomp, Combo, WallDust, WaterBubble, LavaEmber [v2.0: expanded]
+- [ ] Commit: `feat: implement ParticleSystem with object pooling`
 
-### 5.6 Screen Transitions
-- [ ] Implement fade-in/fade-out black overlay transition in `GameStateManager`
-- [ ] Commit: `feat: implement fade screen transitions`
+### 5.7 Screen Transitions & Screen Shake [v2.0]
+- [ ] Implement fade-in/fade-out transitions
+- [ ] Implement screen shake system (light/medium/heavy) [v2.0]
+- [ ] Commit: `feat: implement screen transitions and shake system`
 
-### 5.7 Source & Integrate Assets
-- [ ] Download 16-bit Mario-style spritesheets, place in [textures/](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/textures/)
-- [ ] Wire all entities to use spritesheets instead of colored rectangles
+### 5.8 Entity Death Animations [v2.0]
+- [ ] Goomba squish, enemy flip, Star kill launch, player death
+- [ ] Commit: `feat: implement entity death animations`
+
+### 5.9 Invincibility Visual FX [v2.0]
+- [ ] Star power: rainbow color cycling + sparkle trail
+- [ ] Hit invincibility: sprite flashing
+- [ ] Commit: `feat: implement invincibility visual effects`
+
+### 5.10 Water & Lava Animation [v2.0]
+- [ ] Animated water surface (sine-wave), bubble particles
+- [ ] Animated lava surface, ember particles
+- [ ] Commit: `feat: implement water and lava visual effects`
+
+### 5.11 Source & Integrate Assets
+- [ ] Download spritesheets, wire to all entities
 - [ ] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt)
 - [ ] Commit: `feat: integrate sprite assets and wire to all entities`
 - [ ] **Merge**: `git checkout dev && git merge feature/graphics`
@@ -378,137 +426,211 @@
 
 ## Phase 6 — Audio (`feature/audio`)
 
-> **Goal**: Wire SoundManager, load SFX and BGM, volume controls.
+> **Goal**: Wire SoundManager, load SFX and BGM, volume controls, dynamic music.
 > **Branch**: `git checkout -b feature/audio dev`
 
 ### 6.1 Source Audio Assets
-- [ ] Find retro sound effects and BGM, place in [sounds/sfx/](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/sounds/sfx/) and [sounds/music/](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/assets/sounds/music/)
-- [ ] Commit: `feat: add audio assets (SFX and BGM)`
+- [ ] Find retro SFX and BGM assets (17+ SFX, 10+ BGM tracks) [v2.0: expanded]
+- [ ] Commit: `feat: add audio assets`
 
 ### 6.2 Wire Sound Events
-- [ ] In `SoundManager`, load all SFX on startup via `ResourceManager`
-- [ ] Subscribe `SoundManager` to `EventBus` events (`CoinCollected`, `EnemyDefeated`, etc.)
-- [ ] Add direct play calls for jumps, fireballs, pipe warping
-- [ ] BGM handling for levels, victory, game over, and temporary star power override
-- [ ] Commit: `feat: wire all sound events and background music`
+- [ ] Subscribe SoundManager to EventBus (15+ event types) [v2.0: expanded]
+- [ ] Surface-dependent footstep sounds [v2.0]
+- [ ] Combo SFX escalation [v2.0]
+- [ ] Dynamic music layer system [v2.0]
+- [ ] Commit: `feat: wire all sound events with dynamic music`
 
 ### 6.3 Volume Controls
-- [ ] Add volume sliders in Options menu and persist volume settings
-- [ ] Commit: `feat: add SFX and music volume controls`
+- [ ] Volume sliders in Options, persist to config.json
+- [ ] Commit: `feat: add volume controls`
 - [ ] **Merge**: `git checkout dev && git merge feature/audio`
 
 ---
 
 ## Phase 7 — Game States & UI (`feature/game-states`)
 
-> **Goal**: All menu screens, pause, game over, victory.
+> **Goal**: All menu screens, world map, pause, game over, victory, statistics, achievements.
 > **Branch**: `git checkout -b feature/game-states dev`
 
-### 7.1 Menu State
-- [ ] Rewrite `MenuState` with keyboard-navigable options: New Game, Load Game, Options, High Scores, Quit
-- [ ] Commit: `feat: implement full MenuState with navigation`
+### 7.1 Animated Menu State [v2.0]
+- [ ] Rewrite `MenuState` with animated background, running Mario, spinning coins
+- [ ] Attract mode (demo playback after 30s idle) [v2.0]
+- [ ] Options: New Game, Load Game, Options, High Scores, Statistics, Achievements, Quit [v2.0: expanded]
+- [ ] Commit: `feat: implement animated MenuState`
 
 ### 7.2 Character Select State
-- [ ] Create [CharSelectState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/CharSelectState.hpp) + [CharSelectState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/CharSelectState.cpp)
-  - Display Mario and Luigi side-by-side with stats and descriptions
-- [ ] Commit: `feat: implement CharSelectState`
+- [ ] Create CharSelectState — show Mario, Luigi side-by-side
+- [ ] Show Toad, Peach as locked/unlocked based on progress [v2.0]
+- [ ] Commit: `feat: implement CharSelectState with unlockable display`
 
-### 7.3 Playing State (Full Implementation)
-- [ ] Rewrite `PlayingState` to integrate: level load, player spawn, loop (Input → Physics → Entity Update → Camera → Render)
-- [ ] Add collision callbacks: stomp, item collect, pipe warp, flagpole
-- [ ] Add checkpoints, time limit, Pause (Esc), character switch (Tab)
-- [ ] Add ImGui development panel: physics tuning, entity inspector
-- [ ] Commit: `feat: implement full PlayingState with all game systems`
+### 7.3 World Map State [v2.0]
+- [ ] Create WorldMapState — overhead map with level nodes
+- [ ] Animated paths, star coin display, completion icons
+- [ ] Sequential level unlock
+- [ ] Commit: `feat: implement WorldMapState`
 
-### 7.4 Pause State
-- [ ] Create [PauseState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/PauseState.hpp) + [PauseState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/PauseState.cpp)
-  - Transparent overlay with Resume, Restart, Main Menu, Quit
+### 7.4 Playing State (Full Implementation)
+- [ ] Integrate: level load, player spawn, physics, camera, HUD, minimap
+- [ ] All collision callbacks including new block/item types [v2.0]
+- [ ] Swimming, climbing, wall sliding, ground pounding [v2.0]
+- [ ] P-Switch timer, combo system, star coin tracking [v2.0]
+- [ ] ImGui development panel
+- [ ] Commit: `feat: implement full PlayingState with all v2.0 systems`
+
+### 7.5 Pause State
+- [ ] Create PauseState — transparent overlay with Resume, Restart, Save, World Map, Menu, Quit [v2.0: expanded options]
 - [ ] Commit: `feat: implement PauseState overlay`
 
-### 7.5 Game Over State
-- [ ] Create [GameOverState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/GameOverState.hpp) + [GameOverState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/GameOverState.cpp)
-  - Animated screen with final score, options to return to menu
-- [ ] Commit: `feat: implement GameOverState`
+### 7.6 Game Over State
+- [ ] Create GameOverState with death counter and retry screen [v2.0]
+- [ ] Commit: `feat: implement GameOverState with death counter`
 
-### 7.6 Victory State
-- [ ] Create [VictoryState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/VictoryState.hpp) + [VictoryState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/VictoryState.cpp)
-  - Score calculations (level complete, time/coin bonus), level transition
-- [ ] Commit: `feat: implement VictoryState and level transitions`
+### 7.7 Victory State
+- [ ] Create VictoryState — score calculations, star coin summary, level transition
+- [ ] Commit: `feat: implement VictoryState`
 
-### 7.7 Options State & High Scores
-- [ ] Create [OptionsState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/OptionsState.hpp) + [OptionsState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/OptionsState.cpp)
-  - Volume sliders, keyboard mapping reference
-- [ ] Save/load high scores to [highscores.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/saves/highscores.json)
-- [ ] Commit: `feat: implement OptionsState`
-- [ ] Commit: `feat: implement high score display and persistence`
+### 7.8 Options State & High Scores
+- [ ] Create OptionsState — volume sliders, difficulty selection, controls rebinding [v2.0]
+- [ ] Colorblind mode toggle [v2.0]
+- [ ] High score display and persistence
+- [ ] Commit: `feat: implement OptionsState with difficulty and key rebinding`
+
+### 7.9 Statistics State [v2.0]
+- [ ] Create StatisticsState — total enemies, coins, deaths, time, combos
+- [ ] Commit: `feat: implement StatisticsState`
+
+### 7.10 Achievements Display [v2.0]
+- [ ] Achievement list screen (from Main Menu)
+- [ ] Toast notification system (top-right slide-in)
+- [ ] Commit: `feat: implement achievement display and toast notifications`
+
 - [ ] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt)
 - [ ] **Merge**: `git checkout dev && git merge feature/game-states`
 
 ---
 
-## Phase 8 — Save/Load (`feature/save-load`)
+## Phase 8 — Save/Load & Persistence (`feature/save-load`)
 
-> **Goal**: JSON serialization, save slots, auto-save at checkpoints.
+> **Goal**: JSON serialization, save slots, auto-save, statistics, achievements, config persistence.
 > **Branch**: `git checkout -b feature/save-load dev`
 
 ### 8.1 Serializer
-- [ ] Create [Serializer.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/Serializer.hpp) + [Serializer.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Utils/Serializer.cpp)
-  - Save/load slots 1-3 to [saves/slot_X.json](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/saves/) using SPEC §11.2 schema
-- [ ] Commit: `feat: implement Serializer for save/load with JSON`
+- [ ] Create [Serializer.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/Serializer.hpp) — save/load slots using SPEC §12.2 schema [v2.0: expanded with progress, stats, achievements, settings]
+- [ ] Commit: `feat: implement Serializer with expanded schema`
 
-### 8.2 Save/Load Integration
-- [ ] Trigger auto-save on reaching checkpoints
-- [ ] Add manual save option in Pause Menu, load slot previews in Main Menu
-- [ ] Commit: `feat: integrate save/load into game flow`
+### 8.2 Achievement Manager [v2.0]
+- [ ] Create [AchievementManager.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/AchievementManager.hpp) — subscribes to EventBus, checks conditions, fires AchievementUnlocked
+- [ ] Commit: `feat: implement AchievementManager`
+
+### 8.3 Statistics Tracker [v2.0]
+- [ ] Create [StatisticsTracker.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/StatisticsTracker.hpp) — subscribes to EventBus, accumulates stats
+- [ ] Commit: `feat: implement StatisticsTracker`
+
+### 8.4 Save/Load Integration
+- [ ] Auto-save at checkpoints, manual save from pause menu
+- [ ] Load slot previews with character, level, score, star coins, play time [v2.0: enhanced preview]
+- [ ] Settings persistence (volume, difficulty, key bindings, colorblind mode) [v2.0]
+- [ ] Commit: `feat: integrate save/load with achievements, stats, and settings`
 - [ ] **Merge**: `git checkout dev && git merge feature/save-load`
 
 ---
 
-## Phase 9 — Enemy AI & Boss (`feature/enemy-ai`)
+## Phase 9 — Enemy AI & Bosses (`feature/enemy-ai`)
 
-> **Goal**: Tune all enemy behaviors, implement Bowser boss fight.
+> **Goal**: Tune all enemy behaviors, implement bosses.
 > **Branch**: `git checkout -b feature/enemy-ai dev`
 
 ### 9.1 AI Behavior Tuning
-- [ ] Tune Goombas, Koopa Troopa shell physics, Paratroopa flight paths, Boo proximity
-- [ ] Add ImGui AI debug overlay (state labels, target vectors)
-- [ ] Commit: `feat: tune enemy AI behaviors and add debug visualization`
+- [ ] Tune all 13 enemy types + 3 color variants [v2.0: expanded from 5]
+- [ ] Lakitu spawner logic (Factory pattern integration) [v2.0]
+- [ ] Thwomp state machine (Idle → Slam → Rise) [v2.0]
+- [ ] Chain Chomp tether physics [v2.0]
+- [ ] ImGui AI debug overlay
+- [ ] Commit: `feat: tune all enemy AI behaviors`
 
-### 9.2 Bowser Boss
-- [ ] Create [Bowser.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Bowser.hpp) + [Bowser.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Bowser.cpp)
-  - Custom Boss AI: Phase 1 (walk + breathe fire), Phase 2 (jump + faster fire)
-  - Add Bowser health bar to HUD, boss fireball entities, Level 3 boss arena
-- [ ] Commit: `feat: implement Bowser boss fight for Level 3`
+### 9.2 Boom Boom Mid-Boss [v2.0]
+- [ ] 3-phase boss for Level 2
+- [ ] Charge → spin → recover cycle
+- [ ] Boss arena with locked doors
+- [ ] Commit: `feat: implement Boom Boom mid-boss`
 
-### 9.3 Difficulty Scaling
-- [ ] Balance entity distributions and hazard counts across Levels 1, 2, and 3
-- [ ] Commit: `feat: finalize difficulty progression across all levels`
+### 9.3 Bowser Boss
+- [ ] Create Bowser — Phase 1 (walk + fire), Phase 2 (jump + faster fire)
+- [ ] Bowser health bar, boss fireballs, Level 3 arena
+- [ ] Commit: `feat: implement Bowser boss fight`
+
+### 9.4 Difficulty Scaling [v2.0]
+- [ ] DifficultyStrategy: Easy/Normal/Hard modifiers applied to all levels
+- [ ] Balance entity distributions across all levels
+- [ ] Commit: `feat: implement difficulty modes and level balancing`
 - [ ] **Merge**: `git checkout dev && git merge feature/enemy-ai`
 
 ---
 
-## Phase 10 — Two-Player & Polish (`feature/polish`)
+## Phase 10 — Advanced Systems (`feature/advanced-systems`) [v2.0]
 
-> **Goal**: 2P versus mode, bug fixes, edge cases, visual polish.
+> **Goal**: Object pooling, config-driven entities, replay system, debug console.
+> **Branch**: `git checkout -b feature/advanced-systems dev`
+
+### 10.1 Object Pool
+- [ ] Create [ObjectPool.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/ObjectPool.hpp) — template class for pre-allocated entity recycling
+- [ ] Wire to: fireballs, particles, Bullet Bills, floating text
+- [ ] Commit: `feat: implement ObjectPool template and wire to entities`
+
+### 10.2 Config-Driven Entities
+- [ ] Create entities.json with all entity properties
+- [ ] Update EntityFactory to read from config
+- [ ] Commit: `feat: implement config-driven entity definitions`
+
+### 10.3 Replay System
+- [ ] Create [ReplayRecorder.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/ReplayRecorder.hpp)
+  - Record input commands per frame
+  - Save/load replay files
+  - Deterministic playback
+- [ ] Commit: `feat: implement replay recording and playback`
+
+### 10.4 Debug Console
+- [ ] Create [DebugConsole.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/DebugConsole.hpp)
+  - Toggle with ~, text→command parsing, autocomplete
+- [ ] Commit: `feat: implement debug console with command parsing`
+- [ ] **Merge**: `git checkout dev && git merge feature/advanced-systems`
+
+---
+
+## Phase 11 — Two-Player & Polish (`feature/polish`)
+
+> **Goal**: 2P versus mode, bug fixes, edge cases, visual/audio polish.
 > **Branch**: `git checkout -b feature/polish dev`
 
-### 10.1 Two-Player Versus Mode
-- [ ] Configure Player 2 keyboard mappings, spawn Mario + Luigi in PlayingState
-- [ ] Implement shared camera following the leading player, versus rules (flagpole race, stomp option)
+### 11.1 Two-Player Versus Mode
+- [ ] Configure Player 2 keyboard mappings
+- [ ] Shared camera following leading player, versus rules
 - [ ] Commit: `feat: implement two-player versus mode`
 
-### 10.2 Edge Cases & Bug Fixes
-- [ ] Respawn at checkpoint with death animation and delay
-- [ ] Flashing invincibility frames after getting hit
-- [ ] Clamp player movement inside camera boundaries
-- [ ] Pipe warp sliding transitions, Shell collision chain reactions, Time-out death, 100 coin 1-UP jingle, floating score text
-- [ ] Commit: `feat: fix edge cases and add death/respawn logic`
+### 11.2 Edge Cases & Bug Fixes
+- [ ] Respawn at checkpoint with death animation
+- [ ] Flashing invincibility frames
+- [ ] Clamp player inside camera
+- [ ] Shell collision chains, time-out death, 100 coin 1-UP, pipe transitions
+- [ ] Commit: `feat: fix edge cases and polish`
 
-### 10.3 Visual Polish & Testing
-- [ ] Screen shake on block breaks/Bowser stomps, coin sparkle trails, flagpole slide, World intro screen
-- [ ] Commit: `feat: add visual polish effects`
-- [ ] Complete full walkthrough tests of all 3 levels, power-up states, save/load slots, and 2P mode
-- [ ] Verify steady 60fps performance
+### 11.3 Meta-Game [v2.0]
+- [ ] New Game+ mode (mirrored levels, faster enemies)
+- [ ] Daily Challenge (date-seeded procedural level)
+- [ ] Unlockable character conditions
+- [ ] Commit: `feat: implement New Game+, Daily Challenge, and unlockables`
+
+### 11.4 Accessibility [v2.0]
+- [ ] Colorblind mode (shader/palette swap)
+- [ ] Audio navigation cues for menus
+- [ ] Commit: `feat: implement accessibility features`
+
+### 11.5 Final Testing
+- [ ] Complete full walkthrough of all 3 levels + bonus rooms
+- [ ] Test all power-up states, enemy types, block types
+- [ ] Test save/load, statistics, achievements
+- [ ] Test 2P mode, difficulty modes, key rebinding
+- [ ] Verify steady 60fps
 - [ ] Commit: `feat: final playtest and performance verification`
 - [ ] **Merge**: `git checkout dev && git merge feature/polish`
 
@@ -518,32 +640,27 @@
 
 ### Bonus A — Level Editor (`feature/level-editor`)
 - [ ] ImGui editor overlay (F1 toggle)
-- [ ] Tile palette: select and paint tiles
-- [ ] Entity palette: drag-and-drop enemies, items
+- [ ] Tile palette, entity palette, drag-and-drop
 - [ ] Undo/Redo with Command Pattern
 - [ ] Export/import level JSON
-- [ ] Play-test button: instant switch to PlayingState with current level
+- [ ] Play-test button
 
 ### Bonus B — Time Rewind (`feature/time-rewind`)
 - [ ] Circular buffer storing 300 frames of game state snapshots
-- [ ] Memento Pattern: `GameSnapshot` struct with all entity states
+- [ ] Memento Pattern: `GameSnapshot` struct
 - [ ] Hold Shift → reverse playback
-- [ ] Visual indicator (VHS rewind effect overlay)
+- [ ] VHS rewind visual overlay
 
 ### Bonus C — Shadow Mario (`feature/shadow-mario`)
-- [ ] Record player input each frame
-- [ ] Spawn Shadow Mario at level start
-- [ ] Replay recorded inputs with 3-second delay
-- [ ] Shadow visual: dark/translucent Mario sprite
+- [ ] Record player input, spawn Shadow Mario, replay with 3s delay
+- [ ] Dark/translucent sprite
 
 ### Bonus D — Dynamic Lighting (`feature/dynamic-lighting`)
-- [ ] GLSL fragment shader for radial light around Mario
-- [ ] Underground level: pitch black except light radius
-- [ ] Fireball illumination
-- [ ] Optional: day/night cycle for overworld
+- [ ] GLSL fragment shader for radial light
+- [ ] Underground darkness, fireball illumination
+- [ ] Optional day/night cycle
 
 ### Bonus E — Procedural Generation (`feature/procedural-levels`)
 - [ ] "Endless Mode" menu option
-- [ ] Chunk-based terrain generation (8-tile wide chunks)
-- [ ] Difficulty scaling over distance
-- [ ] Random enemy and coin placement with rules (no impossible jumps)
+- [ ] Chunk-based terrain generation
+- [ ] Difficulty scaling, validated placement
