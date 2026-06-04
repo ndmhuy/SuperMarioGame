@@ -58,12 +58,13 @@ The expanded spec creates a **significantly deeper and wider** hierarchy:
 ```
 Entity (abstract)
 ├── Character (abstract)
-│   ├── Mario
-│   ├── Luigi
-│   ├── Toad (unlockable — speed specialization)
-│   └── Peach (unlockable — float ability)
-│
-├── Enemy (abstract)
+│   ├── Player (abstract)
+│   │   ├── Mario
+│   │   ├── Luigi
+│   │   ├── Toad (unlockable — speed specialization)
+│   │   └── Peach (unlockable — float ability)
+│   │
+│   └── Enemy (abstract)
 │   ├── Goomba (+color variants with different AI)
 │   ├── KoopaTroopa (+Red variant: ledge-aware AI)
 │   ├── KoopaParatroopa (+Red variant: vertical bounce)
@@ -112,14 +113,14 @@ The initial spec demonstrates **6 design patterns**. The expanded scope exercise
 |---------|-------------------|---------------------|
 | **Factory** | EntityFactory creates 14 types | EntityFactory creates **25+ types**; Lakitu uses Factory to spawn Spinies at runtime |
 | **Singleton** | Game, ResourceManager, SoundManager | Same + **AchievementManager**, **StatisticsTracker** |
-| **State** | GameStateManager (6 states), PlayerState (4 forms) | GameStateManager (**8+ states** incl. WorldMap, Statistics), PlayerState (**7 forms**: +Cape, Mega, Mini), **FallingPlatform** (4-state lifecycle), **Thwomp** (3-state AI) |
+| **State** | GameStateManager (6 states), PlayerState (4 forms) | GameStateManager (**8+ states** incl. WorldMap, Statistics), IPlayerState (**5 base forms**: +Cape, Mini), **FallingPlatform** (4-state lifecycle), **Thwomp** (3-state AI) |
 | **Observer** | EventBus with 4 event types | EventBus with **15+ event types**; **ComboTracker**, **AchievementTracker**, **StatisticsTracker** all subscribe independently |
 | **Strategy** | 3 movement strategies (Patrol, Chase, Fly) | **7+ strategies**: +SwimMovement, TetheredChase, HammerThrow, TimerEmergence; **DifficultyStrategy** for game-wide scaling; **color variants** swap strategies |
 | **Command** | 5 input commands + undo/redo | **8+ commands**: +GroundPoundCommand, WallJumpCommand, CrouchCommand; **Debug console** parses text→commands; **Replay system** serializes command streams |
 | **Decorator** | *(not used)* | **Star overlay**, **Mega Mushroom** as temporary state decorators on base player state |
 | **Memento** | *(post-MVP only)* | **Time Rewind** + **Replay System** both use state snapshots |
 | **Object Pool** | *(not used)* | **Fireball pool**, **Particle pool**, **Enemy respawn pool** — demonstrates memory management |
-| **Template Method** | *(not used)* | **Enemy base class** defines `update()` skeleton: `applyStrategy() → checkBounds() → animate()`, subclasses override hooks |
+| **Template Method** | *(not used)* | **IMovementStrategy** defines `execute()` skeleton: `calculateTarget() → applyMovement() → checkConstraints()`, concrete strategies override hooks |
 
 **Academic value**: The initial spec demonstrates 6 patterns in isolated contexts. The expanded spec demonstrates **10+ patterns** with **cross-cutting interactions** (e.g., Observer triggers Factory which creates entities managed by Strategy, all logged by Command). This showcases **pattern composition**, which is a graduate-level software engineering concept.
 

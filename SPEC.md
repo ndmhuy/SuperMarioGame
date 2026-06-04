@@ -31,7 +31,7 @@ Core Layer           →  Game, GameStateManager, InputManager, ResourceManager,
 Game States          →  MenuState, CharSelectState, PlayingState, PauseState, GameOverState,
                         VictoryState, OptionsState, WorldMapState, StatisticsState
 World Layer          →  World, TileMap, Camera, HUD, Minimap
-Entity Layer         →  Entity → Character → Mario/Luigi/Toad/Peach/Enemy; Entity → Item; Entity → Block
+Entity Layer         →  Entity → Character → Player → Mario/Luigi/Toad/Peach; Entity → Character → Enemy; Entity → Item; Entity → Block
 Physics Layer        →  PhysicsEngine, AABB, CollisionDetector, CollisionResolver, SpatialHash
 Infrastructure       →  Renderer, AnimationManager, Serializer, EntityFactory, EventBus,
                         ObjectPool, ReplayRecorder, AchievementManager, StatisticsTracker
@@ -43,14 +43,14 @@ Infrastructure       →  Renderer, AnimationManager, Serializer, EntityFactory,
 | :--- | :--- | :--- | :--- |
 | 1 | **Factory** | `EntityFactory` | `createEntity(type, pos)` → `std::unique_ptr<Entity>`. Spawns all 25+ entity types. Lakitu uses Factory to spawn Spinies. |
 | 2 | **Singleton** | `Game`, `ResourceManager`, `SoundManager`, `AchievementManager` | Single instances. Lazy-init via `getInstance()`. |
-| 3 | **State** | `GameStateManager` / `IGameState`, `PlayerState`, `FallingPlatform`, `Thwomp` | Game flow (9 states). Player forms (7 states). Entity lifecycles. |
+| 3 | **State** | `GameStateManager` / `IGameState`, `IPlayerState`, `FallingPlatform`, `Thwomp` | Game flow (9 states). Player forms (5 concrete base states). Entity lifecycles. |
 | 4 | **Observer** | `EventBus` | Publish/subscribe: 15+ event types. HUD, SoundManager, ComboTracker, AchievementTracker, StatisticsTracker subscribe. |
 | 5 | **Strategy** | `IMovementStrategy` | Enemy AI: 7+ strategies (Patrol, Chase, Fly, Swim, TetheredChase, HammerThrow, TimerEmergence). Swappable at runtime. `DifficultyStrategy` for game-wide scaling. |
 | 6 | **Command** | `ICommand` + `InputManager` | 8+ commands. Keyboard → game commands. Debug console text→command parsing. Replay serialization. |
-| 7 | **Decorator** | `StarOverlay`, `MegaState` | Temporary state overlays that wrap the base player state without modifying it. |
+| 7 | **Decorator** | `StarDecorator`, `MegaDecorator` | Temporary state overlays that wrap the active `IPlayerState` without modifying it. |
 | 8 | **Memento** | `GameSnapshot` | Time rewind stores/restores full game state snapshots. Replay system. |
 | 9 | **Object Pool** | `ObjectPool<T>` | Pre-allocated pools for fireballs, particles, Bullet Bills. Avoids allocation in hot loops. |
-| 10 | **Template Method** | `Enemy::update()` | Base `update()` defines skeleton: `applyStrategy() → checkBounds() → animate()`. Subclasses override hooks. |
+| 10 | **Template Method** | `IMovementStrategy::execute()` | Base `execute()` defines skeleton: `calculateTarget() → applyMovement() → checkConstraints()`. Concrete strategies override hooks. |
 
 ---
 
@@ -201,30 +201,32 @@ Infrastructure       →  Renderer, AnimationManager, Serializer, EntityFactory,
 - Switching: Both at character select screen AND during gameplay via hotkey.
 - Two-player: Same keyboard, versus mode.
 
-### 5.2 Player States (State Pattern)
+### 5.2 Player States (State & Decorator Patterns)
 
-```
+```text
+Base States (IPlayerState)
 Small  ──(Mushroom)──▶  Super  ──(Fire Flower)──▶  Fire
   ▲                       ▲                          │
   │                       └──────(Hit)───────────────┘
   └──────────────(Hit)────┘
 
 Super  ──(Cape Feather)──▶  Cape
-Small  ──(Mega Mushroom)──▶  Mega (temporary, 8s)
 Small  ──(Mini Mushroom)──▶  Mini
 
-Star = temporary overlay state on any form (10 seconds, invincible)
+Decorators (Wrap Current State)
+- StarDecorator = 10s invincible overlay
+- MegaDecorator = 8s giant overlay
 ```
 
-| State | Size | Abilities | On Hit |
+| State / Decorator | Size | Abilities | On Hit |
 | :--- | :--- | :--- | :--- |
 | **Small** | 1 tile (32px) | Walk, run, jump | Die (lose life) |
 | **Super** | 2 tiles (64px) | Walk, run, jump, break bricks | → Small (invincibility frames) |
 | **Fire** | 2 tiles (64px) | Walk, run, jump, break bricks, shoot fireballs | → Super (invincibility frames) |
 | **Cape** | 2 tiles (64px) | Walk, run, jump, break bricks, glide, swoop attack | → Super (invincibility frames) |
-| **Mega** | 4 tiles (128px) | Destroys everything on contact. Temporary (8s). | Cannot be hit (invincible during Mega) |
 | **Mini** | 0.5 tiles (16px) | Walk on water, enter mini pipes, floatier jump | Die (lose life — fragile) |
-| **Star** | Same as current | All current + invincible, kills enemies on contact | Timer expires → return to base state |
+| *(Dec)* **Mega** | 4 tiles (128px) | Destroys everything on contact. Temporary (8s). | Cannot be hit (invincible during Mega) |
+| *(Dec)* **Star** | Same as current | All current + invincible, kills enemies on contact | Timer expires → return to base state |
 
 ---
 

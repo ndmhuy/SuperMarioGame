@@ -196,40 +196,46 @@
 ### 3.2 Character Base Class
 - [ ] Create [Character.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Character.hpp) + [Character.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Character.cpp)
   - Inherits `Entity`. Members: `health`, `speed`, `jumpForce`, `onGround`, `onWall`, `facingRight`
-  - Methods: `moveLeft()`, `moveRight()`, `jump()`, `run()`, `takeDamage()`
-  - `wallJump()`, `groundPound()`, `crouch()`, `slide()` [v2.0]
-  - `PlayerState` enum: `Small, Super, Fire, Cape, Mega, Mini, Star` [v2.0: expanded from 4 to 7]
+  - Methods: `moveLeft()`, `moveRight()`, `jump()`, `takeDamage()`
+- [ ] Commit: `feat: implement Character base class`
+
+### 3.3 Player Base Class
+- [ ] Create [Player.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Player.hpp) + [Player.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Player.cpp)
+  - Inherits `Character`. Members: `lives`, `coins`, `score`
+  - Methods: `run()`, `wallJump()`, `groundPound()`, `crouch()`, `slide()`, `shootFireball()` [v2.0]
+  - `IPlayerState` pattern for 5 base forms: Small, Super, Fire, Cape, Mini [v2.0]
+  - Decorators for temporary forms: `StarDecorator`, `MegaDecorator` [v2.0]
   - State transitions: `powerUp(ItemType)`, `powerDown()`
   - Invincibility frames timer after hit
   - Coyote time counter, jump buffer counter [v2.0]
   - Combo counter [v2.0]
-- [ ] Commit: `feat: implement Character base class with state management`
+- [ ] Commit: `feat: implement Player base class with state management`
 
-### 3.3 Mario
+### 3.4 Mario
 - [ ] Create [Mario.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Mario.hpp) + [Mario.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Mario.cpp)
-  - Inherits `Character`
+  - Inherits `Player`
   - Physics values from `Constants.hpp`: walk=150, run=300, jump=4 tiles
   - `shootFireball()` — if Fire state, max 2 active
   - Animation state tracking (idle, walk, run, jump, crouch, slide, wall_slide, ground_pound, swim, climb, die) [v2.0: expanded]
 - [ ] Commit: `feat: implement Mario entity`
 
-### 3.4 Luigi
+### 3.5 Luigi
 - [ ] Create [Luigi.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Luigi.hpp) + [Luigi.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Luigi.cpp)
-  - Inherits `Character`
+  - Inherits `Player`
   - Modified physics: speed×0.85, jump×1.2, airGravity×0.9
   - `doubleJump()` — can jump once more while airborne
 - [ ] Commit: `feat: implement Luigi entity with double jump`
 
-### 3.5 Unlockable Characters [v2.0]
+### 3.6 Unlockable Characters [v2.0]
 - [ ] Create [Toad.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Toad.hpp) + [Toad.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Toad.cpp)
-  - Inherits `Character`. Speed ×1.3, Jump ×0.8, no slide friction delay.
+  - Inherits `Player`. Speed ×1.3, Jump ×0.8, no slide friction delay.
 - [ ] Create [Peach.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Peach.hpp) + [Peach.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Peach.cpp)
-  - Inherits `Character`. Float ability (hold jump to hover 1.5s), speed ×0.9.
+  - Inherits `Player`. Float ability (hold jump to hover 1.5s), speed ×0.9.
 - [ ] Commit: `feat: implement unlockable characters Toad and Peach`
 
-### 3.6 Enemy Base + AI Strategies
+### 3.7 Enemy Base + AI Strategies
 - [ ] Create [IMovementStrategy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/IMovementStrategy.hpp) — interface
-  - `virtual void move(Enemy& enemy, float dt) = 0`
+  - `virtual void execute(Enemy& enemy, float dt) = 0` (Template Method skeleton)
   - `virtual ~IMovementStrategy() = default`
 - [ ] Create strategies:
   - [ ] [PatrolStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/PatrolStrategy.hpp) — walk, reverse on wall, fall off (or ledge-aware for variants) [v2.0]
@@ -242,19 +248,19 @@
   - [ ] [ProximityTriggerStrategy.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp) — idle, slam, rise (Thwomp) [v2.0]
 - [ ] Create [Enemy.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Enemy.hpp) + [Enemy.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Enemy.cpp)
   - Inherits `Character`. Holds `std::unique_ptr<IMovementStrategy>`
-  - Template Method: `update()` calls `applyStrategy() → checkBounds() → animate()` [v2.0]
+  - `update()` delegates fully to `aiStrategy->execute()` [v2.0]
   - `onStomped()`, `onHitByFireball()` — virtual
   - Scoring: each enemy kill grants points (configurable via JSON) [v2.0]
 - [ ] Commit: `feat: implement Enemy base class and 8 AI movement strategies`
 
-### 3.7 Concrete Enemies (Original)
+### 3.8 Concrete Enemies (Original)
 - [ ] Create [Goomba.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Goomba.hpp) — PatrolStrategy, variant support (brown/red) [v2.0]
 - [ ] Create [KoopaTroopa.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/KoopaTroopa.hpp) — PatrolStrategy, shell state, variant support [v2.0]
 - [ ] Create [KoopaParatroopa.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/KoopaParatroopa.hpp) — FlyStrategy, variant support [v2.0]
 - [ ] Create [Boo.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Boo.hpp) — ChaseStrategy, invulnerable
 - [ ] Commit: `feat: implement Goomba, KoopaTroopa, Paratroopa, Boo with variants`
 
-### 3.8 Concrete Enemies (New in v2.0)
+### 3.9 Concrete Enemies (New in v2.0)
 - [ ] Create [PiranhaPlant.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/PiranhaPlant.hpp) — TimerEmergenceStrategy, pipe-bound
 - [ ] Create [BulletBill.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/BulletBill.hpp) — LinearStrategy, stompable, spawned from Bill Blaster
 - [ ] Create [HammerBro.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/HammerBro.hpp) — HammerThrowStrategy, arc projectiles
@@ -264,13 +270,13 @@
 - [ ] Create [Spiny.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Spiny.hpp) — PatrolStrategy, not stompable
 - [ ] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
 
-### 3.9 Items (Original)
+### 3.10 Items (Original)
 - [ ] Create [Item.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Item.hpp) + [Item.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Item.cpp)
-  - Inherits `Entity`. `collected` flag. `virtual activate(Character&)`, `collect()`
+  - Inherits `Entity`. `collected` flag. `virtual activate(Player&)`, `collect()`
 - [ ] Create: [Mushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Mushroom.hpp), [FireFlower.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FireFlower.hpp), [Coin.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Coin.hpp), [Star.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Star.hpp), [OneUpMushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/OneUpMushroom.hpp)
 - [ ] Commit: `feat: implement original 5 items (Mushroom, FireFlower, Coin, Star, 1-UP)`
 
-### 3.10 Items (New in v2.0)
+### 3.11 Items (New in v2.0)
 - [ ] Create [CapeFeather.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/CapeFeather.hpp) — grants Cape state (glide + swoop)
 - [ ] Create [MegaMushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/MegaMushroom.hpp) — temporary giant (8s, Decorator pattern)
 - [ ] Create [MiniMushroom.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/MiniMushroom.hpp) — half-size, walk on water
@@ -280,13 +286,13 @@
 - [ ] Create [StarCoin.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/StarCoin.hpp) — 3 per level, tracked in save data
 - [ ] Commit: `feat: implement 7 new items (Cape, Mega, Mini, POW, PSwitch, Trampoline, StarCoin)`
 
-### 3.11 Blocks (Original)
+### 3.12 Blocks (Original)
 - [ ] Create [Block.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Block.hpp) + [Block.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/Block.cpp)
-  - Inherits `Entity`. `breakable` flag. `virtual onHitFromBelow(Character&)`
+  - Inherits `Entity`. `breakable` flag. `virtual onHitFromBelow(Player&)`
 - [ ] Create: [BrickBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/BrickBlock.hpp), [QuestionBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/QuestionBlock.hpp), [Pipe.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Pipe.hpp), [Flagpole.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/Flagpole.hpp)
 - [ ] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
 
-### 3.12 Blocks (New in v2.0)
+### 3.13 Blocks (New in v2.0)
 - [ ] Create [HiddenBlock.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/HiddenBlock.hpp) — invisible until hit from below
 - [ ] Create [MovingPlatform.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/MovingPlatform.hpp) — path-based movement, carries player
 - [ ] Create [FallingPlatform.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/FallingPlatform.hpp) — 4-state lifecycle (State pattern)
@@ -294,7 +300,7 @@
 - [ ] Create [ConveyorBelt.hpp/.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/ConveyorBelt.hpp) — directional push force
 - [ ] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
 
-### 3.13 Entity Factory (Factory Pattern)
+### 3.14 Entity Factory (Factory Pattern)
 - [ ] Create [EntityFactory.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Entities/EntityFactory.hpp) + [EntityFactory.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Entities/EntityFactory.cpp)
   - `enum class EntityType { ... }` — 25+ types [v2.0]
   - `static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position)`

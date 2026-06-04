@@ -52,7 +52,8 @@ Special: Double jump
 
 ```
 Entity (abstract)
-├── Character (abstract) → Mario, Luigi, Toad*, Peach*
+├── Character (abstract)
+│   ├── Player (abstract) → Mario, Luigi, Toad*, Peach*
 │   └── Enemy (abstract) → Goomba, KoopaTroopa, KoopaParatroopa, Boo, Bowser,
 │                           PiranhaPlant, BulletBill, HammerBro, Thwomp,
 │                           ChainChomp, Lakitu, Spiny, BoomBoom
@@ -69,14 +70,14 @@ Entity (abstract)
 ```
 Factory    → EntityFactory::create(type, pos) — 25+ types; Lakitu spawns Spinies
 Singleton  → Game, ResourceManager, SoundManager, AchievementManager
-State      → GameStateManager (9 states), PlayerState (7 forms), FallingPlatform, Thwomp
+State      → GameStateManager (9 states), IPlayerState (5 concrete base states), FallingPlatform, Thwomp
 Observer   → EventBus (15+ events) — HUD, Sound, Combo, Achievement, Stats subscribe
 Strategy   → 7+ strategies: Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger
 Command    → 8+ commands: Jump, Move, Fire, Crouch, GroundPound, WallJump + debug console
-Decorator  → StarOverlay, MegaState (temporary power-up wrappers)
+Decorator  → StarDecorator, MegaDecorator (temporary power-up wrappers around active IPlayerState)
 Memento    → GameSnapshot (time rewind, replay system)
 Pool       → ObjectPool<T> for fireballs, particles, projectiles
-Template   → Enemy::update() skeleton with overridable hooks
+Template   → IMovementStrategy::execute() skeleton with overridable hooks (delegated from Enemy)
 ```
 
 ### Player States Chain
@@ -86,11 +87,11 @@ Small ──(Mushroom)──▶ Super ──(FireFlower)──▶ Fire
   ▲                     ▲                       │
   └──────(Hit)──────────┘───────(Hit)───────────┘
 Super ──(CapeFeather)──▶ Cape
-Small ──(MegaMushroom)──▶ Mega (8s temporary)
 Small ──(MiniMushroom)──▶ Mini (half-tile)
-Star = temporary overlay on any state (10 seconds)
+
 Power-down: Fire/Cape → Super → Small (step-down)
-7 total states: Small, Super, Fire, Cape, Mega, Mini, Star
+5 concrete base states: Small, Super, Fire, Cape, Mini
+2 Decorators (wrap current state): Star (10s invincible), Mega (8s giant)
 ```
 
 ---

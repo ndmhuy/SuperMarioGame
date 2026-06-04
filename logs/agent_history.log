@@ -80,3 +80,58 @@ Summary of Changes:
 - Updated AGENTS.md: Quick Context updated with v2.0 entity hierarchy (25+ classes), 10+ patterns, 7 player states, new constants
 - Feature breakdown: +10 gameplay mechanics, +8 enemies, +6 items, +5 blocks, +6 level features, +6 UI/UX, +6 visual FX, +5 advanced systems, +3 accessibility, +4 meta-game
 ---
+[2026-06-02 10:20:00] Branch: dev
+Prompt: evaluate based on the review, and alter all our artifacts
+Files Modified: implementation_plan.md, AGENTS.md, SPEC.md, FEATURE_PROPOSAL.md, TASKS.md
+Summary of Changes:
+- Applied 6 major OOP architectural fixes across all documentation.
+- Inserted Player abstract class between Character and Mario/Luigi to fix Liskov Substitution Principle violation.
+- Refactored PlayerState into IPlayerState interface, removing boolean flag anti-patterns (e.g., hasFire).
+- Cleanly separated Decorator Pattern (StarDecorator, MegaDecorator) from State Pattern (Small, Super, Fire, Cape, Mini).
+- Modified Item::activate() and Block::onHitFromBelow() to accept Player references instead of Character references (Open/Closed Principle).
+- Removed conflicting Template Method from Enemy::update() and correctly assigned it to IMovementStrategy::execute().
+- Reorganized sequential task list in TASKS.md to reflect the new class hierarchy.
+---
+[2026-06-03 14:25:00] Branch: dev
+Prompt: Compress SPEC.md, implementation_plan.md, TASKS.md, AGENTS.md, Proposal, etc. into a single file called 25125083.md with a custom proposal in the start.
+Files Modified: 25125083.md, logs/agent_history.log
+Summary of Changes:
+- Created 25125083.md at the workspace root, containing a consolidated, premium specification and plan.
+- Authored a custom proposal section in the beginning, highlighting student ID 25125083, personal competency from past projects, and justification for assigning the expanded 110-feature OOP scope.
+- Merged the full content of FEATURE_PROPOSAL.md, SPEC.md, implementation_plan.md, TASKS.md, and AGENTS.md in a clean, structured layout.
+---
+[2026-06-03 14:35:00] Branch: dev
+Prompt: Make the outcome very detailed (full contents), as the previous was shorter than SPEC.md.
+Files Modified: 25125083.md, combine_docs.py, logs/agent_history.log
+Summary of Changes:
+- Created and executed python script combine_docs.py to read the entirety of 6 source documents.
+- Rewrote 25125083.md with the 100% full unabridged content (~2800 lines) of FEATURE_PROPOSAL.md, CS202_FinalProject_SuperMario_Spec.md, SPEC.md, implementation_plan.md, TASKS.md, and AGENTS.md, along with the custom proposal intro.
+---
+[2026-06-03 14:38:00] Branch: dev
+Prompt: Update past project names in the proposal.
+Files Modified: 25125083.md, combine_docs.py, logs/agent_history.log
+Summary of Changes:
+- Updated the past project names from Library Management System and Data Structure Visualizer to Personal Finance Manager and Data Structures Visualization as requested by the user.
+---
+[2026-06-03 14:43:00] Branch: dev
+Prompt: Review proposal 25125083.md, then apply fixes (remove Part 3, update entity counts, fix mermaid diagram, update folder tree, add phase estimates, fix strategy references, fix questionnaire text).
+Files Modified: 25125083.md, logs/agent_history.log
+Summary of Changes:
+- Created comprehensive proposal review artifact identifying 11 issues across 7 categories.
+- Replaced Part 3 (100-line verbatim assignment spec) with a 1-paragraph reference to the original file.
+- Updated all entity count references from "25+" to accurate counts: "40 concrete classes" / "38+ entity types" (~14 locations).
+- Removed phantom "Swim" AI strategy from strategy lists (swimming is a player physics mode, not an enemy AI strategy); updated to 8+ strategies.
+- Fixed Part 5 mermaid diagram: added 3 missing game states (OptionsState, WorldMapState, StatisticsState), expanded entity/physics/infrastructure nodes.
+- Expanded folder tree from ~65 files to ~110 files, adding all v2.0 entities, strategies, blocks, items, core managers, and config files.
+- Updated phase estimates table: split Phase 10 into "advanced-systems" and new Phase 11 "polish", added detailed deliverables and time estimates for both.
+- Fixed contradictory questionnaire instruction text ("Please fill in" → "has been completed").
+- Fixed mermaid syntax error (double closing bracket).
+- Net document change: 2876 → 2790 lines (-86 lines from Part 3 removal, net of folder tree expansion).
+[2026-06-04 22:34:30] Branch: dev
+Prompt: commit everything then push
+Files Modified: AGENTS.md, CS202_FinalProject_SuperMario_Spec.md, FEATURE_PROPOSAL.md, README.md, SPEC.md, TASKS.md, implementation_plan.md, logs/agent_history.log, 25125083.md, combine_docs.py
+Summary of Changes:
+- Staged all modified and untracked files to git.
+- Committed all changes to the dev branch with a descriptive message.
+- Pushed the dev branch to GitHub and set up upstream tracking for origin/dev.
+---

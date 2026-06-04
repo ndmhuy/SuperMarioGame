@@ -106,18 +106,22 @@ graph TD
 
 ---
 
-## 3. Design Patterns Mapping (5 Required + 1 Bonus)
+## 3. Design Patterns Mapping (5 Required + 5 Bonus = 10+)
 
 Each pattern is mapped to a concrete class and its rubric justification.
 
 | # | Pattern | Class(es) | Purpose | Rubric Points |
 | :--- | :--- | :--- | :--- | :--- |
-| 1 | **Factory** | `EntityFactory` | Spawns enemies, items, blocks from tilemap data. `createEntity(EntityType, position)` returns `std::unique_ptr<Entity>`. | 5 pts |
-| 2 | **Singleton** | `Game`, `ResourceManager`, `SoundManager` | Single instances of core managers. Lazy-init with `getInstance()`. | 5 pts |
-| 3 | **State** | `GameStateManager` + `IGameState` | Game flow states (Menu→Playing→Pause→GameOver). Also `PlayerState` for Mario forms (Small/Super/Fire). | 5 pts |
-| 4 | **Observer** | `EventBus` | Decoupled event system. HUD subscribes to `CoinCollected`, `EnemyDefeated`, `PlayerDied` events without direct coupling. | 5 pts |
-| 5 | **Strategy** | `IMovementStrategy` | Enemy AI behaviors: `PatrolStrategy` (walk back-and-forth), `ChaseStrategy` (pursue player), `FlyStrategy` (Paratroopa). Swappable at runtime. | 5 pts |
-| 6 *(bonus)* | **Command** | `ICommand` + `InputManager` | Map keyboard inputs to game commands (`JumpCommand`, `MoveLeftCommand`, `FireCommand`). Enables rebindable keys and replay recording. | — |
+| 1 | **Factory** | `EntityFactory` | Spawns enemies, items, blocks from tilemap data. `createEntity(EntityType, position)` returns `std::unique_ptr<Entity>`. Lakitu uses Factory to spawn Spinies at runtime. | 5 pts |
+| 2 | **Singleton** | `Game`, `ResourceManager`, `SoundManager`, `AchievementManager` | Single instances of core managers. Lazy-init with `getInstance()`. | 5 pts |
+| 3 | **State** | `GameStateManager` / `IGameState`, `IPlayerState` (5 concrete states: Small, Super, Fire, Cape, Mini), `FallingPlatform`, `Thwomp` | Game flow (9 states). Player power forms (5 permanent states). Entity lifecycles. **Note**: Star and Mega are *not* states — they are Decorators (see #7). | 5 pts |
+| 4 | **Observer** | `EventBus` | Decoupled event system. 15+ event types. HUD, SoundManager, ComboTracker, AchievementTracker, StatisticsTracker subscribe independently. | 5 pts |
+| 5 | **Strategy** | `IMovementStrategy` | Enemy AI behaviors: 7+ strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger). Swappable at runtime. Enemy `update()` delegates entirely to strategy — no Template Method hooks needed. | 5 pts |
+| 6 | **Command** | `ICommand` + `InputManager` | 8+ commands. Keyboard → game commands. Debug console text→command parsing. Replay serialization. Rebindable keys. | — |
+| 7 | **Decorator** | `StarDecorator`, `MegaDecorator` | Temporary power-up overlays that *wrap* the active `IPlayerState` without replacing it. `StarDecorator(FireState)` adds invincibility while preserving fireball ability. | — |
+| 8 | **Memento** | `GameSnapshot` | Time rewind stores/restores full game state snapshots. Replay system. | — |
+| 9 | **Object Pool** | `ObjectPool<T>` | Pre-allocated pools for fireballs, particles, Bullet Bills. Avoids allocation in hot loops. | — |
+| 10 | **Template Method** | `IMovementStrategy::execute()` | Base strategy `execute()` defines skeleton: `calculateTarget() → applyMovement() → checkConstraints()`. Concrete strategies override hooks. Applied to *strategies*, not to `Enemy` directly. | — |
 
 ---
 
@@ -142,28 +146,43 @@ classDiagram
         #float speed
         #float jumpForce
         #bool onGround
-        #PlayerState* currentState
         +moveLeft()
         +moveRight()
         +jump()
         +takeDamage()
     }
 
+    class Player {
+        <<abstract>>
+        #std::unique_ptr~IPlayerState~ currentState
+        #int lives
+        #int coins
+        #int score
+        +powerUp(ItemType)
+        +powerDown()
+        +shootFireball()
+        +getCurrentState() IPlayerState&
+    }
+
     class Mario {
-        -bool hasFire
-        +powerUp(Item&)
+        +update(float dt)
+        +render(sf::RenderTarget&)
     }
 
     class Luigi {
-        +powerUp(Item&)
+        -bool hasDoubleJumped
+        +doubleJump()
+        +update(float dt)
+        +render(sf::RenderTarget&)
     }
 
     class Enemy {
         <<abstract>>
-        #IMovementStrategy* aiStrategy
-        +setStrategy(IMovementStrategy*)
-        +onStomped()
-        +onHitByFireball()
+        #std::unique_ptr~IMovementStrategy~ aiStrategy
+        #int scoreValue
+        +setStrategy(std::unique_ptr~IMovementStrategy~)
+        +onStomped()*
+        +onHitByFireball()*
     }
 
     class Goomba
@@ -175,7 +194,7 @@ classDiagram
     class Item {
         <<abstract>>
         #bool collected
-        +activate(Character&)*
+        +activate(Player&)*
         +collect()*
     }
 
@@ -187,7 +206,7 @@ classDiagram
     class Block {
         <<abstract>>
         #bool breakable
-        +onHitFromBelow(Character&)*
+        +onHitFromBelow(Player&)*
     }
 
     class BrickBlock
@@ -195,12 +214,38 @@ classDiagram
         -Item* containedItem
     }
 
+    class IPlayerState {
+        <<interface>>
+        +enter(Player&)*
+        +exit(Player&)*
+        +handleInput(Player&, InputEvent)*
+        +update(Player&, float dt)*
+        +getSize() sf::Vector2f*
+    }
+
+    class SmallState
+    class SuperState
+    class FireState
+    class CapeState
+    class MiniState
+
+    class PlayerStateDecorator {
+        <<abstract>>
+        #std::unique_ptr~IPlayerState~ wrappedState
+        +enter(Player&)
+        +exit(Player&)
+    }
+    class StarDecorator
+    class MegaDecorator
+
     Entity <|-- Character
     Entity <|-- Item
     Entity <|-- Block
-    Character <|-- Mario
-    Character <|-- Luigi
+    Character <|-- Player
     Character <|-- Enemy
+    Player <|-- Mario
+    Player <|-- Luigi
+    Player *-- IPlayerState
     Enemy <|-- Goomba
     Enemy <|-- KoopaTroopa
     Item <|-- Mushroom
@@ -209,6 +254,14 @@ classDiagram
     Item <|-- Star
     Block <|-- BrickBlock
     Block <|-- QuestionBlock
+    IPlayerState <|.. SmallState
+    IPlayerState <|.. SuperState
+    IPlayerState <|.. FireState
+    IPlayerState <|.. CapeState
+    IPlayerState <|.. MiniState
+    IPlayerState <|-- PlayerStateDecorator
+    PlayerStateDecorator <|-- StarDecorator
+    PlayerStateDecorator <|-- MegaDecorator
 ```
 
 ---

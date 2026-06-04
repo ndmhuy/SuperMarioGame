@@ -42,7 +42,8 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 * **Luigi**: Higher jump (×1.2), slower speed (×0.85), floatier gravity (×0.9), double jump
 * **Toad** (Unlockable): Faster speed (×1.3), lower jump (×0.8), instant acceleration
 * **Peach** (Unlockable): Float hover (1.5s), slightly slower (×0.9)
-* **7 Power-Up States**: Small → Super → Fire/Cape, Star overlay, Mega (temporary giant), Mini (half-size)
+* **5 Power-Up States**: Small → Super → Fire/Cape, Mini (half-size)
+* **2 Decorators**: Star (10s invincible), Mega (8s giant)
 
 ### Gameplay Mechanics (10 Movement Types)
 * Walk, Run, Jump, Wall Jump/Slide, Ground Pound, Crouch/Slide, Swimming, Climbing, Combo System, Momentum/Skidding
@@ -101,14 +102,14 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 | :--- | :--- | :--- |
 | **Factory** | `EntityFactory` | Creates 25+ entity types. Lakitu uses Factory to spawn Spinies at runtime. |
 | **Singleton** | `Game`, `ResourceManager`, `SoundManager`, `AchievementManager` | Global instances with lazy initialization. |
-| **State** | `GameStateManager`, `PlayerState`, `FallingPlatform`, `Thwomp` | 9 game states, 7 player states, entity lifecycles. |
+| **State** | `GameStateManager`, `IPlayerState`, `FallingPlatform`, `Thwomp` | 9 game states, 5 base player states, entity lifecycles. |
 | **Observer** | `EventBus` | 15+ event types. HUD, Sound, Combo, Achievement, Statistics trackers all subscribe. |
 | **Strategy** | `IMovementStrategy` | 7+ enemy AI strategies (Patrol, Chase, Fly, Swim, Tethered, HammerThrow, Proximity). Difficulty modes. |
 | **Command** | `InputManager` / `ICommand` | 8+ game commands. Key rebinding. Debug console text→command. Replay serialization. |
-| **Decorator** | `StarOverlay`, `MegaState` | Temporary power-up overlays wrapping base player state. |
+| **Decorator** | `StarDecorator`, `MegaDecorator` | Temporary power-up overlays wrapping active `IPlayerState`. |
 | **Memento** | `GameSnapshot` | Time rewind and replay system state capture. |
 | **Object Pool** | `ObjectPool<T>` | Pre-allocated pools for fireballs, particles, projectiles. |
-| **Template Method** | `Enemy::update()` | Base skeleton: `applyStrategy() → checkBounds() → animate()`. Subclasses override hooks. |
+| **Template Method** | `IMovementStrategy::execute()` | Base skeleton: `calculateTarget() → applyMovement() → checkConstraints()`. Concrete strategies override hooks. |
 
 ---
 
