@@ -135,3 +135,20 @@ Summary of Changes:
 - Committed all changes to the dev branch with a descriptive message.
 - Pushed the dev branch to GitHub and set up upstream tracking for origin/dev.
 ---
+[2026-06-07 14:35:00] Branch: dev
+Prompt: convert implementation_plan, SPEC and TASKS to pdf
+Files Modified: implementation_plan.pdf (NEW), SPEC.pdf (NEW), TASKS.pdf (NEW), logs/agent_history.log
+Summary of Changes:
+- Installed `weasyprint` package via Homebrew.
+- Installed `markdown` and `pymdown-extensions` python packages.
+- Created and executed a python script to parse `implementation_plan.md`, `SPEC.md`, and `TASKS.md` to HTML with a modern CSS layout, and compiled them to PDF using WeasyPrint.
+---
+[2026-06-07 14:48:00] Branch: dev
+Prompt: Create a separate task division for 2 members, export to MD/PDF, and commit and push everything.
+Files Modified: TASK_DIVISION.md (NEW), TASK_DIVISION.pdf (NEW), logs/agent_history.log
+Summary of Changes:
+- Drafted a detailed 2-member task division plan (TASK_DIVISION.md) mapping tasks for Member A (Player & World) and Member B (Enemies & Systems), ensuring both handle system and presentation tasks.
+- Generated TASK_DIVISION.pdf using WeasyPrint using a custom HTML template.
+- Committed all generated PDFs (SPEC.pdf, TASKS.pdf, implementation_plan.pdf, TASK_DIVISION.pdf) and TASK_DIVISION.md to the dev branch and pushed to origin/dev.
+---
+
