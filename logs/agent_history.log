@@ -164,5 +164,5 @@ Summary of Changes:
 - Implemented singleton `Game` main loop class using fixed-timestep (60fps) logic.
 - Refactored `main.cpp` to initialize and run the Game loop singleton.
 - Created placeholder screens `MenuState` and `PlayingState` to verify transitions.
-- Ran clean CMake configuration and project compilation successfully.
+- Ran clean CMake configuration and compilation, resolving SFML 3.0.2 Font::openFromFile breaking API change.
 ---

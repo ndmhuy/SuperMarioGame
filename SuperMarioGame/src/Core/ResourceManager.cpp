@@ -29,7 +29,7 @@ sf::Texture& ResourceManager::getTexture(const std::string& id) {
 
 bool ResourceManager::loadFont(const std::string& id, const std::string& path) {
     sf::Font font;
-    if (font.loadFromFile(path)) {
+    if (font.openFromFile(path)) {
         m_fonts[id] = std::move(font);
         return true;
     }
