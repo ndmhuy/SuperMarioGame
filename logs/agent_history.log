@@ -151,4 +151,18 @@ Summary of Changes:
 - Generated TASK_DIVISION.pdf using WeasyPrint using a custom HTML template.
 - Committed all generated PDFs (SPEC.pdf, TASKS.pdf, implementation_plan.pdf, TASK_DIVISION.pdf) and TASK_DIVISION.md to the dev branch and pushed to origin/dev.
 ---
-
+[2026-06-09 13:35:10] Branch: feature/core-engine
+Prompt: now I will start phase 1 of member A, create the infrastructure for me (no real coding, only skeleton)
+Files Modified: SuperMarioGame/include/Utils/Constants.hpp, SuperMarioGame/include/Utils/MathUtils.hpp, SuperMarioGame/src/Utils/MathUtils.cpp, SuperMarioGame/include/Core/ResourceManager.hpp, SuperMarioGame/src/Core/ResourceManager.cpp, SuperMarioGame/include/Core/EventBus.hpp, SuperMarioGame/src/Core/EventBus.cpp, SuperMarioGame/include/Core/IGameState.hpp, SuperMarioGame/include/Core/GameStateManager.hpp, SuperMarioGame/src/Core/GameStateManager.cpp, SuperMarioGame/include/Core/Game.hpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/include/Core/MenuState.hpp, SuperMarioGame/src/Core/MenuState.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp, SuperMarioGame/src/main.cpp, TASKS.md, logs/agent_history.log
+Summary of Changes:
+- Switched development to `feature/core-engine` subbranch off `dev`.
+- Created game-wide constants file `Constants.hpp`.
+- Created generic math templates and float vector functions `MathUtils.hpp/.cpp`.
+- Implemented singleton stubs for `ResourceManager`.
+- Implemented observer-pattern singleton `EventBus` with 18 game event types.
+- Implemented stack-based state manager interface and implementation `IGameState.hpp`, `GameStateManager.hpp/.cpp`.
+- Implemented singleton `Game` main loop class using fixed-timestep (60fps) logic.
+- Refactored `main.cpp` to initialize and run the Game loop singleton.
+- Created placeholder screens `MenuState` and `PlayingState` to verify transitions.
+- Ran clean CMake configuration and project compilation successfully.
+---

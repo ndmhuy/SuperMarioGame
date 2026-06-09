@@ -24,7 +24,7 @@
 > **Branch**: `git checkout -b feature/core-engine dev`
 
 ### 1.1 Constants & Utilities
-- [ ] Create [Constants.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/Constants.hpp) — all game constants from SPEC §4
+- [x] Create [Constants.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/Constants.hpp) — all game constants from SPEC §4
   - `WINDOW_WIDTH=1280`, `WINDOW_HEIGHT=720`, `TILE_SIZE=32`
   - `GRAVITY=0.5f`, `MARIO_WALK_SPEED=150.f`, `MARIO_RUN_SPEED=300.f`
   - `MARIO_JUMP_HEIGHT=128.f`, `FIXED_TIMESTEP=1.0f/60.0f`
@@ -33,19 +33,19 @@
   - `COYOTE_FRAMES=6`, `JUMP_BUFFER_FRAMES=6` [v2.0]
   - `WALL_SLIDE_SPEED=50.f`, `GROUND_POUND_SPEED=600.f` [v2.0]
   - `COMBO_MULTIPLIERS={1,2,4,8}` [v2.0]
-- [ ] Create [MathUtils.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/MathUtils.hpp) + [MathUtils.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Utils/MathUtils.cpp)
+- [x] Create [MathUtils.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Utils/MathUtils.hpp) + [MathUtils.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Utils/MathUtils.cpp)
   - `clamp()`, `lerp()`, `sign()`, vector helpers
-- [ ] Commit: `feat: add game constants and math utilities`
+- [x] Commit: `feat: add game constants and math utilities`
 
 ### 1.2 Resource Manager (Singleton)
-- [ ] Create [ResourceManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/ResourceManager.hpp) + [ResourceManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/ResourceManager.cpp)
+- [x] Create [ResourceManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/ResourceManager.hpp) + [ResourceManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/ResourceManager.cpp)
   - Singleton with `static ResourceManager& getInstance()`
   - `loadTexture(id, path)`, `getTexture(id)` → `sf::Texture&`
   - `loadFont(id, path)`, `getFont(id)` → `sf::Font&`
   - `loadSoundBuffer(id, path)`, `getSoundBuffer(id)` → `sf::SoundBuffer&`
   - Internal `std::unordered_map<std::string, sf::Texture>` etc.
   - Delete copy/move constructors
-- [ ] Commit: `feat: implement ResourceManager singleton`
+- [x] Commit: `feat: implement ResourceManager singleton`
 
 ### 1.3 Sound Manager (Singleton)
 - [ ] Create [SoundManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/SoundManager.hpp) + [SoundManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/SoundManager.cpp)
@@ -59,13 +59,13 @@
 - [ ] Commit: `feat: implement SoundManager singleton`
 
 ### 1.4 Event Bus (Observer Pattern)
-- [ ] Create [EventBus.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/EventBus.hpp) + [EventBus.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/EventBus.cpp)
+- [x] Create [EventBus.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/EventBus.hpp) + [EventBus.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/EventBus.cpp)
   - `enum class EventType { CoinCollected, EnemyDefeated, PlayerDied, PowerUpCollected, LevelComplete, ComboHit, AchievementUnlocked, StarCoinCollected, PSwitchActivated, BossDefeated, ... }` [v2.0: expanded from 4 to 15+ types]
   - `struct GameEvent { EventType type; std::any data; }`
   - `subscribe(EventType, std::function<void(const GameEvent&)>)` → returns subscription ID
   - `unsubscribe(subscriptionId)`
   - `publish(GameEvent)`
-- [ ] Commit: `feat: implement EventBus observer pattern`
+- [x] Commit: `feat: implement EventBus observer pattern`
 
 ### 1.5 Input Manager (Command Pattern)
 - [ ] Create [InputManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/InputManager.hpp) + [InputManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/InputManager.cpp)
@@ -79,23 +79,23 @@
 - [ ] Commit: `feat: implement InputManager with Command pattern`
 
 ### 1.6 Game State Manager (State Pattern)
-- [ ] Create [IGameState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/IGameState.hpp) — abstract interface
+- [x] Create [IGameState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/IGameState.hpp) — abstract interface
   - `virtual void enter() = 0`
   - `virtual void exit() = 0`
   - `virtual void handleInput(sf::Event) = 0`
   - `virtual void update(float dt) = 0`
   - `virtual void render(sf::RenderTarget&) = 0`
   - `virtual ~IGameState() = default`
-- [ ] Create [GameStateManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/GameStateManager.hpp) + [GameStateManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/GameStateManager.cpp)
+- [x] Create [GameStateManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/GameStateManager.hpp) + [GameStateManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/GameStateManager.cpp)
   - Stack-based: `pushState()`, `popState()`, `changeState()`
   - `std::stack<std::unique_ptr<IGameState>>`
   - `getCurrentState()` → `IGameState*`
   - Calls enter/exit on transitions
   - Support for 9 game states [v2.0: +WorldMapState, StatisticsState]
-- [ ] Commit: `feat: implement GameStateManager with state stack`
+- [x] Commit: `feat: implement GameStateManager with state stack`
 
 ### 1.7 Game Class (Singleton, Main Loop)
-- [ ] Create [Game.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/Game.hpp) + [Game.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/Game.cpp)
+- [x] Create [Game.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/Game.hpp) + [Game.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/Game.cpp)
   - Singleton: `static Game& getInstance()`
   - Owns `sf::RenderWindow` (1280×720)
   - Owns `GameStateManager`
@@ -103,15 +103,15 @@
   - `run()`, `quit()`
   - ImGui integration: `ImGui::SFML::Update()` in loop
   - Initial state: push `MenuState` (placeholder for now)
-- [ ] Refactor [main.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/main.cpp) — calls `Game::getInstance().run()`
-- [ ] Commit: `feat: implement Game singleton with fixed-timestep loop`
+- [x] Refactor [main.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/main.cpp) — calls `Game::getInstance().run()`
+- [x] Commit: `feat: implement Game singleton with fixed-timestep loop`
 
 ### 1.8 Placeholder States
-- [ ] Create [MenuState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/MenuState.hpp) + [MenuState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/MenuState.cpp) — placeholder "Press Enter to Start"
-- [ ] Create [PlayingState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/PlayingState.hpp) + [PlayingState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/PlayingState.cpp) — placeholder colored screen
-- [ ] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt) — add all new source files
-- [ ] Verify build compiles and runs with state transitions
-- [ ] Commit: `feat: add placeholder MenuState and PlayingState`
+- [x] Create [MenuState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/MenuState.hpp) + [MenuState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/MenuState.cpp) — placeholder "Press Enter to Start"
+- [x] Create [PlayingState.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/PlayingState.hpp) + [PlayingState.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/PlayingState.cpp) — placeholder colored screen
+- [x] Update [CMakeLists.txt](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/CMakeLists.txt) — add all new source files
+- [x] Verify build compiles and runs with state transitions
+- [x] Commit: `feat: add placeholder MenuState and PlayingState`
 - [ ] **Merge**: `git checkout dev && git merge feature/core-engine`
 
 ---
