@@ -8,6 +8,7 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 
 ## 👥 Team Members
 - **Nguyễn Đình Minh Huy** (Student ID: 25125083)
+- **Trần Gia Huy** (Student ID: 25125084)
 
 ---
 
