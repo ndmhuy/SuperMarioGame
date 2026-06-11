@@ -166,3 +166,20 @@ Summary of Changes:
 - Created placeholder screens `MenuState` and `PlayingState` to verify transitions.
 - Ran clean CMake configuration and compilation, resolving SFML 3.0.2 Font::openFromFile breaking API change.
 ---
+[2026-06-11 07:09:00] Branch: dev
+Prompt: Revert implementation code to skeleton stubs, create skeleton classes for Phases 1-4, merge back into dev, and push to remote.
+Files Modified:
+- SuperMarioGame/src/Core/EventBus.cpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Core/GameStateManager.cpp, SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/include/Physics/AABB.hpp, SuperMarioGame/include/Physics/CollisionDetector.hpp, SuperMarioGame/include/Physics/CollisionResolver.hpp, SuperMarioGame/include/Physics/PhysicsEngine.hpp, SuperMarioGame/include/Physics/SpatialHash.hpp
+- SuperMarioGame/src/Physics/AABB.cpp, SuperMarioGame/src/Physics/CollisionDetector.cpp, SuperMarioGame/src/Physics/CollisionResolver.cpp, SuperMarioGame/src/Physics/PhysicsEngine.cpp, SuperMarioGame/src/Physics/SpatialHash.cpp
+- SuperMarioGame/include/Entities/Entity.hpp, SuperMarioGame/include/Entities/Character.hpp, SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/include/Entities/Item.hpp, SuperMarioGame/include/Entities/Luigi.hpp, SuperMarioGame/include/Entities/Mario.hpp, SuperMarioGame/include/Entities/Peach.hpp, SuperMarioGame/include/Entities/Toad.hpp, SuperMarioGame/include/Entities/Mushroom.hpp, SuperMarioGame/include/Entities/FireFlower.hpp, SuperMarioGame/include/Entities/Coin.hpp, SuperMarioGame/include/Entities/Star.hpp, SuperMarioGame/include/Entities/OneUpMushroom.hpp, SuperMarioGame/include/Entities/CapeFeather.hpp, SuperMarioGame/include/Entities/MegaMushroom.hpp, SuperMarioGame/include/Entities/MiniMushroom.hpp, SuperMarioGame/include/Entities/POWBlock.hpp, SuperMarioGame/include/Entities/PSwitch.hpp, SuperMarioGame/include/Entities/Trampoline.hpp, SuperMarioGame/include/Entities/StarCoin.hpp, SuperMarioGame/include/Entities/IPlayerState.hpp
+- SuperMarioGame/src/Entities/Entity.cpp, SuperMarioGame/src/Entities/Character.cpp, SuperMarioGame/src/Entities/Player.cpp, SuperMarioGame/src/Entities/Item.cpp, SuperMarioGame/src/Entities/Luigi.cpp, SuperMarioGame/src/Entities/Mario.cpp, SuperMarioGame/src/Entities/Peach.cpp, SuperMarioGame/src/Entities/Toad.cpp, SuperMarioGame/src/Entities/Mushroom.cpp, SuperMarioGame/src/Entities/FireFlower.cpp, SuperMarioGame/src/Entities/Coin.cpp, SuperMarioGame/src/Entities/Star.cpp, SuperMarioGame/src/Entities/OneUpMushroom.cpp, SuperMarioGame/src/Entities/CapeFeather.cpp, SuperMarioGame/src/Entities/MegaMushroom.cpp, SuperMarioGame/src/Entities/MiniMushroom.cpp, SuperMarioGame/src/Entities/POWBlock.cpp, SuperMarioGame/src/Entities/PSwitch.cpp, SuperMarioGame/src/Entities/Trampoline.cpp, SuperMarioGame/src/Entities/StarCoin.cpp, SuperMarioGame/src/Entities/IPlayerState.cpp
+- SuperMarioGame/include/Graphics/Camera.hpp, SuperMarioGame/src/Graphics/Camera.cpp
+- SuperMarioGame/include/Utils/LevelLoader.hpp, SuperMarioGame/include/Utils/TileMap.hpp, SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/src/Utils/TileMap.cpp, SuperMarioGame/src/Utils/MathUtils.cpp
+Summary of Changes:
+- Replaced actual implementation logic in all Phase 1 manager classes and utilities with `// TODO: Implement by hand` placeholders.
+- Kept only basic configuration and setup codes (window/renderer setup in Game and main) to ensure the project still builds.
+- Created all header and source class declarations and empty implementation skeletons for Phase 2 (Physics), Phase 3 (Entities), and Phase 4 (TileMap, LevelLoader, Camera) following "one class per file" OOP pattern.
+- Successfully built project to ensure zero compiler errors or warnings.
+- Pulled latest changes from origin/dev, rebased local commits, and successfully pushed the merged dev branch to remote.
+---
