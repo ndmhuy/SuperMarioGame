@@ -2,7 +2,9 @@
 
 #include <string>
 #include <vector>
+#include <SFML/Audio/Sound.hpp>
 #include <SFML/Audio/Music.hpp>
+
 
 class SoundManager {
 public:

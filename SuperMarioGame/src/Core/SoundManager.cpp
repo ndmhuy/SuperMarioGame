@@ -10,7 +10,8 @@ SoundManager& SoundManager::getInstance() {
 }
 
 SoundManager::SoundManager() {
-    m_soundPool.resize(SFX_POOL_SIZE);
+    static sf::SoundBuffer dummyBuffer;
+    m_soundPool.assign(SFX_POOL_SIZE, sf::Sound(dummyBuffer));
 }
 
 void SoundManager::playSound(const std::string& id) {

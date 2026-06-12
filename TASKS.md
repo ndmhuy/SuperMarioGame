@@ -48,7 +48,7 @@
 - [x] Commit: `feat: implement ResourceManager singleton`
 
 ### 1.3 Sound Manager (Singleton)
-- [ ] Create [SoundManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/SoundManager.hpp) + [SoundManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/SoundManager.cpp)
+- [x] Create [SoundManager.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/SoundManager.hpp) + [SoundManager.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/SoundManager.cpp)
   - Singleton with `static SoundManager& getInstance()`
   - `playSound(id)` — plays a sound effect (pool of `sf::Sound` objects)
   - `playMusic(path)`, `stopMusic()`, `pauseMusic()`
@@ -56,7 +56,7 @@
   - Uses `ResourceManager` for sound buffers
   - `sf::Music` for streaming BGM
   - Surface-dependent footstep support [v2.0]
-- [ ] Commit: `feat: implement SoundManager singleton`
+- [x] Commit: `feat: implement SoundManager singleton`
 
 ### 1.4 Event Bus (Observer Pattern)
 - [x] Create [EventBus.hpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/include/Core/EventBus.hpp) + [EventBus.cpp](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/src/Core/EventBus.cpp)
