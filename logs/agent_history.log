@@ -183,3 +183,11 @@ Summary of Changes:
 - Successfully built project to ensure zero compiler errors or warnings.
 - Pulled latest changes from origin/dev, rebased local commits, and successfully pushed the merged dev branch to remote.
 ---
+[2026-06-12 19:10:00] Branch: feature/core-engine
+Prompt: complete MathUtils.cpp
+Files Modified: SuperMarioGame/src/Utils/MathUtils.cpp
+Summary of Changes:
+- Implemented magnitude, normalize, and distance functions in MathUtils.cpp.
+- Verified compilation and successfully committed to branch feature/core-engine.
+---
+
