@@ -24,6 +24,7 @@ public:
     void playMusic(const std::string& path);
     void stopMusic();
     void pauseMusic();
+    void resumeMusic();
 
     // Set volume methods
     void setSFXVolume(float volume);

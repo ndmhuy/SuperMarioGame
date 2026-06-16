@@ -33,10 +33,15 @@ void SoundManager::playMusic(const std::string& path) {
         m_musicPath = path;
         if (!m_music.openFromFile(path)) {
             std::cerr << "No music path found!" << std::endl;
+            return;
+        }
+        m_music.setVolume(m_musicVolume);
+        m_music.play();
+    } else {
+        if (m_music.getStatus() != sf::SoundSource::Status::Playing) {
+            m_music.play();
         }
     }
-    m_music.setVolume(m_musicVolume);
-    m_music.play();
 }
 
 void SoundManager::stopMusic() {
@@ -45,6 +50,12 @@ void SoundManager::stopMusic() {
 
 void SoundManager::pauseMusic() {
     m_music.pause();
+}
+
+void SoundManager::resumeMusic() {
+    if (m_music.getStatus() == sf::SoundSource::Status::Paused) {
+        m_music.play();
+    }
 }
 
 void SoundManager::setSFXVolume(float volume) {
