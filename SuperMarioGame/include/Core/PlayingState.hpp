@@ -1,6 +1,11 @@
 #pragma once
 
 #include "Core/IGameState.hpp"
+#include "Physics/PhysicsEngine.hpp"
+#include "Utils/TileMap.hpp"
+#include <vector>
+
+class Entity;
 
 class PlayingState : public IGameState {
 public:
@@ -12,4 +17,12 @@ public:
     void handleInput(const sf::Event& event) override;
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+
+private:
+    PhysicsEngine m_physicsEngine;
+    TileMap m_tileMap;
+    std::vector<Entity*> m_entities;
+
+    void setupTestScene();
+    void cleanupTestScene();
 };

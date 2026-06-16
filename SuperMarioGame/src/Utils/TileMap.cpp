@@ -27,3 +27,15 @@ int TileMap::getTileSurfaceType(float px, float py) const {
 void TileMap::swapBricksAndCoins() {
     // TODO: Implement by hand
 }
+
+void TileMap::initialize(int width, int height) {
+    m_width = width;
+    m_height = height;
+    m_grid.assign(height, std::vector<int>(width, 0));
+}
+
+void TileMap::setTile(int gx, int gy, int type) {
+    if (gx >= 0 && gx < m_width && gy >= 0 && gy < m_height) {
+        m_grid[gy][gx] = type;
+    }
+}

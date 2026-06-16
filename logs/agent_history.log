@@ -305,5 +305,16 @@ Summary of Changes:
 - Updated playMusic() to resume when paused and do nothing when already playing, preventing current music from restarting.
 - Recompiled and verified successful builds.
 ---
+[2026-06-16 17:07:00] Branch: A/feature/physics
+Prompt: Move on Phase 2, create the boilerplate, leave empty implementation for human do by hand.
+Files Modified: SuperMarioGame/include/Utils/TileMap.hpp, SuperMarioGame/src/Utils/TileMap.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp, logs/agent_history.log
+Summary of Changes:
+- Checked out and renamed local task branch to A/feature/physics off dev branch.
+- Added initialization and visual test-helpers (`initialize`, `setTile`, `getTileType`) to `TileMap` (.hpp/.cpp).
+- Added `PhysicsEngine` and `TileMap` instances along with visual entities vector and helper methods to `PlayingState.hpp`.
+- Implemented `DummyPhysicsEntity` and the visual test loop in `PlayingState.cpp` to render a falling red box and brown/green ground tiles.
+- Added a "Reset Simulation" button and real-time position/velocity feedback in the ImGui developer overlay.
+- Confirmed clean C++ compilation on macOS with zero compiler warnings or errors.
+---
 
 
