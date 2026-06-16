@@ -48,7 +48,7 @@
 - [x] Commit: `feat: implement ResourceManager singleton`
 
 ### 1.3 Sound Manager (Singleton)
-- [ ] Create [SoundManager.hpp](SuperMarioGame/include/Core/SoundManager.hpp) + [SoundManager.cpp](SuperMarioGame/src/Core/SoundManager.cpp)
+- [x] Create [SoundManager.hpp](SuperMarioGame/include/Core/SoundManager.hpp) + [SoundManager.cpp](SuperMarioGame/src/Core/SoundManager.cpp)
   - Singleton with `static SoundManager& getInstance()`
   - `playSound(id)` — plays a sound effect (pool of `sf::Sound` objects)
   - `playMusic(path)`, `stopMusic()`, `pauseMusic()`
@@ -56,7 +56,7 @@
   - Uses `ResourceManager` for sound buffers
   - `sf::Music` for streaming BGM
   - Surface-dependent footstep support [v2.0]
-- [ ] Commit: `feat: implement SoundManager singleton`
+- [x] Commit: `feat: implement SoundManager singleton`
 
 ### 1.4 Event Bus (Observer Pattern)
 - [x] Create [EventBus.hpp](SuperMarioGame/include/Core/EventBus.hpp) + [EventBus.cpp](SuperMarioGame/src/Core/EventBus.cpp)
@@ -68,7 +68,7 @@
 - [x] Commit: `feat: implement EventBus observer pattern`
 
 ### 1.5 Input Manager (Command Pattern)
-- [ ] Create [InputManager.hpp](SuperMarioGame/include/Core/InputManager.hpp) + [InputManager.cpp](SuperMarioGame/src/Core/InputManager.cpp)
+- [x] Create [InputManager.hpp](SuperMarioGame/include/Core/InputManager.hpp) + [InputManager.cpp](SuperMarioGame/src/Core/InputManager.cpp)
   - `ICommand` interface: `virtual void execute(Character&) = 0`
   - Concrete commands: `JumpCommand`, `MoveLeftCommand`, `MoveRightCommand`, `FireCommand`, `RunCommand`, `CrouchCommand`, `GroundPoundCommand`, `WallJumpCommand` [v2.0: 8+ commands]
   - `InputManager` maps `sf::Keyboard::Key` → `std::unique_ptr<ICommand>`
@@ -76,7 +76,7 @@
   - `update(Character&)` — processes held keys (continuous movement)
   - Support Player 1 (WASD) and Player 2 (Arrow keys) mappings
   - Key rebinding support with persistence [v2.0]
-- [ ] Commit: `feat: implement InputManager with Command pattern`
+- [x] Commit: `feat: implement InputManager with Command pattern`
 
 ### 1.6 Game State Manager (State Pattern)
 - [x] Create [IGameState.hpp](SuperMarioGame/include/Core/IGameState.hpp) — abstract interface
