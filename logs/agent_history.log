@@ -316,5 +316,13 @@ Summary of Changes:
 - Added a "Reset Simulation" button and real-time position/velocity feedback in the ImGui developer overlay.
 - Confirmed clean C++ compilation on macOS with zero compiler warnings or errors.
 ---
+[2026-06-16 20:53:00] Branch: A/feature/physics
+Prompt: Add strict getter/setter rules to AGENTS.md to protect OOP encapsulation.
+Files Modified: AGENTS.md, 25125083.md, SuperMarioGame/include/Core/EventBus.hpp, logs/agent_history.log
+Summary of Changes:
+- Added strict OOP encapsulation guidelines to AGENTS.md, advising against unnecessary or trivial getters/setters that expose raw internal state.
+- Regenerated the consolidated project documentation file 25125083.md.
+- Staged and tracked user modifications/formatting changes to EventBus.hpp.
+---
 
 
