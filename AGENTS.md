@@ -101,11 +101,13 @@ Power-down: Fire/Cape → Super → Small (step-down)
 > [!IMPORTANT]
 > **MANDATORY RULES FOR AGENT EXECUTION**
 >
-> 1. **Git Branching Policy**:
+> 1. **Git Branching & Sync Policy**:
 >    - All development process must take place on the `dev` branch.
 >    - The `main` branch is reserved only for delivery/releases after major milestone changes.
 >    - For each main task, create and work on a subbranch created from the `dev` branch (e.g., `feature/core-engine`, `feature/physics`).
 >    - Switch branches cleanly and never commit directly to `main`.
+>    - At the start of every working session, rebase your subbranch against the upstream `dev` branch if there are new changes to minimize conflicts.
+>    - Push your commits to the remote repository regularly.
 >
 > 2. **Commit Policy**:
 >    - Commit after completing each subtask/task.

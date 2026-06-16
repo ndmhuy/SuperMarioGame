@@ -191,3 +191,10 @@ Summary of Changes:
 - Verified compilation and successfully committed to branch feature/core-engine.
 ---
 
+[2026-06-16 12:46:40] Branch: dev
+Prompt: Add guidelines to rebase at start of working session and push regularly to AGENTS.md.
+Files Modified: AGENTS.md
+Summary of Changes:
+- Updated the Git Branching & Sync Policy in AGENTS.md to instruct agents to rebase against the upstream dev branch at the start of their working session.
+- Instructed agents to push their commits regularly to the remote repository.
+---
