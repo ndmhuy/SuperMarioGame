@@ -1,4 +1,8 @@
 #include "Core/PlayingState.hpp"
+#include "Core/MenuState.hpp"
+#include "Core/Game.hpp"
+#include <SFML/Window/Event.hpp>
+#include <imgui.h>
 #include <iostream>
 
 void PlayingState::enter() {
@@ -10,13 +14,24 @@ void PlayingState::exit() {
 }
 
 void PlayingState::handleInput(const sf::Event& event) {
-    // Stub
+    if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
+        if (keyPressed->code == sf::Keyboard::Key::Backspace) {
+            Game::getInstance().getGSM().changeState(std::make_unique<MenuState>());
+        }
+    }
 }
 
 void PlayingState::update(float dt) {
-    // Stub
+    // No update logic yet
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
-    // Stub
+    ImGui::Begin("Gameplay Simulation");
+    ImGui::Text("Playing State (Simulated)");
+    ImGui::Text("Press Backspace to return to main menu.");
+    ImGui::Separator();
+    if (ImGui::Button("Back to Menu (Backspace)")) {
+        Game::getInstance().getGSM().changeState(std::make_unique<MenuState>());
+    }
+    ImGui::End();
 }

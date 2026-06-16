@@ -198,3 +198,15 @@ Summary of Changes:
 - Updated the Git Branching & Sync Policy in AGENTS.md to instruct agents to rebase against the upstream dev branch at the start of their working session.
 - Instructed agents to push their commits regularly to the remote repository.
 ---
+[2026-06-16 15:15:00] Branch: feature/core-engine
+Prompt: implement the rest of phase 1
+Files Modified:
+- SuperMarioGame/src/Core/EventBus.cpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Core/GameStateManager.cpp, SuperMarioGame/src/Core/MenuState.cpp, SuperMarioGame/src/Core/PlayingState.cpp, SuperMarioGame/src/Core/ResourceManager.cpp
+Summary of Changes:
+- Fully implemented ResourceManager caching logic (supporting SFML 3.0.2 openFromFile font loading).
+- Fully implemented EventBus pub-sub mechanism with callback-copying safety.
+- Fully implemented GameStateManager stack-based lifecycle states.
+- Fully implemented Game fixed-timestep main loop, polling event loop, and ImGui integration.
+- Wired MenuState/PlayingState key and button transitions.
+- Verified compilation and ran binary successfully, checking startup logging.
+---
