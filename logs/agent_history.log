@@ -224,4 +224,15 @@ Summary of Changes:
 - Updated MenuState and PlayingState references to call Game state wrappers directly.
 - Updated Git branching policies in AGENTS.md to define branch naming conventions (A/..., B/...), require pulling dev regularly to pull other member work, and explicitly forbid agents from auto-merging to dev.
 - Renamed branch to A/core-engine to match new naming convention.
+[2026-06-16 16:38:00] Branch: A/core-engine
+Prompt: Replace absolute file links with relative links and implement member recognition and private knowledge system using gitignored configuration file.
+Files Modified: .gitignore, AGENTS.md, TASKS.md, TASK_DIVISION.md, combine_docs.py, 25125083.md, .member_profile.json
+Summary of Changes:
+- Converted all hardcoded `file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/` absolute links in TASKS.md, AGENTS.md, and TASK_DIVISION.md into dynamic, portable relative links.
+- Updated `combine_docs.py` to calculate directories dynamically using `__file__` instead of hardcoded paths.
+- Added `.member_profile.json` to `.gitignore` to prevent committing developer-specific configuration files.
+- Designed and documented the Member Recognition and Private Knowledge System in AGENTS.md, detailing git branch prefix detection, git config detection, and gitignored `.member_profile.json` loading.
+- Created local `.member_profile.json` configuration file for Member A.
+- Ran `combine_docs.py` to regenerate the consolidated `25125083.md` documentation with dynamic links.
 ---
+

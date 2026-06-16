@@ -55,8 +55,8 @@ I guarantee my readiness to deliver this high-quality engine within the project 
 
 """
 
-out_file = "/Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/25125083.md"
-base_dir = "/Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/"
+out_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "25125083.md")
+base_dir = os.path.dirname(os.path.abspath(__file__))
 
 with open(out_file, "w") as f_out:
     f_out.write(intro)

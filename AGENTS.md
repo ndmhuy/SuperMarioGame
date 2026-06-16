@@ -96,6 +96,43 @@ Power-down: Fire/Cape → Super → Small (step-down)
 
 ---
 
+## Member Recognition & Private Knowledge System
+
+To support seamless collaboration between Member A and Member B, agents must dynamically identify which developer is currently working and adapt to their specific custom preferences/orders using a dual system:
+
+### 1. Dynamic Member Recognition
+At the start of every session, the agent MUST run checks to identify the active developer:
+- **Git Branch Check**: Retrieve the active git branch name (e.g. running `git branch --show-current`).
+  - Branches starting with `A/` indicate **Member A (Huy - Engine & Infrastructure)** is working.
+  - Branches starting with `B/` indicate **Member B (Partner - Entities & Gameplay)** is working.
+- **Git User Check**: Retrieve the local git user configuration (`git config user.name`).
+- **Profile Check**: Check if `.member_profile.json` exists at the workspace root.
+
+### 2. Private Knowledge & Custom User Orders
+Since all git-tracked files are shared, custom personal notes, reminders, or private user orders for the agent should be kept in a local, gitignored configuration file called `.member_profile.json` at the project root.
+
+Each developer should create their own `.member_profile.json` locally. The agent must search for and read this file (if present) to load custom, member-specific orders.
+
+#### Example `.member_profile.json` Schema:
+```json
+{
+  "memberName": "A",
+  "developerName": "Huy Nguyen",
+  "privateNotes": "Any specific reminders or notes from the user that should not be shared via Git.",
+  "agentCustomInstructions": [
+    "Prioritize performance optimizations for SFML rendering.",
+    "Ensure CMake config remains clean and builds in debug mode."
+  ],
+  "customBuildDir": "build_debug",
+  "privateTasks": [
+    "Refactor PhysicsEngine collision resolver before Wednesday class"
+  ]
+}
+```
+If `.member_profile.json` is missing, the agent must gracefully fall back to git branch prefix detection or invite the developer to create this file.
+
+---
+
 ## Critical Compliance Directives for AI Agents
 
 > [!IMPORTANT]
@@ -116,7 +153,7 @@ Power-down: Fire/Cape → Super → Small (step-down)
 >    - Use clear, traceable commit messages that make it easy to follow the history (e.g., `feat: implement AABB collision detection`, `fix: resolve character jump gravity bug`).
 >
 > 3. **Automatic Task & Prompt Logging**:
->    - Agents must automatically append a summary of each user prompt and the corresponding output/results to the local log file: [agent_history.log](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/logs/agent_history.log).
+>    - Agents must automatically append a summary of each user prompt and the corresponding output/results to the local log file: [agent_history.log](logs/agent_history.log).
 >    - Do not skip this step; ensure the log is updated at the end of every interaction.
 >
 > 4. **Plan Deviations**:

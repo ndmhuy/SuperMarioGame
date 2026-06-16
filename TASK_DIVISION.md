@@ -1,7 +1,7 @@
 # Super Mario Game — 2-Member Task Division (Vertical Slices)
 
 > **Project**: 110-feature Super Mario Bros (C++17, SFML 3.0.2)
-> **Reference**: [TASKS.md](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/TASKS.md), [SPEC.md](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SPEC.md)
+> **Reference**: [TASKS.md](TASKS.md), [SPEC.md](SPEC.md)
 > **Phase 0** (Environment Setup) is already complete and shared.
 
 ---
