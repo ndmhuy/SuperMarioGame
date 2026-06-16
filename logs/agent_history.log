@@ -210,3 +210,18 @@ Summary of Changes:
 - Wired MenuState/PlayingState key and button transitions.
 - Verified compilation and ran binary successfully, checking startup logging.
 ---
+[2026-06-16 16:32:00] Branch: A/core-engine
+Prompt: refactor OOP flaws, keep getters/setters encapsulated, rename branch to A/core-engine, forbid auto merge, and update AGENTS.md.
+Files Modified:
+- AGENTS.md
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/src/Core/MenuState.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Removed getGSM() and getWindow() public getters from Game class to follow encapsulation principles.
+- Exposed pushState(), popState(), and changeState() directly on Game class to delegate to the hidden GameStateManager.
+- Updated MenuState and PlayingState references to call Game state wrappers directly.
+- Updated Git branching policies in AGENTS.md to define branch naming conventions (A/..., B/...), require pulling dev regularly to pull other member work, and explicitly forbid agents from auto-merging to dev.
+- Renamed branch to A/core-engine to match new naming convention.
+---

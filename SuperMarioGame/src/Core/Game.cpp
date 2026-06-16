@@ -76,12 +76,16 @@ void Game::quit() {
     m_window.close();
 }
 
-sf::RenderWindow& Game::getWindow() {
-    return m_window;
+void Game::pushState(std::unique_ptr<IGameState> state) {
+    m_gsm.pushState(std::move(state));
 }
 
-GameStateManager& Game::getGSM() {
-    return m_gsm;
+void Game::popState() {
+    m_gsm.popState();
+}
+
+void Game::changeState(std::unique_ptr<IGameState> state) {
+    m_gsm.changeState(std::move(state));
 }
 
 void Game::initWindow() {

@@ -16,7 +16,7 @@ void PlayingState::exit() {
 void PlayingState::handleInput(const sf::Event& event) {
     if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
         if (keyPressed->code == sf::Keyboard::Key::Backspace) {
-            Game::getInstance().getGSM().changeState(std::make_unique<MenuState>());
+            Game::getInstance().changeState(std::make_unique<MenuState>());
         }
     }
 }
@@ -31,7 +31,7 @@ void PlayingState::render(sf::RenderTarget& target) {
     ImGui::Text("Press Backspace to return to main menu.");
     ImGui::Separator();
     if (ImGui::Button("Back to Menu (Backspace)")) {
-        Game::getInstance().getGSM().changeState(std::make_unique<MenuState>());
+        Game::getInstance().changeState(std::make_unique<MenuState>());
     }
     ImGui::End();
 }

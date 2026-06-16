@@ -19,9 +19,10 @@ public:
     void run();
     void quit();
 
-    // Getters
-    sf::RenderWindow& getWindow();
-    GameStateManager& getGSM();
+    // Game State stack wrappers (Encapsulation of GameStateManager)
+    void pushState(std::unique_ptr<IGameState> state);
+    void popState();
+    void changeState(std::unique_ptr<IGameState> state);
 
 private:
     Game() = default;

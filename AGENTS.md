@@ -102,11 +102,13 @@ Power-down: Fire/Cape → Super → Small (step-down)
 > **MANDATORY RULES FOR AGENT EXECUTION**
 >
 > 1. **Git Branching & Sync Policy**:
->    - All development process must take place on the `dev` branch.
+>    - All development process must take place on branches created off `dev`.
 >    - The `main` branch is reserved only for delivery/releases after major milestone changes.
->    - For each main task, create and work on a subbranch created from the `dev` branch (e.g., `feature/core-engine`, `feature/physics`).
->    - Switch branches cleanly and never commit directly to `main`.
->    - At the start of every working session, rebase your subbranch against the upstream `dev` branch if there are new changes to minimize conflicts.
+>    - **Branch Naming Convention**: Task branches must use naming prefixes based on the assigned member:
+>      - Member A: `A/branch-name` (e.g., `A/core-engine`, `A/physics`).
+>      - Member B: `B/branch-name` (e.g., `B/input-sound`, `B/enemies`).
+>    - **Syncing with Other Members**: At the start of every working session, pull the upstream `dev` branch (`git pull origin dev`) to your local `dev` branch to fetch the other member's merged work. Then, rebase your task branch against the updated local `dev` branch to minimize conflicts.
+>    - **No Auto-Merges**: Agents must **NOT** automatically merge task branches back into the `dev` branch. The agent's job is only to implement the task on their branch, verify compilation, and push the branch to origin. The user will handle code reviews and final merges into `dev`.
 >    - Push your commits to the remote repository regularly.
 >
 > 2. **Commit Policy**:

@@ -16,7 +16,7 @@ void MenuState::exit() {
 void MenuState::handleInput(const sf::Event& event) {
     if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
         if (keyPressed->code == sf::Keyboard::Key::Enter) {
-            Game::getInstance().getGSM().changeState(std::make_unique<PlayingState>());
+            Game::getInstance().changeState(std::make_unique<PlayingState>());
         }
     }
 }
@@ -30,7 +30,7 @@ void MenuState::render(sf::RenderTarget& target) {
     ImGui::Text("Super Mario Bros (CS202)");
     ImGui::Separator();
     if (ImGui::Button("Start Game (Enter)")) {
-        Game::getInstance().getGSM().changeState(std::make_unique<PlayingState>());
+        Game::getInstance().changeState(std::make_unique<PlayingState>());
     }
     if (ImGui::Button("Quit")) {
         Game::getInstance().quit();
