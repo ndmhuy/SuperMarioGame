@@ -324,5 +324,16 @@ Summary of Changes:
 - Regenerated the consolidated project documentation file 25125083.md.
 - Staged and tracked user modifications/formatting changes to EventBus.hpp.
 ---
-
-
+[2026-06-18 16:07:00] Branch: A/feature/physics
+Prompt: Check Phase 2 work, help complete the rest, explain, turn off auto format on save and use 4-space tab.
+Files Modified: .clang-format, .vscode/settings.json, SuperMarioGame/include/Entities/Enemy.hpp, SuperMarioGame/src/Entities/Entity.cpp, SuperMarioGame/src/Physics/AABB.cpp, SuperMarioGame/src/Physics/CollisionDetector.cpp, SuperMarioGame/src/Physics/CollisionResolver.cpp, SuperMarioGame/src/Physics/PhysicsEngine.cpp, SuperMarioGame/src/Physics/SpatialHash.cpp, SuperMarioGame/src/Utils/TileMap.cpp, TASKS.md, logs/agent_history.log
+Summary of Changes:
+- Created .clang-format and .vscode/settings.json to turn off auto format on save and configure 4-space indentation.
+- Re-formatted AABB.cpp and SpatialHash.cpp to 4 spaces, using strict inequality for intersections and std::floor for grid mapping.
+- Created minimal Enemy.hpp base class to allow compilation of collision resolution functions.
+- Implemented AABB narrow-phase collision detection in CollisionDetector.cpp.
+- Implemented resolution logic for solid tiles, player-vs-enemy stomp/damage rules, and player-vs-item collections in CollisionResolver.cpp.
+- Implemented full physics engine update loop (gravity, velocity integration, water terminal velocity/gravity scaling, conveyor belt pushes, and axis-separated tile collision resolution) in PhysicsEngine.cpp.
+- Implemented utility methods and rendering bounds checking in TileMap.cpp.
+- Updated TASKS.md checklist for Phase 2.
+---

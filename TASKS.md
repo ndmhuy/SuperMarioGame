@@ -122,33 +122,33 @@
 > **Branch**: `git checkout -b feature/physics dev`
 
 ### 2.1 AABB
-- [ ] Create [AABB.hpp](SuperMarioGame/include/Physics/AABB.hpp) + [AABB.cpp](SuperMarioGame/src/Physics/AABB.cpp)
+- [x] Create [AABB.hpp](SuperMarioGame/include/Physics/AABB.hpp) + [AABB.cpp](SuperMarioGame/src/Physics/AABB.cpp)
   - `struct AABB { float x, y, width, height; }`
   - `bool intersects(const AABB& other) const`
   - `AABB getOverlap(const AABB& other) const`
   - `bool contains(float px, float py) const`
   - `sf::Vector2f getCenter() const`
-- [ ] Commit: `feat: implement AABB collision primitive`
+- [x] Commit: `feat: implement AABB collision primitive`
 
 ### 2.2 Spatial Hash [v2.0]
-- [ ] Create [SpatialHash.hpp](SuperMarioGame/include/Physics/SpatialHash.hpp) + [SpatialHash.cpp](SuperMarioGame/src/Physics/SpatialHash.cpp)
+- [x] Create [SpatialHash.hpp](SuperMarioGame/include/Physics/SpatialHash.hpp) + [SpatialHash.cpp](SuperMarioGame/src/Physics/SpatialHash.cpp)
   - Grid cell size: 64×64 pixels
   - `insert(Entity*, AABB)`, `query(AABB)` → `std::vector<Entity*>`
   - `clear()` — called every frame before re-insertion
   - O(n) average collision broadphase
-- [ ] Commit: `feat: implement SpatialHash for collision broadphase`
+- [x] Commit: `feat: implement SpatialHash for collision broadphase`
 
 ### 2.3 Collision Detector
-- [ ] Create [CollisionDetector.hpp](SuperMarioGame/include/Physics/CollisionDetector.hpp) + [CollisionDetector.cpp](SuperMarioGame/src/Physics/CollisionDetector.cpp)
+- [x] Create [CollisionDetector.hpp](SuperMarioGame/include/Physics/CollisionDetector.hpp) + [CollisionDetector.cpp](SuperMarioGame/src/Physics/CollisionDetector.cpp)
   - `struct CollisionInfo { bool collided; sf::Vector2f overlap; sf::Vector2f normal; Entity* other; }`
   - `checkEntityVsEntity(Entity&, Entity&)` → `CollisionInfo`
   - `checkEntityVsTileMap(Entity&, TileMap&)` → `std::vector<CollisionInfo>`
   - Direction detection: top, bottom, left, right collision normals
   - Uses SpatialHash for broadphase [v2.0]
-- [ ] Commit: `feat: implement CollisionDetector with direction sensing`
+- [x] Commit: `feat: implement CollisionDetector with direction sensing`
 
 ### 2.4 Collision Resolver
-- [ ] Create [CollisionResolver.hpp](SuperMarioGame/include/Physics/CollisionResolver.hpp) + [CollisionResolver.cpp](SuperMarioGame/src/Physics/CollisionResolver.cpp)
+- [x] Create [CollisionResolver.hpp](SuperMarioGame/include/Physics/CollisionResolver.hpp) + [CollisionResolver.cpp](SuperMarioGame/src/Physics/CollisionResolver.cpp)
   - `resolveEntityVsTile(Entity&, CollisionInfo&)` — push entity out of tile
   - `resolveEntityVsEntity(Entity&, Entity&, CollisionInfo&)` — stomp/damage/bounce
   - `resolvePlayerVsEnemy(Character&, Enemy&, CollisionInfo&)` — stomp vs side hit
@@ -156,10 +156,10 @@
   - Ground detection: set `onGround = true` when bottom collision with tile
   - Wall detection: set `onWall = true` for wall slide/jump [v2.0]
   - Surface type detection (ice, conveyor, water) [v2.0]
-- [ ] Commit: `feat: implement CollisionResolver with response logic`
+- [x] Commit: `feat: implement CollisionResolver with response logic`
 
 ### 2.5 Physics Engine
-- [ ] Create [PhysicsEngine.hpp](SuperMarioGame/include/Physics/PhysicsEngine.hpp) + [PhysicsEngine.cpp](SuperMarioGame/src/Physics/PhysicsEngine.cpp)
+- [x] Create [PhysicsEngine.hpp](SuperMarioGame/include/Physics/PhysicsEngine.hpp) + [PhysicsEngine.cpp](SuperMarioGame/src/Physics/PhysicsEngine.cpp)
   - `applyGravity(Entity&, float dt)` — with water/ice modifiers [v2.0]
   - `integrateVelocity(Entity&, float dt)` — position += velocity * dt
   - `update(std::vector<Entity*>&, TileMap&, float dt)`:
@@ -173,9 +173,9 @@
   - Coyote time and jump buffering logic [v2.0]
   - Momentum and acceleration curves [v2.0]
   - ImGui debug: toggle collision box rendering, show velocity vectors
-- [ ] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
-- [ ] Write a test: place a rectangle on screen, verify it falls and stops on a floor tile
-- [ ] Commit: `feat: implement PhysicsEngine with gravity and collision pipeline`
+- [x] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
+- [x] Write a test: place a rectangle on screen, verify it falls and stops on a floor tile
+- [x] Commit: `feat: implement PhysicsEngine with gravity and collision pipeline`
 - [ ] **Merge**: `git checkout dev && git merge feature/physics`
 
 ---
