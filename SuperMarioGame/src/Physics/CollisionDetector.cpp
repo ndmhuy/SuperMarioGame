@@ -51,9 +51,10 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
 
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {
-            int tileType = tileMap.getTileType(x, y);
-            // Solid tiles are: 1 (Ground), 2 (Brick), 3 (Question), 4 (Pipe), 5 (Ice), 6 (Conveyor)
-            if (tileType == 1 || tileType == 2 || tileType == 3 || tileType == 4 || tileType == 5 || tileType == 6) {
+            TileType tileType = tileMap.getTileType(x, y);
+            if (tileType == TileType::Ground || tileType == TileType::Brick ||
+                tileType == TileType::Question || tileType == TileType::Pipe ||
+                tileType == TileType::Ice || tileType == TileType::Conveyor) {
                 AABB tileBox{
                     x * Constants::TILE_SIZE,
                     y * Constants::TILE_SIZE,

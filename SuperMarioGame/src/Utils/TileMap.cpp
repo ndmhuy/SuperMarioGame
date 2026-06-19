@@ -20,27 +20,27 @@ void TileMap::render(sf::RenderTarget& target, Camera& camera) {
 
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {
-            int tileType = m_grid[y][x];
-            if (tileType == 0) continue;
+            TileType tileType = m_grid[y][x];
+            if (tileType == TileType::Empty) continue;
 
             sf::RectangleShape rect(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
             rect.setPosition(gridToWorld(x, y));
 
-            if (tileType == 1) {
+            if (tileType == TileType::Ground) {
                 rect.setFillColor(sf::Color(120, 80, 30)); // Ground
-            } else if (tileType == 2) {
+            } else if (tileType == TileType::Brick) {
                 rect.setFillColor(sf::Color(180, 50, 50)); // Brick
-            } else if (tileType == 3) {
+            } else if (tileType == TileType::Question) {
                 rect.setFillColor(sf::Color(230, 180, 30)); // Question block
-            } else if (tileType == 4) {
+            } else if (tileType == TileType::Pipe) {
                 rect.setFillColor(sf::Color(30, 180, 30)); // Pipe
-            } else if (tileType == 5) {
+            } else if (tileType == TileType::Ice) {
                 rect.setFillColor(sf::Color(150, 220, 255)); // Ice
-            } else if (tileType == 6) {
+            } else if (tileType == TileType::Conveyor) {
                 rect.setFillColor(sf::Color(180, 180, 180)); // Conveyor
-            } else if (tileType == 7) {
+            } else if (tileType == TileType::Water) {
                 rect.setFillColor(sf::Color(30, 100, 230, 128)); // Water
-            } else if (tileType == 8) {
+            } else if (tileType == TileType::Coin) {
                 rect.setFillColor(sf::Color(255, 215, 0)); // Coin
             }
 
@@ -49,7 +49,7 @@ void TileMap::render(sf::RenderTarget& target, Camera& camera) {
     }
 }
 
-int TileMap::getTileAt(float px, float py) const {
+TileType TileMap::getTileAt(float px, float py) const {
     sf::Vector2i gridPos = worldToGrid(px, py);
     return getTileType(gridPos.x, gridPos.y);
 }
@@ -64,17 +64,17 @@ sf::Vector2f TileMap::gridToWorld(int gx, int gy) const {
     return sf::Vector2f{gx * Constants::TILE_SIZE, gy * Constants::TILE_SIZE};
 }
 
-int TileMap::getTileSurfaceType(float px, float py) const {
+TileType TileMap::getTileSurfaceType(float px, float py) const {
     return getTileAt(px, py);
 }
 
 void TileMap::swapBricksAndCoins() {
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
-            if (m_grid[y][x] == 2) {
-                m_grid[y][x] = 8;
-            } else if (m_grid[y][x] == 8) {
-                m_grid[y][x] = 2;
+            if (m_grid[y][x] == TileType::Brick) {
+                m_grid[y][x] = TileType::Coin;
+            } else if (m_grid[y][x] == TileType::Coin) {
+                m_grid[y][x] = TileType::Brick;
             }
         }
     }
@@ -83,10 +83,10 @@ void TileMap::swapBricksAndCoins() {
 void TileMap::initialize(int width, int height) {
     m_width = width;
     m_height = height;
-    m_grid.assign(height, std::vector<int>(width, 0));
+    m_grid.assign(height, std::vector<TileType>(width, TileType::Empty));
 }
 
-void TileMap::setTile(int gx, int gy, int type) {
+void TileMap::setTile(int gx, int gy, TileType type) {
     if (gx >= 0 && gx < m_width && gy >= 0 && gy < m_height) {
         m_grid[gy][gx] = type;
     }

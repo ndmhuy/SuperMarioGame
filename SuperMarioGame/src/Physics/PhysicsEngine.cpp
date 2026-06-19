@@ -50,7 +50,7 @@ void PhysicsEngine::update(std::vector<Entity*>& entities, TileMap& tileMap, flo
         // Check if entity is in water (tile type 7)
         float cx = entity->position.x + entity->boundingBox.width / 2.0f;
         float cy = entity->position.y + entity->boundingBox.height / 2.0f;
-        bool inWater = (tileMap.getTileSurfaceType(cx, cy) == 7);
+        bool inWater = (tileMap.getTileSurfaceType(cx, cy) == TileType::Water);
 
         if (inWater) {
             entity->velocity.y += Constants::GRAVITY * 3600.0f * 0.3f * dt;
@@ -65,7 +65,7 @@ void PhysicsEngine::update(std::vector<Entity*>& entities, TileMap& tileMap, flo
         if (auto character = dynamic_cast<Character*>(entity)) {
             if (character->onGround) {
                 float feetY = character->position.y + character->boundingBox.height + 2.0f;
-                if (tileMap.getTileSurfaceType(cx, feetY) == 6) {
+                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
                     character->position.x += 100.0f * dt;
                     character->boundingBox.x = character->position.x;
                 }

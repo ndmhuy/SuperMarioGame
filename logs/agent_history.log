@@ -356,4 +356,13 @@ Files Modified: SuperMarioGame/src/Utils/TileMap.cpp, logs/agent_history.log
 Summary of Changes:
 - Replaced std::max and std::min bounds checks in TileMap::render with custom MathUtils::clamp function.
 - Added MathUtils.hpp header dependency in TileMap.cpp.
+[2026-06-19 08:42:00] Branch: A/feature/physics
+Prompt: Refactor magic tile integers to a type-safe scoped TileType enum.
+Files Modified: SuperMarioGame/include/Utils/TileMap.hpp, SuperMarioGame/src/Utils/TileMap.cpp, SuperMarioGame/src/Physics/CollisionDetector.cpp, SuperMarioGame/src/Physics/PhysicsEngine.cpp, SuperMarioGame/src/Core/PlayingState.cpp, logs/agent_history.log
+Summary of Changes:
+- Introduced scoped enum TileType in TileMap.hpp and refactored m_grid and queries to be type-safe.
+- Replaced magic tile integers (1-8) with TileType enums (Ground, Brick, Question, Pipe, Ice, Conveyor, Water, Coin) in TileMap.cpp.
+- Updated tile collision queries in CollisionDetector.cpp to check TileType enum variants.
+- Updated gravity modifiers and conveyor push queries in PhysicsEngine.cpp to use TileType.
+- Updated test harness rendering and floor generation in PlayingState.cpp to use TileType.
 ---

@@ -71,8 +71,8 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Draw the tilemap floor tiles using SFML shapes for visualization
     for (int y = 0; y < m_tileMap.getHeight(); ++y) {
         for (int x = 0; x < m_tileMap.getWidth(); ++x) {
-            int tileType = m_tileMap.getTileType(x, y);
-            if (tileType == 1) { // Ground tile
+            TileType tileType = m_tileMap.getTileType(x, y);
+            if (tileType == TileType::Ground) { // Ground tile
                 sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
                 tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
                 tileShape.setFillColor(sf::Color(120, 80, 40)); // Brown ground
@@ -124,7 +124,7 @@ void PlayingState::setupTestScene() {
 
     // Create a ground layer at row y = 20
     for (int x = 0; x < 40; ++x) {
-        m_tileMap.setTile(x, 20, 1); // Ground tile
+        m_tileMap.setTile(x, 20, TileType::Ground); // Ground tile
     }
 
     // Spawn a DummyPhysicsEntity at (300, 50) with size (32, 32)
