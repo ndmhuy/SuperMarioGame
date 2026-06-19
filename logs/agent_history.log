@@ -386,3 +386,25 @@ Summary of Changes:
 - Declared and implemented resolvePlayerVsPlayer() supporting versus head-bounces and momentum sharing.
 - Cleaned up resolveEntityVsEntity() to group dynamic casts, reuse variables, and avoid local variable redefinition errors.
 ---
+[2026-06-19 10:25:00] Branch: A/feature/physics
+Prompt: fix all critical points then pull request. After that, give me a class diagram with explicit attributes or methods in a printing layout
+Files Modified: SuperMarioGame/include/Entities/Character.hpp, SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/src/Entities/Player.cpp, SuperMarioGame/include/Entities/Item.hpp, SuperMarioGame/src/Physics/CollisionResolver.cpp, SuperMarioGame/include/Core/SoundManager.hpp, SuperMarioGame/src/Core/SoundManager.cpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Physics/CollisionDetector.cpp
+Summary of Changes:
+- Fixed C1: Moved Character fields to protected, added friends (PhysicsEngine, CollisionResolver) and read-only getters.
+- Fixed C2: Moved Player fields to protected, added action methods (addCoins, addScore, gainLife, loseLife, resetCombo, incrementCombo) and getters.
+- Fixed C3: Moved Item::collected to protected, added isCollected() getter and updated CollisionResolver.
+- Fixed C4: Added SoundManager::shutdown() to stop audio before static destruction to fix mutex crash, called from Game::shutdown().
+- Fixed C5: Renamed TileInfo variable in CollisionDetector to prevent shadowing CollisionInfo.
+- Compiled, committed, and pushed A/feature/physics to origin.
+---
+[2026-06-19 10:52:00] Branch: A/feature/physics
+Prompt: Fix class_diagram.html returning syntax errors in the browser.
+Files Modified: class_diagram.html, class_diagram.md
+Summary of Changes:
+- Replaced templates brackets `[...]` with Mermaid standard generics syntax `~...~`.
+- Replaced C++ keywords `static` and `virtual` with Mermaid class diagram indicators (`$` suffix for static, `*` suffix for abstract).
+- Removed C++ pure virtual marker `= 0`.
+- Simplified parameter lists to remove reference/pointer annotations and array brackets (`m_players[2]`) that fail parsing in Mermaid 10.
+- Verified successful rendering of all 6 subdiagrams in the browser.
+---
+
