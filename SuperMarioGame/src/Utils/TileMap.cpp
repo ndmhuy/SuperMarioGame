@@ -1,5 +1,6 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/MathUtils.hpp"
 #include "Graphics/Camera.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
@@ -12,10 +13,10 @@ void TileMap::render(sf::RenderTarget& target, Camera& camera) {
     int startY = static_cast<int>(std::floor(visible.y / Constants::TILE_SIZE));
     int endY = static_cast<int>(std::floor((visible.y + visible.height) / Constants::TILE_SIZE));
 
-    startX = std::max(0, startX);
-    endX = std::min(m_width - 1, endX);
-    startY = std::max(0, startY);
-    endY = std::min(m_height - 1, endY);
+    startX = MathUtils::clamp(startX, 0, m_width - 1);
+    endX = MathUtils::clamp(endX, 0, m_width - 1);
+    startY = MathUtils::clamp(startY, 0, m_height - 1);
+    endY = MathUtils::clamp(endY, 0, m_height - 1);
 
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {

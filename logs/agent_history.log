@@ -350,4 +350,10 @@ Files Modified: SuperMarioGame/include/Entities/Entity.hpp, SuperMarioGame/src/E
 Summary of Changes:
 - Changed Entity::getBoundingBox return type to const AABB& reference in Entity.hpp and Entity.cpp.
 - Updated DummyPhysicsEntity::getBoundingBox override signature to match const AABB& return type in PlayingState.cpp.
+[2026-06-19 08:24:00] Branch: A/feature/physics
+Prompt: Refactor TileMap.cpp to use custom MathUtils::clamp instead of raw std::max and std::min.
+Files Modified: SuperMarioGame/src/Utils/TileMap.cpp, logs/agent_history.log
+Summary of Changes:
+- Replaced std::max and std::min bounds checks in TileMap::render with custom MathUtils::clamp function.
+- Added MathUtils.hpp header dependency in TileMap.cpp.
 ---
