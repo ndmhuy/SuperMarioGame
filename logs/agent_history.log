@@ -407,4 +407,12 @@ Summary of Changes:
 - Simplified parameter lists to remove reference/pointer annotations and array brackets (`m_players[2]`) that fail parsing in Mermaid 10.
 - Verified successful rendering of all 6 subdiagrams in the browser.
 ---
+[2026-06-19 11:05:00] Branch: A/feature/physics
+Prompt: Fix remaining syntax errors in class_diagram.html.
+Files Modified: class_diagram.html
+Summary of Changes:
+- Escaped C++ UML annotations (`<<interface>>`, `<<abstract>>`, `<<struct>>`) as HTML entities (`&lt;&lt;interface&gt;&gt;`, `&lt;&lt;abstract&gt;&gt;`, `&lt;&lt;struct&gt;&gt;`). This prevents browser HTML parser from misinterpreting them as HTML elements inside the Mermaid containers.
+- Verified final output renders perfectly across all 6 subdiagrams.
+---
+
 

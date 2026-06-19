@@ -46,7 +46,7 @@ classDiagram
     }
 
     class IGameState {
-        <<interface>>
+        &lt;&lt;interface&gt;&gt;
         +init() void*
         +handleInput(sf::Event event) void*
         +update(float dt) void*
@@ -137,7 +137,7 @@ classDiagram
     }
 
     class ICommand {
-        <<interface>>
+        &lt;&lt;interface&gt;&gt;
         +execute(Character character) void*
     }
 
@@ -175,7 +175,7 @@ classDiagram
 <div class="mermaid">
 classDiagram
     class Entity {
-        <<abstract>>
+        &lt;&lt;abstract&gt;&gt;
         #sf::Vector2f position
         #sf::Vector2f velocity
         #AABB boundingBox
@@ -189,7 +189,7 @@ classDiagram
     }
 
     class Character {
-        <<abstract>>
+        &lt;&lt;abstract&gt;&gt;
         #int health
         #float speed
         #float jumpForce
@@ -239,13 +239,13 @@ classDiagram
     }
 
     class Enemy {
-        <<abstract>>
+        &lt;&lt;abstract&gt;&gt;
         +onStomped() void*
         +onHitByFireball() void*
     }
 
     class Item {
-        <<abstract>>
+        &lt;&lt;abstract&gt;&gt;
         #bool collected
         +activate(Player player) void*
         +collect() void*
@@ -253,7 +253,7 @@ classDiagram
     }
 
     class Block {
-        <<abstract>>
+        &lt;&lt;abstract&gt;&gt;
         +onHitFromBelow(Player player) void*
     }
 
@@ -284,7 +284,7 @@ classDiagram
 <div class="mermaid">
 classDiagram
     class IPlayerState {
-        <<interface>>
+        &lt;&lt;interface&gt;&gt;
         +enter(Player player) void*
         +exit(Player player) void*
         +handleInput(Player player, sf::Event event) void*
@@ -299,7 +299,7 @@ classDiagram
     class MiniState { +update(Player player, float dt) void }
 
     class PlayerStateDecorator {
-        <<abstract>>
+        &lt;&lt;abstract&gt;&gt;
         #std::unique_ptr~IPlayerState~ m_wrappedState
         +enter(Player player) void
         +exit(Player player) void
@@ -374,7 +374,7 @@ classDiagram
     }
 
     class CollisionInfo {
-        <<struct>>
+        &lt;&lt;struct&gt;&gt;
         +bool collided
         +sf::Vector2f overlap
         +sf::Vector2f normal
@@ -410,7 +410,7 @@ classDiagram
     }
 
     class TileInfo {
-        <<struct>>
+        &lt;&lt;struct&gt;&gt;
         +TileType type
         +bool isSolid
         +sf::Color debugColor
