@@ -20,4 +20,5 @@ public:
     // Specific entity class resolutions
     void resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info);
     void resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info);
+    void resolvePlayerVsPlayer(Player& p1, Player& p2, const CollisionInfo& info);
 };

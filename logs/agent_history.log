@@ -373,3 +373,16 @@ Summary of Changes:
 - Implemented static getInfo() in TileMap.cpp and simplified render() to read debug colors directly.
 - Simplified solid tile collision query in CollisionDetector.cpp to check info.isSolid.
 ---
+[2026-06-19 09:16:30] Branch: A/feature/physics
+Prompt: Run the game to test.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Compiled and successfully launched the game from the build directory.
+- Confirmed MenuState loads properly and ImGui/SFML rendering starts.
+[2026-06-19 09:26:00] Branch: A/feature/physics
+Prompt: Implement player-vs-player versus collision resolution and clean up dynamic casts in CollisionResolver.cpp.
+Files Modified: SuperMarioGame/include/Physics/CollisionResolver.hpp, SuperMarioGame/src/Physics/CollisionResolver.cpp, logs/agent_history.log
+Summary of Changes:
+- Declared and implemented resolvePlayerVsPlayer() supporting versus head-bounces and momentum sharing.
+- Cleaned up resolveEntityVsEntity() to group dynamic casts, reuse variables, and avoid local variable redefinition errors.
+---

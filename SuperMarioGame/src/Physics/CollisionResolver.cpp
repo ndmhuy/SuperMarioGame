@@ -33,14 +33,22 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
     if (!info.collided) return;
 
     auto player1 = dynamic_cast<Player*>(&e1);
+    auto player2 = dynamic_cast<Player*>(&e2);
+
+    // 1. Player vs Player
+    if (player1 && player2) {
+        resolvePlayerVsPlayer(*player1, *player2, info);
+        return;
+    }
+
+    // 2. Player vs Enemy
+    auto enemy1 = dynamic_cast<Enemy*>(&e1);
     auto enemy2 = dynamic_cast<Enemy*>(&e2);
+
     if (player1 && enemy2) {
         resolvePlayerVsEnemy(*player1, *enemy2, info);
         return;
     }
-
-    auto enemy1 = dynamic_cast<Enemy*>(&e1);
-    auto player2 = dynamic_cast<Player*>(&e2);
     if (enemy1 && player2) {
         CollisionInfo flippedInfo = info;
         flippedInfo.normal = -info.normal;
@@ -48,19 +56,18 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
         return;
     }
 
-    auto playerVsItem1 = dynamic_cast<Player*>(&e1);
+    // 3. Player vs Item
+    auto item1 = dynamic_cast<Item*>(&e1);
     auto item2 = dynamic_cast<Item*>(&e2);
-    if (playerVsItem1 && item2) {
-        resolvePlayerVsItem(*playerVsItem1, *item2, info);
+
+    if (player1 && item2) {
+        resolvePlayerVsItem(*player1, *item2, info);
         return;
     }
-
-    auto item1 = dynamic_cast<Item*>(&e1);
-    auto playerVsItem2 = dynamic_cast<Player*>(&e2);
-    if (item1 && playerVsItem2) {
+    if (item1 && player2) {
         CollisionInfo flippedInfo = info;
         flippedInfo.normal = -info.normal;
-        resolvePlayerVsItem(*playerVsItem2, *item1, flippedInfo);
+        resolvePlayerVsItem(*player2, *item1, flippedInfo);
         return;
     }
 }
@@ -88,5 +95,29 @@ void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const Co
     if (!item.collected) {
         item.activate(player);
         item.collect();
+    }
+}
+
+void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const CollisionInfo& info) {
+    // Both are dynamic characters; resolve collision by pushing both back by 50% of the overlap
+    p1.position.x += info.normal.x * info.overlap.x * 0.5f;
+    p1.position.y += info.normal.y * info.overlap.y * 0.5f;
+
+    p2.position.x -= info.normal.x * info.overlap.x * 0.5f;
+    p2.position.y -= info.normal.y * info.overlap.y * 0.5f;
+
+    if (info.normal.y == -1.0f) {
+        // p1 is above p2 (p1 stomps p2's head)
+        p1.velocity.y = -300.0f; // p1 bounces up
+        p2.velocity.y = 100.0f;  // p2 is pushed down
+    } else if (info.normal.y == 1.0f) {
+        // p2 is above p1 (p2 stomps p1's head)
+        p2.velocity.y = -300.0f; // p2 bounces up
+        p1.velocity.y = 100.0f;  // p1 is pushed down
+    } else if (info.normal.x != 0.0f) {
+        // Side hit: distribute velocities horizontally to push them apart
+        float avgVx = (p1.velocity.x + p2.velocity.x) / 2.0f;
+        p1.velocity.x = avgVx + info.normal.x * 50.0f;
+        p2.velocity.x = avgVx - info.normal.x * 50.0f;
     }
 }
