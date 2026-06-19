@@ -100,8 +100,8 @@ void PlayingState::render(sf::RenderTarget& target) {
     ImGui::Begin("Physics Simulation (Phase 2)");
     ImGui::Text("Simulation State:");
     if (!m_entities.empty() && m_entities[0]) {
-        ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->position.x, m_entities[0]->position.y);
-        ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->velocity.x, m_entities[0]->velocity.y);
+        ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->getPosition().x, m_entities[0]->getPosition().y);
+        ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->getVelocity().x, m_entities[0]->getVelocity().y);
     } else {
         ImGui::Text("No active entities.");
     }

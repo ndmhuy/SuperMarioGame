@@ -336,4 +336,12 @@ Summary of Changes:
 - Implemented full physics engine update loop (gravity, velocity integration, water terminal velocity/gravity scaling, conveyor belt pushes, and axis-separated tile collision resolution) in PhysicsEngine.cpp.
 - Implemented utility methods and rendering bounds checking in TileMap.cpp.
 - Updated TASKS.md checklist for Phase 2.
+[2026-06-19 07:27:00] Branch: A/feature/physics
+Prompt: Protect Entity core attributes under protected scope and implement Option 1 (Friends System).
+Files Modified: SuperMarioGame/include/Entities/Entity.hpp, SuperMarioGame/src/Core/PlayingState.cpp, logs/agent_history.log
+Summary of Changes:
+- Declared PhysicsEngine and CollisionResolver as friend classes of Entity.
+- Moved Entity position, velocity, active, and boundingBox fields to the protected section.
+- Added public read-only getters for position and velocity.
+- Updated PlayingState ImGui panel logic to read position and velocity via getters instead of direct member access.
 ---
