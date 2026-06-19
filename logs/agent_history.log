@@ -365,4 +365,11 @@ Summary of Changes:
 - Updated tile collision queries in CollisionDetector.cpp to check TileType enum variants.
 - Updated gravity modifiers and conveyor push queries in PhysicsEngine.cpp to use TileType.
 - Updated test harness rendering and floor generation in PlayingState.cpp to use TileType.
+[2026-06-19 08:45:00] Branch: A/feature/physics
+Prompt: Centralize TileType properties (color, solidity, name) using a lookup struct.
+Files Modified: SuperMarioGame/include/Utils/TileMap.hpp, SuperMarioGame/src/Utils/TileMap.cpp, SuperMarioGame/src/Physics/CollisionDetector.cpp, logs/agent_history.log
+Summary of Changes:
+- Defined TileInfo struct and declared static getInfo() metadata lookup in TileMap.hpp.
+- Implemented static getInfo() in TileMap.cpp and simplified render() to read debug colors directly.
+- Simplified solid tile collision query in CollisionDetector.cpp to check info.isSolid.
 ---

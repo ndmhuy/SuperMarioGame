@@ -6,6 +6,51 @@
 #include <cmath>
 #include <algorithm>
 
+const TileInfo& TileMap::getInfo(TileType type) {
+    switch (type) {
+        case TileType::Empty: {
+            static const TileInfo info{TileType::Empty, false, sf::Color::Transparent, "Empty"};
+            return info;
+        }
+        case TileType::Ground: {
+            static const TileInfo info{TileType::Ground, true, sf::Color(120, 80, 30), "Ground"};
+            return info;
+        }
+        case TileType::Brick: {
+            static const TileInfo info{TileType::Brick, true, sf::Color(180, 50, 50), "Brick"};
+            return info;
+        }
+        case TileType::Question: {
+            static const TileInfo info{TileType::Question, true, sf::Color(230, 180, 30), "Question"};
+            return info;
+        }
+        case TileType::Pipe: {
+            static const TileInfo info{TileType::Pipe, true, sf::Color(30, 180, 30), "Pipe"};
+            return info;
+        }
+        case TileType::Ice: {
+            static const TileInfo info{TileType::Ice, true, sf::Color(150, 220, 255), "Ice"};
+            return info;
+        }
+        case TileType::Conveyor: {
+            static const TileInfo info{TileType::Conveyor, true, sf::Color(180, 180, 180), "Conveyor"};
+            return info;
+        }
+        case TileType::Water: {
+            static const TileInfo info{TileType::Water, false, sf::Color(30, 100, 230, 128), "Water"};
+            return info;
+        }
+        case TileType::Coin: {
+            static const TileInfo info{TileType::Coin, false, sf::Color(255, 215, 0), "Coin"};
+            return info;
+        }
+        default: {
+            static const TileInfo defaultInfo{TileType::Empty, false, sf::Color::Transparent, "Unknown"};
+            return defaultInfo;
+        }
+    }
+}
+
 void TileMap::render(sf::RenderTarget& target, Camera& camera) {
     AABB visible = camera.getVisibleBounds();
     int startX = static_cast<int>(std::floor(visible.x / Constants::TILE_SIZE));
@@ -21,28 +66,12 @@ void TileMap::render(sf::RenderTarget& target, Camera& camera) {
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {
             TileType tileType = m_grid[y][x];
-            if (tileType == TileType::Empty) continue;
+            const TileInfo& info = getInfo(tileType);
+            if (info.type == TileType::Empty) continue;
 
             sf::RectangleShape rect(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
             rect.setPosition(gridToWorld(x, y));
-
-            if (tileType == TileType::Ground) {
-                rect.setFillColor(sf::Color(120, 80, 30)); // Ground
-            } else if (tileType == TileType::Brick) {
-                rect.setFillColor(sf::Color(180, 50, 50)); // Brick
-            } else if (tileType == TileType::Question) {
-                rect.setFillColor(sf::Color(230, 180, 30)); // Question block
-            } else if (tileType == TileType::Pipe) {
-                rect.setFillColor(sf::Color(30, 180, 30)); // Pipe
-            } else if (tileType == TileType::Ice) {
-                rect.setFillColor(sf::Color(150, 220, 255)); // Ice
-            } else if (tileType == TileType::Conveyor) {
-                rect.setFillColor(sf::Color(180, 180, 180)); // Conveyor
-            } else if (tileType == TileType::Water) {
-                rect.setFillColor(sf::Color(30, 100, 230, 128)); // Water
-            } else if (tileType == TileType::Coin) {
-                rect.setFillColor(sf::Color(255, 215, 0)); // Coin
-            }
+            rect.setFillColor(info.debugColor);
 
             target.draw(rect);
         }

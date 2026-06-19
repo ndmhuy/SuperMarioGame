@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/Color.hpp>
 #include "Physics/AABB.hpp"
 
 class Camera;
@@ -18,10 +19,20 @@ enum class TileType : int {
     Coin = 8
 };
 
+struct TileInfo {
+    TileType type = TileType::Empty;
+    bool isSolid = false;
+    sf::Color debugColor = sf::Color::Transparent;
+    std::string name = "Empty";
+};
+
 class TileMap {
 public:
     TileMap() = default;
     ~TileMap() = default;
+
+    // Get centralized tile metadata
+    static const TileInfo& getInfo(TileType type);
 
     // Loader & Renderers
     void render(sf::RenderTarget& target, Camera& camera);
