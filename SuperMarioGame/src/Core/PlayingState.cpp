@@ -32,7 +32,7 @@ public:
         target.draw(rect);
     }
 
-    AABB getBoundingBox() const override {
+    const AABB& getBoundingBox() const override {
         return boundingBox;
     }
 };

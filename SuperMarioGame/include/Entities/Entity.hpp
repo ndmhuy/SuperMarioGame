@@ -17,13 +17,13 @@ public:
     virtual void render(sf::RenderTarget& target) = 0;
 
     // Virtual physics/state queries
-    virtual AABB getBoundingBox() const;
+    virtual const AABB& getBoundingBox() const;
     virtual bool isActive() const;
     virtual void destroy();
 
     // Getters for external read-only access
-    sf::Vector2f getPosition() const { return position; }
-    sf::Vector2f getVelocity() const { return velocity; }
+    sf::Vector2f getPosition() const;
+    sf::Vector2f getVelocity() const;
 
 protected:
     // Friends are allowed direct write access to coordinate updates

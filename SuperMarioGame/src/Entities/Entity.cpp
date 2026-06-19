@@ -1,7 +1,7 @@
 #include "Entities/Entity.hpp"
 
-AABB Entity::getBoundingBox() const {
-    return AABB{position.x, position.y, boundingBox.width, boundingBox.height};
+const AABB& Entity::getBoundingBox() const {
+    return boundingBox;
 }
 
 bool Entity::isActive() const {
@@ -10,4 +10,12 @@ bool Entity::isActive() const {
 
 void Entity::destroy() {
     active = false;
+}
+
+sf::Vector2f Entity::getPosition() const {
+    return position;
+}
+
+sf::Vector2f Entity::getVelocity() const {
+    return velocity;
 }

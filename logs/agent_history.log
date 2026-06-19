@@ -344,4 +344,10 @@ Summary of Changes:
 - Moved Entity position, velocity, active, and boundingBox fields to the protected section.
 - Added public read-only getters for position and velocity.
 - Updated PlayingState ImGui panel logic to read position and velocity via getters instead of direct member access.
+[2026-06-19 07:47:00] Branch: A/feature/physics
+Prompt: Optimize Entity::getBoundingBox to return a const AABB& reference and update implementations.
+Files Modified: SuperMarioGame/include/Entities/Entity.hpp, SuperMarioGame/src/Entities/Entity.cpp, SuperMarioGame/src/Core/PlayingState.cpp, logs/agent_history.log
+Summary of Changes:
+- Changed Entity::getBoundingBox return type to const AABB& reference in Entity.hpp and Entity.cpp.
+- Updated DummyPhysicsEntity::getBoundingBox override signature to match const AABB& return type in PlayingState.cpp.
 ---
