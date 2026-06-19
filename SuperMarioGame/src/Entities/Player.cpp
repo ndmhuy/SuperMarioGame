@@ -1,4 +1,6 @@
 #include "Entities/Player.hpp"
+#include "Core/EventBus.hpp"
+#include "Utils/Constants.hpp"
 
 void Player::run() {
     // TODO: Implement by hand
@@ -47,3 +49,39 @@ void Player::changeState(std::unique_ptr<IPlayerState> state) {
         m_currentState->enter(*this);
     }
 }
+
+void Player::addCoins(int amount) {
+    coins += amount;
+    while (coins >= Constants::COINS_FOR_LIFE) {
+        coins -= Constants::COINS_FOR_LIFE;
+        gainLife();
+    }
+    EventBus::getInstance().publish({EventType::CoinCollected, amount});
+}
+
+void Player::addScore(int amount) {
+    score += amount;
+}
+
+void Player::gainLife() {
+    ++lives;
+}
+
+void Player::loseLife() {
+    if (lives > 0) {
+        --lives;
+    }
+    if (lives <= 0) {
+        EventBus::getInstance().publish({EventType::GameOver, 0});
+    }
+}
+
+void Player::resetCombo() {
+    comboCounter = 0;
+}
+
+void Player::incrementCombo() {
+    ++comboCounter;
+    EventBus::getInstance().publish({EventType::ComboHit, comboCounter});
+}
+

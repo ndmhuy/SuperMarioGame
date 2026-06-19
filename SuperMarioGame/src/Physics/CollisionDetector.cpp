@@ -52,8 +52,8 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
     for (int y = startY; y <= endY; ++y) {
         for (int x = startX; x <= endX; ++x) {
             TileType tileType = tileMap.getTileType(x, y);
-            const TileInfo& info = TileMap::getInfo(tileType);
-            if (info.isSolid) {
+            const TileInfo& tileInfo = TileMap::getInfo(tileType);
+            if (tileInfo.isSolid) {
                 AABB tileBox {
                     x * Constants::TILE_SIZE,
                     y * Constants::TILE_SIZE,
@@ -62,30 +62,30 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
                 };
 
                 if (entityBox.intersects(tileBox)) {
-                    CollisionInfo info;
-                    info.collided = true;
-                    info.other = nullptr;
+                    CollisionInfo collisionInfo;
+                    collisionInfo.collided = true;
+                    collisionInfo.other = nullptr;
 
                     AABB overlapBox = entityBox.getOverlap(tileBox);
                     sf::Vector2f center1 = entityBox.getCenter();
                     sf::Vector2f center2 = tileBox.getCenter();
 
                     if (overlapBox.width < overlapBox.height) {
-                        info.overlap.x = overlapBox.width;
+                        collisionInfo.overlap.x = overlapBox.width;
                         if (center1.x < center2.x) {
-                            info.normal.x = -1.0f;
+                            collisionInfo.normal.x = -1.0f;
                         } else {
-                            info.normal.x = 1.0f;
+                            collisionInfo.normal.x = 1.0f;
                         }
                     } else {
-                        info.overlap.y = overlapBox.height;
+                        collisionInfo.overlap.y = overlapBox.height;
                         if (center1.y < center2.y) {
-                            info.normal.y = -1.0f;
+                            collisionInfo.normal.y = -1.0f;
                         } else {
-                            info.normal.y = 1.0f;
+                            collisionInfo.normal.y = 1.0f;
                         }
                     }
-                    collisions.push_back(info);
+                    collisions.push_back(collisionInfo);
                 }
             }
         }

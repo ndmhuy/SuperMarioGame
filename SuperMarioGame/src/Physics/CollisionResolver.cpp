@@ -92,7 +92,7 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
 }
 
 void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info) {
-    if (!item.collected) {
+    if (!item.isCollected()) {
         item.activate(player);
         item.collect();
     }
