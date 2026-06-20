@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+</head>
+<body>
+<h2>Test Escaping</h2>
+<div class="mermaid">
+classDiagram
+    class IGameState {
+        &lt;&lt;interface&gt;&gt;
+        +init() void
+    }
+</div>
+</body>
+</html>
