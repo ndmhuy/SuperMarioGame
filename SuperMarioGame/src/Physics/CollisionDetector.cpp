@@ -1,11 +1,95 @@
 #include "Physics/CollisionDetector.hpp"
+#include "Entities/Entity.hpp"
+#include "Utils/TileMap.hpp"
+#include "Utils/Constants.hpp"
+#include <algorithm>
+#include <cmath>
 
 CollisionInfo CollisionDetector::checkEntityVsEntity(Entity& e1, Entity& e2) {
-    // TODO: Implement by hand
-    return CollisionInfo{};
+    CollisionInfo info;
+    AABB box1 = e1.getBoundingBox();
+    AABB box2 = e2.getBoundingBox();
+
+    if (!box1.intersects(box2)) {
+        return info;
+    }
+
+    AABB overlapBox = box1.getOverlap(box2);
+    info.collided = true;
+    info.other = &e2;
+
+    sf::Vector2f center1 = box1.getCenter();
+    sf::Vector2f center2 = box2.getCenter();
+
+    if (overlapBox.width < overlapBox.height) {
+        info.overlap.x = overlapBox.width;
+        if (center1.x < center2.x) {
+            info.normal.x = -1.0f;
+        } else {
+            info.normal.x = 1.0f;
+        }
+    } else {
+        info.overlap.y = overlapBox.height;
+        if (center1.y < center2.y) {
+            info.normal.y = -1.0f;
+        } else {
+            info.normal.y = 1.0f;
+        }
+    }
+
+    return info;
 }
 
 std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entity, TileMap& tileMap) {
-    // TODO: Implement by hand
-    return std::vector<CollisionInfo>{};
+    std::vector<CollisionInfo> collisions;
+    AABB entityBox = entity.getBoundingBox();
+
+    int startX = static_cast<int>(std::floor(entityBox.x / Constants::TILE_SIZE));
+    int endX = static_cast<int>(std::floor((entityBox.x + entityBox.width) / Constants::TILE_SIZE));
+    int startY = static_cast<int>(std::floor(entityBox.y / Constants::TILE_SIZE));
+    int endY = static_cast<int>(std::floor((entityBox.y + entityBox.height) / Constants::TILE_SIZE));
+
+    for (int y = startY; y <= endY; ++y) {
+        for (int x = startX; x <= endX; ++x) {
+            TileType tileType = tileMap.getTileType(x, y);
+            const TileInfo& tileInfo = TileMap::getInfo(tileType);
+            if (tileInfo.isSolid) {
+                AABB tileBox {
+                    x * Constants::TILE_SIZE,
+                    y * Constants::TILE_SIZE,
+                    Constants::TILE_SIZE,
+                    Constants::TILE_SIZE
+                };
+
+                if (entityBox.intersects(tileBox)) {
+                    CollisionInfo collisionInfo;
+                    collisionInfo.collided = true;
+                    collisionInfo.other = nullptr;
+
+                    AABB overlapBox = entityBox.getOverlap(tileBox);
+                    sf::Vector2f center1 = entityBox.getCenter();
+                    sf::Vector2f center2 = tileBox.getCenter();
+
+                    if (overlapBox.width < overlapBox.height) {
+                        collisionInfo.overlap.x = overlapBox.width;
+                        if (center1.x < center2.x) {
+                            collisionInfo.normal.x = -1.0f;
+                        } else {
+                            collisionInfo.normal.x = 1.0f;
+                        }
+                    } else {
+                        collisionInfo.overlap.y = overlapBox.height;
+                        if (center1.y < center2.y) {
+                            collisionInfo.normal.y = -1.0f;
+                        } else {
+                            collisionInfo.normal.y = 1.0f;
+                        }
+                    }
+                    collisions.push_back(collisionInfo);
+                }
+            }
+        }
+    }
+
+    return collisions;
 }

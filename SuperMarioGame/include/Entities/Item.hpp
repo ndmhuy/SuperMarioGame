@@ -13,5 +13,10 @@ public:
     virtual void activate(Player& player);
     virtual void collect();
 
+    // Read-only getter
+    bool isCollected() const { return collected; }
+
+protected:
     bool collected = false;
 };
+

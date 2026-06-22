@@ -1,5 +1,6 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
+#include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
@@ -100,5 +101,6 @@ void Game::initImGui() {
 }
 
 void Game::shutdown() {
+    SoundManager::getInstance().shutdown();
     ImGui::SFML::Shutdown();
 }

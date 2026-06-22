@@ -1,16 +1,21 @@
 #include "Entities/Entity.hpp"
 
-AABB Entity::getBoundingBox() const {
-    // TODO: Implement by hand
+const AABB& Entity::getBoundingBox() const {
     return boundingBox;
 }
 
 bool Entity::isActive() const {
-    // TODO: Implement by hand
     return active;
 }
 
 void Entity::destroy() {
-    // TODO: Implement by hand
     active = false;
+}
+
+sf::Vector2f Entity::getPosition() const {
+    return position;
+}
+
+sf::Vector2f Entity::getVelocity() const {
+    return velocity;
 }

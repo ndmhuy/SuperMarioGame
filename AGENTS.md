@@ -164,6 +164,8 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 >    - Adhere strictly to Object-Oriented Programming (OOP) principles: encapsulation, inheritance, polymorphism, and abstraction.
 >    - Emphasize clean software architecture and system design to ensure long-term maintainability.
 >    - Avoid global state (unless using the Singleton pattern carefully) and spaghetti code.
+>    - **Encapsulation & Getters/Setters**: Be extremely careful with getters/setters. Avoid unnecessary, trivial getters/setters that expose internal states or raw pointers (e.g., exposing window pointers or manager vectors directly, which violates encapsulation). Keep variables private/protected and prefer high-level action-oriented methods.
+>
 >
 > 6. **Read SPEC.md Before Implementing**:
 >    - Always check `SPEC.md` for exact values, schemas, and behavioral rules before writing code.

@@ -26,6 +26,9 @@ public:
     void pauseMusic();
     void resumeMusic();
 
+    // Lifecycle
+    void shutdown();
+
     // Set volume methods
     void setSFXVolume(float volume);
     void setMusicVolume(float volume);

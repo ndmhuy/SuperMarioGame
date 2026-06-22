@@ -25,7 +25,27 @@ public:
     IPlayerState* getCurrentState() const;
     void changeState(std::unique_ptr<IPlayerState> state);
 
-    // Player stats
+    // Action methods (enforce game rules)
+    void addCoins(int amount);
+    void addScore(int amount);
+    void gainLife();
+    void loseLife();
+    void resetCombo();
+    void incrementCombo();
+
+    // Read-only getters for external consumers (HUD, UI, save)
+    int getLives() const { return lives; }
+    int getCoins() const { return coins; }
+    int getScore() const { return score; }
+    float getInvincibilityTimer() const { return invincibilityTimer; }
+    int getCoyoteFramesLeft() const { return coyoteFramesLeft; }
+    int getJumpBufferFramesLeft() const { return jumpBufferFramesLeft; }
+    int getComboCounter() const { return comboCounter; }
+
+protected:
+    std::unique_ptr<IPlayerState> m_currentState;
+
+    // Player stats — modified only through action methods or friends
     int lives = 3;
     int coins = 0;
     int score = 0;
@@ -35,7 +55,5 @@ public:
     int coyoteFramesLeft = 0;
     int jumpBufferFramesLeft = 0;
     int comboCounter = 0;
-
-protected:
-    std::unique_ptr<IPlayerState> m_currentState;
 };
+

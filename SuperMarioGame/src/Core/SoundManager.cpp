@@ -69,3 +69,11 @@ void SoundManager::setMusicVolume(float volume) {
     m_musicVolume = volume;
     m_music.setVolume(volume);
 }
+
+void SoundManager::shutdown() {
+    m_music.stop();
+    for (auto& sound : m_soundPool) {
+        sound.stop();
+    }
+    m_soundPool.clear();
+}

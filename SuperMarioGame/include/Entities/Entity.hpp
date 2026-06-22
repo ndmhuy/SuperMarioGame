@@ -4,6 +4,9 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/System/Vector2.hpp>
 
+class PhysicsEngine;
+class CollisionResolver;
+
 class Entity {
 public:
     Entity() = default;
@@ -14,13 +17,22 @@ public:
     virtual void render(sf::RenderTarget& target) = 0;
 
     // Virtual physics/state queries
-    virtual AABB getBoundingBox() const;
+    virtual const AABB& getBoundingBox() const;
     virtual bool isActive() const;
     virtual void destroy();
 
-    // Core attributes
+    // Getters for external read-only access
+    sf::Vector2f getPosition() const;
+    sf::Vector2f getVelocity() const;
+
+protected:
+    // Friends are allowed direct write access to coordinate updates
+    friend class PhysicsEngine;
+    friend class CollisionResolver;
+
     sf::Vector2f position;
     sf::Vector2f velocity;
     bool active = true;
     AABB boundingBox;
 };
+
