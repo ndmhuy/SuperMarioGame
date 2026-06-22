@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include "Physics/SpatialHash.hpp"
 #include "Physics/CollisionDetector.hpp"
 #include "Physics/CollisionResolver.hpp"
@@ -18,7 +19,7 @@ public:
     void integrateVelocity(Entity& entity, float dt);
 
     // Main pipeline update
-    void update(std::vector<Entity*>& entities, TileMap& tileMap, float dt);
+    void update(const std::vector<std::unique_ptr<Entity>>& entities, TileMap& tileMap, float dt);
 
 private:
     SpatialHash m_spatialHash;

@@ -37,6 +37,9 @@ public:
     }
 };
 
+PlayingState::PlayingState() = default;
+PlayingState::~PlayingState() = default;
+
 void PlayingState::enter() {
     std::cout << "Entering PlayingState" << std::endl;
     setupTestScene();
@@ -57,7 +60,7 @@ void PlayingState::handleInput(const sf::Event& event) {
 
 void PlayingState::update(float dt) {
     // 1. Update entities (synchronize visual positions to bounds)
-    for (auto* entity : m_entities) {
+    for (auto& entity : m_entities) {
         if (entity) {
             entity->update(dt);
         }
@@ -90,7 +93,7 @@ void PlayingState::render(sf::RenderTarget& target) {
     }
 
     // Draw the active entities
-    for (auto* entity : m_entities) {
+    for (auto& entity : m_entities) {
         if (entity && entity->isActive()) {
             entity->render(target);
         }
@@ -128,12 +131,9 @@ void PlayingState::setupTestScene() {
     }
 
     // Spawn a DummyPhysicsEntity at (300, 50) with size (32, 32)
-    m_entities.push_back(new DummyPhysicsEntity(sf::Vector2f(300.0f, 50.0f), sf::Vector2f(32.0f, 32.0f)));
+    m_entities.push_back(std::make_unique<DummyPhysicsEntity>(sf::Vector2f(300.0f, 50.0f), sf::Vector2f(32.0f, 32.0f)));
 }
 
 void PlayingState::cleanupTestScene() {
-    for (auto* entity : m_entities) {
-        delete entity;
-    }
     m_entities.clear();
 }

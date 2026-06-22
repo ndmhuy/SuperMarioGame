@@ -420,6 +420,23 @@ Files Modified: SuperMarioGame_ClassDiagram.pdf, SuperMarioGame_ClassDiagram_Hor
 Summary of Changes:
 - Tracked, committed, and pushed all class diagram PDF, SVG, and HTML test assets to origin.
 ---
-
-
-
+[2026-06-22 08:35:00] Branch: A/feature/physics
+Prompt: Evaluate and fix issues reported by Copilot review.
+Files Modified:
+- SuperMarioGame/include/Utils/TileMap.hpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/include/Physics/PhysicsEngine.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/.gitignore
+Summary of Changes:
+- Added missing `<string>` include in TileMap.hpp to ensure self-contained headers.
+- Converted PlayingState entity storage to use std::unique_ptr<Entity> (RAII) and updated all iteration loops and lifecycle management.
+- Moved PlayingState constructor and destructor definitions from header to source to resolve compiler incomplete type error for forward-declared Entity under std::unique_ptr.
+- Updated PhysicsEngine::update signature to match the smart pointer conversion.
+- Refactored conveyor push logic to use previous frame's ground state prior to reset, ensuring conveyor movement integrates and collides correctly with tile walls.
+- Resequenced spatial hash rebuilding to occur after entity positions are integrated and resolved, preventing stale coordinate keys during broadphase queries.
+- Implemented collision pair de-duplication cache using std::unordered_set with order-independent keys to guarantee each colliding pair is resolved exactly once per frame.
+- Excluded imgui.ini from git tracking and added it to .gitignore to prevent developer-specific UI conflict diffs.
+- Verified successful CMake compilation and executable builds.
+---

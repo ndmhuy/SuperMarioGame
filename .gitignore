@@ -26,3 +26,8 @@ lh/
 
 # Member-specific agent profiles
 .member_profile.json
+
+# ImGui layout config
+imgui.ini
+SuperMarioGame/imgui.ini
+

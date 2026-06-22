@@ -4,13 +4,14 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
 #include <vector>
+#include <memory>
 
 class Entity;
 
 class PlayingState : public IGameState {
 public:
-    PlayingState() = default;
-    ~PlayingState() override = default;
+    PlayingState();
+    ~PlayingState() override;
 
     void enter() override;
     void exit() override;
@@ -21,7 +22,7 @@ public:
 private:
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
-    std::vector<Entity*> m_entities;
+    std::vector<std::unique_ptr<Entity>> m_entities;
 
     void setupTestScene();
     void cleanupTestScene();
