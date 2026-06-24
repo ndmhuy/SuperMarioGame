@@ -4,6 +4,9 @@
 #include <memory>
 #include "Core/GameStateManager.hpp"
 
+class Player;
+class TileMap;
+
 class Game {
 public:
     // Delete copy/move semantics for Singleton
@@ -24,6 +27,12 @@ public:
     void popState();
     void changeState(std::unique_ptr<IGameState> state);
 
+    // Player and TileMap Registry
+    Player* getPlayer() const;
+    void setPlayer(Player* player);
+    TileMap* getTileMap() const;
+    void setTileMap(TileMap* tileMap);
+
 private:
     Game() = default;
     ~Game() = default;
@@ -37,4 +46,7 @@ private:
     sf::RenderWindow m_window;
     GameStateManager m_gsm;
     bool m_isRunning = false;
+
+    Player* m_player = nullptr;
+    TileMap* m_tileMap = nullptr;
 };

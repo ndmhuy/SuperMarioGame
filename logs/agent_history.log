@@ -304,6 +304,67 @@ Summary of Changes:
 - Added resumeMusic() to SoundManager to allow resuming playback of paused music without specifying path.
 - Updated playMusic() to resume when paused and do nothing when already playing, preventing current music from restarting.
 - Recompiled and verified successful builds.
+[2026-06-21 20:31:00] Branch: dev
+Prompt: Read the project and setup a planning and a implementing agents.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Read codebase structure, task division, and workflow guidelines.
+- Defined subagent 'planning_agent' for research, design patterns, and implementation plan generation.
+- Defined subagent 'implementing_agent' for executing code edits, CMake building, and manual/automated verification.
+- Created agent_setup.md artifact to document agent roles, responsibilities, and step-by-step collaboration loops.
+[2026-06-21 22:02:00] Branch: dev
+Prompt: Adapt the agent to the member B tasks.
+Files Modified: .member_profile.json (NEW), logs/agent_history.log
+Summary of Changes:
+- Created the gitignored .member_profile.json configuration file at the workspace root, designating Member B (Partner) as the active developer.
+- Configured Member B private tasks focusing on the Phase 3 Entity Hierarchy (Entity, Character, Player bases, and AI strategies).
+- Set up custom agent instructions to prioritize gameplay/entities, enforce B/ branch prefixes, and verify interfaces with Member A's engine code.
+[2026-06-21 22:13:30] Branch: dev
+Prompt: Create a teaching agent for answering questions about the plans and implementation details.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Defined subagent 'teaching_agent' focused on explaining architectural design, design patterns, specification sheets, and C++ source code details.
+- Configured 'teaching_agent' as a read-only agent (write tools disabled) to isolate it from the regular development and implementation flow.
+---
+[2026-06-23 20:40:00] Branch: B/movement-strategies
+Prompt: Implement abstract Enemy class, IMovementStrategy interface, and 8 concrete AI movement strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger). Write verify_strategies.cpp scratch test, update task.md and TASKS.md checklists, and log changes.
+Files Modified:
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/include/Entities/IMovementStrategy.hpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/PatrolStrategy.hpp
+- SuperMarioGame/src/Entities/PatrolStrategy.cpp
+- SuperMarioGame/include/Entities/ChaseStrategy.hpp
+- SuperMarioGame/src/Entities/ChaseStrategy.cpp
+- SuperMarioGame/include/Entities/FlyStrategy.hpp
+- SuperMarioGame/src/Entities/FlyStrategy.cpp
+- SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp
+- SuperMarioGame/src/Entities/TimerEmergenceStrategy.cpp
+- SuperMarioGame/include/Entities/LinearStrategy.hpp
+- SuperMarioGame/src/Entities/LinearStrategy.cpp
+- SuperMarioGame/include/Entities/HammerThrowStrategy.hpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp
+- SuperMarioGame/src/Entities/TetheredChaseStrategy.cpp
+- SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp
+- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
+- TASKS.md
+Summary of Changes:
+- Modified Game singleton with player and tilemap registry setters/getters.
+- Created IMovementStrategy.hpp outlining the AI Template Method movement sequence.
+- Implemented abstract base class Enemy inheriting from Character, delegating updates to its active strategy.
+- Created PatrolStrategy supporting wall rebound and ledge-awareness with TileMap.
+- Created ChaseStrategy tracking player coordinates when their back is turned.
+- Created FlyStrategy with sinusoidal, vertical-only bounce, and player follow modes.
+- Created TimerEmergenceStrategy pipe animation state machine.
+- Created LinearStrategy for constant horizontal speed (Bullet Bill).
+- Created HammerThrowStrategy for jumping and callback-based projectile throwing.
+- Created TetheredChaseStrategy with anchor post, wandering, and tether clamping limits.
+- Created ProximityTriggerStrategy ceiling slam state machine (Thwomp).
+- Wrote verify_strategies.cpp scratch test verifying all 8 strategy lifecycles.
+- Checked off completed tasks in TASKS.md.
 ---
 [2026-06-16 17:07:00] Branch: A/feature/physics
 Prompt: Move on Phase 2, create the boilerplate, leave empty implementation for human do by hand.
@@ -440,3 +501,4 @@ Summary of Changes:
 - Excluded imgui.ini from git tracking and added it to .gitignore to prevent developer-specific UI conflict diffs.
 - Verified successful CMake compilation and executable builds.
 ---
+

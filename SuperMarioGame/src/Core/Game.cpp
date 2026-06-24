@@ -104,3 +104,19 @@ void Game::shutdown() {
     SoundManager::getInstance().shutdown();
     ImGui::SFML::Shutdown();
 }
+
+Player* Game::getPlayer() const {
+    return m_player;
+}
+
+void Game::setPlayer(Player* player) {
+    m_player = player;
+}
+
+TileMap* Game::getTileMap() const {
+    return m_tileMap;
+}
+
+void Game::setTileMap(TileMap* tileMap) {
+    m_tileMap = tileMap;
+}

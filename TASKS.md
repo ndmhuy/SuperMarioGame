@@ -234,24 +234,24 @@
 - [ ] Commit: `feat: implement unlockable characters Toad and Peach`
 
 ### 3.7 Enemy Base + AI Strategies
-- [ ] Create [IMovementStrategy.hpp](SuperMarioGame/include/Entities/IMovementStrategy.hpp) — interface
+- [x] Create [IMovementStrategy.hpp](SuperMarioGame/include/Entities/IMovementStrategy.hpp) — interface
   - `virtual void execute(Enemy& enemy, float dt) = 0` (Template Method skeleton)
   - `virtual ~IMovementStrategy() = default`
-- [ ] Create strategies:
-  - [ ] [PatrolStrategy.hpp/.cpp](SuperMarioGame/include/Entities/PatrolStrategy.hpp) — walk, reverse on wall, fall off (or ledge-aware for variants) [v2.0]
-  - [ ] [ChaseStrategy.hpp/.cpp](SuperMarioGame/include/Entities/ChaseStrategy.hpp) — idle until within 250px, move toward target
-  - [ ] [FlyStrategy.hpp/.cpp](SuperMarioGame/include/Entities/FlyStrategy.hpp) — sinusoidal vertical movement + horizontal patrol
-  - [ ] [TimerEmergenceStrategy.hpp/.cpp](SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp) — emerge/retreat on timer (Piranha Plant) [v2.0]
-  - [ ] [LinearStrategy.hpp/.cpp](SuperMarioGame/include/Entities/LinearStrategy.hpp) — straight-line travel (Bullet Bill) [v2.0]
-  - [ ] [HammerThrowStrategy.hpp/.cpp](SuperMarioGame/include/Entities/HammerThrowStrategy.hpp) — jump between platforms + arc throws [v2.0]
-  - [ ] [TetheredChaseStrategy.hpp/.cpp](SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp) — lunge toward player, snap back to anchor [v2.0]
-  - [ ] [ProximityTriggerStrategy.hpp/.cpp](SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp) — idle, slam, rise (Thwomp) [v2.0]
-- [ ] Create [Enemy.hpp](SuperMarioGame/include/Entities/Enemy.hpp) + [Enemy.cpp](SuperMarioGame/src/Entities/Enemy.cpp)
+- [x] Create strategies:
+  - [x] [PatrolStrategy.hpp/.cpp](SuperMarioGame/include/Entities/PatrolStrategy.hpp) — walk, reverse on wall, fall off (or ledge-aware for variants) [v2.0]
+  - [x] [ChaseStrategy.hpp/.cpp](SuperMarioGame/include/Entities/ChaseStrategy.hpp) — idle until within 250px, move toward target
+  - [x] [FlyStrategy.hpp/.cpp](SuperMarioGame/include/Entities/FlyStrategy.hpp) — sinusoidal vertical movement + horizontal patrol
+  - [x] [TimerEmergenceStrategy.hpp/.cpp](SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp) — emerge/retreat on timer (Piranha Plant) [v2.0]
+  - [x] [LinearStrategy.hpp/.cpp](SuperMarioGame/include/Entities/LinearStrategy.hpp) — straight-line travel (Bullet Bill) [v2.0]
+  - [x] [HammerThrowStrategy.hpp/.cpp](SuperMarioGame/include/Entities/HammerThrowStrategy.hpp) — jump between platforms + arc throws [v2.0]
+  - [x] [TetheredChaseStrategy.hpp/.cpp](SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp) — lunge toward player, snap back to anchor [v2.0]
+  - [x] [ProximityTriggerStrategy.hpp/.cpp](SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp) — idle, slam, rise (Thwomp) [v2.0]
+- [x] Create [Enemy.hpp](SuperMarioGame/include/Entities/Enemy.hpp) + [Enemy.cpp](SuperMarioGame/src/Entities/Enemy.cpp)
   - Inherits `Character`. Holds `std::unique_ptr<IMovementStrategy>`
   - `update()` delegates fully to `aiStrategy->execute()` [v2.0]
   - `onStomped()`, `onHitByFireball()` — virtual
   - Scoring: each enemy kill grants points (configurable via JSON) [v2.0]
-- [ ] Commit: `feat: implement Enemy base class and 8 AI movement strategies`
+- [x] Commit: `feat: implement Enemy base class and 8 AI movement strategies`
 
 ### 3.8 Concrete Enemies (Original)
 - [ ] Create [Goomba.hpp/.cpp](SuperMarioGame/include/Entities/Goomba.hpp) — PatrolStrategy, variant support (brown/red) [v2.0]
