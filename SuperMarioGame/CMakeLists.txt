@@ -58,3 +58,36 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Network
     ImGui-SFML::ImGui-SFML
 )
+
+# ---------------------------------------------------------
+# 3. Verification Test Target (verify_enemies)
+# ---------------------------------------------------------
+add_executable(verify_enemies 
+    "tests/verify_enemies.cpp"
+    "src/Entities/Goomba.cpp"
+    "src/Entities/KoopaTroopa.cpp"
+    "src/Entities/KoopaParatroopa.cpp"
+    "src/Entities/Boo.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/PatrolStrategy.cpp"
+    "src/Entities/FlyStrategy.cpp"
+    "src/Entities/ChaseStrategy.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
+
+target_include_directories(verify_enemies PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_enemies PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
