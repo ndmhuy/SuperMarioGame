@@ -533,4 +533,45 @@ Summary of Changes:
 - Created verify_blocks.cpp unit tests compiling and running successfully.
 - Checked off completed tasks in TASKS.md.
 ---
+[2026-06-26 21:30:00] Branch: B/feature/entities
+Prompt: Implement Phase 3.9 (7 New Enemies: PiranhaPlant, BulletBill, HammerBro, Thwomp, ChainChomp, Lakitu, Spiny) and Phase 3.13 (5 New Blocks: HiddenBlock, MovingPlatform, FallingPlatform, IceBlock, ConveyorBelt). Compile and run separate unit test targets verify_enemies_new and verify_blocks_new.
+Files Modified:
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/include/Entities/Entity.hpp
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/include/Entities/Lakitu.hpp
+- SuperMarioGame/src/Entities/Lakitu.cpp
+- SuperMarioGame/include/Entities/Spiny.hpp
+- SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/include/Entities/HiddenBlock.hpp
+- SuperMarioGame/src/Entities/HiddenBlock.cpp
+- SuperMarioGame/include/Entities/MovingPlatform.hpp
+- SuperMarioGame/src/Entities/MovingPlatform.cpp
+- SuperMarioGame/include/Entities/FallingPlatform.hpp
+- SuperMarioGame/src/Entities/FallingPlatform.cpp
+- SuperMarioGame/include/Entities/IceBlock.hpp
+- SuperMarioGame/src/Entities/IceBlock.cpp
+- SuperMarioGame/include/Entities/ConveyorBelt.hpp
+- SuperMarioGame/src/Entities/ConveyorBelt.cpp
+- SuperMarioGame/src/Entities/PatrolStrategy.cpp
+- SuperMarioGame/tests/verify_enemies.cpp
+- SuperMarioGame/tests/verify_enemies_new.cpp (NEW)
+- SuperMarioGame/tests/verify_blocks_new.cpp (NEW)
+- SuperMarioGame/CMakeLists.txt
+- TASKS.md
+Summary of Changes:
+- Added enemy constants, platform settings, and conveyor belt speed constants to Constants.hpp.
+- Declared AI movement strategies and standalone test main() functions as friends of Entity and Character to allow direct coordinate modifications without breaking public encapsulation.
+- Implemented Lakitu hovering above player using FlyStrategy and throwing Spiny eggs on a 4-second cycle.
+- Implemented Spiny turtle using PatrolStrategy with stomp immunity (hurts player) and fireball flip reaction.
+- Implemented HiddenBlock (invisible until hit from below, updates to solid 32x32px block on hits).
+- Implemented MovingPlatform translating linearly back-and-forth and carrying standing players.
+- Implemented FallingPlatform with 4-state lifecycle (Idle -> Shaking -> Falling -> Respawning).
+- Implemented IceBlock representing low friction block surfaces.
+- Implemented ConveyorBelt applying constant lateral push offsets (100 px/s) to players standing on top.
+- Fixed PatrolStrategy scoped TileType enum conversions.
+- Fixed match issues in verify_enemies.cpp stubs.
+- Created standalone console verification test executables verify_enemies_new.exe and verify_blocks_new.exe using a non-aborting TEST_ASSERT macro.
+- Compiled and successfully executed all unit tests with 100% success on MSVC.
+---
 

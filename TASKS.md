@@ -261,14 +261,14 @@
 - [x] Commit: `feat: implement Goomba, KoopaTroopa, Paratroopa, Boo with variants`
 
 ### 3.9 Concrete Enemies (New in v2.0)
-- [ ] Create [PiranhaPlant.hpp/.cpp](SuperMarioGame/include/Entities/PiranhaPlant.hpp) — TimerEmergenceStrategy, pipe-bound
-- [ ] Create [BulletBill.hpp/.cpp](SuperMarioGame/include/Entities/BulletBill.hpp) — LinearStrategy, stompable, spawned from Bill Blaster
-- [ ] Create [HammerBro.hpp/.cpp](SuperMarioGame/include/Entities/HammerBro.hpp) — HammerThrowStrategy, arc projectiles
-- [ ] Create [Thwomp.hpp/.cpp](SuperMarioGame/include/Entities/Thwomp.hpp) — ProximityTriggerStrategy, 3-state lifecycle
-- [ ] Create [ChainChomp.hpp/.cpp](SuperMarioGame/include/Entities/ChainChomp.hpp) — TetheredChaseStrategy, 4-tile radius
-- [ ] Create [Lakitu.hpp/.cpp](SuperMarioGame/include/Entities/Lakitu.hpp) — FlyStrategy + spawns Spinies via Factory
-- [ ] Create [Spiny.hpp/.cpp](SuperMarioGame/include/Entities/Spiny.hpp) — PatrolStrategy, not stompable
-- [ ] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
+- [x] Create [PiranhaPlant.hpp/.cpp](SuperMarioGame/include/Entities/PiranhaPlant.hpp) — TimerEmergenceStrategy, pipe-bound
+- [x] Create [BulletBill.hpp/.cpp](SuperMarioGame/include/Entities/BulletBill.hpp) — LinearStrategy, stompable, spawned from Bill Blaster
+- [x] Create [HammerBro.hpp/.cpp](SuperMarioGame/include/Entities/HammerBro.hpp) — HammerThrowStrategy, arc projectiles
+- [x] Create [Thwomp.hpp/.cpp](SuperMarioGame/include/Entities/Thwomp.hpp) — ProximityTriggerStrategy, 3-state lifecycle
+- [x] Create [ChainChomp.hpp/.cpp](SuperMarioGame/include/Entities/ChainChomp.hpp) — TetheredChaseStrategy, 4-tile radius
+- [x] Create [Lakitu.hpp/.cpp](SuperMarioGame/include/Entities/Lakitu.hpp) — FlyStrategy + spawns Spinies via Factory
+- [x] Create [Spiny.hpp/.cpp](SuperMarioGame/include/Entities/Spiny.hpp) — PatrolStrategy, not stompable
+- [x] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
 
 ### 3.10 Items (Original)
 - [ ] Create [Item.hpp](SuperMarioGame/include/Entities/Item.hpp) + [Item.cpp](SuperMarioGame/src/Entities/Item.cpp)
@@ -293,12 +293,12 @@
 - [x] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
 
 ### 3.13 Blocks (New in v2.0)
-- [ ] Create [HiddenBlock.hpp/.cpp](SuperMarioGame/include/Entities/HiddenBlock.hpp) — invisible until hit from below
-- [ ] Create [MovingPlatform.hpp/.cpp](SuperMarioGame/include/Entities/MovingPlatform.hpp) — path-based movement, carries player
-- [ ] Create [FallingPlatform.hpp/.cpp](SuperMarioGame/include/Entities/FallingPlatform.hpp) — 4-state lifecycle (State pattern)
-- [ ] Create [IceBlock.hpp/.cpp](SuperMarioGame/include/Entities/IceBlock.hpp) — reduced friction surface
-- [ ] Create [ConveyorBelt.hpp/.cpp](SuperMarioGame/include/Entities/ConveyorBelt.hpp) — directional push force
-- [ ] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
+- [x] Create [HiddenBlock.hpp/.cpp](SuperMarioGame/include/Entities/HiddenBlock.hpp) — invisible until hit from below
+- [x] Create [MovingPlatform.hpp/.cpp](SuperMarioGame/include/Entities/MovingPlatform.hpp) — path-based movement, carries player
+- [x] Create [FallingPlatform.hpp/.cpp](SuperMarioGame/include/Entities/FallingPlatform.hpp) — 4-state lifecycle (State pattern)
+- [x] Create [IceBlock.hpp/.cpp](SuperMarioGame/include/Entities/IceBlock.hpp) — reduced friction surface
+- [x] Create [ConveyorBelt.hpp/.cpp](SuperMarioGame/include/Entities/ConveyorBelt.hpp) — directional push force
+- [x] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
 
 ### 3.14 Entity Factory (Factory Pattern)
 - [ ] Create [EntityFactory.hpp](SuperMarioGame/include/Entities/EntityFactory.hpp) + [EntityFactory.cpp](SuperMarioGame/src/Entities/EntityFactory.cpp)
