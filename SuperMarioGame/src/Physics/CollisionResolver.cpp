@@ -2,6 +2,8 @@
 #include "Entities/Player.hpp"
 #include "Entities/Enemy.hpp"
 #include "Entities/Item.hpp"
+#include "Entities/Block.hpp"
+#include "Entities/Flagpole.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -70,6 +72,23 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
         resolvePlayerVsItem(*player2, *item1, flippedInfo);
         return;
     }
+
+    // 4. Character vs Block
+    auto char1 = dynamic_cast<Character*>(&e1);
+    auto char2 = dynamic_cast<Character*>(&e2);
+    auto block1 = dynamic_cast<Block*>(&e1);
+    auto block2 = dynamic_cast<Block*>(&e2);
+
+    if (char1 && block2) {
+        resolveCharacterVsBlock(*char1, *block2, info);
+        return;
+    }
+    if (block1 && char2) {
+        CollisionInfo flippedInfo = info;
+        flippedInfo.normal = -info.normal;
+        resolveCharacterVsBlock(*char2, *block1, flippedInfo);
+        return;
+    }
 }
 
 void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info) {
@@ -114,10 +133,45 @@ void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const Coll
         // p2 is above p1 (p2 stomps p1's head)
         p2.velocity.y = -300.0f; // p2 bounces up
         p1.velocity.y = 100.0f;  // p1 is pushed down
-    } else if (info.normal.x != 0.0f) {
+    } else    if (info.normal.x != 0.0f) {
         // Side hit: distribute velocities horizontally to push them apart
         float avgVx = (p1.velocity.x + p2.velocity.x) / 2.0f;
         p1.velocity.x = avgVx + info.normal.x * 50.0f;
         p2.velocity.x = avgVx - info.normal.x * 50.0f;
+    }
+}
+
+void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& block, const CollisionInfo& info) {
+    if (!info.collided || !block.isActive()) return;
+
+    // Handle flagpole trigger specifically (subclass of Block)
+    if (auto flagpole = dynamic_cast<Flagpole*>(&block)) {
+        if (auto player = dynamic_cast<Player*>(&character)) {
+            flagpole->onPlayerCollision(*player, character.position.y);
+        }
+        return; // Flagpole does not physically block the character
+    }
+
+    // Push character out of the block
+    character.position.x += info.normal.x * info.overlap.x;
+    character.position.y += info.normal.y * info.overlap.y;
+    character.boundingBox.x = character.position.x;
+    character.boundingBox.y = character.position.y;
+
+    // Cancel velocity along collision normal
+    if (info.normal.x != 0.0f) {
+        character.velocity.x = 0.0f;
+        character.onWall = true;
+    }
+    if (info.normal.y != 0.0f) {
+        character.velocity.y = 0.0f;
+        if (info.normal.y == -1.0f) { // Character landed on top of the block
+            character.onGround = true;
+        }
+        if (info.normal.y == 1.0f) { // Character hit ceiling (block from below)
+            if (auto player = dynamic_cast<Player*>(&character)) {
+                block.onHitFromBelow(*player);
+            }
+        }
     }
 }

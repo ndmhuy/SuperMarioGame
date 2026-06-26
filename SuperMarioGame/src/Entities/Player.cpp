@@ -40,13 +40,15 @@ IPlayerState* Player::getCurrentState() const {
 }
 
 void Player::changeState(std::unique_ptr<IPlayerState> state) {
-    // TODO: Implement by hand
     if (m_currentState) {
         m_currentState->exit(*this);
     }
     m_currentState = std::move(state);
     if (m_currentState) {
         m_currentState->enter(*this);
+        sf::Vector2f size = m_currentState->getSize();
+        boundingBox.width = size.x;
+        boundingBox.height = size.y;
     }
 }
 

@@ -25,6 +25,10 @@ public:
     sf::Vector2f getPosition() const;
     sf::Vector2f getVelocity() const;
 
+    // Setters for coordinates
+    void setPosition(sf::Vector2f pos);
+    void setVelocity(sf::Vector2f vel);
+
 protected:
     // Friends are allowed direct write access to coordinate updates
     friend class PhysicsEngine;

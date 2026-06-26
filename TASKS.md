@@ -287,10 +287,10 @@
 - [ ] Commit: `feat: implement 7 new items (Cape, Mega, Mini, POW, PSwitch, Trampoline, StarCoin)`
 
 ### 3.12 Blocks (Original)
-- [ ] Create [Block.hpp](SuperMarioGame/include/Entities/Block.hpp) + [Block.cpp](SuperMarioGame/src/Entities/Block.cpp)
+- [x] Create [Block.hpp](SuperMarioGame/include/Entities/Block.hpp) + [Block.cpp](SuperMarioGame/src/Entities/Block.cpp)
   - Inherits `Entity`. `breakable` flag. `virtual onHitFromBelow(Player&)`
-- [ ] Create: [BrickBlock.hpp/.cpp](SuperMarioGame/include/Entities/BrickBlock.hpp), [QuestionBlock.hpp/.cpp](SuperMarioGame/include/Entities/QuestionBlock.hpp), [Pipe.hpp/.cpp](SuperMarioGame/include/Entities/Pipe.hpp), [Flagpole.hpp/.cpp](SuperMarioGame/include/Entities/Flagpole.hpp)
-- [ ] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
+- [x] Create: [BrickBlock.hpp/.cpp](SuperMarioGame/include/Entities/BrickBlock.hpp), [QuestionBlock.hpp/.cpp](SuperMarioGame/include/Entities/QuestionBlock.hpp), [Pipe.hpp/.cpp](SuperMarioGame/include/Entities/Pipe.hpp), [Flagpole.hpp/.cpp](SuperMarioGame/include/Entities/Flagpole.hpp)
+- [x] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
 
 ### 3.13 Blocks (New in v2.0)
 - [ ] Create [HiddenBlock.hpp/.cpp](SuperMarioGame/include/Entities/HiddenBlock.hpp) — invisible until hit from below

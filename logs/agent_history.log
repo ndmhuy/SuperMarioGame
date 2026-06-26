@@ -501,3 +501,36 @@ Summary of Changes:
 - Excluded imgui.ini from git tracking and added it to .gitignore to prevent developer-specific UI conflict diffs.
 - Verified successful CMake compilation and executable builds.
 ---
+[2026-06-26 18:25:00] Branch: B/feature/entities
+Prompt: Proceed with the plan to implement Phase 3.12: Blocks (Original).
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Entities/Block.hpp
+- SuperMarioGame/src/Entities/Block.cpp
+- SuperMarioGame/include/Entities/BrickBlock.hpp
+- SuperMarioGame/src/Entities/BrickBlock.cpp
+- SuperMarioGame/include/Entities/QuestionBlock.hpp
+- SuperMarioGame/src/Entities/QuestionBlock.cpp
+- SuperMarioGame/include/Entities/Pipe.hpp
+- SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/include/Entities/Flagpole.hpp
+- SuperMarioGame/src/Entities/Flagpole.cpp
+- SuperMarioGame/include/Entities/Entity.hpp
+- SuperMarioGame/src/Entities/Entity.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/tests/verify_blocks.cpp
+- TASKS.md
+Summary of Changes:
+- Added public setPosition and setVelocity mutators to Entity base class to safely teleport players and other entities.
+- Implemented abstract Block base class with standard parabolic bump/bounce animation on hits from below.
+- Implemented BrickBlock supporting breaking under Super+ size, coin dispensation, and bump animations.
+- Implemented QuestionBlock with item/coin spawning, sound effect calls, and state transitions to empty flat block.
+- Implemented Pipe (2x2 tiles size warp gate) checking warp conditions (player standing on top center and pressing down) and teleports player to exit coordinates.
+- Implemented Flagpole end marker calculating height-scaled completion scores (100 to 5000 points) and firing completion events.
+- Modified CollisionResolver to integrate character-vs-block solid pushing, player hit-from-below block callbacks, and flagpole collisions.
+- Created verify_blocks.cpp unit tests compiling and running successfully.
+- Checked off completed tasks in TASKS.md.
+---
+

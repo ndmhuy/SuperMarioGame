@@ -91,3 +91,39 @@ target_link_libraries(verify_enemies PRIVATE
     ImGui-SFML::ImGui-SFML
 )
 
+# ---------------------------------------------------------
+# 4. Verification Test Target (verify_blocks)
+# ---------------------------------------------------------
+add_executable(verify_blocks 
+    "tests/verify_blocks.cpp"
+    "src/Entities/Block.cpp"
+    "src/Entities/BrickBlock.cpp"
+    "src/Entities/QuestionBlock.cpp"
+    "src/Entities/Pipe.cpp"
+    "src/Entities/Flagpole.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Entities/Player.cpp"
+    "src/Entities/IPlayerState.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/Item.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+    "src/Physics/CollisionResolver.cpp"
+    "src/Physics/CollisionDetector.cpp"
+    "src/Physics/SpatialHash.cpp"
+)
+
+target_include_directories(verify_blocks PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_blocks PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
