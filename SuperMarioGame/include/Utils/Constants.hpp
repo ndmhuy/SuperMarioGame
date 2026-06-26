@@ -44,5 +44,11 @@ namespace Constants {
     constexpr float KOOPA_SHELL_SHAKE_TIME = 1.5f;
     constexpr float BOO_SPEED = 80.0f;
     constexpr float BOO_CHASE_RANGE = 250.0f;
+    constexpr float ENEMY_SPINY_SPEED = 50.0f;
+
+    // Block & Platform Constants
+    constexpr float CONVEYOR_SPEED = 100.0f;
+    constexpr float FALLING_PLATFORM_SHAKE_TIME = 1.0f;
+    constexpr float FALLING_PLATFORM_RESPAWN_TIME = 5.0f;
 }
 

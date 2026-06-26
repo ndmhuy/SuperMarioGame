@@ -1,0 +1,20 @@
+#pragma once
+
+#include "Entities/Enemy.hpp"
+
+class Lakitu : public Enemy {
+public:
+    explicit Lakitu(sf::Vector2f position);
+    ~Lakitu() override = default;
+
+    void onStomped() override;
+    void onHitByFireball() override;
+    void update(float dt) override;
+
+    float getEggTimer() const { return m_eggTimer; }
+    int getSpawnCount() const { return m_spawnCount; }
+
+private:
+    float m_eggTimer = 0.0f;
+    int m_spawnCount = 0;
+};

@@ -127,3 +127,81 @@ target_link_libraries(verify_blocks PRIVATE
     ImGui-SFML::ImGui-SFML
 )
 
+# ---------------------------------------------------------
+# 5. Verification Test Target (verify_enemies_new - Phase 3.9)
+# ---------------------------------------------------------
+add_executable(verify_enemies_new
+    "tests/verify_enemies_new.cpp"
+    "src/Entities/PiranhaPlant.cpp"
+    "src/Entities/BulletBill.cpp"
+    "src/Entities/HammerBro.cpp"
+    "src/Entities/Thwomp.cpp"
+    "src/Entities/ChainChomp.cpp"
+    "src/Entities/Lakitu.cpp"
+    "src/Entities/Spiny.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Entities/Player.cpp"
+    "src/Entities/IPlayerState.cpp"
+    "src/Entities/Item.cpp"
+    "src/Entities/PatrolStrategy.cpp"
+    "src/Entities/FlyStrategy.cpp"
+    "src/Entities/ChaseStrategy.cpp"
+    "src/Entities/LinearStrategy.cpp"
+    "src/Entities/TetheredChaseStrategy.cpp"
+    "src/Entities/ProximityTriggerStrategy.cpp"
+    "src/Entities/TimerEmergenceStrategy.cpp"
+    "src/Entities/HammerThrowStrategy.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
+
+target_include_directories(verify_enemies_new PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_enemies_new PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
+# ---------------------------------------------------------
+# 6. Verification Test Target (verify_blocks_new - Phase 3.13)
+# ---------------------------------------------------------
+add_executable(verify_blocks_new
+    "tests/verify_blocks_new.cpp"
+    "src/Entities/HiddenBlock.cpp"
+    "src/Entities/MovingPlatform.cpp"
+    "src/Entities/FallingPlatform.cpp"
+    "src/Entities/IceBlock.cpp"
+    "src/Entities/ConveyorBelt.cpp"
+    "src/Entities/Block.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Entities/Player.cpp"
+    "src/Entities/IPlayerState.cpp"
+    "src/Entities/Item.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
+
+target_include_directories(verify_blocks_new PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_blocks_new PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
+
+

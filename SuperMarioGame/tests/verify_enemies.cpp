@@ -31,7 +31,7 @@ void Game::initImGui() {}
 void Game::shutdown() {}
 
 GameStateManager::~GameStateManager() = default;
-int TileMap::getTileAt(float px, float py) const { return 0; }
+TileType TileMap::getTileAt(float px, float py) const { return TileType::Empty; }
 
 // We need to make sure the EventBus is clear for each test
 void clearEventBus() {

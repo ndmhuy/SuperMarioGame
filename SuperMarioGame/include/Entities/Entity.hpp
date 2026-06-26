@@ -33,6 +33,16 @@ protected:
     // Friends are allowed direct write access to coordinate updates
     friend class PhysicsEngine;
     friend class CollisionResolver;
+    friend class IMovementStrategy;
+    friend class PatrolStrategy;
+    friend class ChaseStrategy;
+    friend class FlyStrategy;
+    friend class TimerEmergenceStrategy;
+    friend class LinearStrategy;
+    friend class HammerThrowStrategy;
+    friend class TetheredChaseStrategy;
+    friend class ProximityTriggerStrategy;
+    friend int main();
 
     sf::Vector2f position;
     sf::Vector2f velocity;

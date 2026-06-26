@@ -37,11 +37,11 @@ void PatrolStrategy::calculateTarget(Enemy& enemy, float dt) {
             // Check just below the bottom of the bounding box
             float checkY = enemy.position.y + enemy.boundingBox.height + 4.0f;
 
-            int currentUnderTile = tileMap->getTileAt(enemy.position.x + enemy.boundingBox.width / 2.0f, checkY);
-            int nextTile = tileMap->getTileAt(nextX, checkY);
+            TileType currentUnderTile = tileMap->getTileAt(enemy.position.x + enemy.boundingBox.width / 2.0f, checkY);
+            TileType nextTile = tileMap->getTileAt(nextX, checkY);
 
             // If we are currently on a solid tile but the next step is empty, reverse
-            if (currentUnderTile != 0 && nextTile == 0) {
+            if (currentUnderTile != TileType::Empty && nextTile == TileType::Empty) {
                 m_movingRight = !m_movingRight;
                 enemy.facingRight = m_movingRight;
             }
