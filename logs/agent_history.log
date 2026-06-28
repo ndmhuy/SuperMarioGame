@@ -574,4 +574,12 @@ Summary of Changes:
 - Created standalone console verification test executables verify_enemies_new.exe and verify_blocks_new.exe using a non-aborting TEST_ASSERT macro.
 - Compiled and successfully executed all unit tests with 100% success on MSVC.
 ---
-
+[2026-06-28 11:25:00] Branch: B/feature/entities
+Prompt: Implement the rest of the EntityFactory (only the current prototype of the create function)
+Files Modified: SuperMarioGame/include/Entities/EntityFactory.hpp, SuperMarioGame/src/Entities/EntityFactory.cpp, SuperMarioGame/include/Entities/Goomba.hpp, SuperMarioGame/src/Entities/Goomba.cpp, SuperMarioGame/include/Entities/KoopaTroopa.hpp, SuperMarioGame/src/Entities/KoopaTroopa.cpp
+Summary of Changes:
+- Created EntityFactory.hpp defining EntityType enum and declaring static create method.
+- Implemented EntityFactory.cpp mapping each EntityType to its concrete instantiation using std::make_unique.
+- Fixed covariance compile errors for getBoundingBox() in Goomba and KoopaTroopa by returning const AABB& and returning a static empty box when squished/flipped.
+- Verified compilation succeeds cleanly for target SuperMarioGame.
+---

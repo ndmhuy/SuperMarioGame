@@ -27,7 +27,7 @@ public:
     float getShellTimer() const { return m_shellTimer; }
     bool isFlipped() const { return m_isFlipped; }
 
-    AABB getBoundingBox() const override;
+    const AABB& getBoundingBox() const override;
 
 protected:
     bool m_isRed;

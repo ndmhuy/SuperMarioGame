@@ -92,9 +92,10 @@ void KoopaTroopa::kick(sf::Vector2f velocity) {
     this->velocity = velocity;
 }
 
-AABB KoopaTroopa::getBoundingBox() const {
+const AABB& KoopaTroopa::getBoundingBox() const {
     if (m_isFlipped) {
-        return AABB{ 0.0f, 0.0f, 0.0f, 0.0f };
+        static const AABB emptyBox{ 0.0f, 0.0f, 0.0f, 0.0f };
+        return emptyBox;
     }
     return boundingBox;
 }

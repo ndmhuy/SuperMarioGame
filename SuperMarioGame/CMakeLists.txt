@@ -44,7 +44,8 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp"
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES}
+    src/Entities/EntityFactory.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include

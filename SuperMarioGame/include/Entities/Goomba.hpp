@@ -19,7 +19,7 @@ public:
     bool isFlipped() const { return m_isFlipped; }
     float getSquishTimer() const { return m_squishTimer; }
 
-    AABB getBoundingBox() const override;
+    const AABB& getBoundingBox() const override;
 
 private:
     bool m_isRed;

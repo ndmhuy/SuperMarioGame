@@ -64,9 +64,10 @@ void Goomba::onHitByFireball() {
     EventBus::getInstance().publish(event);
 }
 
-AABB Goomba::getBoundingBox() const {
+const AABB& Goomba::getBoundingBox() const {
     if (m_isSquished || m_isFlipped) {
-        return AABB{ 0.0f, 0.0f, 0.0f, 0.0f };
+        static const AABB emptyBox{ 0.0f, 0.0f, 0.0f, 0.0f };
+        return emptyBox;
     }
     return boundingBox;
 }
