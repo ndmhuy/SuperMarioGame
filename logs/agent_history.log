@@ -583,3 +583,11 @@ Summary of Changes:
 - Fixed covariance compile errors for getBoundingBox() in Goomba and KoopaTroopa by returning const AABB& and returning a static empty box when squished/flipped.
 - Verified compilation succeeds cleanly for target SuperMarioGame.
 ---
+[2026-06-30 22:10:00] Branch: B/feature/entities
+Prompt: Install the nlohmann json library
+Files Modified: SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Added nlohmann/json (version 3.11.3) FetchContent declaration and call to CMakeLists.txt.
+- Linked nlohmann_json::nlohmann_json target to the main SuperMarioGame executable.
+- Verified configure and build completed successfully.
+---

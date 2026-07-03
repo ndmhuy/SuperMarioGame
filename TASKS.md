@@ -301,14 +301,14 @@
 - [x] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
 
 ### 3.14 Entity Factory (Factory Pattern)
-- [ ] Create [EntityFactory.hpp](SuperMarioGame/include/Entities/EntityFactory.hpp) + [EntityFactory.cpp](SuperMarioGame/src/Entities/EntityFactory.cpp)
+- [x] Create [EntityFactory.hpp](SuperMarioGame/include/Entities/EntityFactory.hpp) + [EntityFactory.cpp](SuperMarioGame/src/Entities/EntityFactory.cpp)
   - `enum class EntityType { ... }` — 25+ types [v2.0]
   - `static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position)`
   - `static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position, const json& config)` — for level loader and variants
   - Config-driven entity definitions: reads from `entities.json` [v2.0]
-- [ ] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt) with all entity source files
-- [ ] Verify build compiles
-- [ ] Commit: `feat: implement EntityFactory for all 25+ entity types`
+- [x] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt) with all entity source files
+- [x] Verify build compiles
+- [x] Commit: `feat: implement EntityFactory for all 25+ entity types`
 - [ ] **Merge**: `git checkout dev && git merge feature/entities`
 
 ---
@@ -368,8 +368,8 @@
 > **Branch**: `git checkout -b feature/graphics dev`
 
 ### 5.1 SpriteSheet Handler
-- [ ] Create [SpriteSheet.hpp/.cpp](SuperMarioGame/include/Graphics/SpriteSheet.hpp)
-- [ ] Commit: `feat: implement SpriteSheet texture atlas handler`
+- [x] Create [SpriteSheet.hpp/.cpp](SuperMarioGame/include/Graphics/SpriteSheet.hpp)
+- [x] Commit: `feat: implement SpriteSheet texture atlas handler`
 
 ### 5.2 Animation System
 - [ ] Create [Animation.hpp/.cpp](SuperMarioGame/include/Graphics/Animation.hpp)

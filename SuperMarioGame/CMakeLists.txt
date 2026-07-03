@@ -37,6 +37,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui-sfml)
 
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+)
+FetchContent_MakeAvailable(json)
+
 # ---------------------------------------------------------
 # 2. Source Files configuration
 # ---------------------------------------------------------
@@ -45,7 +52,8 @@ file(GLOB_RECURSE SOURCES
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES}
-    src/Entities/EntityFactory.cpp)
+    src/Entities/EntityFactory.cpp
+    include/Graphics/SpriteSheet.hpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -58,6 +66,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )
 
 # ---------------------------------------------------------
