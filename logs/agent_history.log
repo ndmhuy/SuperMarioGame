@@ -591,3 +591,28 @@ Summary of Changes:
 - Linked nlohmann_json::nlohmann_json target to the main SuperMarioGame executable.
 - Verified configure and build completed successfully.
 ---
+[2026-07-04 16:07:00] Branch: B/feature/entities
+Prompt: Run a coding convention check using check_conventions.py and manual review on animation/graphics files, and report any violations.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Performed coding convention checks on Animation.hpp, Animator.hpp, AnimationManager.hpp, Animator.cpp, and AnimationManager.cpp.
+- Identified include-order violation in AnimationManager.hpp (project header included before standard library headers).
+- Verified other files are 100% compliant with C++17 flat namespace, naming conventions, header guards, and encapsulation guidelines.
+- Animator.cpp and AnimationManager.cpp are currently empty placeholder files with no violations.
+---
+[2026-07-04 17:35:00] Branch: B/feature/entities
+Prompt: Finalize the implementation of the Animation and Animator classes.
+Files Modified:
+- SuperMarioGame/include/Graphics/Animation.hpp
+- SuperMarioGame/include/Graphics/Animator.hpp
+- SuperMarioGame/include/Graphics/AnimationManager.hpp
+- SuperMarioGame/src/Graphics/Animator.cpp
+- SuperMarioGame/src/Graphics/AnimationManager.cpp
+Summary of Changes:
+- Implemented Flyweight animation pattern where Animation templates only hold metadata (frame names, durations).
+- Connected Animator to SpriteSheet via pointer to resolve frame name strings to SFML Sprites.
+- Handled SFML 3.x default constructor requirements using dummy fallbacks and default Animation constructors.
+- Implemented isDone() and updated getSprite() to preserve the final frame when non-looping animations complete.
+- Verified compilation and naming conventions (passed check_conventions.py).
+---
+
