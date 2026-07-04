@@ -4,7 +4,7 @@
 
 class Toad : public Player {
 public:
-    Toad() = default;
+    explicit Toad(sf::Vector2f pos);
     ~Toad() override = default;
 
     void update(float dt) override;

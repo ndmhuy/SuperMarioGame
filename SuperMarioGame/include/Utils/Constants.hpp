@@ -15,6 +15,7 @@ namespace Constants {
 
     // Physics Constants (Standard Mario)
     constexpr float GRAVITY = 0.5f; // px/frame^2
+    constexpr float GRAVITY_SCALE = 3600.0f; // 60^2 to convert px/frame^2 to px/s^2
     constexpr float WALK_SPEED = 150.0f; // px/s
     constexpr float RUN_SPEED = 300.0f; // px/s
     constexpr float JUMP_HEIGHT = 128.0f; // ~4 tiles
@@ -23,6 +24,21 @@ namespace Constants {
     constexpr int JUMP_BUFFER_FRAMES = 6;
     constexpr float WALL_SLIDE_SPEED = 50.0f;
     constexpr float GROUND_POUND_SPEED = 600.0f;
+    constexpr float TERMINAL_VELOCITY = 600.0f;
+    constexpr float GROUND_CHECK_OFFSET = 2.0f;
+
+    // Environmental Surface & Zone Constants
+    constexpr float CONVEYOR_SPEED = 100.0f;
+    constexpr float WATER_GRAVITY_MULT = 0.3f;
+    constexpr float WATER_TERMINAL_VELOCITY = 60.0f;
+
+    // Collision Resolution Forces
+    constexpr float STOMP_BOUNCE_FORCE = 300.0f;
+    constexpr float KNOCKBACK_FORCE_X = 150.0f;
+    constexpr float KNOCKBACK_FORCE_Y = 100.0f;
+    constexpr float PLAYER_BOUNCE_FORCE = 300.0f;
+    constexpr float PLAYER_PUSH_DOWN_FORCE = 100.0f;
+    constexpr float PLAYER_PUSH_SIDE_FORCE = 50.0f;
 
     // Luigi Modifiers
     constexpr float LUIGI_JUMP_MULT = 1.2f;
@@ -35,3 +51,4 @@ namespace Constants {
     constexpr int INITIAL_LIVES = 3;
     constexpr int COINS_FOR_LIFE = 100;
 }
+

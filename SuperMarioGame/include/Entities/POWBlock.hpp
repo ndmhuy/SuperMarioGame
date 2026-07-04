@@ -4,7 +4,7 @@
 
 class POWBlock : public Item {
 public:
-    POWBlock() = default;
+    explicit POWBlock(sf::Vector2f pos);
     ~POWBlock() override = default;
 
     void update(float dt) override;

@@ -4,7 +4,7 @@
 
 class Coin : public Item {
 public:
-    Coin() = default;
+    explicit Coin(sf::Vector2f pos);
     ~Coin() override = default;
 
     void update(float dt) override;

@@ -4,10 +4,11 @@
 
 class Trampoline : public Item {
 public:
-    Trampoline() = default;
+    explicit Trampoline(sf::Vector2f pos);
     ~Trampoline() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
+    void collect() override;
 };

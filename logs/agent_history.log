@@ -440,3 +440,32 @@ Summary of Changes:
 - Excluded imgui.ini from git tracking and added it to .gitignore to prevent developer-specific UI conflict diffs.
 - Verified successful CMake compilation and executable builds.
 ---
+[2026-06-24 10:32:30] Branch: A/feature/entities
+Prompt: check my manual implementation and update constants, replacing hardcoded values in the codebase.
+Files Modified:
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Character.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Checked user's manual implementations in Character.cpp and Player.cpp, identifying critical physics and logic bugs (such as perpendicular velocity overrides, jump height scaling issues, incorrect wall-jump push direction, and ground-pound condition).
+- Expanded Constants.hpp with comprehensive physics scale constants (GRAVITY_SCALE, TERMINAL_VELOCITY, GROUND_CHECK_OFFSET), environmental surface properties (CONVEYOR_SPEED, WATER_GRAVITY_MULT, WATER_TERMINAL_VELOCITY), and collision resolution impulse forces.
+- Refactored PhysicsEngine.cpp and CollisionResolver.cpp to eliminate all hardcoded physics velocities, offsets, and forces, replacing them with the new constants.
+- Refactored Character.cpp and Player.cpp to correct movement and jump logic, ensuring horizontal/vertical momentum is preserved, facing direction updates correctly, jumpForce member is utilized, wall-jump pushes away from walls, and ground-pound only triggers while airborne.
+- Successfully compiled the entire project with zero errors.
+---
+[2026-06-24 11:07:35] Branch: A/feature/entities
+Prompt: help me implement the rest of Player.cpp.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/IPlayerState.hpp
+- SuperMarioGame/include/Core/EventBus.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Added crouched and sliding state tracking getters and members, along with update(float dt) override, to Player.hpp.
+- Implemented getWrappedState() getter in PlayerStateDecorator to allow unwrapping temporary decorators recursively.
+- Added PlayerShotFireball to EventType in EventBus.hpp to decouple fireball shooting from concrete projectile spawning systems.
+- Fully implemented player crouch/slide toggles, slide friction deceleration, fireball shooting with decorator unwrapping, full power-up/down state transitions, and frame updates (invincibility, coyote time, and jump buffers) in Player.cpp.
+- Successfully verified compilation of the entire codebase.
+---

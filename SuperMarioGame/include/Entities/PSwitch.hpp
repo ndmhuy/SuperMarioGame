@@ -4,7 +4,7 @@
 
 class PSwitch : public Item {
 public:
-    PSwitch() = default;
+    explicit PSwitch(sf::Vector2f pos);
     ~PSwitch() override = default;
 
     void update(float dt) override;

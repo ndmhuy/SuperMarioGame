@@ -4,7 +4,7 @@
 
 class StarCoin : public Item {
 public:
-    StarCoin() = default;
+    explicit StarCoin(sf::Vector2f pos);
     ~StarCoin() override = default;
 
     void update(float dt) override;

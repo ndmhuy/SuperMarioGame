@@ -1,5 +1,6 @@
 #include "Entities/IPlayerState.hpp"
 #include "Entities/Player.hpp"
+#include "Utils/Constants.hpp"
 
 // --- SmallState ---
 void SmallState::enter(Player& player) {}
@@ -62,12 +63,45 @@ sf::Vector2f PlayerStateDecorator::getSize() const {
 }
 
 // --- StarDecorator ---
-void StarDecorator::enter(Player& player) { PlayerStateDecorator::enter(player); }
-void StarDecorator::exit(Player& player) { PlayerStateDecorator::exit(player); }
-void StarDecorator::update(Player& player, float dt) { PlayerStateDecorator::update(player, dt); }
+StarDecorator::StarDecorator(std::unique_ptr<IPlayerState> wrappedState)
+    : PlayerStateDecorator(std::move(wrappedState)), m_timeLeft(Constants::STAR_DURATION) {}
+
+void StarDecorator::enter(Player& player) {
+    PlayerStateDecorator::enter(player);
+}
+
+void StarDecorator::exit(Player& player) {
+    PlayerStateDecorator::exit(player);
+}
+
+void StarDecorator::update(Player& player, float dt) {
+    PlayerStateDecorator::update(player, dt);
+    m_timeLeft -= dt;
+    if (m_timeLeft <= 0.0f) {
+        player.changeState(std::move(m_wrappedState));
+    }
+}
 
 // --- MegaDecorator ---
-void MegaDecorator::enter(Player& player) { PlayerStateDecorator::enter(player); }
-void MegaDecorator::exit(Player& player) { PlayerStateDecorator::exit(player); }
-void MegaDecorator::update(Player& player, float dt) { PlayerStateDecorator::update(player, dt); }
-sf::Vector2f MegaDecorator::getSize() const { return sf::Vector2f{128.0f, 128.0f}; }
+MegaDecorator::MegaDecorator(std::unique_ptr<IPlayerState> wrappedState)
+    : PlayerStateDecorator(std::move(wrappedState)), m_timeLeft(8.0f) {}
+
+void MegaDecorator::enter(Player& player) {
+    PlayerStateDecorator::enter(player);
+}
+
+void MegaDecorator::exit(Player& player) {
+    PlayerStateDecorator::exit(player);
+}
+
+void MegaDecorator::update(Player& player, float dt) {
+    PlayerStateDecorator::update(player, dt);
+    m_timeLeft -= dt;
+    if (m_timeLeft <= 0.0f) {
+        player.changeState(std::move(m_wrappedState));
+    }
+}
+
+sf::Vector2f MegaDecorator::getSize() const {
+    return sf::Vector2f{128.0f, 128.0f};
+}

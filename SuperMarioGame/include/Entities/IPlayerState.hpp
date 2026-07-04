@@ -77,23 +77,31 @@ public:
     void update(Player& player, float dt) override;
     sf::Vector2f getSize() const override;
 
+    IPlayerState* getWrappedState() const { return m_wrappedState.get(); }
+
 protected:
     std::unique_ptr<IPlayerState> m_wrappedState;
 };
 
 class StarDecorator : public PlayerStateDecorator {
 public:
-    using PlayerStateDecorator::PlayerStateDecorator;
+    explicit StarDecorator(std::unique_ptr<IPlayerState> wrappedState);
     void enter(Player& player) override;
     void exit(Player& player) override;
     void update(Player& player, float dt) override;
+
+private:
+    float m_timeLeft;
 };
 
 class MegaDecorator : public PlayerStateDecorator {
 public:
-    using PlayerStateDecorator::PlayerStateDecorator;
+    explicit MegaDecorator(std::unique_ptr<IPlayerState> wrappedState);
     void enter(Player& player) override;
     void exit(Player& player) override;
     void update(Player& player, float dt) override;
     sf::Vector2f getSize() const override;
+
+private:
+    float m_timeLeft;
 };

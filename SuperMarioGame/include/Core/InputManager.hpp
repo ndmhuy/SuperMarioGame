@@ -24,6 +24,10 @@ public:
 
     // Register characters to player indices (0 = P1, 1 = P2)
     void registerPlayer(Character* character, int playerIndex);
+    Character* getPlayer(int playerIndex) const {
+        if (playerIndex >= 0 && playerIndex < 2) return m_players[playerIndex];
+        return nullptr;
+    }
 
 private:
     InputManager();

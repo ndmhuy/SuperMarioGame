@@ -6,7 +6,7 @@ class Player;
 
 class Item : public Entity {
 public:
-    Item() = default;
+    explicit Item(sf::Vector2f pos);
     ~Item() override = default;
 
     // Collect/Apply powerup callbacks

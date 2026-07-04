@@ -4,13 +4,14 @@
 
 class Peach : public Player {
 public:
-    Peach() = default;
+    explicit Peach(sf::Vector2f pos);
     ~Peach() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
 
     void floatHover();
+    float getGravityMultiplier() const override;
 
 private:
     float m_hoverTimer = 0.0f;
