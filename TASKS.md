@@ -372,10 +372,10 @@
 - [x] Commit: `feat: implement SpriteSheet texture atlas handler`
 
 ### 5.2 Animation System
-- [ ] Create [Animation.hpp/.cpp](SuperMarioGame/include/Graphics/Animation.hpp)
-- [ ] Create [AnimationManager.hpp/.cpp](SuperMarioGame/include/Graphics/AnimationManager.hpp)
+- [x] Create [Animation.hpp/.cpp](SuperMarioGame/include/Graphics/Animation.hpp)
+- [x] Create [AnimationManager.hpp/.cpp](SuperMarioGame/include/Graphics/AnimationManager.hpp)
   - Expanded animation states: wall_slide, ground_pound, swim, climb, crouch, slide, skid [v2.0]
-- [ ] Commit: `feat: implement Animation and AnimationManager`
+- [x] Commit: `feat: implement Animation and AnimationManager`
 
 ### 5.3 HUD
 - [ ] Create [HUD.hpp/.cpp](SuperMarioGame/include/Graphics/HUD.hpp)
