@@ -469,3 +469,56 @@ Summary of Changes:
 - Fully implemented player crouch/slide toggles, slide friction deceleration, fireball shooting with decorator unwrapping, full power-up/down state transitions, and frame updates (invincibility, coyote time, and jump buffers) in Player.cpp.
 - Successfully verified compilation of the entire codebase.
 ---
+[2026-07-04 22:15:00] Branch: dev
+Prompt: complete member A phase 3, merge, pull from dev, and write weekly report for week 04
+Files Modified:
+- SuperMarioGame/include/Core/InputManager.hpp
+- SuperMarioGame/include/Entities/Entity.hpp
+- SuperMarioGame/include/Entities/IPlayerState.hpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/Mario.hpp
+- SuperMarioGame/include/Entities/Luigi.hpp
+- SuperMarioGame/include/Entities/Toad.hpp
+- SuperMarioGame/include/Entities/Peach.hpp
+- SuperMarioGame/include/Entities/Item.hpp
+- SuperMarioGame/include/Entities/Mushroom.hpp
+- SuperMarioGame/include/Entities/FireFlower.hpp
+- SuperMarioGame/include/Entities/Coin.hpp
+- SuperMarioGame/include/Entities/Star.hpp
+- SuperMarioGame/include/Entities/OneUpMushroom.hpp
+- SuperMarioGame/include/Entities/CapeFeather.hpp
+- SuperMarioGame/include/Entities/MegaMushroom.hpp
+- SuperMarioGame/include/Entities/MiniMushroom.hpp
+- SuperMarioGame/include/Entities/POWBlock.hpp
+- SuperMarioGame/include/Entities/PSwitch.hpp
+- SuperMarioGame/include/Entities/Trampoline.hpp
+- SuperMarioGame/include/Entities/StarCoin.hpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/src/Entities/Toad.cpp
+- SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/src/Entities/IPlayerState.cpp
+- SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/src/Entities/Mushroom.cpp
+- SuperMarioGame/src/Entities/FireFlower.cpp
+- SuperMarioGame/src/Entities/Coin.cpp
+- SuperMarioGame/src/Entities/Star.cpp
+- SuperMarioGame/src/Entities/OneUpMushroom.cpp
+- SuperMarioGame/src/Entities/CapeFeather.cpp
+- SuperMarioGame/src/Entities/MegaMushroom.cpp
+- SuperMarioGame/src/Entities/MiniMushroom.cpp
+- SuperMarioGame/src/Entities/POWBlock.cpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/src/Entities/StarCoin.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Physics/CollisionDetector.cpp
+- SuperMarioGame/docs/Group52_04/52.md
+Summary of Changes:
+- Extended the physics engine to apply character-specific gravity multipliers and treated water tiles as solid when a player in MiniState lands from above.
+- Implemented state transition updates, decorator constructors, duration timers, and unwrapping for StarDecorator and MegaDecorator in IPlayerState.cpp.
+- Fully implemented concrete player character subclasses (Mario, Luigi, Toad, Peach) with unique physics attributes and special abilities (Luigi double jump, Peach hover float, Toad fast slide).
+- Implemented the base Item class and all 12 item subclasses, adding customized movement, wall bounce, ground bouncing, and EventBus notification wiring.
+- Added a public setVelocity() method to Entity and getPlayer() to InputManager for clean, safe access to player and velocity settings.
+- Merged the completed feature branch back into the dev branch, resolved dependencies, verified clean compilations, and drafted and pushed the Week 04 weekly progress report.
+---
