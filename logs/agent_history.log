@@ -520,5 +520,5 @@ Summary of Changes:
 - Fully implemented concrete player character subclasses (Mario, Luigi, Toad, Peach) with unique physics attributes and special abilities (Luigi double jump, Peach hover float, Toad fast slide).
 - Implemented the base Item class and all 12 item subclasses, adding customized movement, wall bounce, ground bouncing, and EventBus notification wiring.
 - Added a public setVelocity() method to Entity and getPlayer() to InputManager for clean, safe access to player and velocity settings.
-- Merged the completed feature branch back into the dev branch, resolved dependencies, verified clean compilations, and drafted and pushed the Week 04 weekly progress report.
+- Merged the completed feature branch back into the dev branch, resolved dependencies, verified clean compilations, and drafted, compiled (via cupsfilter), and pushed the Week 04 weekly progress report (both MD and PDF versions).
 ---
