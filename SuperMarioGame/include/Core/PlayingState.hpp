@@ -3,6 +3,7 @@
 #include "Core/IGameState.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
+#include "Graphics/Camera.hpp"
 #include <vector>
 #include <memory>
 
@@ -26,6 +27,7 @@ private:
     std::vector<std::unique_ptr<Entity>> m_entities;
     Player* m_player = nullptr;
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
+    Camera m_camera;
 
     void setupTestScene();
     void cleanupTestScene();

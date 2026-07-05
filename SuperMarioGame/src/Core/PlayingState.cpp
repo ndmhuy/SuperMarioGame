@@ -48,52 +48,32 @@ void PlayingState::handleInput(const sf::Event& event) {
 }
 
 void PlayingState::update(float dt) {
-    // 1. Apply passive horizontal deceleration/friction to player when not pressing movement keys
-    if (m_player) {
-        // Ground deceleration: Walk speed to 0 in 0.15s (1000 px/s^2)
-        // Air deceleration: less than ground friction (300 px/s^2)
-        float decelRate = m_player->isOnGround() ? 1000.0f : 300.0f;
-        
-        // Ice block surface check: reduced friction (250 px/s^2 on ground)
-        if (m_player->isOnGround()) {
-            float cx = m_player->getPosition().x + m_player->getBoundingBox().width / 2.0f;
-            float feetY = m_player->getPosition().y + m_player->getBoundingBox().height + Constants::GROUND_CHECK_OFFSET;
-            if (m_tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
-                decelRate = 250.0f; // Slower deceleration on ice!
-            }
-        }
-
-        sf::Vector2f vel = m_player->getVelocity();
-        // Crouch/slide deceleration is already handled inside Player::update, so only apply if not crouching/sliding
-        if (!m_player->isCrouched() && !m_player->isSliding()) {
-            if (vel.x > 0.0f) {
-                vel.x -= decelRate * dt;
-                if (vel.x < 0.0f) vel.x = 0.0f;
-            } else if (vel.x < 0.0f) {
-                vel.x += decelRate * dt;
-                if (vel.x > 0.0f) vel.x = 0.0f;
-            }
-            m_player->setVelocity(vel);
-        }
-    }
-
-    // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run)
+    // 1. Process held keys (MoveLeft, MoveRight, Crouch, Run)
     if (m_player) {
         InputManager::getInstance().update(*m_player);
     }
 
-    // 3. Update all active entities
+    // 2. Update all active entities
     for (auto& entity : m_entities) {
         if (entity && entity->isActive()) {
             entity->update(dt);
         }
     }
 
-    // 4. Run the physics engine (integrate velocity and resolve collisions)
+    // 3. Run the physics engine (integrate velocity and resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
+
+    // 4. Update the Camera to follow player position and clamp to map boundaries
+    if (m_player) {
+        m_camera.follow(m_player->getPosition(), dt);
+    }
+    m_camera.update(dt);
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
+    // Set view to camera view for scrolling world space rendering
+    target.setView(m_camera.getView());
+
     // 1. Draw the tilemap tiles
     for (int y = 0; y < m_tileMap.getHeight(); ++y) {
         for (int x = 0; x < m_tileMap.getWidth(); ++x) {
@@ -125,6 +105,9 @@ void PlayingState::render(sf::RenderTarget& target) {
             entity->render(target);
         }
     }
+
+    // Reset view to default view for static screen space rendering (HUD, ImGui overlays)
+    target.setView(target.getDefaultView());
 
     // 3. ImGui Physics Simulation & Input Test panel
     ImGui::Begin("Physics & Input Test Playground (Phase 2 & 3)");
@@ -271,8 +254,9 @@ void PlayingState::setupTestScene() {
         }
     }
 
-    // 2. Spawn Player
+    // 2. Spawn Player and configure camera boundaries
     spawnSelectedPlayer(sf::Vector2f(100.0f, 100.0f));
+    m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
 
     // 3. Spawn Items
     m_entities.push_back(std::make_unique<Mushroom>(sf::Vector2f(450.0f, 400.0f)));

@@ -536,3 +536,21 @@ Summary of Changes:
 - Added tilemap visualizers supporting Ground, Pipe, Brick, Ice, Conveyor, and Water textures/colors.
 - Added real-time telemetry (coordinates, velocity, state flags, coyote frames, jump buffers, stats) in an interactive ImGui debugger panel.
 ---
+[2026-07-05 12:13:00] Branch: A/physics-input-test
+Prompt: Refactor movement physics to run acceleration/deceleration inside the Physics Engine, and wire the Camera tracking and bounds.
+Files Modified:
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/src/Entities/Character.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Refactored movement commands to set boolean request flags (m_moveLeftRequested, m_moveRightRequested, m_runRequested) on Character/Player rather than setting velocities directly.
+- Moved passive friction/deceleration, active horizontal acceleration, and run speed scaling into the PhysicsEngine update loop.
+- Cleared the movement and run flags inside the physics loop and player update loop.
+- Integrated the Camera system into PlayingState, updating it to follow the player coordinates smoothly.
+- Configured camera clamping bounds inside setupTestScene to match the loaded tilemap dimensions.
+- Wired views switching in PlayingState::render to draw world entities in camera space and ImGui overlays in default screen space.
+---

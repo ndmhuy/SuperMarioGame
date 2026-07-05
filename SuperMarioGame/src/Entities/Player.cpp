@@ -3,11 +3,7 @@
 #include "Utils/Constants.hpp"
 
 void Player::run() {
-    if (facingRight) {
-        this->velocity.x = Constants::RUN_SPEED;
-    } else {
-        this->velocity.x = -Constants::RUN_SPEED;
-    }
+    m_runRequested = true;
 }
 
 void Player::wallJump() {
@@ -215,6 +211,7 @@ void Player::update(float dt) {
     }
 
     m_crouchRequestedThisFrame = false;
+    m_runRequested = false;
 
     // 5. Delegate frame update to the active state
     if (m_currentState) {

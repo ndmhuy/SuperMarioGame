@@ -1,8 +1,13 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Character.hpp"
+#include "Entities/Player.hpp"
+#include "Entities/Luigi.hpp"
+#include "Entities/Toad.hpp"
+#include "Entities/Peach.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/MathUtils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <unordered_set>
@@ -44,6 +49,65 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             }
             character->onGround = false;
             character->onWall = false;
+        }
+    }
+
+    // 1.5. Apply character-specific horizontal acceleration, deceleration, and friction
+    for (const auto& entity : entities) {
+        if (!entity || !entity->isActive()) continue;
+        if (auto character = dynamic_cast<Character*>(entity.get())) {
+            float maxSpeed = character->getSpeed();
+            
+            // Check if player is running to scale their max horizontal speed
+            if (auto player = dynamic_cast<Player*>(character)) {
+                if (player->isRunRequested()) {
+                    maxSpeed = Constants::RUN_SPEED;
+                    if (dynamic_cast<Luigi*>(player)) maxSpeed *= Constants::LUIGI_SPEED_MULT;
+                    else if (dynamic_cast<Toad*>(player)) maxSpeed = Constants::RUN_SPEED * 1.3f;
+                    else if (dynamic_cast<Peach*>(player)) maxSpeed *= 0.9f;
+                }
+            }
+
+            float accelRate = 1000.0f; // px/s^2 (0 -> 150 px/s in 0.15s)
+            float decelRate = character->onGround ? 1000.0f : 300.0f;
+
+            // Ice platform check: reduced friction
+            if (character->onGround) {
+                float cx = character->position.x + character->boundingBox.width / 2.0f;
+                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
+                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
+                    decelRate = 250.0f; // Slide further on ice!
+                }
+            }
+
+            // Check if player is currently in a crouch slide (handled internally by Player::update)
+            bool isPlayerCrouchingOrSliding = false;
+            if (auto player = dynamic_cast<Player*>(character)) {
+                isPlayerCrouchingOrSliding = player->isCrouched() || player->isSliding();
+            }
+
+            // Process movement requests
+            if (character->isMoveLeftRequested()) {
+                character->velocity.x -= accelRate * dt;
+                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
+            }
+            else if (character->isMoveRightRequested()) {
+                character->velocity.x += accelRate * dt;
+                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
+            }
+            else if (!isPlayerCrouchingOrSliding) {
+                // Apply passive friction decay towards 0
+                if (character->velocity.x > 0.0f) {
+                    character->velocity.x -= decelRate * dt;
+                    if (character->velocity.x < 0.0f) character->velocity.x = 0.0f;
+                } else if (character->velocity.x < 0.0f) {
+                    character->velocity.x += decelRate * dt;
+                    if (character->velocity.x > 0.0f) character->velocity.x = 0.0f;
+                }
+            }
+
+            // Clear intent flags for next frame
+            character->clearMovementRequests();
         }
     }
 

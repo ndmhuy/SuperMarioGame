@@ -44,6 +44,7 @@ public:
     int getComboCounter() const { return comboCounter; }
     bool isCrouched() const { return crouched; }
     bool isSliding() const { return sliding; }
+    bool isRunRequested() const { return m_runRequested; }
 
 protected:
     std::unique_ptr<IPlayerState> m_currentState;
@@ -61,6 +62,7 @@ protected:
     bool crouched = false;
     bool sliding = false;
     bool m_crouchRequestedThisFrame = false;
+    bool m_runRequested = false;
     float m_fireballCooldownTimer = 0.0f;
 };
 
