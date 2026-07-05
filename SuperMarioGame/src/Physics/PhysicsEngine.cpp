@@ -34,11 +34,10 @@ void PhysicsEngine::integrateVelocity(Entity& entity, float dt) {
 }
 
 void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities, TileMap& tileMap, float dt) {
-    // 1. Reset character states and apply previous frame's conveyor push
+    // 1. Apply previous frame's conveyor push using the ground status from the previous frame
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
         if (auto character = dynamic_cast<Character*>(entity.get())) {
-            // Apply conveyor push if standing on conveyor (tile type 6) using the ground status from the previous frame
             if (character->onGround) {
                 float cx = character->position.x + character->boundingBox.width / 2.0f;
                 float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
@@ -47,8 +46,6 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                     character->boundingBox.x = character->position.x;
                 }
             }
-            character->onGround = false;
-            character->onWall = false;
         }
     }
 
@@ -108,6 +105,10 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
 
             // Clear intent flags for next frame
             character->clearMovementRequests();
+
+            // Reset ground/wall flags for the new collision detection pass
+            character->onGround = false;
+            character->onWall = false;
         }
     }
 

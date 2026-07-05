@@ -554,3 +554,12 @@ Summary of Changes:
 - Configured camera clamping bounds inside setupTestScene to match the loaded tilemap dimensions.
 - Wired views switching in PlayingState::render to draw world entities in camera space and ImGui overlays in default screen space.
 ---
+[2026-07-05 12:17:00] Branch: A/physics-input-test
+Prompt: Fix ground friction timing and solve internal edge collision bug blocking player movement on flat ground.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionDetector.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+Summary of Changes:
+- Implemented internal edge mitigation in CollisionDetector::checkEntityVsTileMap: side collisions with floor tiles that have empty tiles above them are dynamically converted into vertical Y collisions, preventing them from canceling horizontal velocity.
+- Fixed timing in PhysicsEngine::update: moved character->onGround/onWall resets from the very beginning to after the friction update (step 1.5), ensuring friction calculation and conveyor pushes read the correct ground status from the previous frame.
+---

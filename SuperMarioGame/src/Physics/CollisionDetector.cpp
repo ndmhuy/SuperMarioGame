@@ -98,6 +98,19 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
                         } else {
                             collisionInfo.normal.x = 1.0f;
                         }
+
+                        // Internal edge mitigation:
+                        // If we detected a horizontal collision, but the tile above this one is NOT solid,
+                        // then this is a floor tile boundary, not a wall. Convert it to a vertical collision!
+                        if (y > 0) {
+                            TileType tileAbove = tileMap.getTileType(x, y - 1);
+                            if (!TileMap::getInfo(tileAbove).isSolid) {
+                                collisionInfo.normal.x = 0.0f;
+                                collisionInfo.normal.y = (center1.y < center2.y) ? -1.0f : 1.0f;
+                                collisionInfo.overlap.x = 0.0f;
+                                collisionInfo.overlap.y = overlapBox.height;
+                            }
+                        }
                     } else {
                         collisionInfo.overlap.y = overlapBox.height;
                         if (center1.y < center2.y) {
