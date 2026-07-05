@@ -522,3 +522,17 @@ Summary of Changes:
 - Added a public setVelocity() method to Entity and getPlayer() to InputManager for clean, safe access to player and velocity settings.
 - Merged the completed feature branch back into the dev branch, resolved dependencies, verified clean compilations, and drafted, compiled (via cupsfilter), and pushed the Week 04 weekly progress report (both MD and PDF versions).
 ---
+[2026-07-05 10:12:00] Branch: A/physics-input-test
+Prompt: Link input manager to game to test physics, connect all existing systems, and provide a simulation prototype.
+Files Modified:
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Replaced the DummyPhysicsEntity with concrete Player characters (Mario, Luigi, Toad, and Peach).
+- Linked Keyboard input handling to the player character via the InputManager command pattern.
+- Implemented real-time ground and air deceleration (friction) and custom Ice surface sliding physics.
+- Added a dynamic character selection combo box in ImGui that respawns the chosen hero at the current coordinates.
+- Implemented item spawning shortcuts (Mushroom, Fire Flower, Coin, Star, Cape Feather, Mega/Mini Mushrooms) at the player's position.
+- Added tilemap visualizers supporting Ground, Pipe, Brick, Ice, Conveyor, and Water textures/colors.
+- Added real-time telemetry (coordinates, velocity, state flags, coyote frames, jump buffers, stats) in an interactive ImGui debugger panel.
+---
