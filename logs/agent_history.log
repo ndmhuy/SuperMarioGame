@@ -585,3 +585,10 @@ Files Modified:
 Summary of Changes:
 - Modified horizontal (X) and vertical (Y) tile collision loops in PhysicsEngine::update to track and resolve only the single maximum overlap collision per axis. This prevents characters standing on tile boundaries from having push-outs summed together (double-counting overlap pushes), which was launching them slightly airborne and breaking onGround states.
 ---
+[2026-07-05 12:33:00] Branch: A/physics-input-test
+Prompt: Add mid-air wall friction and cap vertical velocity during wall slides.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Modified CollisionResolver::resolveEntityVsTile: if a character in mid-air (onGround is false) hits a wall horizontally, any upward vertical velocity (velocity.y < 0) is zeroed out to simulate wall impact friction. Additionally, any falling velocity is capped at Constants::WALL_SLIDE_SPEED to enable a steady, capped wall slide.
+---

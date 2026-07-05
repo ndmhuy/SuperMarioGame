@@ -24,6 +24,15 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
         entity.velocity.x = 0.0f;
         if (character) {
             character->onWall = true;
+
+            // Air wall friction & sliding mechanics
+            if (!character->onGround) {
+                if (entity.velocity.y < 0.0f) {
+                    entity.velocity.y = 0.0f; // Eliminate upward momentum on wall impact
+                } else if (entity.velocity.y > Constants::WALL_SLIDE_SPEED) {
+                    entity.velocity.y = Constants::WALL_SLIDE_SPEED; // Cap downward slide velocity
+                }
+            }
         }
     }
     if (info.normal.y != 0.0f) {
