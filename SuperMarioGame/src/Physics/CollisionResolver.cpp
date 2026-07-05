@@ -8,9 +8,10 @@
 void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo& info) {
     if (!info.collided) return;
 
-    // Push the entity out of the tile
-    entity.position.x += info.normal.x * info.overlap.x;
-    entity.position.y += info.normal.y * info.overlap.y;
+    // Push the entity out of the tile with a tiny epsilon buffer (0.01px) to prevent float precision rounding overlap triggers
+    const float EPSILON = 0.01f;
+    entity.position.x += info.normal.x * (info.overlap.x + (info.normal.x != 0.0f ? EPSILON : 0.0f));
+    entity.position.y += info.normal.y * (info.overlap.y + (info.normal.y != 0.0f ? EPSILON : 0.0f));
 
     // Sync bounding box coordinates immediately
     entity.boundingBox.x = entity.position.x;

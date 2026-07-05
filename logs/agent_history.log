@@ -570,3 +570,11 @@ Files Modified:
 Summary of Changes:
 - Added manual bounding box coordinate synchronization (entity.boundingBox.x/y = entity.position.x/y) in CollisionResolver::resolveEntityVsTile and resolvePlayerVsPlayer immediately after position adjustments. This stops stale/penetrating bounding boxes from causing incorrect check hits and ground status toggles.
 ---
+[2026-07-05 12:26:00] Branch: A/physics-input-test
+Prompt: Fix typo and add EPSILON separation buffer to tile collision push-out calculations.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Corrected a header typo in CollisionResolver.cpp.
+- Added an EPSILON separation buffer (0.01px extra push-out along the collision normal) to resolveEntityVsTile, ensuring strict spatial separation and preventing float precision rounding errors from re-triggering overlaps on consecutive frames.
+---
