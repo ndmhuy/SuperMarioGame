@@ -131,7 +131,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         }
     }
 
-    // 3. Integrate X and resolve X collisions with the tile map
+    // 3. Integrate X and resolve X collisions with the tile map (only resolve max horizontal overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
 
@@ -139,14 +139,23 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         entity->boundingBox.x = entity->position.x;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
-        for (auto& collision : collisions) {
+        CollisionInfo maxCollision;
+        maxCollision.collided = false;
+
+        for (const auto& collision : collisions) {
             if (collision.normal.x != 0.0f) {
-                m_resolver.resolveEntityVsTile(*entity, collision);
+                if (!maxCollision.collided || collision.overlap.x > maxCollision.overlap.x) {
+                    maxCollision = collision;
+                }
             }
+        }
+
+        if (maxCollision.collided) {
+            m_resolver.resolveEntityVsTile(*entity, maxCollision);
         }
     }
 
-    // 4. Integrate Y and resolve Y collisions with the tile map
+    // 4. Integrate Y and resolve Y collisions with the tile map (only resolve max vertical overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
 
@@ -154,10 +163,19 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         entity->boundingBox.y = entity->position.y;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
-        for (auto& collision : collisions) {
+        CollisionInfo maxCollision;
+        maxCollision.collided = false;
+
+        for (const auto& collision : collisions) {
             if (collision.normal.y != 0.0f) {
-                m_resolver.resolveEntityVsTile(*entity, collision);
+                if (!maxCollision.collided || collision.overlap.y > maxCollision.overlap.y) {
+                    maxCollision = collision;
+                }
             }
+        }
+
+        if (maxCollision.collided) {
+            m_resolver.resolveEntityVsTile(*entity, maxCollision);
         }
     }
 

@@ -578,3 +578,10 @@ Summary of Changes:
 - Corrected a header typo in CollisionResolver.cpp.
 - Added an EPSILON separation buffer (0.01px extra push-out along the collision normal) to resolveEntityVsTile, ensuring strict spatial separation and preventing float precision rounding errors from re-triggering overlaps on consecutive frames.
 ---
+[2026-07-05 12:29:00] Branch: A/physics-input-test
+Prompt: Fix ground jittering caused by double-resolution of adjacent flat ground tiles.
+Files Modified:
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+Summary of Changes:
+- Modified horizontal (X) and vertical (Y) tile collision loops in PhysicsEngine::update to track and resolve only the single maximum overlap collision per axis. This prevents characters standing on tile boundaries from having push-outs summed together (double-counting overlap pushes), which was launching them slightly airborne and breaking onGround states.
+---
