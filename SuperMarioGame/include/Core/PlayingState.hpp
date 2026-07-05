@@ -7,6 +7,7 @@
 #include <memory>
 
 class Entity;
+class Player;
 
 class PlayingState : public IGameState {
 public:
@@ -23,7 +24,10 @@ private:
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
+    Player* m_player = nullptr;
+    int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
 
     void setupTestScene();
     void cleanupTestScene();
+    void spawnSelectedPlayer(const sf::Vector2f& pos);
 };
