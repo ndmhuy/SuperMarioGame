@@ -563,3 +563,10 @@ Summary of Changes:
 - Implemented internal edge mitigation in CollisionDetector::checkEntityVsTileMap: side collisions with floor tiles that have empty tiles above them are dynamically converted into vertical Y collisions, preventing them from canceling horizontal velocity.
 - Fixed timing in PhysicsEngine::update: moved character->onGround/onWall resets from the very beginning to after the friction update (step 1.5), ensuring friction calculation and conveyor pushes read the correct ground status from the previous frame.
 ---
+[2026-07-05 12:22:00] Branch: A/physics-input-test
+Prompt: Fix ground status jittering by synchronizing bounding boxes after collision resolution.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Added manual bounding box coordinate synchronization (entity.boundingBox.x/y = entity.position.x/y) in CollisionResolver::resolveEntityVsTile and resolvePlayerVsPlayer immediately after position adjustments. This stops stale/penetrating bounding boxes from causing incorrect check hits and ground status toggles.
+---

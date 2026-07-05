@@ -12,6 +12,10 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
     entity.position.x += info.normal.x * info.overlap.x;
     entity.position.y += info.normal.y * info.overlap.y;
 
+    // Sync bounding box coordinates immediately
+    entity.boundingBox.x = entity.position.x;
+    entity.boundingBox.y = entity.position.y;
+
     auto character = dynamic_cast<Character*>(&entity);
 
     // Cancel velocity along the collision normal
@@ -105,6 +109,12 @@ void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const Coll
 
     p2.position.x -= info.normal.x * info.overlap.x * 0.5f;
     p2.position.y -= info.normal.y * info.overlap.y * 0.5f;
+
+    // Sync both player bounding boxes
+    p1.boundingBox.x = p1.position.x;
+    p1.boundingBox.y = p1.position.y;
+    p2.boundingBox.x = p2.position.x;
+    p2.boundingBox.y = p2.position.y;
 
     if (info.normal.y == -1.0f) {
         // p1 is above p2 (p1 stomps p2's head)
