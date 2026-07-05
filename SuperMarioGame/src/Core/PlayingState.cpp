@@ -123,6 +123,16 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
+    // Level Selection
+    ImGui::Text("Select Active Level:");
+    const char* levels[] = { "Level 1 (Grassland)", "Level 2 (Cave)", "Level 3 (Castle)", "Bonus 1 (Sky)" };
+    int oldLevelSelected = m_selectedLevelIndex;
+    if (ImGui::Combo("Level", &m_selectedLevelIndex, levels, 4)) {
+        if (m_selectedLevelIndex != oldLevelSelected) {
+            setupTestScene();
+        }
+    }
+
     ImGui::Separator();
 
     if (m_player) {
@@ -218,54 +228,34 @@ void PlayingState::render(sf::RenderTarget& target) {
 void PlayingState::setupTestScene() {
     cleanupTestScene();
 
-    // 1. Initialize TileMap to 40 columns and 22 rows
-    m_tileMap.initialize(40, 22);
+    LevelLoader loader;
+    LevelData levelData;
+    std::string levelPath = "assets/levels/level_1.json";
+    if (m_selectedLevelIndex == 1) levelPath = "assets/levels/level_2.json";
+    else if (m_selectedLevelIndex == 2) levelPath = "assets/levels/level_3.json";
+    else if (m_selectedLevelIndex == 3) levelPath = "assets/levels/bonus_1.json";
 
-    // Create a ground layer at row y = 20 and 21
-    for (int x = 0; x < 40; ++x) {
-        m_tileMap.setTile(x, 20, TileType::Ground);
-        m_tileMap.setTile(x, 21, TileType::Ground);
-    }
-
-    // Place a vertical Pipe (pillar) at x = 10, 11 (y = 17, 18, 19)
-    for (int y = 17; y <= 19; ++y) {
-        m_tileMap.setTile(10, y, TileType::Pipe);
-        m_tileMap.setTile(11, y, TileType::Pipe);
-    }
-
-    // Place a Brick wall at x = 5 (y = 18, 19)
-    m_tileMap.setTile(5, 18, TileType::Brick);
-    m_tileMap.setTile(5, 19, TileType::Brick);
-
-    // Place an Ice block platform at x = 15..20 (y = 15)
-    for (int x = 15; x <= 20; ++x) {
-        m_tileMap.setTile(x, 15, TileType::Ice);
-    }
-
-    // Place a Conveyor Belt platform at x = 23..28 (y = 15)
-    for (int x = 23; x <= 28; ++x) {
-        m_tileMap.setTile(x, 15, TileType::Conveyor);
-    }
-
-    // Place a Water pool zone at x = 30..35 (y = 17..19)
-    for (int x = 30; x <= 35; ++x) {
-        for (int y = 17; y <= 19; ++y) {
-            m_tileMap.setTile(x, y, TileType::Water);
+    if (loader.loadLevel(levelPath, m_tileMap, levelData)) {
+        // Spawn active player character at the spawnPoint loaded from JSON
+        spawnSelectedPlayer(levelData.spawnPoint);
+        
+        // Transfer all loaded items/entities to m_entities
+        for (auto& entity : levelData.entities) {
+            m_entities.push_back(std::move(entity));
         }
+
+        // Set camera bounds matching the level size
+        m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
+    } else {
+        // Fallback: manually setup scene if file loading fails
+        m_tileMap.initialize(40, 22);
+        for (int x = 0; x < 40; ++x) {
+            m_tileMap.setTile(x, 20, TileType::Ground);
+            m_tileMap.setTile(x, 21, TileType::Ground);
+        }
+        spawnSelectedPlayer(sf::Vector2f(100.0f, 100.0f));
+        m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
     }
-
-    // 2. Spawn Player and configure camera boundaries
-    spawnSelectedPlayer(sf::Vector2f(100.0f, 100.0f));
-    m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
-
-    // 3. Spawn Items
-    m_entities.push_back(std::make_unique<Mushroom>(sf::Vector2f(450.0f, 400.0f)));
-    m_entities.push_back(std::make_unique<FireFlower>(sf::Vector2f(550.0f, 500.0f)));
-    m_entities.push_back(std::make_unique<Coin>(sf::Vector2f(650.0f, 400.0f)));
-    m_entities.push_back(std::make_unique<Star>(sf::Vector2f(750.0f, 400.0f)));
-    m_entities.push_back(std::make_unique<CapeFeather>(sf::Vector2f(850.0f, 400.0f)));
-    m_entities.push_back(std::make_unique<MegaMushroom>(sf::Vector2f(950.0f, 400.0f)));
-    m_entities.push_back(std::make_unique<MiniMushroom>(sf::Vector2f(1050.0f, 400.0f)));
 }
 
 void PlayingState::cleanupTestScene() {

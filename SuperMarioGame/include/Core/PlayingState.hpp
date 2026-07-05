@@ -4,6 +4,7 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
 #include "Graphics/Camera.hpp"
+#include "Utils/LevelLoader.hpp"
 #include <vector>
 #include <memory>
 
@@ -27,6 +28,7 @@ private:
     std::vector<std::unique_ptr<Entity>> m_entities;
     Player* m_player = nullptr;
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
+    int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
 
     void setupTestScene();

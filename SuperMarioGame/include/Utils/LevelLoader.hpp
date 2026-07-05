@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <SFML/System/Vector2.hpp>
 
 class Entity;
 class TileMap;
@@ -12,6 +13,7 @@ struct LevelData {
     std::string theme;
     int width = 0;
     int height = 0;
+    sf::Vector2f spawnPoint{64.0f, 640.0f};
     std::vector<std::unique_ptr<Entity>> entities;
 };
 

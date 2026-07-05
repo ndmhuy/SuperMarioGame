@@ -37,6 +37,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui-sfml)
 
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+
 # ---------------------------------------------------------
 # 2. Source Files configuration
 # ---------------------------------------------------------
@@ -57,4 +63,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )

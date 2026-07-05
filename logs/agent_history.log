@@ -592,3 +592,21 @@ Files Modified:
 Summary of Changes:
 - Modified CollisionResolver::resolveEntityVsTile: if a character in mid-air (onGround is false) hits a wall horizontally, any upward vertical velocity (velocity.y < 0) is zeroed out to simulate wall impact friction. Additionally, any falling velocity is capped at Constants::WALL_SLIDE_SPEED to enable a steady, capped wall slide.
 ---
+[2026-07-05 12:50:00] Branch: A/physics-input-test
+Prompt: Integrate nlohmann/json, implement LevelLoader and design 4 level maps.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Utils/LevelLoader.hpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/assets/levels/level_1.json
+- SuperMarioGame/assets/levels/level_2.json
+- SuperMarioGame/assets/levels/level_3.json
+- SuperMarioGame/assets/levels/bonus_1.json
+Summary of Changes:
+- Configured CMake to download and link header-only nlohmann/json v3.11.3.
+- Implemented LevelLoader::loadLevel to read, parse, and initialize TileMap dimensions, grids (supporting spans), player spawn point, and spawn concrete items.
+- Designed 4 levels (Grassland, Cave, Castle, and Sky) matching SPEC §9.6.
+- Added m_selectedLevelIndex and ImGui Level Selection dropdown to PlayingState, letting players load and test levels in real-time.
+---

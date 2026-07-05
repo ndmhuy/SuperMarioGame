@@ -1,0 +1,25 @@
+{
+  "name": "Level 2 - Underground Ice Cave",
+  "theme": "underground",
+  "width": 60,
+  "height": 22,
+  "spawnPoint": { "x": 2.0, "y": 18.0 },
+  "tiles": [
+    { "type": "brick", "x": 0, "y": 0, "w": 60 },
+    { "type": "brick", "x": 0, "y": 1, "w": 60 },
+    { "type": "ground", "x": 0, "y": 20, "w": 60 },
+    { "type": "ground", "x": 0, "y": 21, "w": 60 },
+    { "type": "ice", "x": 10, "y": 16, "w": 10 },
+    { "type": "conveyor", "x": 24, "y": 15, "w": 8 },
+    { "type": "ice", "x": 36, "y": 16, "w": 6 },
+    { "type": "brick", "x": 45, "y": 14, "w": 5 }
+  ],
+  "entities": [
+    { "type": "coin", "x": 12.0, "y": 15.0 },
+    { "type": "coin", "x": 15.0, "y": 15.0 },
+    { "type": "coin", "x": 18.0, "y": 15.0 },
+    { "type": "mini_mushroom", "x": 28.0, "y": 14.0 },
+    { "type": "oneup_mushroom", "x": 38.0, "y": 15.0 },
+    { "type": "star_coin", "x": 47.0, "y": 13.0 }
+  ]
+}
