@@ -56,7 +56,8 @@ add_executable(${PROJECT_NAME} ${SOURCES}
     include/Graphics/SpriteSheet.hpp
     src/Graphics/AnimationManager.cpp
     include/Graphics/Animator.hpp
-    src/Graphics/Animator.cpp)
+    src/Graphics/Animator.cpp
+    src/Graphics/HUD.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -215,6 +216,58 @@ target_link_libraries(verify_blocks_new PRIVATE
     SFML::Network
     ImGui-SFML::ImGui-SFML
 )
+
+# ---------------------------------------------------------
+# 7. Verification Test Target (verify_graphics)
+# ---------------------------------------------------------
+add_executable(verify_graphics
+    "tests/verify_graphics.cpp"
+    "src/Graphics/SpriteSheet.cpp"
+    "src/Graphics/Animator.cpp"
+    "src/Graphics/AnimationManager.cpp"
+    "src/Core/ResourceManager.cpp"
+)
+
+target_include_directories(verify_graphics PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_graphics PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 8. Verification Test Target (verify_graphics_visual)
+# ---------------------------------------------------------
+add_executable(verify_graphics_visual
+    "tests/verify_graphics_visual.cpp"
+    "src/Graphics/SpriteSheet.cpp"
+    "src/Graphics/Animator.cpp"
+    "src/Graphics/AnimationManager.cpp"
+    "src/Core/ResourceManager.cpp"
+)
+
+target_include_directories(verify_graphics_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_graphics_visual PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+
 
 
 
