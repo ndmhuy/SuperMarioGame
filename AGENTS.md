@@ -325,3 +325,19 @@ public:
 > Summary of Changes: <brief bulleted list>
 > ---
 > ```
+
+---
+
+## 📝 Weekly Report Writing Rules & Policy
+
+Agents must follow these rules when writing weekly reports:
+1. **Timing**: Generate the report every Saturday before 23:59.
+2. **Location**: Write reports to `docs/Group52_XX/52.md`, where `XX` is the zero-padded week number.
+3. **Format**: Follow the template of prior weeks. It must contain:
+   - General Information (dates, repo URL).
+   - Detailed tasks completed this week, separated by member and branch, with clickable file links.
+   - AI Usage Declaration.
+   - Tasks Planned for Next Week.
+   - Issues & Resolutions (technically detailed problem and resolution).
+4. **Rules Reference**: The full report writing rules are stored in [docs/REPORT_RULES.md](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/docs/REPORT_RULES.md).
+
