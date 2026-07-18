@@ -673,3 +673,35 @@ Summary of Changes:
 - Designed 4 levels (Grassland, Cave, Castle, and Sky) matching SPEC §9.6.
 - Added m_selectedLevelIndex and ImGui Level Selection dropdown to PlayingState, letting players load and test levels in real-time.
 ---
+[2026-07-18 18:22:00] Branch: A/feature/level-editor
+Prompt: Address code reviews on save-load PR #5 and level-editor PR #6, resolve all merge conflicts, verify compile, run all verification tests, and push branches.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Core/AchievementManager.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Utils/Serializer.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/tests/verify_save_load.cpp
+- docs/Group52_06/52.md
+- docs/Group52_06/52.pdf
+- logs/agent_history.log
+Summary of Changes:
+- Resolved merge conflicts when merging A/physics-input-test into A/feature/save-load and then into A/feature/level-editor.
+- Fixed EventBus sentinel bug in PlayingState by changing the sentinel to static_cast<size_t>(-1).
+- Swapped letter-based debug key triggers to non-conflicting Num1-Num9 keys.
+- Replaced hardcoded level times and toast positions with Constants constants.
+- Encapsulated keyBindings getter by returning a copy and providing a narrow getKeyBinding accessor in Game.
+- Cleared achievements activeToasts queue in setUnlockedAchievements to prevent rendering stale toasts on load.
+- Aligned achievement IDs in trigger points and lists with SPEC.md schemas ("100_coins" / "beat_bowser").
+- Added explicit <ctime> include and used std::gmtime in Serializer.cpp to properly format UTC timestamps.
+- Added player direct friend access for Serializer to restore stats without triggering gameplay events.
+- Derived completed level maps dynamically from levelId inside saveGame.
+- Switched float comparisons in verify_save_load.cpp to epsilon checks.
+- Fixed out-of-bounds coordinates risk in saveLevel by clamping spawnPoint and flagpole coordinates to map boundaries.
+- Converted absolute local paths in Week 6 progress report links to repository-relative links and rebuilt the report PDF.
+- Verified that both verify_save_load and verify_map_editor tests compile and pass successfully.
+---
+
