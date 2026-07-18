@@ -66,3 +66,29 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
 )
+
+# ---------------------------------------------------------
+# 3. Verification Test Target (verify_save_load)
+# ---------------------------------------------------------
+set(TEST_SOURCES ${SOURCES})
+list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+
+add_executable(verify_save_load 
+    "tests/verify_save_load.cpp"
+    ${TEST_SOURCES}
+)
+
+
+target_include_directories(verify_save_load PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_save_load PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)

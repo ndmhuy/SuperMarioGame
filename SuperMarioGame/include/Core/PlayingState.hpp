@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/IGameState.hpp"
+#include "Core/EventBus.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
 #include <vector>
@@ -23,6 +24,7 @@ private:
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
+    EventBus::SubscriptionId m_checkpointSubId = 0;
 
     void setupTestScene();
     void cleanupTestScene();
