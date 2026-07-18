@@ -493,7 +493,6 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 }
-}
 
 void PlayingState::setupTestScene() {
     cleanupTestScene();
