@@ -45,6 +45,7 @@ public:
     bool isCrouched() const { return crouched; }
     bool isSliding() const { return sliding; }
     bool isRunRequested() const { return m_runRequested; }
+    void clearMovementRequests() override;
 
 protected:
     std::unique_ptr<IPlayerState> m_currentState;

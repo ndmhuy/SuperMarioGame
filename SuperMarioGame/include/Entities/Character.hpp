@@ -27,7 +27,7 @@ public:
     // Intent request flags for physics loop
     bool isMoveLeftRequested() const { return m_moveLeftRequested; }
     bool isMoveRightRequested() const { return m_moveRightRequested; }
-    void clearMovementRequests();
+    virtual void clearMovementRequests();
 
 protected:
     // Friends for controlled physics write access

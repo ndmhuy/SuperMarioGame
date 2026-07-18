@@ -100,16 +100,31 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
                         }
 
                         // Internal edge mitigation:
-                        // If we detected a horizontal collision, but the tile above this one is NOT solid,
-                        // then this is a floor tile boundary, not a wall. Convert it to a vertical collision!
-                        if (y > 0) {
-                            TileType tileAbove = tileMap.getTileType(x, y - 1);
-                            if (!TileMap::getInfo(tileAbove).isSolid) {
-                                collisionInfo.normal.x = 0.0f;
-                                collisionInfo.normal.y = (center1.y < center2.y) ? -1.0f : 1.0f;
-                                collisionInfo.overlap.x = 0.0f;
-                                collisionInfo.overlap.y = overlapBox.height;
+                        // If we detected a horizontal collision, but the adjacent tile in the direction
+                        // of the collision is also solid, then it is an internal vertical seam.
+                        // Convert it to a vertical collision so the entity can slide smoothly!
+                        bool isInternal = false;
+                        if (collisionInfo.normal.x < 0.0f) { // Entity is on the left
+                            if (x > 0) {
+                                TileType adjacentTile = tileMap.getTileType(x - 1, y);
+                                if (TileMap::getInfo(adjacentTile).isSolid) {
+                                    isInternal = true;
+                                }
                             }
+                        } else { // Entity is on the right
+                            if (x < tileMap.getWidth() - 1) {
+                                TileType adjacentTile = tileMap.getTileType(x + 1, y);
+                                if (TileMap::getInfo(adjacentTile).isSolid) {
+                                    isInternal = true;
+                                }
+                            }
+                        }
+
+                        if (isInternal) {
+                            collisionInfo.normal.x = 0.0f;
+                            collisionInfo.normal.y = (center1.y < center2.y) ? -1.0f : 1.0f;
+                            collisionInfo.overlap.x = 0.0f;
+                            collisionInfo.overlap.y = overlapBox.height;
                         }
                     } else {
                         collisionInfo.overlap.y = overlapBox.height;

@@ -211,7 +211,6 @@ void Player::update(float dt) {
     }
 
     m_crouchRequestedThisFrame = false;
-    m_runRequested = false;
 
     // 5. Delegate frame update to the active state
     if (m_currentState) {
@@ -253,4 +252,10 @@ void Player::incrementCombo() {
     ++comboCounter;
     EventBus::getInstance().publish({EventType::ComboHit, comboCounter});
 }
+
+void Player::clearMovementRequests() {
+    Character::clearMovementRequests();
+    m_runRequested = false;
+}
+
 
