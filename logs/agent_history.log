@@ -658,3 +658,12 @@ Summary of Changes:
 - Removed the X=260 star counter icon and text drawing from HUD.cpp.
 - Verified compilation and executed the clean target.
 ---
+[2026-07-18 20:43:00] Branch: B/feature/entities
+Prompt: Implement Boss HUD elements (name, health bar) in HUD and create a new visual test target verify_hud_boss.
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/tests/verify_hud_boss.cpp (NEW), SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Extended HudData with bossActive, bossName, bossHealth, bossMaxHealth fields.
+- Implemented boss name text centering and health bar background/fill resizing in HUD.cpp.
+- Created verify_hud_boss.cpp as a comprehensive visual HUD editor running on a 1280x720 SFML window with ImGui controls.
+- Registered verify_hud_boss target in CMakeLists.txt and built target successfully.
+---

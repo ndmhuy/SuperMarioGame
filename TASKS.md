@@ -378,14 +378,14 @@
 - [x] Commit: `feat: implement Animation and AnimationManager`
 
 ### 5.3 HUD
-- [ ] Create [HUD.hpp/.cpp](SuperMarioGame/include/Graphics/HUD.hpp)
+- [x] Create [HUD.hpp/.cpp](SuperMarioGame/include/Graphics/HUD.hpp)
   - Render overlay: Score, Coins, World, Time, Lives
   - Combo counter display [v2.0]
   - P-Switch timer bar [v2.0]
   - Boss health bar [v2.0]
   - Star coin indicators [v2.0]
   - Floating score text [v2.0]
-- [ ] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
+- [x] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
 
 ### 5.4 Minimap [v2.0]
 - [ ] Create [Minimap.hpp/.cpp](SuperMarioGame/include/Graphics/Minimap.hpp)
