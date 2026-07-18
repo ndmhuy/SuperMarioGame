@@ -25,37 +25,37 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 ### Systems & Engine Work
 
 #### Phase 1 — Core Infrastructure (partial)
-- [ ] **1.1** Constants & Utilities — `Constants.hpp`, `MathUtils.hpp/.cpp`
-- [ ] **1.2** Resource Manager (Singleton) — `ResourceManager.hpp/.cpp`
-- [ ] **1.4** Event Bus (Observer Pattern) — `EventBus.hpp/.cpp` (15+ event types)
-- [ ] **1.6** Game State Manager (State Pattern) — `IGameState.hpp`, `GameStateManager.hpp/.cpp`
-- [ ] **1.7** Game Class (Singleton) — `Game.hpp/.cpp`, fixed-timestep loop, ImGui integration
+- [x] **1.1** Constants & Utilities — `Constants.hpp`, `MathUtils.hpp/.cpp`
+- [x] **1.2** Resource Manager (Singleton) — `ResourceManager.hpp/.cpp`
+- [x] **1.4** Event Bus (Observer Pattern) — `EventBus.hpp/.cpp` (15+ event types)
+- [x] **1.6** Game State Manager (State Pattern) — `IGameState.hpp`, `GameStateManager.hpp/.cpp`
+- [x] **1.7** Game Class (Singleton) — `Game.hpp/.cpp`, fixed-timestep loop, ImGui integration
 - [ ] Commit: `feat: implement core infrastructure (Game, GSM, ResourceManager, EventBus)`
 
 #### Phase 2 — Physics Engine (full)
-- [ ] **2.1** AABB — `AABB.hpp/.cpp`
-- [ ] **2.2** Spatial Hash — `SpatialHash.hpp/.cpp`
-- [ ] **2.3** Collision Detector — `CollisionDetector.hpp/.cpp`
-- [ ] **2.4** Collision Resolver — `CollisionResolver.hpp/.cpp` (stomp/damage/bounce/collect, surface types)
-- [ ] **2.5** Physics Engine — `PhysicsEngine.hpp/.cpp` (gravity, velocity, coyote time, jump buffer, water/ice/conveyor, ImGui debug)
+- [x] **2.1** AABB — `AABB.hpp/.cpp`
+- [x] **2.2** Spatial Hash — `SpatialHash.hpp/.cpp`
+- [x] **2.3** Collision Detector — `CollisionDetector.hpp/.cpp`
+- [x] **2.4** Collision Resolver — `CollisionResolver.hpp/.cpp` (stomp/damage/bounce/collect, surface types)
+- [x] **2.5** Physics Engine — `PhysicsEngine.hpp/.cpp` (gravity, velocity, coyote time, jump buffer, water/ice/conveyor, ImGui debug)
 - [ ] Commit: `feat: implement physics engine with collision pipeline`
 
 #### Phase 3 — Player Entities & Items (partial)
-- [ ] **3.1** Entity base class (abstract)
-- [ ] **3.2** Character base class (abstract)
-- [ ] **3.3** Player base class — IPlayerState pattern, 5 base states (Small, Super, Fire, Cape, Mini), 2 decorators (Star, Mega)
-- [ ] **3.4** Mario — standard physics, fireball shooting, animation state tracking
-- [ ] **3.5** Luigi — modified physics, double jump
-- [ ] **3.6** Toad & Peach (unlockable characters)
-- [ ] **3.10** Item base + original items — Mushroom, FireFlower, Coin, Star, OneUpMushroom
-- [ ] **3.11** New items (v2.0) — CapeFeather, MegaMushroom, MiniMushroom, POWBlock, PSwitch, Trampoline, StarCoin
+- [x] **3.1** Entity base class (abstract)
+- [x] **3.2** Character base class (abstract)
+- [x] **3.3** Player base class — IPlayerState pattern, 5 base states (Small, Super, Fire, Cape, Mini), 2 decorators (Star, Mega)
+- [x] **3.4** Mario — standard physics, fireball shooting, animation state tracking
+- [x] **3.5** Luigi — modified physics, double jump
+- [x] **3.6** Toad & Peach (unlockable characters)
+- [x] **3.10** Item base + original items — Mushroom, FireFlower, Coin, Star, OneUpMushroom
+- [x] **3.11** New items (v2.0) — CapeFeather, MegaMushroom, MiniMushroom, POWBlock, PSwitch, Trampoline, StarCoin
 - [ ] Commit: `feat: implement player characters, player states, and all items`
 
 #### Phase 4 — Tilemap & Levels (full)
-- [ ] **4.1** TileMap — 2D grid, tile properties, surface types, P-Switch swap, water zones
-- [ ] **4.2** Level Loader — JSON parsing per SPEC §9.6, entity spawning via Factory
-- [ ] **4.4** Level files — `level_1.json`, `level_2.json`, `level_3.json`, `bonus_1.json`, `entities.json`
-- [ ] **4.5** Integration test — PlayingState loads Level 1, renders tilemap, spawns Mario
+- [x] **4.1** TileMap — 2D grid, tile properties, surface types, P-Switch swap, water zones
+- [x] **4.2** Level Loader — JSON parsing per SPEC §9.6, entity spawning via Factory
+- [x] **4.4** Level files — `level_1.json`, `level_2.json`, `level_3.json`, `bonus_1.json`, `entities.json`
+- [x] **4.5** Integration test — PlayingState loads Level 1, renders tilemap, spawns Mario
 - [ ] Commit: `feat: implement tilemap, level loader, and level JSON files`
 
 #### Phase 8 — Save/Load & Persistence (full)
@@ -70,7 +70,7 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 ### Presentation & Gameplay Work
 
 #### Phase 4 — Camera (from Phase 4)
-- [ ] **4.3** Camera — smooth follow, lookahead, bounds clamping, multi-mode scroll, screen shake
+- [x] **4.3** Camera — smooth follow, lookahead, bounds clamping, multi-mode scroll, screen shake
 - [ ] Commit: `feat: implement camera with multi-mode scrolling`
 
 #### Phase 5 — World Visuals (partial)
@@ -108,18 +108,18 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 ### Systems & Engine Work
 
 #### Phase 1 — Input & Sound (partial)
-- [ ] **1.3** Sound Manager (Singleton) — `SoundManager.hpp/.cpp` (play SFX, stream BGM, volume controls, footstep support)
-- [ ] **1.5** Input Manager (Command Pattern) — `InputManager.hpp/.cpp`, 8+ ICommand classes (Jump, Move, Fire, Crouch, GroundPound, WallJump, Run, Debug), Player 1/2 key mappings, key rebinding
-- [ ] **1.8** Placeholder States — barebones `MenuState` and `PlayingState` stubs (for early testing)
+- [x] **1.3** Sound Manager (Singleton) — `SoundManager.hpp/.cpp` (play SFX, stream BGM, volume controls, footstep support)
+- [x] **1.5** Input Manager (Command Pattern) — `InputManager.hpp/.cpp`, 8+ ICommand classes (Jump, Move, Fire, Crouch, GroundPound, WallJump, Run, Debug), Player 1/2 key mappings, key rebinding
+- [x] **1.8** Placeholder States — barebones `MenuState` and `PlayingState` stubs (for early testing)
 - [ ] Commit: `feat: implement InputManager with commands and SoundManager`
 
 #### Phase 3 — Enemies, Blocks & Factory (partial)
-- [ ] **3.7** Enemy base class + IMovementStrategy interface + 8 concrete strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger)
-- [ ] **3.8** Original enemies — Goomba, KoopaTroopa, KoopaParatroopa, Boo (with variants)
-- [ ] **3.9** New enemies (v2.0) — PiranhaPlant, BulletBill, HammerBro, Thwomp, ChainChomp, Lakitu, Spiny
-- [ ] **3.12** Block base + original blocks — BrickBlock, QuestionBlock, Pipe, Flagpole
-- [ ] **3.13** New blocks (v2.0) — HiddenBlock, MovingPlatform, FallingPlatform, IceBlock, ConveyorBelt
-- [ ] **3.14** Entity Factory — `EntityFactory.hpp/.cpp`, 25+ entity types, config-driven
+- [x] **3.7** Enemy base class + IMovementStrategy interface + 8 concrete strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger)
+- [x] **3.8** Original enemies — Goomba, KoopaTroopa, KoopaParatroopa, Boo (with variants)
+- [x] **3.9** New enemies (v2.0) — PiranhaPlant, BulletBill, HammerBro, Thwomp, ChainChomp, Lakitu, Spiny
+- [x] **3.12** Block base + original blocks — BrickBlock, QuestionBlock, Pipe, Flagpole
+- [x] **3.13** New blocks (v2.0) — HiddenBlock, MovingPlatform, FallingPlatform, IceBlock, ConveyorBelt
+- [x] **3.14** Entity Factory — `EntityFactory.hpp/.cpp`, 25+ entity types, config-driven
 - [ ] Commit: `feat: implement enemies, strategies, blocks, and EntityFactory`
 
 #### Phase 10 — Advanced Systems (full)
@@ -134,20 +134,20 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 ### Presentation & Gameplay Work
 
 #### Phase 5 — Visual Systems (partial)
-- [ ] **5.1** SpriteSheet Handler — `SpriteSheet.hpp/.cpp`
-- [ ] **5.2** Animation System — `Animation.hpp/.cpp`, `AnimationManager.hpp/.cpp` (11+ animation states)
+- [x] **5.1** SpriteSheet Handler — `SpriteSheet.hpp/.cpp`
+- [x] **5.2** Animation System — `Animation.hpp/.cpp`, `AnimationManager.hpp/.cpp` (11+ animation states)
 - [ ] **5.3** HUD — Score, Coins, World, Time, Lives, Combo counter, P-Switch timer bar, Boss health bar, Star coin indicators, floating score text
 - [ ] **5.4** Minimap — 200×40 pixel overview, toggleable with M key
 - [ ] **5.6** Particle System — `ParticleSystem.hpp/.cpp`, object-pooled, 8+ particle types (BrickBreak, CoinSparkle, DeathPoof, Stomp, Combo, WallDust, WaterBubble, LavaEmber)
-- [ ] **5.8** Entity Death Animations — Goomba squish, enemy flip, Star kill launch, player death
-- [ ] **5.9** Invincibility Visual FX — Star rainbow cycling + sparkle trail, hit sprite flashing
-- [ ] **5.11** Source & Integrate Assets — download spritesheets, wire to all entities
+- [x] **5.8** Entity Death Animations — Goomba squish, enemy flip, Star kill launch, player death
+- [x] **5.9** Invincibility Visual FX — Star rainbow cycling + sparkle trail, hit sprite flashing
+- [x] **5.11** Source & Integrate Assets — download spritesheets, wire to all entities
 - [ ] Commit: `feat: implement animation system, HUD, minimap, particles, VFX`
 
 #### Phase 6 — Audio (full)
-- [ ] **6.1** Source Audio Assets — find 17+ SFX, 10+ BGM tracks
-- [ ] **6.2** Wire Sound Events — subscribe SoundManager to EventBus (15+ events), footstep sounds, combo SFX escalation, dynamic music layers
-- [ ] **6.3** Volume Controls — sliders in Options, persist to config.json
+- [x] **6.1** Source Audio Assets — find 17+ SFX, 10+ BGM tracks
+- [x] **6.2** Wire Sound Events — subscribe SoundManager to EventBus (15+ events), footstep sounds, combo SFX escalation, dynamic music layers
+- [x] **6.3** Volume Controls — sliders in Options, persist to config.json
 - [ ] Commit: `feat: wire all audio events with dynamic music`
 
 #### Phase 7 — Interaction Game States (partial)
