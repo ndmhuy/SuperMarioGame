@@ -1,0 +1,29 @@
+{
+  "goomba": {
+    "speed": 60,
+    "health": 1,
+    "score": 100,
+    "stompable": true,
+    "fireballKillable": true,
+    "strategy": "patrol",
+    "animation": { "walk": [0,1], "squish": [2], "frameDuration": 0.3 }
+  },
+  "koopa": {
+    "speed": 50,
+    "health": 1,
+    "score": 200,
+    "stompable": true,
+    "fireballKillable": true,
+    "strategy": "patrol",
+    "animation": { "walk": [0,1], "shell": [2], "frameDuration": 0.3 }
+  },
+  "piranha_plant": {
+    "speed": 0,
+    "health": 1,
+    "score": 200,
+    "stompable": false,
+    "fireballKillable": true,
+    "strategy": "proximity_trigger",
+    "animation": { "bite": [0,1], "frameDuration": 0.2 }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Level 1 - Grassland Hills",
+  "theme": "overworld",
+  "width": 60,
+  "height": 22,
+  "spawnPoint": { "x": 3.0, "y": 18.0 },
+  "tiles": [
+    { "type": "ground", "x": 0, "y": 20, "w": 60 },
+    { "type": "ground", "x": 0, "y": 21, "w": 60 },
+    { "type": "brick", "x": 6, "y": 16 },
+    { "type": "question_block", "x": 7, "y": 16, "item": "mushroom" },
+    { "type": "question_block", "x": 8, "y": 16, "item": "coin" },
+    { "type": "brick", "x": 9, "y": 16 },
+    { "type": "pipe", "x": 12, "y": 17, "w": 2 },
+    { "type": "pipe", "x": 12, "y": 18, "w": 2 },
+    { "type": "pipe", "x": 12, "y": 19, "w": 2 },
+    { "type": "conveyor", "x": 18, "y": 15, "w": 6 },
+    { "type": "ice", "x": 28, "y": 15, "w": 5 },
+    { "type": "water", "x": 38, "y": 18, "w": 8 },
+    { "type": "water", "x": 38, "y": 19, "w": 8 },
+    { "type": "brick", "x": 50, "y": 16, "w": 4 }
+  ],
+  "entities": [
+    { "type": "mushroom", "x": 7.5, "y": 15.0 },
+    { "type": "fire_flower", "x": 15.0, "y": 18.0 },
+    { "type": "star", "x": 20.5, "y": 14.0 },
+    { "type": "trampoline", "x": 26.0, "y": 19.0 },
+    { "type": "star_coin", "x": 30.0, "y": 12.0 },
+    { "type": "cape_feather", "x": 51.5, "y": 15.0 }
+  ]
+}

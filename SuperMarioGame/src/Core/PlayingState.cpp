@@ -4,23 +4,33 @@
 #include "Core/EventBus.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
+#include "Core/InputManager.hpp"
 #include "Entities/Player.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
 #include "Entities/Toad.hpp"
 #include "Entities/Peach.hpp"
+#include "Entities/Mushroom.hpp"
+#include "Entities/FireFlower.hpp"
+#include "Entities/Coin.hpp"
+#include "Entities/Star.hpp"
+#include "Entities/CapeFeather.hpp"
+#include "Entities/MegaMushroom.hpp"
+#include "Entities/MiniMushroom.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <imgui.h>
 #include <iostream>
+#include <cmath>
+#include <algorithm>
 
 PlayingState::PlayingState() = default;
 PlayingState::~PlayingState() = default;
 
 void PlayingState::enter() {
-    std::cout << "Entering PlayingState" << std::endl;
+    std::cout << "Entering PlayingState (Physics & Input Test Playground)" << std::endl;
     setupTestScene();
 
     // Auto-save at checkpoint
@@ -28,7 +38,7 @@ void PlayingState::enter() {
         int activeSlot = Game::getInstance().getActiveSlot();
         if (!m_entities.empty() && m_entities[0]) {
             if (auto* player = dynamic_cast<Player*>(m_entities[0].get())) {
-                bool success = Serializer::saveGame(activeSlot, *player, 1, "Level 1", 300.0f, player->getPosition().x, player->getPosition().y, {true, false, false});
+                bool success = Serializer::saveGame(activeSlot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, {true, false, false});
                 if (success) {
                     std::cout << "[Auto-Save] Progress saved to Slot " << activeSlot << " at checkpoint!" << std::endl;
                 }
@@ -41,9 +51,9 @@ void PlayingState::exit() {
     std::cout << "Exiting PlayingState" << std::endl;
     cleanupTestScene();
 
-    if (m_checkpointSubId != 0) {
+    if (m_checkpointSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_checkpointSubId);
-        m_checkpointSubId = 0;
+        m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 }
 
@@ -55,36 +65,40 @@ void PlayingState::handleInput(const sf::Event& event) {
             case sf::Keyboard::Key::Backspace:
                 Game::getInstance().changeState(std::make_unique<MenuState>());
                 break;
-            case sf::Keyboard::Key::C: // Collect Coin
+            case sf::Keyboard::Key::Num1: // Collect Coin
                 bus.publish({EventType::CoinCollected, 1});
                 break;
-            case sf::Keyboard::Key::K: // Defeat Enemy
+            case sf::Keyboard::Key::Num2: // Defeat Enemy
                 bus.publish({EventType::EnemyDefeated, 0});
                 break;
-            case sf::Keyboard::Key::D: // Take Damage
+            case sf::Keyboard::Key::Num3: // Take Damage
                 bus.publish({EventType::PlayerDamaged, 0});
                 break;
-            case sf::Keyboard::Key::L: // Lose Life / Die
+            case sf::Keyboard::Key::Num4: // Lose Life / Die
                 bus.publish({EventType::PlayerDied, 0});
                 break;
-            case sf::Keyboard::Key::P: // Checkpoint Activated
+            case sf::Keyboard::Key::Num5: // Checkpoint Activated
                 bus.publish({EventType::CheckpointActivated, 0});
                 break;
-            case sf::Keyboard::Key::U: // Finish Level 3 (unlocks character achievements)
+            case sf::Keyboard::Key::Num6: // Finish Level 3 (unlocks character achievements)
                 bus.publish({EventType::LevelComplete, 3});
                 break;
-            case sf::Keyboard::Key::B: // Boss Defeated
+            case sf::Keyboard::Key::Num7: // Boss Defeated
                 bus.publish({EventType::BossDefeated, 0});
                 break;
-            case sf::Keyboard::Key::S: // Star Coin Collected
+            case sf::Keyboard::Key::Num8: // Star Coin Collected
                 bus.publish({EventType::StarCoinCollected, 0});
                 break;
-            case sf::Keyboard::Key::H: // Hidden Block Broken
+            case sf::Keyboard::Key::Num9: // Hidden Block Broken
                 bus.publish({EventType::BlockBroken, 0});
                 break;
             default:
                 break;
         }
+    }
+
+    if (m_player) {
+        InputManager::getInstance().handleInput(event, *m_player);
     }
 }
 
@@ -93,46 +107,179 @@ void PlayingState::update(float dt) {
     StatisticsTracker::getInstance().update(dt);
     AchievementManager::getInstance().update(dt);
 
-    // 2. Update entities
+    // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run)
+    if (m_player) {
+        InputManager::getInstance().update(*m_player);
+    }
+
+    // 3. Update all active entities
     for (auto& entity : m_entities) {
-        if (entity) {
+        if (entity && entity->isActive()) {
             entity->update(dt);
         }
     }
 
-    // 3. Update physics
+    // 4. Run the physics engine (integrate velocity and resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
+
+    // 5. Update the Camera to follow player position and clamp to map boundaries
+    if (m_player) {
+        m_camera.follow(m_player->getPosition(), dt);
+    }
+    m_camera.update(dt);
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
-    // Draw TileMap
+    // Set view to camera view for scrolling world space rendering
+    target.setView(m_camera.getView());
+
+    // 1. Draw the tilemap tiles
     for (int y = 0; y < m_tileMap.getHeight(); ++y) {
         for (int x = 0; x < m_tileMap.getWidth(); ++x) {
             TileType tileType = m_tileMap.getTileType(x, y);
-            if (tileType == TileType::Ground) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(120, 80, 40));
-                tileShape.setOutlineColor(sf::Color(60, 40, 20));
-                tileShape.setOutlineThickness(1.0f);
-                target.draw(tileShape);
+            if (tileType == TileType::Empty) continue;
 
-                sf::RectangleShape grassShape(sf::Vector2f(Constants::TILE_SIZE, 8.0f));
+            const TileInfo& info = TileMap::getInfo(tileType);
+
+            sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+            tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+            tileShape.setFillColor(info.debugColor);
+            tileShape.setOutlineColor(sf::Color(60, 40, 20));
+            tileShape.setOutlineThickness(0.5f);
+            target.draw(tileShape);
+
+            // Add a grass top layer to Ground tiles
+            if (tileType == TileType::Ground) {
+                sf::RectangleShape grassShape(sf::Vector2f(Constants::TILE_SIZE, 6.0f));
                 grassShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                grassShape.setFillColor(sf::Color(0, 180, 0));
+                grassShape.setFillColor(sf::Color(46, 139, 87)); // Sea Green grass
                 target.draw(grassShape);
             }
         }
     }
 
-    // Draw Entities
+    // 2. Draw all active entities
     for (auto& entity : m_entities) {
         if (entity && entity->isActive()) {
             entity->render(target);
         }
     }
 
+<<<<<<< HEAD
     // --- ImGui Dev Interface for Phase 8 ---
+    // Reset view to default view for static screen space rendering (HUD, ImGui overlays)
+    target.setView(target.getDefaultView());
+
+    // --- ImGui Dev Interface for Phase 2, 3 & 4 (Playground) ---
+    ImGui::Begin("Physics & Input Test Playground (Phase 2 & 3)");
+
+    // Character Selection
+    ImGui::Text("Select Active Character:");
+    const char* characters[] = { "Mario (Red)", "Luigi (Green)", "Toad (Blue)", "Peach (Pink)" };
+    int oldCharSelected = m_selectedCharIndex;
+    if (ImGui::Combo("Character", &m_selectedCharIndex, characters, 4)) {
+        if (m_selectedCharIndex != oldCharSelected && m_player) {
+            spawnSelectedPlayer(m_player->getPosition());
+        }
+    }
+
+    // Level Selection
+    ImGui::Text("Select Active Level:");
+    const char* levels[] = { "Level 1 (Grassland)", "Level 2 (Cave)", "Level 3 (Castle)", "Bonus 1 (Sky)" };
+    int oldLevelSelected = m_selectedLevelIndex;
+    if (ImGui::Combo("Level", &m_selectedLevelIndex, levels, 4)) {
+        if (m_selectedLevelIndex != oldLevelSelected) {
+            setupTestScene();
+        }
+    }
+
+    ImGui::Separator();
+
+    if (m_player) {
+        ImGui::Text("Character Stats:");
+        ImGui::BulletText("Position: (%.2f, %.2f)", m_player->getPosition().x, m_player->getPosition().y);
+        ImGui::BulletText("Velocity: (%.2f, %.2f)", m_player->getVelocity().x, m_player->getVelocity().y);
+        ImGui::BulletText("onGround: %s", m_player->isOnGround() ? "TRUE" : "FALSE");
+        ImGui::BulletText("onWall: %s", m_player->isOnWall() ? "TRUE" : "FALSE");
+        ImGui::BulletText("Crouched: %s", m_player->isCrouched() ? "TRUE" : "FALSE");
+        ImGui::BulletText("Sliding: %s", m_player->isSliding() ? "TRUE" : "FALSE");
+        ImGui::BulletText("Coyote Frames Left: %d", m_player->getCoyoteFramesLeft());
+        ImGui::BulletText("Jump Buffer Frames Left: %d", m_player->getJumpBufferFramesLeft());
+        ImGui::BulletText("Lives: %d, Coins: %d, Score: %d", m_player->getLives(), m_player->getCoins(), m_player->getScore());
+        
+        std::string stateName = "Unknown";
+        if (IPlayerState* state = m_player->getCurrentState()) {
+            IPlayerState* baseState = state;
+            bool invincible = false;
+            bool mega = false;
+            while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+                if (dynamic_cast<StarDecorator*>(decorator)) invincible = true;
+                if (dynamic_cast<MegaDecorator*>(decorator)) mega = true;
+                baseState = decorator->getWrappedState();
+            }
+
+            if (dynamic_cast<SmallState*>(baseState)) stateName = "Small";
+            else if (dynamic_cast<SuperState*>(baseState)) stateName = "Super";
+            else if (dynamic_cast<FireState*>(baseState)) stateName = "Fire";
+            else if (dynamic_cast<CapeState*>(baseState)) stateName = "Cape";
+            else if (dynamic_cast<MiniState*>(baseState)) stateName = "Mini";
+
+            if (invincible) stateName += " + Star (Invincible)";
+            if (mega) stateName += " + Mega (Giant)";
+        }
+        ImGui::BulletText("Active Form: %s", stateName.c_str());
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No active player.");
+    }
+
+    ImGui::Separator();
+    
+    // Spawner buttons
+    ImGui::Text("Spawn items at player position:");
+    if (m_player) {
+        sf::Vector2f spawnPos = m_player->getPosition() + sf::Vector2f(0.0f, -64.0f);
+        if (ImGui::Button("Spawn Mushroom")) {
+            m_entities.push_back(std::make_unique<Mushroom>(spawnPos));
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Spawn Fire Flower")) {
+            m_entities.push_back(std::make_unique<FireFlower>(spawnPos));
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Spawn Coin")) {
+            m_entities.push_back(std::make_unique<Coin>(spawnPos));
+        }
+        if (ImGui::Button("Spawn Star")) {
+            m_entities.push_back(std::make_unique<Star>(spawnPos));
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Spawn Cape Feather")) {
+            m_entities.push_back(std::make_unique<CapeFeather>(spawnPos));
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Spawn Mega Mushroom")) {
+            m_entities.push_back(std::make_unique<MegaMushroom>(spawnPos));
+        }
+        if (ImGui::Button("Spawn Mini Mushroom")) {
+            m_entities.push_back(std::make_unique<MiniMushroom>(spawnPos));
+        }
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Swap Bricks <-> Coins (P-Switch test)")) {
+        m_tileMap.swapBricksAndCoins();
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Reset Simulation")) {
+        setupTestScene();
+    }
+
+    ImGui::End();
+
+    // --- ImGui Dev Interface for Phase 8 (Save/Load & Persistence) ---
     ImGui::Begin("Save/Load & Persistence (Phase 8)");
 
     Player* player = (!m_entities.empty() && m_entities[0]) ? dynamic_cast<Player*>(m_entities[0].get()) : nullptr;
@@ -189,7 +336,7 @@ void PlayingState::render(sf::RenderTarget& target) {
 
             if (ImGui::Button("Save")) {
                 if (player) {
-                    Serializer::saveGame(slot, *player, 1, "Level 1", 300.0f, player->getPosition().x, player->getPosition().y, {true, false, false});
+                    Serializer::saveGame(slot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, {true, false, false});
                 }
             }
             ImGui::SameLine();
@@ -254,18 +401,18 @@ void PlayingState::render(sf::RenderTarget& target) {
     }
     
     ImGui::TextDisabled("\nSimulation Keyboard Testing Commands:\n"
-                        "- C: Collect coin       - K: Defeat enemy\n"
-                        "- D: Take damage        - L: Lose life/Die\n"
-                        "- P: Cross Checkpoint   - U: Clear Level 3\n"
-                        "- B: Defeat Bowser      - S: Collect star coin\n"
-                        "- H: Find hidden block");
+                        "- Num1: Collect coin     - Num2: Defeat enemy\n"
+                        "- Num3: Take damage      - Num4: Lose life/Die\n"
+                        "- Num5: Cross Checkpoint - Num6: Clear Level 3\n"
+                        "- Num7: Defeat Bowser    - Num8: Collect star coin\n"
+                        "- Num9: Find hidden block");
 
     ImGui::End();
 
     // --- Overlay Toast Notifications ---
     const auto& toasts = AchievementManager::getInstance().getActiveToasts();
     if (!toasts.empty()) {
-        ImGui::SetNextWindowPos(ImVec2(1280.0f - 320.0f, 20.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(Constants::WINDOW_WIDTH - 320.0f, 20.0f), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(300.0f, 80.0f * toasts.size()), ImGuiCond_Always);
         ImGui::Begin("Achievements Toasts Overlay", nullptr,
                      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
@@ -287,16 +434,79 @@ void PlayingState::render(sf::RenderTarget& target) {
 void PlayingState::setupTestScene() {
     cleanupTestScene();
 
-    m_tileMap.initialize(40, 22);
+    LevelLoader loader;
+    LevelData levelData;
+    std::string levelPath = "assets/levels/level_1.json";
+    if (m_selectedLevelIndex == 1) levelPath = "assets/levels/level_2.json";
+    else if (m_selectedLevelIndex == 2) levelPath = "assets/levels/level_3.json";
+    else if (m_selectedLevelIndex == 3) levelPath = "assets/levels/bonus_1.json";
 
-    for (int x = 0; x < 40; ++x) {
-        m_tileMap.setTile(x, 20, TileType::Ground);
+    if (loader.loadLevel(levelPath, m_tileMap, levelData)) {
+        // Spawn active player character at the spawnPoint loaded from JSON
+        spawnSelectedPlayer(levelData.spawnPoint);
+        
+        // Transfer all loaded items/entities to m_entities
+        for (auto& entity : levelData.entities) {
+            m_entities.push_back(std::move(entity));
+        }
+
+        // Set camera bounds matching the level size
+        m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
+    } else {
+        // Fallback: manually setup scene if file loading fails
+        m_tileMap.initialize(40, 22);
+        for (int x = 0; x < 40; ++x) {
+            m_tileMap.setTile(x, 20, TileType::Ground);
+            m_tileMap.setTile(x, 21, TileType::Ground);
+        }
+        spawnSelectedPlayer(sf::Vector2f(100.0f, 100.0f));
+        m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
     }
-
-    // Spawn Mario character instead of dummy entity
-    m_entities.push_back(std::make_unique<Mario>(sf::Vector2f(300.0f, 100.0f)));
 }
 
 void PlayingState::cleanupTestScene() {
     m_entities.clear();
+    m_player = nullptr;
 }
+
+void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
+    int oldCoins = 0;
+    int oldScore = 0;
+    int oldLives = 3;
+    if (m_player) {
+        oldCoins = m_player->getCoins();
+        oldScore = m_player->getScore();
+        oldLives = m_player->getLives();
+
+        auto it = std::find_if(m_entities.begin(), m_entities.end(), [this](const std::unique_ptr<Entity>& e) {
+            return e.get() == m_player;
+        });
+        if (it != m_entities.end()) {
+            m_entities.erase(it);
+        }
+        m_player = nullptr;
+    }
+
+    std::unique_ptr<Player> newPlayer;
+    if (m_selectedCharIndex == 0) {
+        newPlayer = std::make_unique<Mario>(pos);
+    } else if (m_selectedCharIndex == 1) {
+        newPlayer = std::make_unique<Luigi>(pos);
+    } else if (m_selectedCharIndex == 2) {
+        newPlayer = std::make_unique<Toad>(pos);
+    } else {
+        newPlayer = std::make_unique<Peach>(pos);
+    }
+
+    // Restore stats
+    if (oldCoins > 0) newPlayer->addCoins(oldCoins);
+    if (oldScore > 0) newPlayer->addScore(oldScore);
+    while (newPlayer->getLives() < oldLives) newPlayer->gainLife();
+    while (newPlayer->getLives() > oldLives) newPlayer->loseLife();
+
+    m_player = newPlayer.get();
+    m_entities.insert(m_entities.begin(), std::move(newPlayer));
+
+    InputManager::getInstance().registerPlayer(m_player, 0);
+}
+

@@ -2,13 +2,18 @@
 #include "Utils/Constants.hpp"
 
 void Character::moveLeft() {
-    this->velocity.x = -Constants::WALK_SPEED;
+    m_moveLeftRequested = true;
     this->facingRight = false;
 }
 
 void Character::moveRight() {
-    this->velocity.x = Constants::WALK_SPEED;
+    m_moveRightRequested = true;
     this->facingRight = true;
+}
+
+void Character::clearMovementRequests() {
+    m_moveLeftRequested = false;
+    m_moveRightRequested = false;
 }
 
 void Character::jump() {

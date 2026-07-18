@@ -1,0 +1,29 @@
+{
+  "name": "Bonus 1 - Beanstalk Sky",
+  "theme": "sky",
+  "width": 40,
+  "height": 22,
+  "spawnPoint": { "x": 2.0, "y": 18.0 },
+  "tiles": [
+    { "type": "ground", "x": 0, "y": 20, "w": 40 },
+    { "type": "ground", "x": 0, "y": 21, "w": 40 },
+    { "type": "brick", "x": 5, "y": 16, "w": 3 },
+    { "type": "brick", "x": 10, "y": 13, "w": 4 },
+    { "type": "brick", "x": 16, "y": 11, "w": 4 },
+    { "type": "brick", "x": 22, "y": 13, "w": 4 },
+    { "type": "brick", "x": 28, "y": 16, "w": 3 }
+  ],
+  "entities": [
+    { "type": "coin", "x": 6.0, "y": 15.0 },
+    { "type": "coin", "x": 11.0, "y": 12.0 },
+    { "type": "coin", "x": 12.0, "y": 12.0 },
+    { "type": "coin", "x": 17.0, "y": 10.0 },
+    { "type": "coin", "x": 18.0, "y": 10.0 },
+    { "type": "coin", "x": 23.0, "y": 12.0 },
+    { "type": "coin", "x": 24.0, "y": 12.0 },
+    { "type": "coin", "x": 29.0, "y": 15.0 },
+    { "type": "pswitch", "x": 15.0, "y": 19.0 },
+    { "type": "star", "x": 20.0, "y": 19.0 },
+    { "type": "star_coin", "x": 35.0, "y": 19.0 }
+  ]
+}

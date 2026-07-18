@@ -549,3 +549,90 @@ Summary of Changes:
 - Linked nlohmann_json::nlohmann_json target dependency to the main SuperMarioGame target.
 - Successfully verified CMake configuration and build of the project.
 ---
+[2026-07-05 10:12:00] Branch: A/physics-input-test
+Prompt: Link input manager to game to test physics, connect all existing systems, and provide a simulation prototype.
+Files Modified:
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Replaced the DummyPhysicsEntity with concrete Player characters (Mario, Luigi, Toad, and Peach).
+- Linked Keyboard input handling to the player character via the InputManager command pattern.
+- Implemented real-time ground and air deceleration (friction) and custom Ice surface sliding physics.
+- Added a dynamic character selection combo box in ImGui that respawns the chosen hero at the current coordinates.
+- Implemented item spawning shortcuts (Mushroom, Fire Flower, Coin, Star, Cape Feather, Mega/Mini Mushrooms) at the player's position.
+- Added tilemap visualizers supporting Ground, Pipe, Brick, Ice, Conveyor, and Water textures/colors.
+- Added real-time telemetry (coordinates, velocity, state flags, coyote frames, jump buffers, stats) in an interactive ImGui debugger panel.
+---
+[2026-07-05 12:13:00] Branch: A/physics-input-test
+Prompt: Refactor movement physics to run acceleration/deceleration inside the Physics Engine, and wire the Camera tracking and bounds.
+Files Modified:
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/src/Entities/Character.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Refactored movement commands to set boolean request flags (m_moveLeftRequested, m_moveRightRequested, m_runRequested) on Character/Player rather than setting velocities directly.
+- Moved passive friction/deceleration, active horizontal acceleration, and run speed scaling into the PhysicsEngine update loop.
+- Cleared the movement and run flags inside the physics loop and player update loop.
+- Integrated the Camera system into PlayingState, updating it to follow the player coordinates smoothly.
+- Configured camera clamping bounds inside setupTestScene to match the loaded tilemap dimensions.
+- Wired views switching in PlayingState::render to draw world entities in camera space and ImGui overlays in default screen space.
+---
+[2026-07-05 12:17:00] Branch: A/physics-input-test
+Prompt: Fix ground friction timing and solve internal edge collision bug blocking player movement on flat ground.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionDetector.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+Summary of Changes:
+- Implemented internal edge mitigation in CollisionDetector::checkEntityVsTileMap: side collisions with floor tiles that have empty tiles above them are dynamically converted into vertical Y collisions, preventing them from canceling horizontal velocity.
+- Fixed timing in PhysicsEngine::update: moved character->onGround/onWall resets from the very beginning to after the friction update (step 1.5), ensuring friction calculation and conveyor pushes read the correct ground status from the previous frame.
+---
+[2026-07-05 12:22:00] Branch: A/physics-input-test
+Prompt: Fix ground status jittering by synchronizing bounding boxes after collision resolution.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Added manual bounding box coordinate synchronization (entity.boundingBox.x/y = entity.position.x/y) in CollisionResolver::resolveEntityVsTile and resolvePlayerVsPlayer immediately after position adjustments. This stops stale/penetrating bounding boxes from causing incorrect check hits and ground status toggles.
+---
+[2026-07-05 12:26:00] Branch: A/physics-input-test
+Prompt: Fix typo and add EPSILON separation buffer to tile collision push-out calculations.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Corrected a header typo in CollisionResolver.cpp.
+- Added an EPSILON separation buffer (0.01px extra push-out along the collision normal) to resolveEntityVsTile, ensuring strict spatial separation and preventing float precision rounding errors from re-triggering overlaps on consecutive frames.
+---
+[2026-07-05 12:29:00] Branch: A/physics-input-test
+Prompt: Fix ground jittering caused by double-resolution of adjacent flat ground tiles.
+Files Modified:
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+Summary of Changes:
+- Modified horizontal (X) and vertical (Y) tile collision loops in PhysicsEngine::update to track and resolve only the single maximum overlap collision per axis. This prevents characters standing on tile boundaries from having push-outs summed together (double-counting overlap pushes), which was launching them slightly airborne and breaking onGround states.
+---
+[2026-07-05 12:33:00] Branch: A/physics-input-test
+Prompt: Add mid-air wall friction and cap vertical velocity during wall slides.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Modified CollisionResolver::resolveEntityVsTile: if a character in mid-air (onGround is false) hits a wall horizontally, any upward vertical velocity (velocity.y < 0) is zeroed out to simulate wall impact friction. Additionally, any falling velocity is capped at Constants::WALL_SLIDE_SPEED to enable a steady, capped wall slide.
+---
+[2026-07-05 12:50:00] Branch: A/physics-input-test
+Prompt: Integrate nlohmann/json, implement LevelLoader and design 4 level maps.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Utils/LevelLoader.hpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/assets/levels/level_1.json
+- SuperMarioGame/assets/levels/level_2.json
+- SuperMarioGame/assets/levels/level_3.json
+- SuperMarioGame/assets/levels/bonus_1.json
+Summary of Changes:
+- Configured CMake to download and link header-only nlohmann/json v3.11.3.
+- Implemented LevelLoader::loadLevel to read, parse, and initialize TileMap dimensions, grids (supporting spans), player spawn point, and spawn concrete items.
+- Designed 4 levels (Grassland, Cave, Castle, and Sky) matching SPEC §9.6.
+- Added m_selectedLevelIndex and ImGui Level Selection dropdown to PlayingState, letting players load and test levels in real-time.
