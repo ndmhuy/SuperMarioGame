@@ -541,3 +541,14 @@ Summary of Changes:
 - Regenerated the Week 4 progress report PDF (docs/Group52_04/52.pdf) using the new Python-based WeasyPrint generation utility docs/generate_pdf.py to apply uniform premium styling.
 - Committed and pushed changes to remote dev branch.
 ---
+[2026-07-18 11:23:45] Branch: A/feature/level-editor
+Prompt: Implement in-game Map Editor (Mario Maker) with Undo/Redo commands and Level JSON serialization.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/include/Core/Game.hpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/include/Utils/LevelLoader.hpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Core/PlayingState.cpp, SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/include/Utils/EditorCommands.hpp, SuperMarioGame/include/Utils/MapEditor.hpp, SuperMarioGame/src/Utils/EditorCommands.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/tests/verify_map_editor.cpp
+Summary of Changes:
+- Created EditorCommands hierarchy wrapping cell placement and deletions under Command Pattern for Undo/Redo.
+- Created MapEditor controller handling brush palettes combos, grid viewport translations, and file loader calls.
+- Encapsulated sf::RenderWindow coordinates mapping safely in Game::getMouseWorldPosition.
+- Wired F1 shortcut in PlayingState to toggle the editor on and bypass normal update/physics pipelines.
+- Implemented loadLevel and saveLevel JSON parsing inside LevelLoader.
+- Configured verify_map_editor target in CMakeLists.txt and verified 100% test assertions pass.
+---
