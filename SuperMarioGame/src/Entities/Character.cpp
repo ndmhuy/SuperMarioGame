@@ -1,17 +1,22 @@
 #include "Entities/Character.hpp"
+#include "Utils/Constants.hpp"
 
 void Character::moveLeft() {
-    // TODO: Implement by hand
+    this->velocity.x = -Constants::WALK_SPEED;
+    this->facingRight = false;
 }
 
 void Character::moveRight() {
-    // TODO: Implement by hand
+    this->velocity.x = Constants::WALK_SPEED;
+    this->facingRight = true;
 }
 
 void Character::jump() {
-    // TODO: Implement by hand
+    if (onGround || onWall) {
+        this->velocity.y = -this->jumpForce;
+    }
 }
 
 void Character::takeDamage(int amount) {
-    // TODO: Implement by hand
+    this->health -= amount;
 }

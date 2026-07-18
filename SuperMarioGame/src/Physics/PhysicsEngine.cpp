@@ -16,9 +16,9 @@ void PhysicsEngine::applyGravity(Entity& entity, float dt) {
         }
     }
     // Acceleration: 0.5 px/frame^2 at 60 FPS is 1800 px/s^2
-    entity.velocity.y += Constants::GRAVITY * 3600.0f * dt;
-    if (entity.velocity.y > 600.0f) {
-        entity.velocity.y = 600.0f;
+    entity.velocity.y += Constants::GRAVITY * Constants::GRAVITY_SCALE * entity.getGravityMultiplier() * dt;
+    if (entity.velocity.y > Constants::TERMINAL_VELOCITY) {
+        entity.velocity.y = Constants::TERMINAL_VELOCITY;
     }
 }
 
@@ -36,9 +36,9 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             // Apply conveyor push if standing on conveyor (tile type 6) using the ground status from the previous frame
             if (character->onGround) {
                 float cx = character->position.x + character->boundingBox.width / 2.0f;
-                float feetY = character->position.y + character->boundingBox.height + 2.0f;
+                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
                 if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
-                    character->position.x += 100.0f * dt;
+                    character->position.x += Constants::CONVEYOR_SPEED * dt;
                     character->boundingBox.x = character->position.x;
                 }
             }
@@ -57,9 +57,9 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         bool inWater = (tileMap.getTileSurfaceType(cx, cy) == TileType::Water);
 
         if (inWater) {
-            entity->velocity.y += Constants::GRAVITY * 3600.0f * 0.3f * dt;
-            if (entity->velocity.y > 60.0f) {
-                entity->velocity.y = 60.0f; // Water terminal velocity
+            entity->velocity.y += Constants::GRAVITY * Constants::GRAVITY_SCALE * Constants::WATER_GRAVITY_MULT * dt;
+            if (entity->velocity.y > Constants::WATER_TERMINAL_VELOCITY) {
+                entity->velocity.y = Constants::WATER_TERMINAL_VELOCITY; // Water terminal velocity
             }
         } else {
             applyGravity(*entity, dt);

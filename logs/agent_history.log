@@ -666,4 +666,104 @@ Summary of Changes:
 - Implemented boss name text centering and health bar background/fill resizing in HUD.cpp.
 - Created verify_hud_boss.cpp as a comprehensive visual HUD editor running on a 1280x720 SFML window with ImGui controls.
 - Registered verify_hud_boss target in CMakeLists.txt and built target successfully.
+[2026-06-24 10:32:30] Branch: A/feature/entities
+Prompt: check my manual implementation and update constants, replacing hardcoded values in the codebase.
+Files Modified:
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Character.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Checked user's manual implementations in Character.cpp and Player.cpp, identifying critical physics and logic bugs (such as perpendicular velocity overrides, jump height scaling issues, incorrect wall-jump push direction, and ground-pound condition).
+- Expanded Constants.hpp with comprehensive physics scale constants (GRAVITY_SCALE, TERMINAL_VELOCITY, GROUND_CHECK_OFFSET), environmental surface properties (CONVEYOR_SPEED, WATER_GRAVITY_MULT, WATER_TERMINAL_VELOCITY), and collision resolution impulse forces.
+- Refactored PhysicsEngine.cpp and CollisionResolver.cpp to eliminate all hardcoded physics velocities, offsets, and forces, replacing them with the new constants.
+- Refactored Character.cpp and Player.cpp to correct movement and jump logic, ensuring horizontal/vertical momentum is preserved, facing direction updates correctly, jumpForce member is utilized, wall-jump pushes away from walls, and ground-pound only triggers while airborne.
+- Successfully compiled the entire project with zero errors.
+---
+[2026-06-24 11:07:35] Branch: A/feature/entities
+Prompt: help me implement the rest of Player.cpp.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/IPlayerState.hpp
+- SuperMarioGame/include/Core/EventBus.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Added crouched and sliding state tracking getters and members, along with update(float dt) override, to Player.hpp.
+- Implemented getWrappedState() getter in PlayerStateDecorator to allow unwrapping temporary decorators recursively.
+- Added PlayerShotFireball to EventType in EventBus.hpp to decouple fireball shooting from concrete projectile spawning systems.
+- Fully implemented player crouch/slide toggles, slide friction deceleration, fireball shooting with decorator unwrapping, full power-up/down state transitions, and frame updates (invincibility, coyote time, and jump buffers) in Player.cpp.
+- Successfully verified compilation of the entire codebase.
+---
+[2026-07-04 22:15:00] Branch: dev
+Prompt: complete member A phase 3, merge, pull from dev, and write weekly report for week 04
+Files Modified:
+- SuperMarioGame/include/Core/InputManager.hpp
+- SuperMarioGame/include/Entities/Entity.hpp
+- SuperMarioGame/include/Entities/IPlayerState.hpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/Mario.hpp
+- SuperMarioGame/include/Entities/Luigi.hpp
+- SuperMarioGame/include/Entities/Toad.hpp
+- SuperMarioGame/include/Entities/Peach.hpp
+- SuperMarioGame/include/Entities/Item.hpp
+- SuperMarioGame/include/Entities/Mushroom.hpp
+- SuperMarioGame/include/Entities/FireFlower.hpp
+- SuperMarioGame/include/Entities/Coin.hpp
+- SuperMarioGame/include/Entities/Star.hpp
+- SuperMarioGame/include/Entities/OneUpMushroom.hpp
+- SuperMarioGame/include/Entities/CapeFeather.hpp
+- SuperMarioGame/include/Entities/MegaMushroom.hpp
+- SuperMarioGame/include/Entities/MiniMushroom.hpp
+- SuperMarioGame/include/Entities/POWBlock.hpp
+- SuperMarioGame/include/Entities/PSwitch.hpp
+- SuperMarioGame/include/Entities/Trampoline.hpp
+- SuperMarioGame/include/Entities/StarCoin.hpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/src/Entities/Toad.cpp
+- SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/src/Entities/IPlayerState.cpp
+- SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/src/Entities/Mushroom.cpp
+- SuperMarioGame/src/Entities/FireFlower.cpp
+- SuperMarioGame/src/Entities/Coin.cpp
+- SuperMarioGame/src/Entities/Star.cpp
+- SuperMarioGame/src/Entities/OneUpMushroom.cpp
+- SuperMarioGame/src/Entities/CapeFeather.cpp
+- SuperMarioGame/src/Entities/MegaMushroom.cpp
+- SuperMarioGame/src/Entities/MiniMushroom.cpp
+- SuperMarioGame/src/Entities/POWBlock.cpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/src/Entities/StarCoin.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Physics/CollisionDetector.cpp
+- SuperMarioGame/docs/Group52_04/52.md
+Summary of Changes:
+- Extended the physics engine to apply character-specific gravity multipliers and treated water tiles as solid when a player in MiniState lands from above.
+- Implemented state transition updates, decorator constructors, duration timers, and unwrapping for StarDecorator and MegaDecorator in IPlayerState.cpp.
+- Fully implemented concrete player character subclasses (Mario, Luigi, Toad, Peach) with unique physics attributes and special abilities (Luigi double jump, Peach hover float, Toad fast slide).
+- Implemented the base Item class and all 12 item subclasses, adding customized movement, wall bounce, ground bouncing, and EventBus notification wiring.
+- Added a public setVelocity() method to Entity and getPlayer() to InputManager for clean, safe access to player and velocity settings.
+- Merged the completed feature branch back into the dev branch, resolved dependencies, verified clean compilations, and drafted, compiled (via cupsfilter), and pushed the Week 04 weekly progress report (both MD and PDF versions).
+---
+[2026-07-11 21:30:00] Branch: dev
+Prompt: Write the weekly report for week 5 (based on the previous template) on branch dev. Write the rules for writing report.
+Files Modified: docs/Group52_05/52.md, docs/Group52_05/52.pdf, docs/REPORT_RULES.md, AGENTS.md, 25125083.md, logs/agent_history.log
+Summary of Changes:
+- Switch to branch dev.
+- Fetched and gathered completed tasks from all branches (including A/physics-input-test and B/feature/entities).
+- Drafted the Week 5 progress report (docs/Group52_05/52.md) detailing Member A's physics, camera, and level loading features, and Member B's AI strategies, enemies, blocks, and animations.
+- Compiled docs/Group52_05/52.md to docs/Group52_05/52.pdf using cupsfilter.
+- Formulated clear report writing rules in docs/REPORT_RULES.md, establishing standards for timing, structure, content, and quality.
+- Appended weekly report rules to AGENTS.md and regenerated 25125083.md to synchronize the consolidated document.
+- Staged, committed, and pushed dev changes to origin.
+---
+[2026-07-11 21:32:00] Branch: dev
+Prompt: Generate PDF for week 4 as well.
+Files Modified: docs/Group52_04/52.pdf, logs/agent_history.log
+Summary of Changes:
+- Regenerated the Week 4 progress report PDF (docs/Group52_04/52.pdf) using the new Python-based WeasyPrint generation utility docs/generate_pdf.py to apply uniform premium styling.
+- Committed and pushed changes to remote dev branch.
 ---

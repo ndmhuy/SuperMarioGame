@@ -4,10 +4,13 @@
 
 class Mushroom : public Item {
 public:
-    Mushroom() = default;
+    explicit Mushroom(sf::Vector2f pos);
     ~Mushroom() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
+
+private:
+    bool m_movingRight = true;
 };

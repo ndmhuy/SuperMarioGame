@@ -4,10 +4,13 @@
 
 class MegaMushroom : public Item {
 public:
-    MegaMushroom() = default;
+    explicit MegaMushroom(sf::Vector2f pos);
     ~MegaMushroom() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
+
+private:
+    bool m_movingRight = true;
 };

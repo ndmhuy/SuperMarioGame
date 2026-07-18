@@ -24,6 +24,7 @@ public:
     // Active state methods
     IPlayerState* getCurrentState() const;
     void changeState(std::unique_ptr<IPlayerState> state);
+    void update(float dt) override;
 
     // Action methods (enforce game rules)
     void addCoins(int amount);
@@ -41,6 +42,8 @@ public:
     int getCoyoteFramesLeft() const { return coyoteFramesLeft; }
     int getJumpBufferFramesLeft() const { return jumpBufferFramesLeft; }
     int getComboCounter() const { return comboCounter; }
+    bool isCrouched() const { return crouched; }
+    bool isSliding() const { return sliding; }
 
 protected:
     std::unique_ptr<IPlayerState> m_currentState;
@@ -55,5 +58,9 @@ protected:
     int coyoteFramesLeft = 0;
     int jumpBufferFramesLeft = 0;
     int comboCounter = 0;
+    bool crouched = false;
+    bool sliding = false;
+    bool m_crouchRequestedThisFrame = false;
+    float m_fireballCooldownTimer = 0.0f;
 };
 

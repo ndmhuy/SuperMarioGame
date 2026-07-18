@@ -4,10 +4,13 @@
 
 class OneUpMushroom : public Item {
 public:
-    OneUpMushroom() = default;
+    explicit OneUpMushroom(sf::Vector2f pos);
     ~OneUpMushroom() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
+
+private:
+    bool m_movingRight = true;
 };

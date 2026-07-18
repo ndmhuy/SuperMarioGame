@@ -4,7 +4,7 @@
 
 class Mario : public Player {
 public:
-    Mario() = default;
+    explicit Mario(sf::Vector2f pos);
     ~Mario() override = default;
 
     void update(float dt) override;

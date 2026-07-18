@@ -4,10 +4,13 @@
 
 class MiniMushroom : public Item {
 public:
-    MiniMushroom() = default;
+    explicit MiniMushroom(sf::Vector2f pos);
     ~MiniMushroom() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
+
+private:
+    bool m_movingRight = true;
 };

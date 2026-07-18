@@ -4,7 +4,7 @@
 
 class FireFlower : public Item {
 public:
-    FireFlower() = default;
+    explicit FireFlower(sf::Vector2f pos);
     ~FireFlower() override = default;
 
     void update(float dt) override;

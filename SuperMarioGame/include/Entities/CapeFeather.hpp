@@ -4,7 +4,7 @@
 
 class CapeFeather : public Item {
 public:
-    CapeFeather() = default;
+    explicit CapeFeather(sf::Vector2f pos);
     ~CapeFeather() override = default;
 
     void update(float dt) override;

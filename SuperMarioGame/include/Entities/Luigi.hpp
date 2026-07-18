@@ -4,13 +4,15 @@
 
 class Luigi : public Player {
 public:
-    Luigi() = default;
+    explicit Luigi(sf::Vector2f pos);
     ~Luigi() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
 
+    void jump() override;
     void doubleJump();
+    float getGravityMultiplier() const override;
 
 private:
     bool m_hasDoubleJumped = false;

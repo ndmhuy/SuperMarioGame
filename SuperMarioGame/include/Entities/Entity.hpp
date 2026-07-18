@@ -20,10 +20,12 @@ public:
     virtual const AABB& getBoundingBox() const;
     virtual bool isActive() const;
     virtual void destroy();
+    virtual float getGravityMultiplier() const { return 1.0f; }
 
-    // Getters for external read-only access
+    // Getters/Setters for external access
     sf::Vector2f getPosition() const;
     sf::Vector2f getVelocity() const;
+    void setVelocity(const sf::Vector2f& vel) { velocity = vel; }
 
     // Setters for coordinates
     void setPosition(sf::Vector2f pos);

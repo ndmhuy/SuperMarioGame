@@ -94,7 +94,7 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
 void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info) {
     if (info.normal.y == -1.0f) {
         // Player stomped enemy from above
-        player.velocity.y = -300.0f; // Stomp bounce force
+        player.velocity.y = -Constants::STOMP_BOUNCE_FORCE; // Stomp bounce force
         enemy.onStomped();
         // Reset player combo / handle combos (this will be handled by EventBus / player states in Phase 3)
     } else {
@@ -103,8 +103,8 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
         float dx = player.getBoundingBox().getCenter().x - enemy.getBoundingBox().getCenter().x;
         float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
         
-        player.velocity.x = direction * 150.0f;
-        player.velocity.y = -100.0f;
+        player.velocity.x = direction * Constants::KNOCKBACK_FORCE_X;
+        player.velocity.y = -Constants::KNOCKBACK_FORCE_Y;
         
         player.takeDamage(1);
     }
@@ -127,17 +127,17 @@ void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const Coll
 
     if (info.normal.y == -1.0f) {
         // p1 is above p2 (p1 stomps p2's head)
-        p1.velocity.y = -300.0f; // p1 bounces up
-        p2.velocity.y = 100.0f;  // p2 is pushed down
+        p1.velocity.y = -Constants::PLAYER_BOUNCE_FORCE; // p1 bounces up
+        p2.velocity.y = Constants::PLAYER_PUSH_DOWN_FORCE;  // p2 is pushed down
     } else if (info.normal.y == 1.0f) {
         // p2 is above p1 (p2 stomps p1's head)
-        p2.velocity.y = -300.0f; // p2 bounces up
-        p1.velocity.y = 100.0f;  // p1 is pushed down
-    } else    if (info.normal.x != 0.0f) {
+        p2.velocity.y = -Constants::PLAYER_BOUNCE_FORCE; // p2 bounces up
+        p1.velocity.y = Constants::PLAYER_PUSH_DOWN_FORCE;  // p1 is pushed down
+    } else if (info.normal.x != 0.0f) {
         // Side hit: distribute velocities horizontally to push them apart
         float avgVx = (p1.velocity.x + p2.velocity.x) / 2.0f;
-        p1.velocity.x = avgVx + info.normal.x * 50.0f;
-        p2.velocity.x = avgVx - info.normal.x * 50.0f;
+        p1.velocity.x = avgVx + info.normal.x * Constants::PLAYER_PUSH_SIDE_FORCE;
+        p2.velocity.x = avgVx - info.normal.x * Constants::PLAYER_PUSH_SIDE_FORCE;
     }
 }
 

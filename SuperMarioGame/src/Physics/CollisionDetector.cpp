@@ -1,5 +1,7 @@
 #include "Physics/CollisionDetector.hpp"
 #include "Entities/Entity.hpp"
+#include "Entities/Player.hpp"
+#include "Entities/IPlayerState.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
@@ -53,7 +55,26 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
         for (int x = startX; x <= endX; ++x) {
             TileType tileType = tileMap.getTileType(x, y);
             const TileInfo& tileInfo = TileMap::getInfo(tileType);
-            if (tileInfo.isSolid) {
+            bool isSolid = tileInfo.isSolid;
+
+            // MiniState water walking check
+            if (tileType == TileType::Water) {
+                if (auto player = dynamic_cast<Player*>(&entity)) {
+                    IPlayerState* baseState = player->getCurrentState();
+                    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+                        baseState = decorator->getWrappedState();
+                    }
+                    if (dynamic_cast<MiniState*>(baseState)) {
+                        float feetY = entity.getPosition().y + entity.getBoundingBox().height;
+                        float waterTopY = y * Constants::TILE_SIZE;
+                        if (feetY <= waterTopY + 4.0f && entity.getVelocity().y >= 0.0f) {
+                            isSolid = true;
+                        }
+                    }
+                }
+            }
+
+            if (isSolid) {
                 AABB tileBox {
                     x * Constants::TILE_SIZE,
                     y * Constants::TILE_SIZE,
