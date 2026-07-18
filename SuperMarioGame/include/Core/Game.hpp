@@ -37,7 +37,11 @@ public:
     const std::string& getDifficulty() const { return m_difficulty; }
     void setDifficulty(const std::string& diff) { m_difficulty = diff; }
 
-    const std::unordered_map<std::string, std::string>& getKeyBindings() const { return m_keyBindings; }
+    std::unordered_map<std::string, std::string> getKeyBindings() const { return m_keyBindings; }
+    std::string getKeyBinding(const std::string& action) const {
+        auto it = m_keyBindings.find(action);
+        return (it != m_keyBindings.end()) ? it->second : "";
+    }
     void setKeyBinding(const std::string& action, const std::string& key) { m_keyBindings[action] = key; }
 
     bool getColorblindMode() const { return m_colorblindMode; }

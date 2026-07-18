@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
+#include <ctime>
 
 // Helper to get active character name
 static std::string getCharacterName(const Player& player) {
@@ -55,7 +56,7 @@ static std::string getCurrentISOTimestamp() {
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
-    ss << std::put_time(std::localtime(&now_c), "%Y-%m-%dT%H:%M:%SZ");
+    ss << std::put_time(std::gmtime(&now_c), "%Y-%m-%dT%H:%M:%SZ");
     return ss.str();
 }
 
@@ -98,8 +99,13 @@ bool Serializer::saveGame(int slot, const Player& player, int levelId, const std
         j["level"]["checkpoint"]["y"] = checkpointY;
         j["level"]["starCoinsCollected"] = starCoinsCollected;
 
-        // 3. Progress Data (Mocked / default base values, levelsCompleted/unlocked characters)
-        j["progress"]["levelsCompleted"] = { levelId };
+        // 3. Progress Data (derived dynamically from level progress and achievements)
+        std::vector<int> completed;
+        for (int i = 1; i < levelId; ++i) {
+            completed.push_back(i);
+        }
+        j["progress"]["levelsCompleted"] = completed;
+        
         std::vector<std::string> unlockedChars = { "mario", "luigi" };
         if (AchievementManager::getInstance().isUnlocked("toad")) unlockedChars.push_back("toad");
         if (AchievementManager::getInstance().isUnlocked("peach")) unlockedChars.push_back("peach");
@@ -164,14 +170,10 @@ bool Serializer::loadGame(int slot, std::unique_ptr<Player>& player, int& levelI
         else if (charName == "peach") player = std::make_unique<Peach>(sf::Vector2f(px, py));
         else player = std::make_unique<Mario>(sf::Vector2f(px, py));
 
-        // Restore attributes via action helper setters (mocking actions by adding/setting values)
-        player->addCoins(static_cast<int>(j["player"]["coins"]) - player->getCoins());
-        player->addScore(static_cast<int>(j["player"]["score"]) - player->getScore());
-        
-        // Restore Player lives
-        int targetLives = j["player"]["lives"];
-        while (player->getLives() < targetLives) player->gainLife();
-        while (player->getLives() > targetLives) player->loseLife();
+        // Restore attributes directly (without emitting gameplay events)
+        player->coins = j["player"]["coins"];
+        player->score = j["player"]["score"];
+        player->lives = j["player"]["lives"];
 
         // Restore state
         std::string stateName = j["player"]["state"];

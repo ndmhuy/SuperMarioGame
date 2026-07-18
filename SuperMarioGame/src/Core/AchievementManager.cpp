@@ -91,6 +91,7 @@ void AchievementManager::setUnlockedAchievements(const std::vector<std::string>&
             it->unlocked = true;
         }
     }
+    m_activeToasts.clear();
 }
 
 std::vector<std::string> AchievementManager::getUnlockedIds() const {
@@ -152,7 +153,7 @@ void AchievementManager::handleEvent(const GameEvent& event) {
                 }
                 m_coinsThisRun += amount;
                 if (m_coinsThisRun >= 100) {
-                    unlockAchievement("coin_collector");
+                    unlockAchievement("100_coins");
                 }
                 break;
             }
@@ -182,7 +183,7 @@ void AchievementManager::handleEvent(const GameEvent& event) {
                 break;
             }
             case EventType::BossDefeated: {
-                unlockAchievement("dragon_slayer");
+                unlockAchievement("beat_bowser");
                 break;
             }
             case EventType::BlockBroken: {
@@ -232,12 +233,12 @@ void AchievementManager::handleEvent(const GameEvent& event) {
 void AchievementManager::setupDefaultAchievementsList() {
     m_achievements = {
         { "first_stomp", "First Stomp", "Defeat first enemy by stomping", "Boot" },
-        { "coin_collector", "Coin Collector", "Collect 100 coins in a single run", "Gold coin" },
+        { "100_coins", "Coin Collector", "Collect 100 coins in a single run", "Gold coin" },
         { "speed_demon", "Speed Demon", "Complete any level in under 120 seconds", "Clock" },
         { "untouchable", "Untouchable", "Complete any level without taking damage", "Shield" },
         { "combo_king", "Combo King", "Achieve an x8 combo", "Star burst" },
         { "shell_shocker", "Shell Shocker", "Defeat 3 enemies with a single shell kick", "Shell" },
-        { "dragon_slayer", "Dragon Slayer", "Defeat Bowser", "Crown" },
+        { "beat_bowser", "Dragon Slayer", "Defeat Bowser", "Crown" },
         { "star_hoarder", "Star Hoarder", "Collect all 9 star coins", "Star" },
         { "no_deaths", "No Deaths", "Complete all 3 levels without dying", "Heart" },
         { "secret_finder", "Secret Finder", "Find all hidden blocks", "Magnifying glass" },

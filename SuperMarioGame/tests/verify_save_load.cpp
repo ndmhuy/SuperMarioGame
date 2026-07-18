@@ -7,6 +7,11 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <cmath>
+
+static bool floatsEqual(float a, float b, float epsilon = 0.001f) {
+    return std::abs(a - b) < epsilon;
+}
 
 void testSerializer() {
     std::cout << "Running testSerializer..." << std::endl;
@@ -43,17 +48,17 @@ void testSerializer() {
     assert(loadedPlayer != nullptr && "Loaded player is null");
 
     // Assert assertions
-    assert(loadedPlayer->getPosition().x == 150.5f);
-    assert(loadedPlayer->getPosition().y == 250.7f);
+    assert(floatsEqual(loadedPlayer->getPosition().x, 150.5f));
+    assert(floatsEqual(loadedPlayer->getPosition().y, 250.7f));
     assert(loadedPlayer->getCoins() == 25);
     assert(loadedPlayer->getScore() == 5000);
     assert(loadedPlayer->getLives() == 4);
 
     assert(loadedLevelId == levelId);
     assert(loadedLevelName == levelName);
-    assert(loadedTimeRemaining == timeRemaining);
-    assert(loadedCheckX == checkpointX);
-    assert(loadedCheckY == checkpointY);
+    assert(floatsEqual(loadedTimeRemaining, timeRemaining));
+    assert(floatsEqual(loadedCheckX, checkpointX));
+    assert(floatsEqual(loadedCheckY, checkpointY));
     assert(loadedStarCoins == starCoins);
 
     std::cout << "testSerializer PASSED!" << std::endl;
@@ -71,7 +76,7 @@ void testTrackerAndAchievements() {
     // Verify initial state
     assert(tracker.getStats().totalCoinsCollected == 0);
     assert(!achievements.isUnlocked("first_stomp"));
-    assert(!achievements.isUnlocked("coin_collector"));
+    assert(!achievements.isUnlocked("100_coins"));
 
     // Simulate events
     EventBus& bus = EventBus::getInstance();
@@ -80,7 +85,7 @@ void testTrackerAndAchievements() {
     bus.publish({EventType::CoinCollected, 1});
     bus.publish({EventType::CoinCollected, 99}); // total 100
     assert(tracker.getStats().totalCoinsCollected == 100);
-    assert(achievements.isUnlocked("coin_collector"));
+    assert(achievements.isUnlocked("100_coins"));
 
     // Enemy defeated
     bus.publish({EventType::EnemyDefeated, 0});
@@ -119,8 +124,8 @@ void testSettings() {
     bool loadSuccess = Serializer::loadSettings(loadedSfx, loadedMusic, loadedDiff, loadedBindings, loadedColorblind);
     assert(loadSuccess && "Failed to load settings");
 
-    assert(loadedSfx == sfx);
-    assert(loadedMusic == music);
+    assert(floatsEqual(loadedSfx, sfx));
+    assert(floatsEqual(loadedMusic, music));
     assert(loadedDiff == diff);
     assert(loadedBindings == bindings);
     assert(loadedColorblind == colorblind);

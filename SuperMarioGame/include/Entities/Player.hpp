@@ -48,6 +48,7 @@ public:
     void clearMovementRequests() override;
 
 protected:
+    friend class Serializer;
     std::unique_ptr<IPlayerState> m_currentState;
 
     // Player stats — modified only through action methods or friends

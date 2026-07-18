@@ -165,8 +165,6 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
-<<<<<<< HEAD
-    // --- ImGui Dev Interface for Phase 8 ---
     // Reset view to default view for static screen space rendering (HUD, ImGui overlays)
     target.setView(target.getDefaultView());
 
