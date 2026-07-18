@@ -551,4 +551,13 @@ Summary of Changes:
 - Wired F1 shortcut in PlayingState to toggle the editor on and bypass normal update/physics pipelines.
 - Implemented loadLevel and saveLevel JSON parsing inside LevelLoader.
 - Configured verify_map_editor target in CMakeLists.txt and verified 100% test assertions pass.
+[2026-07-18 11:37:00] Branch: A/feature/level-editor
+Prompt: Centralize duplicate string name helpers, check off completed global tasks, and compile Week 6 progress report with PDF.
+Files Modified: SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/include/Utils/SerializationUtils.hpp, SuperMarioGame/src/Utils/SerializationUtils.cpp, TASKS.md, docs/Group52_06/52.md, docs/Group52_06/52.pdf
+Summary of Changes:
+- Created SerializationUtils utility file to house centralized tile and entity string mapping functions.
+- Removed duplicate local helpers from LevelLoader.cpp and MapEditor.cpp.
+- Checked off Phase 8 and Bonus A items in the global TASKS.md file.
+- Drafted the Week 6 progress report and compiled it into a beautiful PDF using WeasyPrint generator script.
 ---
+
