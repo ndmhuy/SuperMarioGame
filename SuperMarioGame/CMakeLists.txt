@@ -37,6 +37,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui-sfml)
 
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+)
+FetchContent_MakeAvailable(json)
+
 # ---------------------------------------------------------
 # 2. Source Files configuration
 # ---------------------------------------------------------
@@ -57,4 +64,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )

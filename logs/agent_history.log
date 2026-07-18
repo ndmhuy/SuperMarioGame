@@ -541,3 +541,11 @@ Summary of Changes:
 - Regenerated the Week 4 progress report PDF (docs/Group52_04/52.pdf) using the new Python-based WeasyPrint generation utility docs/generate_pdf.py to apply uniform premium styling.
 - Committed and pushed changes to remote dev branch.
 ---
+[2026-07-18 08:53:30] Branch: A/feature/save-load
+Prompt: Setup nlohmann json library for Phase 8 Save/Load and Persistence tasks.
+Files Modified: SuperMarioGame/CMakeLists.txt, logs/agent_history.log
+Summary of Changes:
+- Modified CMakeLists.txt to declare the nlohmann/json GIT_REPOSITORY and GIT_TAG using FetchContent.
+- Linked nlohmann_json::nlohmann_json target dependency to the main SuperMarioGame target.
+- Successfully verified CMake configuration and build of the project.
+---
