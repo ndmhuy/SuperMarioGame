@@ -521,21 +521,21 @@
 > **Branch**: `git checkout -b feature/save-load dev`
 
 ### 8.1 Serializer
-- [ ] Create [Serializer.hpp/.cpp](SuperMarioGame/include/Utils/Serializer.hpp) — save/load slots using SPEC §12.2 schema [v2.0: expanded with progress, stats, achievements, settings]
+- [x] Create [Serializer.hpp/.cpp](SuperMarioGame/include/Utils/Serializer.hpp) — save/load slots using SPEC §12.2 schema [v2.0: expanded with progress, stats, achievements, settings]
 - [ ] Commit: `feat: implement Serializer with expanded schema`
 
 ### 8.2 Achievement Manager [v2.0]
-- [ ] Create [AchievementManager.hpp/.cpp](SuperMarioGame/include/Core/AchievementManager.hpp) — subscribes to EventBus, checks conditions, fires AchievementUnlocked
+- [x] Create [AchievementManager.hpp/.cpp](SuperMarioGame/include/Core/AchievementManager.hpp) — subscribes to EventBus, checks conditions, fires AchievementUnlocked
 - [ ] Commit: `feat: implement AchievementManager`
 
 ### 8.3 Statistics Tracker [v2.0]
-- [ ] Create [StatisticsTracker.hpp/.cpp](SuperMarioGame/include/Core/StatisticsTracker.hpp) — subscribes to EventBus, accumulates stats
+- [x] Create [StatisticsTracker.hpp/.cpp](SuperMarioGame/include/Core/StatisticsTracker.hpp) — subscribes to EventBus, accumulates stats
 - [ ] Commit: `feat: implement StatisticsTracker`
 
 ### 8.4 Save/Load Integration
-- [ ] Auto-save at checkpoints, manual save from pause menu
-- [ ] Load slot previews with character, level, score, star coins, play time [v2.0: enhanced preview]
-- [ ] Settings persistence (volume, difficulty, key bindings, colorblind mode) [v2.0]
+- [x] Auto-save at checkpoints, manual save from pause menu
+- [x] Load slot previews with character, level, score, star coins, play time [v2.0: enhanced preview]
+- [x] Settings persistence (volume, difficulty, key bindings, colorblind mode) [v2.0]
 - [ ] Commit: `feat: integrate save/load with achievements, stats, and settings`
 - [ ] **Merge**: `git checkout dev && git merge feature/save-load`
 
@@ -645,11 +645,11 @@
 ## Bonus Phases (Post-MVP)
 
 ### Bonus A — Level Editor (`feature/level-editor`)
-- [ ] ImGui editor overlay (F1 toggle)
-- [ ] Tile palette, entity palette, drag-and-drop
-- [ ] Undo/Redo with Command Pattern
-- [ ] Export/import level JSON
-- [ ] Play-test button
+- [x] ImGui editor overlay (F1 toggle)
+- [x] Tile palette, entity palette, drag-and-drop
+- [x] Undo/Redo with Command Pattern
+- [x] Export/import level JSON
+- [x] Play-test button
 
 ### Bonus B — Time Rewind (`feature/time-rewind`)
 - [ ] Circular buffer storing 300 frames of game state snapshots

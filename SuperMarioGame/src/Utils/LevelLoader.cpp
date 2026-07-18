@@ -1,6 +1,7 @@
 #include "Utils/LevelLoader.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/SerializationUtils.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Player.hpp"
 #include "Entities/Mario.hpp"
@@ -25,55 +26,6 @@
 #include <filesystem>
 #include <iostream>
 
-// Helper: map TileType to string
-static std::string getTileTypeName(TileType type) {
-    switch (type) {
-        case TileType::Ground: return "ground";
-        case TileType::Brick: return "brick";
-        case TileType::Question: return "question_block";
-        case TileType::Pipe: return "pipe";
-        case TileType::Ice: return "ice";
-        case TileType::Conveyor: return "conveyor";
-        case TileType::Water: return "water";
-        case TileType::Coin: return "coin_tile";
-        default: return "empty";
-    }
-}
-
-// Helper: map string to TileType
-static TileType parseTileTypeName(const std::string& name) {
-    if (name == "ground") return TileType::Ground;
-    if (name == "brick") return TileType::Brick;
-    if (name == "question_block") return TileType::Question;
-    if (name == "pipe") return TileType::Pipe;
-    if (name == "ice") return TileType::Ice;
-    if (name == "conveyor") return TileType::Conveyor;
-    if (name == "water") return TileType::Water;
-    if (name == "coin_tile" || name == "coin") return TileType::Coin;
-    return TileType::Empty;
-}
-
-// Helper: map Entity to string type
-static std::string getEntityTypeName(const Entity& entity) {
-    if (dynamic_cast<const Mario*>(&entity)) return "mario";
-    if (dynamic_cast<const Luigi*>(&entity)) return "luigi";
-    if (dynamic_cast<const Toad*>(&entity)) return "toad";
-    if (dynamic_cast<const Peach*>(&entity)) return "peach";
-    if (dynamic_cast<const Mushroom*>(&entity)) return "mushroom";
-    if (dynamic_cast<const OneUpMushroom*>(&entity)) return "oneup_mushroom";
-    if (dynamic_cast<const MiniMushroom*>(&entity)) return "mini_mushroom";
-    if (dynamic_cast<const MegaMushroom*>(&entity)) return "mega_mushroom";
-    if (dynamic_cast<const CapeFeather*>(&entity)) return "cape_feather";
-    if (dynamic_cast<const FireFlower*>(&entity)) return "fire_flower";
-    if (dynamic_cast<const Star*>(&entity)) return "star";
-    if (dynamic_cast<const Coin*>(&entity)) return "coin";
-    if (dynamic_cast<const StarCoin*>(&entity)) return "star_coin";
-    if (dynamic_cast<const PSwitch*>(&entity)) return "pswitch";
-    if (dynamic_cast<const POWBlock*>(&entity)) return "pow_block";
-    if (dynamic_cast<const Trampoline*>(&entity)) return "trampoline";
-    return "unknown";
-}
-
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
     try {
         if (!std::filesystem::exists(jsonPath)) return false;
@@ -96,7 +48,7 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
         if (j.contains("tiles") && j["tiles"].is_array()) {
             for (const auto& tileObj : j["tiles"]) {
                 std::string typeStr = tileObj.value("type", "empty");
-                TileType type = parseTileTypeName(typeStr);
+                TileType type = SerializationUtils::parseTileTypeName(typeStr);
                 int tx = tileObj.value("x", 0);
                 int ty = tileObj.value("y", 0);
                 int tw = tileObj.value("w", 1);
@@ -180,7 +132,7 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
                 }
                 int w = x - startX;
                 nlohmann::json tileObj;
-                tileObj["type"] = getTileTypeName(type);
+                tileObj["type"] = SerializationUtils::getTileTypeName(type);
                 tileObj["x"] = startX;
                 tileObj["y"] = y;
                 if (w > 1) {
@@ -194,7 +146,7 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
         j["entities"] = nlohmann::json::array();
         for (const auto& entity : entities) {
             if (!entity) continue;
-            std::string typeStr = getEntityTypeName(*entity);
+            std::string typeStr = SerializationUtils::getEntityTypeName(*entity);
             if (typeStr == "unknown" || typeStr == "mario" || typeStr == "luigi" || typeStr == "toad" || typeStr == "peach") {
                 // Skip player characters from standard entity save list if they represent spawn point
                 if (typeStr == "mario" || typeStr == "luigi" || typeStr == "toad" || typeStr == "peach") {
