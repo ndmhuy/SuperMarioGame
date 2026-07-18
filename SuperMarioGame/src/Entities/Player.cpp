@@ -3,11 +3,7 @@
 #include "Utils/Constants.hpp"
 
 void Player::run() {
-    if (facingRight) {
-        this->velocity.x = Constants::RUN_SPEED;
-    } else {
-        this->velocity.x = -Constants::RUN_SPEED;
-    }
+    m_runRequested = true;
 }
 
 void Player::wallJump() {
@@ -256,4 +252,10 @@ void Player::incrementCombo() {
     ++comboCounter;
     EventBus::getInstance().publish({EventType::ComboHit, comboCounter});
 }
+
+void Player::clearMovementRequests() {
+    Character::clearMovementRequests();
+    m_runRequested = false;
+}
+
 

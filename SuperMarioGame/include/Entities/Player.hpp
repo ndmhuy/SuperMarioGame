@@ -44,8 +44,11 @@ public:
     int getComboCounter() const { return comboCounter; }
     bool isCrouched() const { return crouched; }
     bool isSliding() const { return sliding; }
+    bool isRunRequested() const { return m_runRequested; }
+    void clearMovementRequests() override;
 
 protected:
+    friend class Serializer;
     std::unique_ptr<IPlayerState> m_currentState;
 
     // Player stats — modified only through action methods or friends
@@ -61,6 +64,7 @@ protected:
     bool crouched = false;
     bool sliding = false;
     bool m_crouchRequestedThisFrame = false;
+    bool m_runRequested = false;
     float m_fireballCooldownTimer = 0.0f;
 };
 

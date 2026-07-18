@@ -24,6 +24,11 @@ public:
     bool isOnWall() const { return onWall; }
     bool isFacingRight() const { return facingRight; }
 
+    // Intent request flags for physics loop
+    bool isMoveLeftRequested() const { return m_moveLeftRequested; }
+    bool isMoveRightRequested() const { return m_moveRightRequested; }
+    virtual void clearMovementRequests();
+
 protected:
     // Friends for controlled physics write access
     friend class PhysicsEngine;
@@ -35,4 +40,7 @@ protected:
     bool onGround = false;
     bool onWall = false;
     bool facingRight = true;
+
+    bool m_moveLeftRequested = false;
+    bool m_moveRightRequested = false;
 };
