@@ -59,10 +59,10 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 - [ ] Commit: `feat: implement tilemap, level loader, and level JSON files`
 
 #### Phase 8 — Save/Load & Persistence (full)
-- [ ] **8.1** Serializer — save/load slots using SPEC §12.2 expanded schema
-- [ ] **8.2** Achievement Manager — subscribes to EventBus, checks conditions
-- [ ] **8.3** Statistics Tracker — subscribes to EventBus, accumulates stats
-- [ ] **8.4** Save/Load Integration — auto-save, manual save, settings persistence
+- [x] **8.1** Serializer — save/load slots using SPEC §12.2 expanded schema
+- [x] **8.2** Achievement Manager — subscribes to EventBus, checks conditions
+- [x] **8.3** Statistics Tracker — subscribes to EventBus, accumulates stats
+- [x] **8.4** Save/Load Integration — auto-save, manual save, settings persistence
 - [ ] Commit: `feat: implement save/load, achievements, and statistics`
 
 ---
