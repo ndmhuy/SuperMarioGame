@@ -19,6 +19,9 @@ public:
     void run();
     void quit();
 
+    // Map mouse position to coordinates safely (Encapsulation)
+    sf::Vector2f getMouseWorldPosition(const sf::View& view) const;
+
     // Game State stack wrappers (Encapsulation of GameStateManager)
     void pushState(std::unique_ptr<IGameState> state);
     void popState();

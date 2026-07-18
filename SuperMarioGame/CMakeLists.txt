@@ -37,6 +37,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui-sfml)
 
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+
 # ---------------------------------------------------------
 # 2. Source Files configuration
 # ---------------------------------------------------------
@@ -57,4 +63,29 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 3. Test verification target: verify_map_editor
+# ---------------------------------------------------------
+list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
+
+add_executable(verify_map_editor 
+    ${SOURCES} 
+    tests/verify_map_editor.cpp
+)
+
+target_include_directories(verify_map_editor PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_map_editor PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )

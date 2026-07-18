@@ -77,6 +77,10 @@ void Game::quit() {
     m_window.close();
 }
 
+sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
+    return m_window.mapPixelToCoords(sf::Mouse::getPosition(m_window), view);
+}
+
 void Game::pushState(std::unique_ptr<IGameState> state) {
     m_gsm.pushState(std::move(state));
 }

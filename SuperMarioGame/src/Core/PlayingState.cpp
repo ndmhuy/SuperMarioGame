@@ -52,13 +52,27 @@ void PlayingState::exit() {
 
 void PlayingState::handleInput(const sf::Event& event) {
     if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
-        if (keyPressed->code == sf::Keyboard::Key::Backspace) {
-            Game::getInstance().changeState(std::make_unique<MenuState>());
+        if (keyPressed->code == sf::Keyboard::Key::F1) {
+            m_mapEditor.toggleActive();
+            std::cout << "[Editor] F1 pressed. Active = " << m_mapEditor.isActive() << std::endl;
+        }
+
+        if (!m_mapEditor.isActive()) {
+            if (keyPressed->code == sf::Keyboard::Key::Backspace) {
+                Game::getInstance().changeState(std::make_unique<MenuState>());
+            }
         }
     }
 }
 
 void PlayingState::update(float dt) {
+    if (m_mapEditor.isActive()) {
+        sf::View defaultView(sf::FloatRect({0.f, 0.f}, {1280.f, 720.f}));
+        sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(defaultView);
+        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt);
+        return;
+    }
+
     // 1. Update entities (synchronize visual positions to bounds)
     for (auto& entity : m_entities) {
         if (entity) {
@@ -88,6 +102,51 @@ void PlayingState::render(sf::RenderTarget& target) {
                 grassShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
                 grassShape.setFillColor(sf::Color(0, 180, 0)); // Green grass
                 target.draw(grassShape);
+            } else if (tileType == TileType::Brick) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(180, 50, 50)); // Reddish brown brick
+                tileShape.setOutlineColor(sf::Color(90, 25, 25));
+                tileShape.setOutlineThickness(1.0f);
+                target.draw(tileShape);
+            } else if (tileType == TileType::Question) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(240, 180, 30)); // Yellow Question block
+                tileShape.setOutlineColor(sf::Color(120, 90, 15));
+                tileShape.setOutlineThickness(1.0f);
+                target.draw(tileShape);
+            } else if (tileType == TileType::Pipe) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(0, 150, 0)); // Green pipe
+                tileShape.setOutlineColor(sf::Color(0, 75, 0));
+                tileShape.setOutlineThickness(1.0f);
+                target.draw(tileShape);
+            } else if (tileType == TileType::Ice) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(150, 200, 250)); // Light blue Ice
+                target.draw(tileShape);
+            } else if (tileType == TileType::Conveyor) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(100, 100, 100)); // Dark grey conveyor
+                tileShape.setOutlineColor(sf::Color(50, 50, 50));
+                tileShape.setOutlineThickness(1.0f);
+                target.draw(tileShape);
+            } else if (tileType == TileType::Water) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(30, 80, 220, 150)); // Blue transparent water
+                target.draw(tileShape);
+            } else if (tileType == TileType::Coin) {
+                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                tileShape.setFillColor(sf::Color(255, 215, 0)); // Gold coin tile
+                tileShape.setOutlineColor(sf::Color(150, 120, 0));
+                tileShape.setOutlineThickness(1.0f);
+                target.draw(tileShape);
             }
         }
     }
@@ -99,24 +158,31 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
-    // ImGui Panel for controlling and monitoring the physics simulation
-    ImGui::Begin("Physics Simulation (Phase 2)");
-    ImGui::Text("Simulation State:");
-    if (!m_entities.empty() && m_entities[0]) {
-        ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->getPosition().x, m_entities[0]->getPosition().y);
-        ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->getVelocity().x, m_entities[0]->getVelocity().y);
+    // Draw Map Editor overlays if active
+    if (m_mapEditor.isActive()) {
+        m_mapEditor.render(target, m_tileMap, m_entities);
+        m_mapEditor.renderImGui(m_tileMap, m_entities);
     } else {
-        ImGui::Text("No active entities.");
+        // ImGui Panel for controlling and monitoring the physics simulation
+        ImGui::Begin("Physics Simulation (Phase 2)");
+        ImGui::Text("Simulation State:");
+        if (!m_entities.empty() && m_entities[0]) {
+            ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->getPosition().x, m_entities[0]->getPosition().y);
+            ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->getVelocity().x, m_entities[0]->getVelocity().y);
+        } else {
+            ImGui::Text("No active entities.");
+        }
+        ImGui::Separator();
+        if (ImGui::Button("Reset Simulation")) {
+            setupTestScene();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Back to Menu (Backspace)")) {
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+        }
+        ImGui::TextDisabled("\nPress F1 to open Level Editor");
+        ImGui::End();
     }
-    ImGui::Separator();
-    if (ImGui::Button("Reset Simulation")) {
-        setupTestScene();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Back to Menu (Backspace)")) {
-        Game::getInstance().changeState(std::make_unique<MenuState>());
-    }
-    ImGui::End();
 }
 
 void PlayingState::setupTestScene() {

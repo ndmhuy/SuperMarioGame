@@ -3,6 +3,7 @@
 #include "Core/IGameState.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
+#include "Utils/MapEditor.hpp"
 #include <vector>
 #include <memory>
 
@@ -23,6 +24,7 @@ private:
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
+    MapEditor m_mapEditor;
 
     void setupTestScene();
     void cleanupTestScene();
