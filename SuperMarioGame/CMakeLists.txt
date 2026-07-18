@@ -267,6 +267,30 @@ target_link_libraries(verify_graphics_visual PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+# ---------------------------------------------------------
+# 9. Verification Test Target (verify_hud_boss)
+# ---------------------------------------------------------
+add_executable(verify_hud_boss
+    "tests/verify_hud_boss.cpp"
+    "src/Graphics/HUD.cpp"
+    "src/Core/ResourceManager.cpp"
+    "src/Core/EventBus.cpp"
+)
+
+target_include_directories(verify_hud_boss PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_hud_boss PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
 
 
 

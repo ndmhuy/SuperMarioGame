@@ -3,6 +3,7 @@
 #include "Core/IGameState.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
+#include "Graphics/Hud.hpp"
 #include <vector>
 #include <memory>
 
@@ -23,6 +24,9 @@ private:
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
+
+    std::unique_ptr<Hud> m_hud;
+    float m_levelTimer = 300.0f;
 
     void setupTestScene();
     void cleanupTestScene();

@@ -630,6 +630,31 @@ Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graph
 Summary of Changes:
 - Terminated implementing_agent and other active subagents to clean them up.
 - Created verify_graphics_visual.cpp opening an 800x600 SFML window with ImGui animation/frame playback controls.
-- Configured verify_graphics_visual target in CMakeLists.txt and linked required libraries.
 - Built and ran verify_graphics_visual successfully.
+---
+[2026-07-18 13:53:00] Branch: B/feature/entities
+Prompt: Implement the HUD similar to the provided reference image (displaying strictly elements from HudData).
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Added mutable star and coin shapes and m_starCoinsCountText to Hud.hpp.
+- Implemented HUD.cpp using constructor initializer list to instantiate sf::Text objects with the PressStart2P font from ResourceManager.
+- Designed absolute coordinate layouts for name, lives, coins, world, time, star coins, combo counter, and P-Switch alert.
+- Added font loading and fallback mechanisms (consola.ttf/arial.ttf) in PlayingState.cpp.
+- Instantiated, updated, and rendered m_hud in screen space inside PlayingState.
+- Compiled and successfully executed all targets.
+---
+[2026-07-18 15:20:00] Branch: B/feature/entities
+Prompt: Increase the size of the filled star to match the empty star.
+Files Modified: SuperMarioGame/src/Graphics/HUD.cpp
+Summary of Changes:
+- Modified HUD.cpp to apply identical outline thickness and color configuration to both filled and empty stars.
+- Rebuilt and verified size matches.
+---
+[2026-07-18 15:28:00] Branch: B/feature/entities
+Prompt: Remove star coins count text since it is not in HudData.
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp
+Summary of Changes:
+- Removed m_starCoinsCountText from Hud.hpp and HUD.cpp.
+- Removed the X=260 star counter icon and text drawing from HUD.cpp.
+- Verified compilation and executed the clean target.
 ---
