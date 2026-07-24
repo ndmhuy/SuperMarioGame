@@ -1,8 +1,13 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Character.hpp"
+#include "Entities/Player.hpp"
+#include "Entities/Luigi.hpp"
+#include "Entities/Toad.hpp"
+#include "Entities/Peach.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/MathUtils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <unordered_set>
@@ -29,11 +34,10 @@ void PhysicsEngine::integrateVelocity(Entity& entity, float dt) {
 }
 
 void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities, TileMap& tileMap, float dt) {
-    // 1. Reset character states and apply previous frame's conveyor push
+    // 1. Apply previous frame's conveyor push using the ground status from the previous frame
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
         if (auto character = dynamic_cast<Character*>(entity.get())) {
-            // Apply conveyor push if standing on conveyor (tile type 6) using the ground status from the previous frame
             if (character->onGround) {
                 float cx = character->position.x + character->boundingBox.width / 2.0f;
                 float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
@@ -42,6 +46,67 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                     character->boundingBox.x = character->position.x;
                 }
             }
+        }
+    }
+
+    // 1.5. Apply character-specific horizontal acceleration, deceleration, and friction
+    for (const auto& entity : entities) {
+        if (!entity || !entity->isActive()) continue;
+        if (auto character = dynamic_cast<Character*>(entity.get())) {
+            float maxSpeed = character->getSpeed();
+            
+            // Check if player is running to scale their max horizontal speed
+            if (auto player = dynamic_cast<Player*>(character)) {
+                if (player->isRunRequested()) {
+                    maxSpeed = Constants::RUN_SPEED;
+                    if (dynamic_cast<Luigi*>(player)) maxSpeed *= Constants::LUIGI_SPEED_MULT;
+                    else if (dynamic_cast<Toad*>(player)) maxSpeed = Constants::RUN_SPEED * 1.3f;
+                    else if (dynamic_cast<Peach*>(player)) maxSpeed *= 0.9f;
+                }
+            }
+
+            float accelRate = 1000.0f; // px/s^2 (0 -> 150 px/s in 0.15s)
+            float decelRate = character->onGround ? 1000.0f : 300.0f;
+
+            // Ice platform check: reduced friction
+            if (character->onGround) {
+                float cx = character->position.x + character->boundingBox.width / 2.0f;
+                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
+                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
+                    decelRate = 250.0f; // Slide further on ice!
+                }
+            }
+
+            // Check if player is currently in a crouch slide (handled internally by Player::update)
+            bool isPlayerCrouchingOrSliding = false;
+            if (auto player = dynamic_cast<Player*>(character)) {
+                isPlayerCrouchingOrSliding = player->isCrouched() || player->isSliding();
+            }
+
+            // Process movement requests
+            if (character->isMoveLeftRequested()) {
+                character->velocity.x -= accelRate * dt;
+                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
+            }
+            else if (character->isMoveRightRequested()) {
+                character->velocity.x += accelRate * dt;
+                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
+            }
+            else if (!isPlayerCrouchingOrSliding) {
+                // Apply passive friction decay towards 0
+                if (character->velocity.x > 0.0f) {
+                    character->velocity.x -= decelRate * dt;
+                    if (character->velocity.x < 0.0f) character->velocity.x = 0.0f;
+                } else if (character->velocity.x < 0.0f) {
+                    character->velocity.x += decelRate * dt;
+                    if (character->velocity.x > 0.0f) character->velocity.x = 0.0f;
+                }
+            }
+
+            // Clear intent flags for next frame
+            character->clearMovementRequests();
+
+            // Reset ground/wall flags for the new collision detection pass
             character->onGround = false;
             character->onWall = false;
         }
@@ -66,7 +131,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         }
     }
 
-    // 3. Integrate X and resolve X collisions with the tile map
+    // 3. Integrate X and resolve X collisions with the tile map (only resolve max horizontal overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
 
@@ -74,14 +139,23 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         entity->boundingBox.x = entity->position.x;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
-        for (auto& collision : collisions) {
+        CollisionInfo maxCollision;
+        maxCollision.collided = false;
+
+        for (const auto& collision : collisions) {
             if (collision.normal.x != 0.0f) {
-                m_resolver.resolveEntityVsTile(*entity, collision);
+                if (!maxCollision.collided || collision.overlap.x > maxCollision.overlap.x) {
+                    maxCollision = collision;
+                }
             }
+        }
+
+        if (maxCollision.collided) {
+            m_resolver.resolveEntityVsTile(*entity, maxCollision);
         }
     }
 
-    // 4. Integrate Y and resolve Y collisions with the tile map
+    // 4. Integrate Y and resolve Y collisions with the tile map (only resolve max vertical overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
 
@@ -89,10 +163,19 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         entity->boundingBox.y = entity->position.y;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
-        for (auto& collision : collisions) {
+        CollisionInfo maxCollision;
+        maxCollision.collided = false;
+
+        for (const auto& collision : collisions) {
             if (collision.normal.y != 0.0f) {
-                m_resolver.resolveEntityVsTile(*entity, collision);
+                if (!maxCollision.collided || collision.overlap.y > maxCollision.overlap.y) {
+                    maxCollision = collision;
+                }
             }
+        }
+
+        if (maxCollision.collided) {
+            m_resolver.resolveEntityVsTile(*entity, maxCollision);
         }
     }
 

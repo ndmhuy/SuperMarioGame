@@ -186,7 +186,7 @@
 > **Branch**: `git checkout -b feature/entities dev`
 
 ### 3.1 Entity Base Class
-- [ ] Create [Entity.hpp](SuperMarioGame/include/Entities/Entity.hpp) + [Entity.cpp](SuperMarioGame/src/Entities/Entity.cpp)
+- [x] Create [Entity.hpp](SuperMarioGame/include/Entities/Entity.hpp) + [Entity.cpp](SuperMarioGame/src/Entities/Entity.cpp)
   - Abstract base. Members: `position`, `velocity`, `boundingBox`, `active`, `sprite`
   - Pure virtual: `update(float dt)`, `render(sf::RenderTarget&)`
   - Virtual: `getBoundingBox()`, `isActive()`, `destroy()`
@@ -194,13 +194,13 @@
 - [ ] Commit: `feat: implement abstract Entity base class`
 
 ### 3.2 Character Base Class
-- [ ] Create [Character.hpp](SuperMarioGame/include/Entities/Character.hpp) + [Character.cpp](SuperMarioGame/src/Entities/Character.cpp)
+- [x] Create [Character.hpp](SuperMarioGame/include/Entities/Character.hpp) + [Character.cpp](SuperMarioGame/src/Entities/Character.cpp)
   - Inherits `Entity`. Members: `health`, `speed`, `jumpForce`, `onGround`, `onWall`, `facingRight`
   - Methods: `moveLeft()`, `moveRight()`, `jump()`, `takeDamage()`
 - [ ] Commit: `feat: implement Character base class`
 
 ### 3.3 Player Base Class
-- [ ] Create [Player.hpp](SuperMarioGame/include/Entities/Player.hpp) + [Player.cpp](SuperMarioGame/src/Entities/Player.cpp)
+- [x] Create [Player.hpp](SuperMarioGame/include/Entities/Player.hpp) + [Player.cpp](SuperMarioGame/src/Entities/Player.cpp)
   - Inherits `Character`. Members: `lives`, `coins`, `score`
   - Methods: `run()`, `wallJump()`, `groundPound()`, `crouch()`, `slide()`, `shootFireball()` [v2.0]
   - `IPlayerState` pattern for 5 base forms: Small, Super, Fire, Cape, Mini [v2.0]
@@ -212,7 +212,7 @@
 - [ ] Commit: `feat: implement Player base class with state management`
 
 ### 3.4 Mario
-- [ ] Create [Mario.hpp](SuperMarioGame/include/Entities/Mario.hpp) + [Mario.cpp](SuperMarioGame/src/Entities/Mario.cpp)
+- [x] Create [Mario.hpp](SuperMarioGame/include/Entities/Mario.hpp) + [Mario.cpp](SuperMarioGame/src/Entities/Mario.cpp)
   - Inherits `Player`
   - Physics values from `Constants.hpp`: walk=150, run=300, jump=4 tiles
   - `shootFireball()` — if Fire state, max 2 active
@@ -220,16 +220,16 @@
 - [ ] Commit: `feat: implement Mario entity`
 
 ### 3.5 Luigi
-- [ ] Create [Luigi.hpp](SuperMarioGame/include/Entities/Luigi.hpp) + [Luigi.cpp](SuperMarioGame/src/Entities/Luigi.cpp)
+- [x] Create [Luigi.hpp](SuperMarioGame/include/Entities/Luigi.hpp) + [Luigi.cpp](SuperMarioGame/src/Entities/Luigi.cpp)
   - Inherits `Player`
   - Modified physics: speed×0.85, jump×1.2, airGravity×0.9
   - `doubleJump()` — can jump once more while airborne
 - [ ] Commit: `feat: implement Luigi entity with double jump`
 
 ### 3.6 Unlockable Characters [v2.0]
-- [ ] Create [Toad.hpp](SuperMarioGame/include/Entities/Toad.hpp) + [Toad.cpp](SuperMarioGame/src/Entities/Toad.cpp)
+- [x] Create [Toad.hpp](SuperMarioGame/include/Entities/Toad.hpp) + [Toad.cpp](SuperMarioGame/src/Entities/Toad.cpp)
   - Inherits `Player`. Speed ×1.3, Jump ×0.8, no slide friction delay.
-- [ ] Create [Peach.hpp](SuperMarioGame/include/Entities/Peach.hpp) + [Peach.cpp](SuperMarioGame/src/Entities/Peach.cpp)
+- [x] Create [Peach.hpp](SuperMarioGame/include/Entities/Peach.hpp) + [Peach.cpp](SuperMarioGame/src/Entities/Peach.cpp)
   - Inherits `Player`. Float ability (hold jump to hover 1.5s), speed ×0.9.
 - [ ] Commit: `feat: implement unlockable characters Toad and Peach`
 
@@ -271,19 +271,19 @@
 - [x] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
 
 ### 3.10 Items (Original)
-- [ ] Create [Item.hpp](SuperMarioGame/include/Entities/Item.hpp) + [Item.cpp](SuperMarioGame/src/Entities/Item.cpp)
+- [x] Create [Item.hpp](SuperMarioGame/include/Entities/Item.hpp) + [Item.cpp](SuperMarioGame/src/Entities/Item.cpp)
   - Inherits `Entity`. `collected` flag. `virtual activate(Player&)`, `collect()`
-- [ ] Create: [Mushroom.hpp/.cpp](SuperMarioGame/include/Entities/Mushroom.hpp), [FireFlower.hpp/.cpp](SuperMarioGame/include/Entities/FireFlower.hpp), [Coin.hpp/.cpp](SuperMarioGame/include/Entities/Coin.hpp), [Star.hpp/.cpp](SuperMarioGame/include/Entities/Star.hpp), [OneUpMushroom.hpp/.cpp](SuperMarioGame/include/Entities/OneUpMushroom.hpp)
+- [x] Create: [Mushroom.hpp/.cpp](SuperMarioGame/include/Entities/Mushroom.hpp), [FireFlower.hpp/.cpp](SuperMarioGame/include/Entities/FireFlower.hpp), [Coin.hpp/.cpp](SuperMarioGame/include/Entities/Coin.hpp), [Star.hpp/.cpp](SuperMarioGame/include/Entities/Star.hpp), [OneUpMushroom.hpp/.cpp](SuperMarioGame/include/Entities/OneUpMushroom.hpp)
 - [ ] Commit: `feat: implement original 5 items (Mushroom, FireFlower, Coin, Star, 1-UP)`
 
 ### 3.11 Items (New in v2.0)
-- [ ] Create [CapeFeather.hpp/.cpp](SuperMarioGame/include/Entities/CapeFeather.hpp) — grants Cape state (glide + swoop)
-- [ ] Create [MegaMushroom.hpp/.cpp](SuperMarioGame/include/Entities/MegaMushroom.hpp) — temporary giant (8s, Decorator pattern)
-- [ ] Create [MiniMushroom.hpp/.cpp](SuperMarioGame/include/Entities/MiniMushroom.hpp) — half-size, walk on water
-- [ ] Create [POWBlock.hpp/.cpp](SuperMarioGame/include/Entities/POWBlock.hpp) — area-of-effect via EventBus
-- [ ] Create [PSwitch.hpp/.cpp](SuperMarioGame/include/Entities/PSwitch.hpp) — bricks↔coins for 15s (Command pattern)
-- [ ] Create [Trampoline.hpp/.cpp](SuperMarioGame/include/Entities/Trampoline.hpp) — bounces player ~6 tiles, carriable
-- [ ] Create [StarCoin.hpp/.cpp](SuperMarioGame/include/Entities/StarCoin.hpp) — 3 per level, tracked in save data
+- [x] Create [CapeFeather.hpp/.cpp](SuperMarioGame/include/Entities/CapeFeather.hpp) — grants Cape state (glide + swoop)
+- [x] Create [MegaMushroom.hpp/.cpp](SuperMarioGame/include/Entities/MegaMushroom.hpp) — temporary giant (8s, Decorator pattern)
+- [x] Create [MiniMushroom.hpp/.cpp](SuperMarioGame/include/Entities/MiniMushroom.hpp) — half-size, walk on water
+- [x] Create [POWBlock.hpp/.cpp](SuperMarioGame/include/Entities/POWBlock.hpp) — area-of-effect via EventBus
+- [x] Create [PSwitch.hpp/.cpp](SuperMarioGame/include/Entities/PSwitch.hpp) — bricks↔coins for 15s (Command pattern)
+- [x] Create [Trampoline.hpp/.cpp](SuperMarioGame/include/Entities/Trampoline.hpp) — bounces player ~6 tiles, carriable
+- [x] Create [StarCoin.hpp/.cpp](SuperMarioGame/include/Entities/StarCoin.hpp) — 3 per level, tracked in save data
 - [ ] Commit: `feat: implement 7 new items (Cape, Mega, Mini, POW, PSwitch, Trampoline, StarCoin)`
 
 ### 3.12 Blocks (Original)
@@ -319,7 +319,7 @@
 > **Branch**: `git checkout -b feature/tilemap-levels dev`
 
 ### 4.1 TileMap
-- [ ] Create [TileMap.hpp](SuperMarioGame/include/Utils/TileMap.hpp) + [TileMap.cpp](SuperMarioGame/src/Utils/TileMap.cpp)
+- [x] Create [TileMap.hpp](SuperMarioGame/include/Utils/TileMap.hpp) + [TileMap.cpp](SuperMarioGame/src/Utils/TileMap.cpp)
   - 2D grid with tile IDs and tile properties (friction, conveyor direction) [v2.0]
   - Tile types: `Empty=0, Ground=1, Brick=2, Question=3, Pipe=4, Ice=5, Conveyor=6, Water=7, ...` [v2.0: expanded]
   - `render(sf::RenderTarget&, Camera&)` — only draw visible tiles
@@ -330,14 +330,14 @@
 - [ ] Commit: `feat: implement TileMap with surface types and water zones`
 
 ### 4.2 Level Loader
-- [ ] Create [LevelLoader.hpp](SuperMarioGame/include/Utils/LevelLoader.hpp) + [LevelLoader.cpp](SuperMarioGame/src/Utils/LevelLoader.cpp)
+- [x] Create [LevelLoader.hpp](SuperMarioGame/include/Utils/LevelLoader.hpp) + [LevelLoader.cpp](SuperMarioGame/src/Utils/LevelLoader.cpp)
   - `loadLevel(const std::string& jsonPath)` → `Level` struct
   - Parse expanded JSON format from SPEC §9.6 (star coins, water zones, moving platforms, variants) [v2.0]
   - Uses `EntityFactory::create()` with variant config [v2.0]
 - [ ] Commit: `feat: implement LevelLoader with expanded JSON parsing`
 
 ### 4.3 Camera
-- [ ] Create [Camera.hpp](SuperMarioGame/include/Graphics/Camera.hpp) + [Camera.cpp](SuperMarioGame/src/Graphics/Camera.cpp)
+- [x] Create [Camera.hpp](SuperMarioGame/include/Graphics/Camera.hpp) + [Camera.cpp](SuperMarioGame/src/Graphics/Camera.cpp)
   - `follow()` — smooth follow with lookahead
   - `setBounds()` — clamp to level edges
   - Multiple scroll modes: horizontal, vertical, autoscroll [v2.0]
@@ -346,17 +346,17 @@
 - [ ] Commit: `feat: implement Camera with multi-mode scrolling and screen shake`
 
 ### 4.4 Design Level Files
-- [ ] Create [level_1.json](SuperMarioGame/assets/levels/level_1.json) — Overworld/Grassland + swimming section [v2.0]
-- [ ] Create [level_2.json](SuperMarioGame/assets/levels/level_2.json) — Underground/Cave + ice blocks + Boom Boom mid-boss [v2.0]
-- [ ] Create [level_3.json](SuperMarioGame/assets/levels/level_3.json) — Castle/Lava + Thwomps + autoscroll section + Bowser [v2.0]
-- [ ] Create [bonus_1.json](SuperMarioGame/assets/levels/bonus_1.json) — Coin-filled bonus room [v2.0]
-- [ ] Create [entities.json](SuperMarioGame/assets/config/entities.json) — Config-driven entity definitions [v2.0]
+- [x] Create [level_1.json](SuperMarioGame/assets/levels/level_1.json) — Overworld/Grassland + swimming section [v2.0]
+- [x] Create [level_2.json](SuperMarioGame/assets/levels/level_2.json) — Underground/Cave + ice blocks + Boom Boom mid-boss [v2.0]
+- [x] Create [level_3.json](SuperMarioGame/assets/levels/level_3.json) — Castle/Lava + Thwomps + autoscroll section + Bowser [v2.0]
+- [x] Create [bonus_1.json](SuperMarioGame/assets/levels/bonus_1.json) — Coin-filled bonus room [v2.0]
+- [x] Create [entities.json](SuperMarioGame/assets/config/entities.json) — Config-driven entity definitions [v2.0]
 - [ ] Commit: `feat: create level files and entity config`
 
 ### 4.5 Integration Test
-- [ ] Wire `PlayingState` to load Level 1, render TileMap, spawn Mario
-- [ ] Verify camera follows Mario, tiles render correctly, surface types work
-- [ ] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
+- [x] Wire `PlayingState` to load Level 1, render TileMap, spawn Mario
+- [x] Verify camera follows Mario, tiles render correctly, surface types work
+- [x] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
 - [ ] Commit: `feat: integrate tilemap and level loading into PlayingState`
 - [ ] **Merge**: `git checkout dev && git merge feature/tilemap-levels`
 
@@ -521,21 +521,21 @@
 > **Branch**: `git checkout -b feature/save-load dev`
 
 ### 8.1 Serializer
-- [ ] Create [Serializer.hpp/.cpp](SuperMarioGame/include/Utils/Serializer.hpp) — save/load slots using SPEC §12.2 schema [v2.0: expanded with progress, stats, achievements, settings]
+- [x] Create [Serializer.hpp/.cpp](SuperMarioGame/include/Utils/Serializer.hpp) — save/load slots using SPEC §12.2 schema [v2.0: expanded with progress, stats, achievements, settings]
 - [ ] Commit: `feat: implement Serializer with expanded schema`
 
 ### 8.2 Achievement Manager [v2.0]
-- [ ] Create [AchievementManager.hpp/.cpp](SuperMarioGame/include/Core/AchievementManager.hpp) — subscribes to EventBus, checks conditions, fires AchievementUnlocked
+- [x] Create [AchievementManager.hpp/.cpp](SuperMarioGame/include/Core/AchievementManager.hpp) — subscribes to EventBus, checks conditions, fires AchievementUnlocked
 - [ ] Commit: `feat: implement AchievementManager`
 
 ### 8.3 Statistics Tracker [v2.0]
-- [ ] Create [StatisticsTracker.hpp/.cpp](SuperMarioGame/include/Core/StatisticsTracker.hpp) — subscribes to EventBus, accumulates stats
+- [x] Create [StatisticsTracker.hpp/.cpp](SuperMarioGame/include/Core/StatisticsTracker.hpp) — subscribes to EventBus, accumulates stats
 - [ ] Commit: `feat: implement StatisticsTracker`
 
 ### 8.4 Save/Load Integration
-- [ ] Auto-save at checkpoints, manual save from pause menu
-- [ ] Load slot previews with character, level, score, star coins, play time [v2.0: enhanced preview]
-- [ ] Settings persistence (volume, difficulty, key bindings, colorblind mode) [v2.0]
+- [x] Auto-save at checkpoints, manual save from pause menu
+- [x] Load slot previews with character, level, score, star coins, play time [v2.0: enhanced preview]
+- [x] Settings persistence (volume, difficulty, key bindings, colorblind mode) [v2.0]
 - [ ] Commit: `feat: integrate save/load with achievements, stats, and settings`
 - [ ] **Merge**: `git checkout dev && git merge feature/save-load`
 
@@ -645,11 +645,11 @@
 ## Bonus Phases (Post-MVP)
 
 ### Bonus A — Level Editor (`feature/level-editor`)
-- [ ] ImGui editor overlay (F1 toggle)
-- [ ] Tile palette, entity palette, drag-and-drop
-- [ ] Undo/Redo with Command Pattern
-- [ ] Export/import level JSON
-- [ ] Play-test button
+- [x] ImGui editor overlay (F1 toggle)
+- [x] Tile palette, entity palette, drag-and-drop
+- [x] Undo/Redo with Command Pattern
+- [x] Export/import level JSON
+- [x] Play-test button
 
 ### Bonus B — Time Rewind (`feature/time-rewind`)
 - [ ] Circular buffer storing 300 frames of game state snapshots

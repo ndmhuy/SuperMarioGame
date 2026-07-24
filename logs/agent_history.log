@@ -765,5 +765,176 @@ Prompt: Generate PDF for week 4 as well.
 Files Modified: docs/Group52_04/52.pdf, logs/agent_history.log
 Summary of Changes:
 - Regenerated the Week 4 progress report PDF (docs/Group52_04/52.pdf) using the new Python-based WeasyPrint generation utility docs/generate_pdf.py to apply uniform premium styling.
-- Committed and pushed changes to remote dev branch.
+- Committed and ---
+[2026-07-18 22:30:00] Branch: dev
+Prompt: Write weekly report from the 12/07 to today. Follow the report rules in the docs folder.
+Files Modified: docs/Group52_06/52.md, docs/Group52_06/52.pdf, logs/agent_history.log
+Summary of Changes:
+- Fetched task status and logs from all remote branches (including A/feature/level-editor, A/feature/save-load, A/spritesheet-studio, and B/feature/entities).
+- Consolidated Member A's completed tasks for save/load slot serialization, gameplay statistics tracker, achievement manager HUD, pause and settings panel ImGui, map editor framework, Undo/Redo editor commands, and interactive spritesheet arrange utility.
+- Consolidated Member B's completed tasks for the graphical HUD overlay, boss health indicators, PressStart2P font asset loading with fallbacks, and the comprehensive HUD visual test target.
+- Compiled the Week 6 progress report into docs/Group52_06/52.md on the dev branch and retrieved the compiled docs/Group52_06/52.pdf.
+---
+[2026-07-18 11:23:45] Branch: A/feature/level-editor
+Prompt: Implement in-game Map Editor (Mario Maker) with Undo/Redo commands and Level JSON serialization.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/include/Core/Game.hpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/include/Utils/LevelLoader.hpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Core/PlayingState.cpp, SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/include/Utils/EditorCommands.hpp, SuperMarioGame/include/Utils/MapEditor.hpp, SuperMarioGame/src/Utils/EditorCommands.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/tests/verify_map_editor.cpp
+Summary of Changes:
+- Created EditorCommands hierarchy wrapping cell placement and deletions under Command Pattern for Undo/Redo.
+- Created MapEditor controller handling brush palettes combos, grid viewport translations, and file loader calls.
+- Encapsulated sf::RenderWindow coordinates mapping safely in Game::getMouseWorldPosition.
+- Wired F1 shortcut in PlayingState to toggle the editor on and bypass normal update/physics pipelines.
+- Implemented loadLevel and saveLevel JSON parsing inside LevelLoader.
+- Configured verify_map_editor target in CMakeLists.txt and verified 100% test assertions pass.
+[2026-07-18 11:37:00] Branch: A/feature/level-editor
+Prompt: Centralize duplicate string name helpers, check off completed global tasks, and compile Week 6 progress report with PDF.
+Files Modified: SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/include/Utils/SerializationUtils.hpp, SuperMarioGame/src/Utils/SerializationUtils.cpp, TASKS.md, docs/Group52_06/52.md, docs/Group52_06/52.pdf
+Summary of Changes:
+- Created SerializationUtils utility file to house centralized tile and entity string mapping functions.
+- Removed duplicate local helpers from LevelLoader.cpp and MapEditor.cpp.
+- Checked off Phase 8 and Bonus A items in the global TASKS.md file.
+- Drafted the Week 6 progress report and compiled it into a beautiful PDF using WeasyPrint generator script.
+[2026-07-18 11:42:00] Branch: A/feature/level-editor
+Prompt: Tick all earlier completed tasks in TASKS.md and TASK_DIVISION.md and regenerate PDFs.
+Files Modified: TASKS.md, TASKS.pdf, TASK_DIVISION.md, TASK_DIVISION.pdf
+Summary of Changes:
+- Checked off all earlier completed tasks across Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, and Phase 6 in both documents.
+- Rerendered TASKS.pdf and TASK_DIVISION.pdf.
+---
+[2026-07-18 17:28:00] Branch: A/feature/level-editor
+Prompt: Design proposal and specification of 2-player multiplayer screen layouts and AI difficulty/archetype mechanisms, including Shadow Mario.
+Files Modified: docs/two_player_ai_plan.md (NEW)
+Summary of Changes:
+- Created comprehensive spec covering Shared-Screen (midpoint camera tracking, hard bounding splat, head-stomps, projectile damage) and Split-Screen (left/right vertical viewport split, isolated vs interconnected dimension configuration).
+- Detailed AI difficulty layers (easy, normal, hard adjustments for vision grid, reaction delays, action noise, and control bounds).
+- Defined AI behavior personalities (Speedrunner, Hunter, Collector).
+- Detailed the Shadow Mario (Dark Mario) input recording buffer (struct PlayerFramePacket deque) and delayed command replay system with positional lerp synchronization.
+- Outlined the C++ class hierarchy integration using Strategy and Command patterns.
+- Saved design spec to docs/two_player_ai_plan.md in the project workspace.
+---
+[2026-07-18 08:53:30] Branch: A/feature/save-load
+Prompt: Setup nlohmann json library for Phase 8 Save/Load and Persistence tasks.
+Files Modified: SuperMarioGame/CMakeLists.txt, logs/agent_history.log
+Summary of Changes:
+- Modified CMakeLists.txt to declare the nlohmann/json GIT_REPOSITORY and GIT_TAG using FetchContent.
+- Linked nlohmann_json::nlohmann_json target dependency to the main SuperMarioGame target.
+- Successfully verified CMake configuration and build of the project.
+---
+[2026-07-05 10:12:00] Branch: A/physics-input-test
+Prompt: Link input manager to game to test physics, connect all existing systems, and provide a simulation prototype.
+Files Modified:
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Replaced the DummyPhysicsEntity with concrete Player characters (Mario, Luigi, Toad, and Peach).
+- Linked Keyboard input handling to the player character via the InputManager command pattern.
+- Implemented real-time ground and air deceleration (friction) and custom Ice surface sliding physics.
+- Added a dynamic character selection combo box in ImGui that respawns the chosen hero at the current coordinates.
+- Implemented item spawning shortcuts (Mushroom, Fire Flower, Coin, Star, Cape Feather, Mega/Mini Mushrooms) at the player's position.
+- Added tilemap visualizers supporting Ground, Pipe, Brick, Ice, Conveyor, and Water textures/colors.
+- Added real-time telemetry (coordinates, velocity, state flags, coyote frames, jump buffers, stats) in an interactive ImGui debugger panel.
+---
+[2026-07-05 12:13:00] Branch: A/physics-input-test
+Prompt: Refactor movement physics to run acceleration/deceleration inside the Physics Engine, and wire the Camera tracking and bounds.
+Files Modified:
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/src/Entities/Character.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Refactored movement commands to set boolean request flags (m_moveLeftRequested, m_moveRightRequested, m_runRequested) on Character/Player rather than setting velocities directly.
+- Moved passive friction/deceleration, active horizontal acceleration, and run speed scaling into the PhysicsEngine update loop.
+- Cleared the movement and run flags inside the physics loop and player update loop.
+- Integrated the Camera system into PlayingState, updating it to follow the player coordinates smoothly.
+- Configured camera clamping bounds inside setupTestScene to match the loaded tilemap dimensions.
+- Wired views switching in PlayingState::render to draw world entities in camera space and ImGui overlays in default screen space.
+---
+[2026-07-05 12:17:00] Branch: A/physics-input-test
+Prompt: Fix ground friction timing and solve internal edge collision bug blocking player movement on flat ground.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionDetector.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+Summary of Changes:
+- Implemented internal edge mitigation in CollisionDetector::checkEntityVsTileMap: side collisions with floor tiles that have empty tiles above them are dynamically converted into vertical Y collisions, preventing them from canceling horizontal velocity.
+- Fixed timing in PhysicsEngine::update: moved character->onGround/onWall resets from the very beginning to after the friction update (step 1.5), ensuring friction calculation and conveyor pushes read the correct ground status from the previous frame.
+---
+[2026-07-05 12:22:00] Branch: A/physics-input-test
+Prompt: Fix ground status jittering by synchronizing bounding boxes after collision resolution.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Added manual bounding box coordinate synchronization (entity.boundingBox.x/y = entity.position.x/y) in CollisionResolver::resolveEntityVsTile and resolvePlayerVsPlayer immediately after position adjustments. This stops stale/penetrating bounding boxes from causing incorrect check hits and ground status toggles.
+---
+[2026-07-05 12:26:00] Branch: A/physics-input-test
+Prompt: Fix typo and add EPSILON separation buffer to tile collision push-out calculations.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Corrected a header typo in CollisionResolver.cpp.
+- Added an EPSILON separation buffer (0.01px extra push-out along the collision normal) to resolveEntityVsTile, ensuring strict spatial separation and preventing float precision rounding errors from re-triggering overlaps on consecutive frames.
+---
+[2026-07-05 12:29:00] Branch: A/physics-input-test
+Prompt: Fix ground jittering caused by double-resolution of adjacent flat ground tiles.
+Files Modified:
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+Summary of Changes:
+- Modified horizontal (X) and vertical (Y) tile collision loops in PhysicsEngine::update to track and resolve only the single maximum overlap collision per axis. This prevents characters standing on tile boundaries from having push-outs summed together (double-counting overlap pushes), which was launching them slightly airborne and breaking onGround states.
+---
+[2026-07-05 12:33:00] Branch: A/physics-input-test
+Prompt: Add mid-air wall friction and cap vertical velocity during wall slides.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Modified CollisionResolver::resolveEntityVsTile: if a character in mid-air (onGround is false) hits a wall horizontally, any upward vertical velocity (velocity.y < 0) is zeroed out to simulate wall impact friction. Additionally, any falling velocity is capped at Constants::WALL_SLIDE_SPEED to enable a steady, capped wall slide.
+---
+[2026-07-05 12:50:00] Branch: A/physics-input-test
+Prompt: Integrate nlohmann/json, implement LevelLoader and design 4 level stages.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Utils/LevelLoader.hpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/assets/levels/level_1.json
+- SuperMarioGame/assets/levels/level_2.json
+- SuperMarioGame/assets/levels/level_3.json
+- SuperMarioGame/assets/levels/bonus_1.json
+Summary of Changes:
+- Configured CMake to download and link header-only nlohmann/json v3.11.3.
+- Implemented LevelLoader::loadLevel to read, parse, and initialize TileMap dimensions, grids (supporting spans), player spawn point, and spawn concrete items.
+- Designed 4 levels (Grassland, Cave, Castle, and Sky) matching SPEC §9.6.
+- Added m_selectedLevelIndex and ImGui Level Selection dropdown to PlayingState, letting players load and test levels in real-time.
+---
+[2026-07-18 18:22:00] Branch: A/feature/level-editor
+Prompt: Address code reviews on save-load PR #5 and level-editor PR #6, resolve all merge conflicts, verify compile, run all verification tests, and push branches.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Core/AchievementManager.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Utils/Serializer.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/tests/verify_save_load.cpp
+- docs/Group52_06/52.md
+- docs/Group52_06/52.pdf
+- logs/agent_history.log
+Summary of Changes:
+- Resolved merge conflicts when merging A/physics-input-test into A/feature/save-load and then into A/feature/level-editor.
+- Fixed EventBus sentinel bug in PlayingState by changing the sentinel to static_cast<size_t>(-1).
+- Swapped letter-based debug key triggers to non-conflicting Num1-Num9 keys.
+- Replaced hardcoded level times and toast positions with Constants constants.
+- Encapsulated keyBindings getter by returning a copy and providing a narrow getKeyBinding accessor in Game.
+- Cleared achievements activeToasts queue in setUnlockedAchievements to prevent rendering stale toasts on load.
+- Aligned achievement IDs in trigger points and lists with SPEC.md schemas ("100_coins" / "beat_bowser").
+- Added explicit <ctime> include and used std::gmtime in Serializer.cpp to properly format UTC timestamps.
+- Added player direct friend access for Serializer to restore stats without triggering gameplay events.
+- Derived completed level maps dynamically from levelId inside saveGame.
+- Switched float comparisons in verify_save_load.cpp to epsilon checks.
+- Fixed out-of-bounds coordinates risk in saveLevel by clamping spawnPoint and flagpole coordinates to map boundaries.
+- Converted absolute local paths in Week 6 progress report links to repository-relative links and rebuilt the report PDF.
+- Verified that both verify_save_load and verify_map_editor tests compile and pass successfully.
 ---

@@ -1,0 +1,29 @@
+{
+  "name": "Level 3 - Bowser's Castle",
+  "theme": "castle",
+  "width": 60,
+  "height": 22,
+  "spawnPoint": { "x": 2.0, "y": 18.0 },
+  "tiles": [
+    { "type": "ground", "x": 0, "y": 20, "w": 10 },
+    { "type": "ground", "x": 0, "y": 21, "w": 10 },
+    { "type": "water", "x": 10, "y": 20, "w": 15 },
+    { "type": "water", "x": 10, "y": 21, "w": 15 },
+    { "type": "brick", "x": 12, "y": 16, "w": 4 },
+    { "type": "brick", "x": 19, "y": 15, "w": 4 },
+    { "type": "ground", "x": 25, "y": 20, "w": 15 },
+    { "type": "ground", "x": 25, "y": 21, "w": 15 },
+    { "type": "pipe", "x": 30, "y": 18, "w": 2 },
+    { "type": "pipe", "x": 30, "y": 19, "w": 2 },
+    { "type": "water", "x": 40, "y": 20, "w": 20 },
+    { "type": "water", "x": 40, "y": 21, "w": 20 },
+    { "type": "conveyor", "x": 42, "y": 16, "w": 6 },
+    { "type": "brick", "x": 52, "y": 15, "w": 4 }
+  ],
+  "entities": [
+    { "type": "fire_flower", "x": 14.0, "y": 15.0 },
+    { "type": "mega_mushroom", "x": 27.0, "y": 19.0 },
+    { "type": "pow_block", "x": 35.0, "y": 19.0 },
+    { "type": "star_coin", "x": 45.0, "y": 14.0 }
+  ]
+}

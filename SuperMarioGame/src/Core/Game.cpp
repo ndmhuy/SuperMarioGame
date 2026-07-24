@@ -1,7 +1,10 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/StatisticsTracker.hpp"
+#include "Core/AchievementManager.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/Serializer.hpp"
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
 #include <imgui.h>
@@ -16,6 +19,17 @@ Game& Game::getInstance() {
 void Game::run() {
     initWindow();
     initImGui();
+
+    // Load settings from config
+    Serializer::loadSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
+    
+    // Apply loaded volumes to SoundManager
+    SoundManager::getInstance().setSFXVolume(m_sfxVolume);
+    SoundManager::getInstance().setMusicVolume(m_musicVolume);
+
+    // Initialize tracking systems
+    StatisticsTracker::getInstance().init();
+    AchievementManager::getInstance().init();
 
     // Push initial menu state
     m_gsm.pushState(std::make_unique<MenuState>());
@@ -77,6 +91,10 @@ void Game::quit() {
     m_window.close();
 }
 
+sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
+    return m_window.mapPixelToCoords(sf::Mouse::getPosition(m_window), view);
+}
+
 void Game::pushState(std::unique_ptr<IGameState> state) {
     m_gsm.pushState(std::move(state));
 }
@@ -101,6 +119,12 @@ void Game::initImGui() {
 }
 
 void Game::shutdown() {
+    // Save configuration settings
+    Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
+
+    // Shutdown managers
+    StatisticsTracker::getInstance().shutdown();
+    AchievementManager::getInstance().shutdown();
     SoundManager::getInstance().shutdown();
     ImGui::SFML::Shutdown();
 }
@@ -119,4 +143,12 @@ TileMap* Game::getTileMap() const {
 
 void Game::setTileMap(TileMap* tileMap) {
     m_tileMap = tileMap;
+void Game::setSfxVolume(float volume) {
+    m_sfxVolume = volume;
+    SoundManager::getInstance().setSFXVolume(volume);
+}
+
+void Game::setMusicVolume(float volume) {
+    m_musicVolume = volume;
+    SoundManager::getInstance().setMusicVolume(volume);
 }
