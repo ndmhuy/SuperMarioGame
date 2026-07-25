@@ -143,6 +143,8 @@ TileMap* Game::getTileMap() const {
 
 void Game::setTileMap(TileMap* tileMap) {
     m_tileMap = tileMap;
+}
+
 void Game::setSfxVolume(float volume) {
     m_sfxVolume = volume;
     SoundManager::getInstance().setSFXVolume(volume);

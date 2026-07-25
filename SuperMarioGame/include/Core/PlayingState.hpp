@@ -7,6 +7,7 @@
 #include "Utils/MapEditor.hpp"
 #include "Graphics/Camera.hpp"
 #include "Utils/LevelLoader.hpp"
+#include "Graphics/Hud.hpp"
 #include <vector>
 #include <memory>
 

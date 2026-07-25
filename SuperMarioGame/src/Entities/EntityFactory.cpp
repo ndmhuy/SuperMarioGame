@@ -45,26 +45,14 @@
 std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f position) {
     switch (type) {
         // --- PLAYERS ---
-        case EntityType::Mario: {
-            auto player = std::make_unique<Mario>();
-            player->setPosition(position);
-            return player;
-        }
-        case EntityType::Luigi: {
-            auto player = std::make_unique<Luigi>();
-            player->setPosition(position);
-            return player;
-        }
-        case EntityType::Toad: {
-            auto player = std::make_unique<Toad>();
-            player->setPosition(position);
-            return player;
-        }
-        case EntityType::Peach: {
-            auto player = std::make_unique<Peach>();
-            player->setPosition(position);
-            return player;
-        }
+        case EntityType::Mario:
+            return std::make_unique<Mario>(position);
+        case EntityType::Luigi:
+            return std::make_unique<Luigi>(position);
+        case EntityType::Toad:
+            return std::make_unique<Toad>(position);
+        case EntityType::Peach:
+            return std::make_unique<Peach>(position);
 
         // --- ENEMIES ---
         case EntityType::Goomba:
@@ -95,66 +83,30 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
             return nullptr;
 
         // --- ITEMS ---
-        case EntityType::Mushroom: {
-            auto item = std::make_unique<Mushroom>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::FireFlower: {
-            auto item = std::make_unique<FireFlower>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::Coin: {
-            auto item = std::make_unique<Coin>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::Star: {
-            auto item = std::make_unique<Star>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::OneUpMushroom: {
-            auto item = std::make_unique<OneUpMushroom>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::CapeFeather: {
-            auto item = std::make_unique<CapeFeather>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::MegaMushroom: {
-            auto item = std::make_unique<MegaMushroom>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::MiniMushroom: {
-            auto item = std::make_unique<MiniMushroom>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::POWBlock: {
-            auto item = std::make_unique<POWBlock>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::PSwitch: {
-            auto item = std::make_unique<PSwitch>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::Trampoline: {
-            auto item = std::make_unique<Trampoline>();
-            item->setPosition(position);
-            return item;
-        }
-        case EntityType::StarCoin: {
-            auto item = std::make_unique<StarCoin>();
-            item->setPosition(position);
-            return item;
-        }
+        case EntityType::Mushroom:
+            return std::make_unique<Mushroom>(position);
+        case EntityType::FireFlower:
+            return std::make_unique<FireFlower>(position);
+        case EntityType::Coin:
+            return std::make_unique<Coin>(position);
+        case EntityType::Star:
+            return std::make_unique<Star>(position);
+        case EntityType::OneUpMushroom:
+            return std::make_unique<OneUpMushroom>(position);
+        case EntityType::CapeFeather:
+            return std::make_unique<CapeFeather>(position);
+        case EntityType::MegaMushroom:
+            return std::make_unique<MegaMushroom>(position);
+        case EntityType::MiniMushroom:
+            return std::make_unique<MiniMushroom>(position);
+        case EntityType::POWBlock:
+            return std::make_unique<POWBlock>(position);
+        case EntityType::PSwitch:
+            return std::make_unique<PSwitch>(position);
+        case EntityType::Trampoline:
+            return std::make_unique<Trampoline>(position);
+        case EntityType::StarCoin:
+            return std::make_unique<StarCoin>(position);
 
         // --- BLOCKS ---
         case EntityType::BrickBlock:

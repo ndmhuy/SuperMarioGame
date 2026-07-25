@@ -938,3 +938,25 @@ Summary of Changes:
 - Converted absolute local paths in Week 6 progress report links to repository-relative links and rebuilt the report PDF.
 - Verified that both verify_save_load and verify_map_editor tests compile and pass successfully.
 ---
+[2026-07-25 13:25:00] Branch: B/feature/graphic-visual
+Prompt: Reconfig the cmake to correct the error and resolve compile issues on branch B/feature/graphic-visual.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Entities/EntityFactory.cpp
+- SuperMarioGame/include/Entities/Entity.hpp
+Summary of Changes:
+- Removed non-existent Minimap.hpp header from CMakeLists.txt to fix the CMake configure error.
+- Resolved compile errors on B/feature/graphic-visual by adding missing getPlayer and getTileMap declarations in Game.hpp, fixing a missing closing brace in Game.cpp's setTileMap implementation, and adding missing #include <unordered_map> and <string>.
+- Resolved incomplete type errors by including Graphics/Hud.hpp in PlayingState.hpp.
+- Corrected a missing closing brace and closed the ImGui panel in PlayingState.cpp's render() function.
+- Fixed EntityFactory compilation errors by constructing Mario, Luigi, Toad, Peach and all items using their explicit sf::Vector2f position constructor parameters instead of default constructor make_unique calls.
+- Resolved duplicate CONVEYOR_SPEED constant compilation error by removing the duplicate definition in Constants.hpp.
+- Resolved ambiguous setVelocity function calls by removing the duplicate const sf::Vector2f& overload in Entity.hpp.
+- Verified that all targets compile cleanly.
+---
+

@@ -63,7 +63,6 @@ namespace Constants {
     constexpr float ENEMY_SPINY_SPEED = 50.0f;
 
     // Block & Platform Constants
-    constexpr float CONVEYOR_SPEED = 100.0f;
     constexpr float FALLING_PLATFORM_SHAKE_TIME = 1.0f;
     constexpr float FALLING_PLATFORM_RESPAWN_TIME = 5.0f;
 }

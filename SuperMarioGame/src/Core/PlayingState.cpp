@@ -2,6 +2,7 @@
 #include "Core/MenuState.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
+#include "Graphics/Hud.hpp"
 #include "Entities/Entity.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/StatisticsTracker.hpp"
@@ -272,6 +273,10 @@ void PlayingState::render(sf::RenderTarget& target) {
     if (!m_entities.empty() && m_entities[0]) {
         ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->getPosition().x, m_entities[0]->getPosition().y);
         ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->getVelocity().x, m_entities[0]->getVelocity().y);
+    } else {
+        ImGui::Text("No active entities.");
+    }
+    ImGui::End();
     // Draw Map Editor overlays if active
     if (m_mapEditor.isActive()) {
         m_mapEditor.render(target, m_tileMap, m_entities);

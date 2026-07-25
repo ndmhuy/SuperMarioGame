@@ -2,6 +2,8 @@
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <memory>
+#include <unordered_map>
+#include <string>
 #include "Core/GameStateManager.hpp"
 
 class Player;
@@ -43,7 +45,12 @@ public:
     const std::string& getDifficulty() const { return m_difficulty; }
     void setDifficulty(const std::string& diff) { m_difficulty = diff; }
 
-    std::unordered_map<std::string, std::string> getKeyBindings() const { return m_keyBindings; }
+    Player* getPlayer() const;
+    void setPlayer(Player* player);
+    TileMap* getTileMap() const;
+    void setTileMap(TileMap* tileMap);
+
+    const std::unordered_map<std::string, std::string>& getKeyBindings() const { return m_keyBindings; }
     std::string getKeyBinding(const std::string& action) const {
         auto it = m_keyBindings.find(action);
         return (it != m_keyBindings.end()) ? it->second : "";
@@ -74,4 +81,7 @@ private:
     std::string m_difficulty = "normal";
     std::unordered_map<std::string, std::string> m_keyBindings;
     bool m_colorblindMode = false;
+
+    Player* m_player = nullptr;
+    TileMap* m_tileMap = nullptr;
 };

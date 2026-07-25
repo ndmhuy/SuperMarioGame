@@ -56,8 +56,7 @@ add_executable(${PROJECT_NAME} ${SOURCES}
     src/Graphics/AnimationManager.cpp
     include/Graphics/Animator.hpp
     src/Graphics/Animator.cpp
-    src/Graphics/HUD.cpp
-    include/Graphics/Minimap.hpp)
+    src/Graphics/HUD.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
