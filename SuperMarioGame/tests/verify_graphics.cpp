@@ -19,19 +19,19 @@
 int main() {
     std::cout << "[TEST] Starting Graphics & Animation Verification Suite..." << std::endl;
 
-    // Determine the relative path to asset/spriteSheet/test directory
-    std::string assetPath = "asset/spriteSheet/test";
+    // Determine the relative path to assets/spriteSheet/test directory
+    std::string assetPath = "assets/spriteSheet/test";
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "../asset/spriteSheet/test";
+        assetPath = "../assets/spriteSheet/test";
     }
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "../../asset/spriteSheet/test";
+        assetPath = "../../assets/spriteSheet/test";
     }
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "SuperMarioGame/asset/spriteSheet/test";
+        assetPath = "SuperMarioGame/assets/spriteSheet/test";
     }
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "../SuperMarioGame/asset/spriteSheet/test";
+        assetPath = "../SuperMarioGame/assets/spriteSheet/test";
     }
 
     std::cout << "[TEST] Using asset path: " << assetPath << std::endl;

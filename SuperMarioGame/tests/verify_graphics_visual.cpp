@@ -24,18 +24,18 @@ int main() {
     }
 
     // Resolve asset path
-    std::string assetPath = "asset/spriteSheet/test";
+    std::string assetPath = "assets/spriteSheet/test";
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "../asset/spriteSheet/test";
+        assetPath = "../assets/spriteSheet/test";
     }
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "../../asset/spriteSheet/test";
+        assetPath = "../../assets/spriteSheet/test";
     }
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "SuperMarioGame/asset/spriteSheet/test";
+        assetPath = "SuperMarioGame/assets/spriteSheet/test";
     }
     if (!std::filesystem::exists(assetPath + "/test.json")) {
-        assetPath = "../SuperMarioGame/asset/spriteSheet/test";
+        assetPath = "../SuperMarioGame/assets/spriteSheet/test";
     }
 
     std::cout << "[VISUAL TEST] Resolved asset path: " << assetPath << std::endl;

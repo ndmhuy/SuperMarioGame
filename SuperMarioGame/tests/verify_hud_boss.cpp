@@ -22,11 +22,11 @@ int main() {
 
     // Resolve font path
     ResourceManager& rm = ResourceManager::getInstance();
-    std::string fontPath = "asset/font/PressStart2P.ttf";
-    if (!std::filesystem::exists(fontPath)) fontPath = "../asset/font/PressStart2P.ttf";
-    if (!std::filesystem::exists(fontPath)) fontPath = "../../asset/font/PressStart2P.ttf";
-    if (!std::filesystem::exists(fontPath)) fontPath = "SuperMarioGame/asset/font/PressStart2P.ttf";
-    if (!std::filesystem::exists(fontPath)) fontPath = "../SuperMarioGame/asset/font/PressStart2P.ttf";
+    std::string fontPath = "assets/font/PressStart2P.ttf";
+    if (!std::filesystem::exists(fontPath)) fontPath = "../assets/font/PressStart2P.ttf";
+    if (!std::filesystem::exists(fontPath)) fontPath = "../../assets/font/PressStart2P.ttf";
+    if (!std::filesystem::exists(fontPath)) fontPath = "SuperMarioGame/assets/font/PressStart2P.ttf";
+    if (!std::filesystem::exists(fontPath)) fontPath = "../SuperMarioGame/assets/font/PressStart2P.ttf";
 
     std::cout << "[VISUAL TEST] Resolved font path: " << fontPath << std::endl;
 

@@ -37,7 +37,7 @@ void PlayingState::enter() {
     
     // Ensure HUD font is loaded in ResourceManager
     ResourceManager& rm = ResourceManager::getInstance();
-    if (!rm.loadFont("PressStart2P", "asset/font/PressStart2P.ttf")) {
+    if (!rm.loadFont("PressStart2P", "assets/font/PressStart2P.ttf")) {
         if (!rm.loadFont("PressStart2P", "C:/Windows/Fonts/consola.ttf")) {
             rm.loadFont("PressStart2P", "C:/Windows/Fonts/arial.ttf");
         }
