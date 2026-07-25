@@ -73,26 +73,26 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # ---------------------------------------------------------
-# 3. Verification Test Target (verify_enemies)
-# ---------------------------------------------------------
-add_executable(verify_enemies 
-    "tests/verify_enemies.cpp"
-    "src/Entities/Goomba.cpp"
-    "src/Entities/KoopaTroopa.cpp"
-    "src/Entities/KoopaParatroopa.cpp"
-    "src/Entities/Boo.cpp"
-    "src/Entities/Enemy.cpp"
-    "src/Entities/PatrolStrategy.cpp"
-    "src/Entities/FlyStrategy.cpp"
-    "src/Entities/ChaseStrategy.cpp"
-    "src/Entities/Entity.cpp"
-    "src/Entities/Character.cpp"
-    "src/Core/EventBus.cpp"
-    "src/Physics/AABB.cpp"
-)
-# 3. Test verification targets: verify_map_editor & verify_save_load
+# 3. Verification Test Targets
 # ---------------------------------------------------------
 list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
+
+add_executable(verify_all
+    ${SOURCES}
+    tests/verify_all.cpp
+)
+target_include_directories(verify_all PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(verify_all PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
 
 add_executable(verify_map_editor 
     ${SOURCES} 
@@ -128,10 +128,24 @@ target_link_libraries(verify_save_load PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+add_executable(verify_enemies 
+    "tests/verify_enemies.cpp"
+    "src/Entities/Goomba.cpp"
+    "src/Entities/KoopaTroopa.cpp"
+    "src/Entities/KoopaParatroopa.cpp"
+    "src/Entities/Boo.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/PatrolStrategy.cpp"
+    "src/Entities/FlyStrategy.cpp"
+    "src/Entities/ChaseStrategy.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
 target_include_directories(verify_enemies PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-
 target_link_libraries(verify_enemies PRIVATE 
     SFML::Graphics 
     SFML::Window 
@@ -331,3 +345,5 @@ target_link_libraries(verify_hud_boss PRIVATE
 
 
 
+=======
+>>>>>>> 0ea4125 (docs: write Week 7 progress report (W07) with PDF and add verify_all unit test runner)

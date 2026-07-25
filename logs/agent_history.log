@@ -937,7 +937,6 @@ Summary of Changes:
 - Fixed out-of-bounds coordinates risk in saveLevel by clamping spawnPoint and flagpole coordinates to map boundaries.
 - Converted absolute local paths in Week 6 progress report links to repository-relative links and rebuilt the report PDF.
 - Verified that both verify_save_load and verify_map_editor tests compile and pass successfully.
----
 [2026-07-25 13:25:00] Branch: B/feature/graphic-visual
 Prompt: Reconfig the cmake to correct the error and resolve compile issues on branch B/feature/graphic-visual.
 Files Modified:
@@ -958,5 +957,30 @@ Summary of Changes:
 - Resolved duplicate CONVEYOR_SPEED constant compilation error by removing the duplicate definition in Constants.hpp.
 - Resolved ambiguous setVelocity function calls by removing the duplicate const sf::Vector2f& overload in Entity.hpp.
 - Verified that all targets compile cleanly.
+---
+[2026-07-23 09:09:00] Branch: dev
+Prompt: Compress every test in one and run the demo.
+Files Modified:
+- SuperMarioGame/tests/verify_all.cpp (NEW)
+- SuperMarioGame/CMakeLists.txt
+- logs/agent_history.log
+Summary of Changes:
+- Created consolidated test suite `tests/verify_all.cpp` combining Map Editor commands/serialization tests and Save/Load persistence/statistics/achievement tests into a unified runner (6 test functions total).
+- Updated `CMakeLists.txt` to include the `verify_all` build target.
+- Compiled `verify_all` and `SuperMarioGame` binaries using CMake.
+- Executed `verify_all` to verify all 6 unit tests pass 100% (6/6).
+- Executed the `SuperMarioGame` binary to launch the demo application window.
+---
+[2026-07-25 22:05:00] Branch: dev
+Prompt: Write weekly report for this week (W07: 2026-07-19 to 2026-07-25).
+Files Modified:
+- docs/Group52_07/52.md (NEW)
+- docs/Group52_07/52.pdf (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Consolidated all completed tasks from task branches (A/feature/save-load, A/feature/level-editor) and integration branch dev for Week 7 (2026-07-19 to 2026-07-25).
+- Compiled Week 7 progress report in docs/Group52_07/52.md following REPORT_RULES.md.
+- Generated docs/Group52_07/52.pdf using Python WeasyPrint utility docs/generate_pdf.py.
+- Recorded issues resolved (EventBus handle sentinel invalidation, stale toast rendering on achievement reset, and save slot coordinate clamping).
 ---
 
