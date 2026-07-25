@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <SFML/Graphics/Color.hpp>
 
 namespace Constants {
     // Window Constants
@@ -65,5 +66,12 @@ namespace Constants {
     // Block & Platform Constants
     constexpr float FALLING_PLATFORM_SHAKE_TIME = 1.0f;
     constexpr float FALLING_PLATFORM_RESPAWN_TIME = 5.0f;
+
+    // Minimap Constants
+    constexpr float ENTITY_DOT_RADIUS = 2.0f;
+    const sf::Color MINIMAP_PLAYER_DOT_COLOR = sf::Color::Green;
+    const sf::Color MINIMAP_ENEMY_DOT_COLOR = sf::Color::Red;
+    const sf::Color MINIMAP_ITEM_DOT_COLOR = sf::Color::Yellow;
+    const sf::Color MINIMAP_SOLID_BLOCK_COLOR = sf::Color(128, 128, 128, 150);
 }
 

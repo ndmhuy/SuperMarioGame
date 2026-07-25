@@ -24,7 +24,8 @@ enum class EventType {
   GameStart,
   StateChanged,
   PauseToggled,
-  PlayerShotFireball
+  PlayerShotFireball,
+  MinimapToggled
 };
 
 struct GameEvent {

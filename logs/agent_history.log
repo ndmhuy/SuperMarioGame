@@ -959,4 +959,27 @@ Summary of Changes:
 - Resolved ambiguous setVelocity function calls by removing the duplicate const sf::Vector2f& overload in Entity.hpp.
 - Verified that all targets compile cleanly.
 ---
+[2026-07-25 22:15:00] Branch: B/feature/entities
+Prompt: Check the implementation of Minimap.cpp and identify/fix any compilation warnings or logic bugs.
+Files Modified:
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Graphics/Minimap.cpp
+Summary of Changes:
+- Added SFML Color include to Constants.hpp and updated color declarations to const sf::Color to resolve build errors.
+- Fixed logic bug in Minimap::draw where entity dots were not positioned on screen.
+- Fixed logic bug in Minimap::initialize where tileMap.getTileAt (pixels) was called instead of tileMap.getTileType (grid indices).
+- Addressed [[nodiscard]] return value warning for sf::Texture::loadFromImage inside Minimap::initialize.
+---
+[2026-07-25 22:36:00] Branch: B/feature/graphic-visual
+Prompt: Create a test for minimap, with visual.
+Files Modified:
+- SuperMarioGame/tests/verify_minimap_visual.cpp
+- SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Created a new visual verification test suite in tests/verify_minimap_visual.cpp using a mock level, Mario player, Goomba enemy, and Mushroom item with adjustable sliders and M-key event handling.
+- Registered verify_minimap_visual target in CMakeLists.txt using filtered APP_SOURCES (excluding main.cpp) to avoid duplicate main definitions and linker errors.
+- Built target successfully and launched verification.
+---
+
+
 

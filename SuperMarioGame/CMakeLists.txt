@@ -56,7 +56,8 @@ add_executable(${PROJECT_NAME} ${SOURCES}
     src/Graphics/AnimationManager.cpp
     include/Graphics/Animator.hpp
     src/Graphics/Animator.cpp
-    src/Graphics/HUD.cpp)
+    src/Graphics/HUD.cpp
+    include/Graphics/Minimap.hpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -318,6 +319,31 @@ target_include_directories(verify_hud_boss PUBLIC
 )
 
 target_link_libraries(verify_hud_boss PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 10. Verification Test Target (verify_minimap_visual)
+# ---------------------------------------------------------
+set(APP_SOURCES ${SOURCES})
+list(REMOVE_ITEM APP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp" "src/main.cpp")
+
+add_executable(verify_minimap_visual
+    "tests/verify_minimap_visual.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_minimap_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_minimap_visual PRIVATE 
     SFML::Graphics 
     SFML::Window 
     SFML::System 
