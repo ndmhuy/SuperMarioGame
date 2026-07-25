@@ -304,6 +304,67 @@ Summary of Changes:
 - Added resumeMusic() to SoundManager to allow resuming playback of paused music without specifying path.
 - Updated playMusic() to resume when paused and do nothing when already playing, preventing current music from restarting.
 - Recompiled and verified successful builds.
+[2026-06-21 20:31:00] Branch: dev
+Prompt: Read the project and setup a planning and a implementing agents.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Read codebase structure, task division, and workflow guidelines.
+- Defined subagent 'planning_agent' for research, design patterns, and implementation plan generation.
+- Defined subagent 'implementing_agent' for executing code edits, CMake building, and manual/automated verification.
+- Created agent_setup.md artifact to document agent roles, responsibilities, and step-by-step collaboration loops.
+[2026-06-21 22:02:00] Branch: dev
+Prompt: Adapt the agent to the member B tasks.
+Files Modified: .member_profile.json (NEW), logs/agent_history.log
+Summary of Changes:
+- Created the gitignored .member_profile.json configuration file at the workspace root, designating Member B (Partner) as the active developer.
+- Configured Member B private tasks focusing on the Phase 3 Entity Hierarchy (Entity, Character, Player bases, and AI strategies).
+- Set up custom agent instructions to prioritize gameplay/entities, enforce B/ branch prefixes, and verify interfaces with Member A's engine code.
+[2026-06-21 22:13:30] Branch: dev
+Prompt: Create a teaching agent for answering questions about the plans and implementation details.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Defined subagent 'teaching_agent' focused on explaining architectural design, design patterns, specification sheets, and C++ source code details.
+- Configured 'teaching_agent' as a read-only agent (write tools disabled) to isolate it from the regular development and implementation flow.
+---
+[2026-06-23 20:40:00] Branch: B/movement-strategies
+Prompt: Implement abstract Enemy class, IMovementStrategy interface, and 8 concrete AI movement strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger). Write verify_strategies.cpp scratch test, update task.md and TASKS.md checklists, and log changes.
+Files Modified:
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/include/Entities/IMovementStrategy.hpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/PatrolStrategy.hpp
+- SuperMarioGame/src/Entities/PatrolStrategy.cpp
+- SuperMarioGame/include/Entities/ChaseStrategy.hpp
+- SuperMarioGame/src/Entities/ChaseStrategy.cpp
+- SuperMarioGame/include/Entities/FlyStrategy.hpp
+- SuperMarioGame/src/Entities/FlyStrategy.cpp
+- SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp
+- SuperMarioGame/src/Entities/TimerEmergenceStrategy.cpp
+- SuperMarioGame/include/Entities/LinearStrategy.hpp
+- SuperMarioGame/src/Entities/LinearStrategy.cpp
+- SuperMarioGame/include/Entities/HammerThrowStrategy.hpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp
+- SuperMarioGame/src/Entities/TetheredChaseStrategy.cpp
+- SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp
+- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
+- TASKS.md
+Summary of Changes:
+- Modified Game singleton with player and tilemap registry setters/getters.
+- Created IMovementStrategy.hpp outlining the AI Template Method movement sequence.
+- Implemented abstract base class Enemy inheriting from Character, delegating updates to its active strategy.
+- Created PatrolStrategy supporting wall rebound and ledge-awareness with TileMap.
+- Created ChaseStrategy tracking player coordinates when their back is turned.
+- Created FlyStrategy with sinusoidal, vertical-only bounce, and player follow modes.
+- Created TimerEmergenceStrategy pipe animation state machine.
+- Created LinearStrategy for constant horizontal speed (Bullet Bill).
+- Created HammerThrowStrategy for jumping and callback-based projectile throwing.
+- Created TetheredChaseStrategy with anchor post, wandering, and tether clamping limits.
+- Created ProximityTriggerStrategy ceiling slam state machine (Thwomp).
+- Wrote verify_strategies.cpp scratch test verifying all 8 strategy lifecycles.
+- Checked off completed tasks in TASKS.md.
 ---
 [2026-06-16 17:07:00] Branch: A/feature/physics
 Prompt: Move on Phase 2, create the boilerplate, leave empty implementation for human do by hand.
@@ -440,6 +501,171 @@ Summary of Changes:
 - Excluded imgui.ini from git tracking and added it to .gitignore to prevent developer-specific UI conflict diffs.
 - Verified successful CMake compilation and executable builds.
 ---
+[2026-06-26 18:25:00] Branch: B/feature/entities
+Prompt: Proceed with the plan to implement Phase 3.12: Blocks (Original).
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/include/Entities/Block.hpp
+- SuperMarioGame/src/Entities/Block.cpp
+- SuperMarioGame/include/Entities/BrickBlock.hpp
+- SuperMarioGame/src/Entities/BrickBlock.cpp
+- SuperMarioGame/include/Entities/QuestionBlock.hpp
+- SuperMarioGame/src/Entities/QuestionBlock.cpp
+- SuperMarioGame/include/Entities/Pipe.hpp
+- SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/include/Entities/Flagpole.hpp
+- SuperMarioGame/src/Entities/Flagpole.cpp
+- SuperMarioGame/include/Entities/Entity.hpp
+- SuperMarioGame/src/Entities/Entity.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/tests/verify_blocks.cpp
+- TASKS.md
+Summary of Changes:
+- Added public setPosition and setVelocity mutators to Entity base class to safely teleport players and other entities.
+- Implemented abstract Block base class with standard parabolic bump/bounce animation on hits from below.
+- Implemented BrickBlock supporting breaking under Super+ size, coin dispensation, and bump animations.
+- Implemented QuestionBlock with item/coin spawning, sound effect calls, and state transitions to empty flat block.
+- Implemented Pipe (2x2 tiles size warp gate) checking warp conditions (player standing on top center and pressing down) and teleports player to exit coordinates.
+- Implemented Flagpole end marker calculating height-scaled completion scores (100 to 5000 points) and firing completion events.
+- Modified CollisionResolver to integrate character-vs-block solid pushing, player hit-from-below block callbacks, and flagpole collisions.
+- Created verify_blocks.cpp unit tests compiling and running successfully.
+- Checked off completed tasks in TASKS.md.
+---
+[2026-06-26 21:30:00] Branch: B/feature/entities
+Prompt: Implement Phase 3.9 (7 New Enemies: PiranhaPlant, BulletBill, HammerBro, Thwomp, ChainChomp, Lakitu, Spiny) and Phase 3.13 (5 New Blocks: HiddenBlock, MovingPlatform, FallingPlatform, IceBlock, ConveyorBelt). Compile and run separate unit test targets verify_enemies_new and verify_blocks_new.
+Files Modified:
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/include/Entities/Entity.hpp
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/include/Entities/Lakitu.hpp
+- SuperMarioGame/src/Entities/Lakitu.cpp
+- SuperMarioGame/include/Entities/Spiny.hpp
+- SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/include/Entities/HiddenBlock.hpp
+- SuperMarioGame/src/Entities/HiddenBlock.cpp
+- SuperMarioGame/include/Entities/MovingPlatform.hpp
+- SuperMarioGame/src/Entities/MovingPlatform.cpp
+- SuperMarioGame/include/Entities/FallingPlatform.hpp
+- SuperMarioGame/src/Entities/FallingPlatform.cpp
+- SuperMarioGame/include/Entities/IceBlock.hpp
+- SuperMarioGame/src/Entities/IceBlock.cpp
+- SuperMarioGame/include/Entities/ConveyorBelt.hpp
+- SuperMarioGame/src/Entities/ConveyorBelt.cpp
+- SuperMarioGame/src/Entities/PatrolStrategy.cpp
+- SuperMarioGame/tests/verify_enemies.cpp
+- SuperMarioGame/tests/verify_enemies_new.cpp (NEW)
+- SuperMarioGame/tests/verify_blocks_new.cpp (NEW)
+- SuperMarioGame/CMakeLists.txt
+- TASKS.md
+Summary of Changes:
+- Added enemy constants, platform settings, and conveyor belt speed constants to Constants.hpp.
+- Declared AI movement strategies and standalone test main() functions as friends of Entity and Character to allow direct coordinate modifications without breaking public encapsulation.
+- Implemented Lakitu hovering above player using FlyStrategy and throwing Spiny eggs on a 4-second cycle.
+- Implemented Spiny turtle using PatrolStrategy with stomp immunity (hurts player) and fireball flip reaction.
+- Implemented HiddenBlock (invisible until hit from below, updates to solid 32x32px block on hits).
+- Implemented MovingPlatform translating linearly back-and-forth and carrying standing players.
+- Implemented FallingPlatform with 4-state lifecycle (Idle -> Shaking -> Falling -> Respawning).
+- Implemented IceBlock representing low friction block surfaces.
+- Implemented ConveyorBelt applying constant lateral push offsets (100 px/s) to players standing on top.
+- Fixed PatrolStrategy scoped TileType enum conversions.
+- Fixed match issues in verify_enemies.cpp stubs.
+- Created standalone console verification test executables verify_enemies_new.exe and verify_blocks_new.exe using a non-aborting TEST_ASSERT macro.
+- Compiled and successfully executed all unit tests with 100% success on MSVC.
+---
+[2026-06-28 11:25:00] Branch: B/feature/entities
+Prompt: Implement the rest of the EntityFactory (only the current prototype of the create function)
+Files Modified: SuperMarioGame/include/Entities/EntityFactory.hpp, SuperMarioGame/src/Entities/EntityFactory.cpp, SuperMarioGame/include/Entities/Goomba.hpp, SuperMarioGame/src/Entities/Goomba.cpp, SuperMarioGame/include/Entities/KoopaTroopa.hpp, SuperMarioGame/src/Entities/KoopaTroopa.cpp
+Summary of Changes:
+- Created EntityFactory.hpp defining EntityType enum and declaring static create method.
+- Implemented EntityFactory.cpp mapping each EntityType to its concrete instantiation using std::make_unique.
+- Fixed covariance compile errors for getBoundingBox() in Goomba and KoopaTroopa by returning const AABB& and returning a static empty box when squished/flipped.
+- Verified compilation succeeds cleanly for target SuperMarioGame.
+---
+[2026-06-30 22:10:00] Branch: B/feature/entities
+Prompt: Install the nlohmann json library
+Files Modified: SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Added nlohmann/json (version 3.11.3) FetchContent declaration and call to CMakeLists.txt.
+- Linked nlohmann_json::nlohmann_json target to the main SuperMarioGame executable.
+- Verified configure and build completed successfully.
+---
+[2026-07-04 16:07:00] Branch: B/feature/entities
+Prompt: Run a coding convention check using check_conventions.py and manual review on animation/graphics files, and report any violations.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Performed coding convention checks on Animation.hpp, Animator.hpp, AnimationManager.hpp, Animator.cpp, and AnimationManager.cpp.
+- Identified include-order violation in AnimationManager.hpp (project header included before standard library headers).
+- Verified other files are 100% compliant with C++17 flat namespace, naming conventions, header guards, and encapsulation guidelines.
+- Animator.cpp and AnimationManager.cpp are currently empty placeholder files with no violations.
+---
+[2026-07-04 17:35:00] Branch: B/feature/entities
+Prompt: Finalize the implementation of the Animation and Animator classes.
+Files Modified:
+- SuperMarioGame/include/Graphics/Animation.hpp
+- SuperMarioGame/include/Graphics/Animator.hpp
+- SuperMarioGame/include/Graphics/AnimationManager.hpp
+- SuperMarioGame/src/Graphics/Animator.cpp
+- SuperMarioGame/src/Graphics/AnimationManager.cpp
+Summary of Changes:
+- Implemented Flyweight animation pattern where Animation templates only hold metadata (frame names, durations).
+- Connected Animator to SpriteSheet via pointer to resolve frame name strings to SFML Sprites.
+- Handled SFML 3.x default constructor requirements using dummy fallbacks and default Animation constructors.
+- Implemented isDone() and updated getSprite() to preserve the final frame when non-looping animations complete.
+- Verified compilation and naming conventions (passed check_conventions.py).
+---
+[2026-07-05 14:26:00] Branch: B/feature/entities
+Prompt: Generate a test for sprite sheet and animation with the test spritesheet in the asset folder.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graphics.cpp (NEW)
+Summary of Changes:
+- Created standalone console test verify_graphics.cpp to load test.png and test.json.
+- Wrote assertions verifying SpriteSheet loads correct texture rectangles.
+- Verified Animator loop and non-loop keyframe state transitions.
+- Configured verify_graphics executable target in CMakeLists.txt and built/ran successfully.
+---
+[2026-07-05 16:50:00] Branch: B/feature/entities
+Prompt: Create a visual, interactive test for sprite sheet and animation using SFML and ImGui.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graphics_visual.cpp (NEW)
+Summary of Changes:
+- Terminated implementing_agent and other active subagents to clean them up.
+- Created verify_graphics_visual.cpp opening an 800x600 SFML window with ImGui animation/frame playback controls.
+- Built and ran verify_graphics_visual successfully.
+---
+[2026-07-18 13:53:00] Branch: B/feature/entities
+Prompt: Implement the HUD similar to the provided reference image (displaying strictly elements from HudData).
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Added mutable star and coin shapes and m_starCoinsCountText to Hud.hpp.
+- Implemented HUD.cpp using constructor initializer list to instantiate sf::Text objects with the PressStart2P font from ResourceManager.
+- Designed absolute coordinate layouts for name, lives, coins, world, time, star coins, combo counter, and P-Switch alert.
+- Added font loading and fallback mechanisms (consola.ttf/arial.ttf) in PlayingState.cpp.
+- Instantiated, updated, and rendered m_hud in screen space inside PlayingState.
+- Compiled and successfully executed all targets.
+---
+[2026-07-18 15:20:00] Branch: B/feature/entities
+Prompt: Increase the size of the filled star to match the empty star.
+Files Modified: SuperMarioGame/src/Graphics/HUD.cpp
+Summary of Changes:
+- Modified HUD.cpp to apply identical outline thickness and color configuration to both filled and empty stars.
+- Rebuilt and verified size matches.
+---
+[2026-07-18 15:28:00] Branch: B/feature/entities
+Prompt: Remove star coins count text since it is not in HudData.
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp
+Summary of Changes:
+- Removed m_starCoinsCountText from Hud.hpp and HUD.cpp.
+- Removed the X=260 star counter icon and text drawing from HUD.cpp.
+- Verified compilation and executed the clean target.
+---
+[2026-07-18 20:43:00] Branch: B/feature/entities
+Prompt: Implement Boss HUD elements (name, health bar) in HUD and create a new visual test target verify_hud_boss.
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/tests/verify_hud_boss.cpp (NEW), SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Extended HudData with bossActive, bossName, bossHealth, bossMaxHealth fields.
+- Implemented boss name text centering and health bar background/fill resizing in HUD.cpp.
+- Created verify_hud_boss.cpp as a comprehensive visual HUD editor running on a 1280x720 SFML window with ImGui controls.
+- Registered verify_hud_boss target in CMakeLists.txt and built target successfully.
 [2026-06-24 10:32:30] Branch: A/feature/entities
 Prompt: check my manual implementation and update constants, replacing hardcoded values in the codebase.
 Files Modified:

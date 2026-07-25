@@ -50,5 +50,21 @@ namespace Constants {
     constexpr float LEVEL_TIME = 300.0f; // seconds
     constexpr int INITIAL_LIVES = 3;
     constexpr int COINS_FOR_LIFE = 100;
+
+    // Enemy Constants
+    constexpr float ENEMY_GOOMBA_SPEED = 50.0f;
+    constexpr float GOOMBA_SQUISH_DURATION = 0.5f;
+    constexpr float ENEMY_KOOPA_SPEED = 50.0f;
+    constexpr float KOOPA_SHELL_KICK_SPEED = 300.0f;
+    constexpr float KOOPA_SHELL_WAKE_TIME = 5.0f;
+    constexpr float KOOPA_SHELL_SHAKE_TIME = 1.5f;
+    constexpr float BOO_SPEED = 80.0f;
+    constexpr float BOO_CHASE_RANGE = 250.0f;
+    constexpr float ENEMY_SPINY_SPEED = 50.0f;
+
+    // Block & Platform Constants
+    constexpr float CONVEYOR_SPEED = 100.0f;
+    constexpr float FALLING_PLATFORM_SHAKE_TIME = 1.0f;
+    constexpr float FALLING_PLATFORM_RESPAWN_TIME = 5.0f;
 }
 

@@ -129,6 +129,20 @@ void Game::shutdown() {
     ImGui::SFML::Shutdown();
 }
 
+Player* Game::getPlayer() const {
+    return m_player;
+}
+
+void Game::setPlayer(Player* player) {
+    m_player = player;
+}
+
+TileMap* Game::getTileMap() const {
+    return m_tileMap;
+}
+
+void Game::setTileMap(TileMap* tileMap) {
+    m_tileMap = tileMap;
 void Game::setSfxVolume(float volume) {
     m_sfxVolume = volume;
     SoundManager::getInstance().setSFXVolume(volume);

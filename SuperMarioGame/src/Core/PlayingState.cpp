@@ -1,6 +1,8 @@
 #include "Core/PlayingState.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/Game.hpp"
+#include "Core/ResourceManager.hpp"
+#include "Entities/Entity.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
@@ -30,7 +32,20 @@ PlayingState::PlayingState() = default;
 PlayingState::~PlayingState() = default;
 
 void PlayingState::enter() {
-    std::cout << "Entering PlayingState (Physics & Input Test Playground)" << std::endl;
+    std::cout << "Entering PlayingState" << std::endl;
+    
+    // Ensure HUD font is loaded in ResourceManager
+    ResourceManager& rm = ResourceManager::getInstance();
+    if (!rm.loadFont("PressStart2P", "asset/font/PressStart2P.ttf")) {
+        if (!rm.loadFont("PressStart2P", "C:/Windows/Fonts/consola.ttf")) {
+            rm.loadFont("PressStart2P", "C:/Windows/Fonts/arial.ttf");
+        }
+    }
+
+    // Initialize HUD and Level Timer
+    m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT));
+    m_levelTimer = 300.0f;
+
     setupTestScene();
 
     // Auto-save at checkpoint
@@ -133,14 +148,33 @@ void PlayingState::update(float dt) {
         }
     }
 
-    // 4. Run the physics engine (integrate velocity and resolve collisions)
+    // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
 
-    // 5. Update the Camera to follow player position and clamp to map boundaries
-    if (m_player) {
-        m_camera.follow(m_player->getPosition(), dt);
+    // 4. Sync HUD with player stats or fallback mock data
+    if (m_hud) {
+        HudData hudData;
+        hudData.timeLeft = static_cast<int>(m_levelTimer);
+        
+        if (auto* player = Game::getInstance().getPlayer()) {
+            hudData.score = player->getScore();
+            hudData.coins = player->getCoins();
+            hudData.lives = player->getLives();
+            hudData.comboCount = player->getComboCounter();
+            hudData.characterName = "MARIO";
+            hudData.starCoinsCollected = {false, false, false};
+        } else {
+            // Mockup values matching the visual reference when running the test scene
+            hudData.score = 102520;
+            hudData.coins = 57;
+            hudData.lives = 9;
+            hudData.worldMajor = 1;
+            hudData.worldMinor = 1;
+            hudData.characterName = "mario";
+            hudData.starCoinsCollected = {true, true, false}; // 2 out of 3 collected
+        }
+        m_hud->sync(hudData);
     }
-    m_camera.update(dt);
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
@@ -224,6 +258,20 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
+    // Draw the screen-space HUD overlay
+    if (m_hud) {
+        sf::View oldView = target.getView();
+        target.setView(target.getDefaultView());
+        target.draw(*m_hud);
+        target.setView(oldView);
+    }
+
+    // ImGui Panel for controlling and monitoring the physics simulation
+    ImGui::Begin("Physics Simulation (Phase 2)");
+    ImGui::Text("Simulation State:");
+    if (!m_entities.empty() && m_entities[0]) {
+        ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->getPosition().x, m_entities[0]->getPosition().y);
+        ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->getVelocity().x, m_entities[0]->getVelocity().y);
     // Draw Map Editor overlays if active
     if (m_mapEditor.isActive()) {
         m_mapEditor.render(target, m_tileMap, m_entities);

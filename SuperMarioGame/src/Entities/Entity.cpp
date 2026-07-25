@@ -19,3 +19,13 @@ sf::Vector2f Entity::getPosition() const {
 sf::Vector2f Entity::getVelocity() const {
     return velocity;
 }
+
+void Entity::setPosition(sf::Vector2f pos) {
+    position = pos;
+    boundingBox.x = pos.x;
+    boundingBox.y = pos.y;
+}
+
+void Entity::setVelocity(sf::Vector2f vel) {
+    velocity = vel;
+}

@@ -33,6 +33,16 @@ protected:
     // Friends for controlled physics write access
     friend class PhysicsEngine;
     friend class CollisionResolver;
+    friend class IMovementStrategy;
+    friend class PatrolStrategy;
+    friend class ChaseStrategy;
+    friend class FlyStrategy;
+    friend class TimerEmergenceStrategy;
+    friend class LinearStrategy;
+    friend class HammerThrowStrategy;
+    friend class TetheredChaseStrategy;
+    friend class ProximityTriggerStrategy;
+    friend int main();
 
     int health = 1;
     float speed = 0.0f;

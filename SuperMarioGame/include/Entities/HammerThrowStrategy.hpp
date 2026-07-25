@@ -1,0 +1,26 @@
+#pragma once
+
+#include "Entities/IMovementStrategy.hpp"
+#include <SFML/System/Vector2.hpp>
+#include <functional>
+
+class HammerThrowStrategy : public IMovementStrategy {
+public:
+    explicit HammerThrowStrategy(float throwCooldown = 1.5f, float jumpCooldown = 3.0f);
+    virtual ~HammerThrowStrategy() override = default;
+
+    // Callback to allow spawning projectiles without circular dependencies
+    void setThrowCallback(std::function<void(sf::Vector2f position, bool faceRight)> callback);
+
+protected:
+    void calculateTarget(Enemy& enemy, float dt) override;
+    void applyMovement(Enemy& enemy, float dt) override;
+
+private:
+    float m_throwCooldownTimer;
+    float m_jumpCooldownTimer;
+    float m_throwCooldownMax;
+    float m_jumpCooldownMax;
+
+    std::function<void(sf::Vector2f position, bool faceRight)> m_throwCallback;
+};

@@ -35,6 +35,9 @@ private:
     int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
 
+    std::unique_ptr<Hud> m_hud;
+    float m_levelTimer = 300.0f;
+
     void setupTestScene();
     void cleanupTestScene();
     void spawnSelectedPlayer(const sf::Vector2f& pos);

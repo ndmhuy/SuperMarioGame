@@ -4,6 +4,9 @@
 #include <memory>
 #include "Core/GameStateManager.hpp"
 
+class Player;
+class TileMap;
+
 class Game {
 public:
     // Delete copy/move semantics for Singleton

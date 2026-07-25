@@ -50,7 +50,14 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp"
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES}
+    src/Entities/EntityFactory.cpp
+    include/Graphics/SpriteSheet.hpp
+    src/Graphics/AnimationManager.cpp
+    include/Graphics/Animator.hpp
+    src/Graphics/Animator.cpp
+    src/Graphics/HUD.cpp
+    include/Graphics/Minimap.hpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -67,6 +74,23 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # ---------------------------------------------------------
+# 3. Verification Test Target (verify_enemies)
+# ---------------------------------------------------------
+add_executable(verify_enemies 
+    "tests/verify_enemies.cpp"
+    "src/Entities/Goomba.cpp"
+    "src/Entities/KoopaTroopa.cpp"
+    "src/Entities/KoopaParatroopa.cpp"
+    "src/Entities/Boo.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/PatrolStrategy.cpp"
+    "src/Entities/FlyStrategy.cpp"
+    "src/Entities/ChaseStrategy.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
 # 3. Test verification targets: verify_map_editor & verify_save_load
 # ---------------------------------------------------------
 list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
@@ -104,3 +128,207 @@ target_link_libraries(verify_save_load PRIVATE
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
 )
+
+target_include_directories(verify_enemies PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_enemies PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
+# ---------------------------------------------------------
+# 4. Verification Test Target (verify_blocks)
+# ---------------------------------------------------------
+add_executable(verify_blocks 
+    "tests/verify_blocks.cpp"
+    "src/Entities/Block.cpp"
+    "src/Entities/BrickBlock.cpp"
+    "src/Entities/QuestionBlock.cpp"
+    "src/Entities/Pipe.cpp"
+    "src/Entities/Flagpole.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Entities/Player.cpp"
+    "src/Entities/IPlayerState.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/Item.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+    "src/Physics/CollisionResolver.cpp"
+    "src/Physics/CollisionDetector.cpp"
+    "src/Physics/SpatialHash.cpp"
+)
+
+target_include_directories(verify_blocks PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_blocks PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
+# ---------------------------------------------------------
+# 5. Verification Test Target (verify_enemies_new - Phase 3.9)
+# ---------------------------------------------------------
+add_executable(verify_enemies_new
+    "tests/verify_enemies_new.cpp"
+    "src/Entities/PiranhaPlant.cpp"
+    "src/Entities/BulletBill.cpp"
+    "src/Entities/HammerBro.cpp"
+    "src/Entities/Thwomp.cpp"
+    "src/Entities/ChainChomp.cpp"
+    "src/Entities/Lakitu.cpp"
+    "src/Entities/Spiny.cpp"
+    "src/Entities/Enemy.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Entities/Player.cpp"
+    "src/Entities/IPlayerState.cpp"
+    "src/Entities/Item.cpp"
+    "src/Entities/PatrolStrategy.cpp"
+    "src/Entities/FlyStrategy.cpp"
+    "src/Entities/ChaseStrategy.cpp"
+    "src/Entities/LinearStrategy.cpp"
+    "src/Entities/TetheredChaseStrategy.cpp"
+    "src/Entities/ProximityTriggerStrategy.cpp"
+    "src/Entities/TimerEmergenceStrategy.cpp"
+    "src/Entities/HammerThrowStrategy.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
+
+target_include_directories(verify_enemies_new PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_enemies_new PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
+# ---------------------------------------------------------
+# 6. Verification Test Target (verify_blocks_new - Phase 3.13)
+# ---------------------------------------------------------
+add_executable(verify_blocks_new
+    "tests/verify_blocks_new.cpp"
+    "src/Entities/HiddenBlock.cpp"
+    "src/Entities/MovingPlatform.cpp"
+    "src/Entities/FallingPlatform.cpp"
+    "src/Entities/IceBlock.cpp"
+    "src/Entities/ConveyorBelt.cpp"
+    "src/Entities/Block.cpp"
+    "src/Entities/Entity.cpp"
+    "src/Entities/Character.cpp"
+    "src/Entities/Player.cpp"
+    "src/Entities/IPlayerState.cpp"
+    "src/Entities/Item.cpp"
+    "src/Core/EventBus.cpp"
+    "src/Physics/AABB.cpp"
+)
+
+target_include_directories(verify_blocks_new PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_blocks_new PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+)
+
+# ---------------------------------------------------------
+# 7. Verification Test Target (verify_graphics)
+# ---------------------------------------------------------
+add_executable(verify_graphics
+    "tests/verify_graphics.cpp"
+    "src/Graphics/SpriteSheet.cpp"
+    "src/Graphics/Animator.cpp"
+    "src/Graphics/AnimationManager.cpp"
+    "src/Core/ResourceManager.cpp"
+)
+
+target_include_directories(verify_graphics PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_graphics PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 8. Verification Test Target (verify_graphics_visual)
+# ---------------------------------------------------------
+add_executable(verify_graphics_visual
+    "tests/verify_graphics_visual.cpp"
+    "src/Graphics/SpriteSheet.cpp"
+    "src/Graphics/Animator.cpp"
+    "src/Graphics/AnimationManager.cpp"
+    "src/Core/ResourceManager.cpp"
+)
+
+target_include_directories(verify_graphics_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_graphics_visual PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 9. Verification Test Target (verify_hud_boss)
+# ---------------------------------------------------------
+add_executable(verify_hud_boss
+    "tests/verify_hud_boss.cpp"
+    "src/Graphics/HUD.cpp"
+    "src/Core/ResourceManager.cpp"
+    "src/Core/EventBus.cpp"
+)
+
+target_include_directories(verify_hud_boss PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_hud_boss PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+
+
+
+

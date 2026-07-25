@@ -251,14 +251,14 @@
   - `update()` delegates fully to `aiStrategy->execute()` [v2.0]
   - `onStomped()`, `onHitByFireball()` — virtual
   - Scoring: each enemy kill grants points (configurable via JSON) [v2.0]
-- [ ] Commit: `feat: implement Enemy base class and 8 AI movement strategies`
+- [x] Commit: `feat: implement Enemy base class and 8 AI movement strategies`
 
 ### 3.8 Concrete Enemies (Original)
 - [x] Create [Goomba.hpp/.cpp](SuperMarioGame/include/Entities/Goomba.hpp) — PatrolStrategy, variant support (brown/red) [v2.0]
 - [x] Create [KoopaTroopa.hpp/.cpp](SuperMarioGame/include/Entities/KoopaTroopa.hpp) — PatrolStrategy, shell state, variant support [v2.0]
 - [x] Create [KoopaParatroopa.hpp/.cpp](SuperMarioGame/include/Entities/KoopaParatroopa.hpp) — FlyStrategy, variant support [v2.0]
 - [x] Create [Boo.hpp/.cpp](SuperMarioGame/include/Entities/Boo.hpp) — ChaseStrategy, invulnerable
-- [ ] Commit: `feat: implement Goomba, KoopaTroopa, Paratroopa, Boo with variants`
+- [x] Commit: `feat: implement Goomba, KoopaTroopa, Paratroopa, Boo with variants`
 
 ### 3.9 Concrete Enemies (New in v2.0)
 - [x] Create [PiranhaPlant.hpp/.cpp](SuperMarioGame/include/Entities/PiranhaPlant.hpp) — TimerEmergenceStrategy, pipe-bound
@@ -268,7 +268,7 @@
 - [x] Create [ChainChomp.hpp/.cpp](SuperMarioGame/include/Entities/ChainChomp.hpp) — TetheredChaseStrategy, 4-tile radius
 - [x] Create [Lakitu.hpp/.cpp](SuperMarioGame/include/Entities/Lakitu.hpp) — FlyStrategy + spawns Spinies via Factory
 - [x] Create [Spiny.hpp/.cpp](SuperMarioGame/include/Entities/Spiny.hpp) — PatrolStrategy, not stompable
-- [ ] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
+- [x] Commit: `feat: implement 7 new enemy types (Piranha, Bullet, Hammer, Thwomp, Chain, Lakitu, Spiny)`
 
 ### 3.10 Items (Original)
 - [x] Create [Item.hpp](SuperMarioGame/include/Entities/Item.hpp) + [Item.cpp](SuperMarioGame/src/Entities/Item.cpp)
@@ -290,7 +290,7 @@
 - [x] Create [Block.hpp](SuperMarioGame/include/Entities/Block.hpp) + [Block.cpp](SuperMarioGame/src/Entities/Block.cpp)
   - Inherits `Entity`. `breakable` flag. `virtual onHitFromBelow(Player&)`
 - [x] Create: [BrickBlock.hpp/.cpp](SuperMarioGame/include/Entities/BrickBlock.hpp), [QuestionBlock.hpp/.cpp](SuperMarioGame/include/Entities/QuestionBlock.hpp), [Pipe.hpp/.cpp](SuperMarioGame/include/Entities/Pipe.hpp), [Flagpole.hpp/.cpp](SuperMarioGame/include/Entities/Flagpole.hpp)
-- [ ] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
+- [x] Commit: `feat: implement original 4 blocks (Brick, Question, Pipe, Flagpole)`
 
 ### 3.13 Blocks (New in v2.0)
 - [x] Create [HiddenBlock.hpp/.cpp](SuperMarioGame/include/Entities/HiddenBlock.hpp) — invisible until hit from below
@@ -298,7 +298,7 @@
 - [x] Create [FallingPlatform.hpp/.cpp](SuperMarioGame/include/Entities/FallingPlatform.hpp) — 4-state lifecycle (State pattern)
 - [x] Create [IceBlock.hpp/.cpp](SuperMarioGame/include/Entities/IceBlock.hpp) — reduced friction surface
 - [x] Create [ConveyorBelt.hpp/.cpp](SuperMarioGame/include/Entities/ConveyorBelt.hpp) — directional push force
-- [ ] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
+- [x] Commit: `feat: implement 5 new blocks (Hidden, Moving, Falling, Ice, Conveyor)`
 
 ### 3.14 Entity Factory (Factory Pattern)
 - [x] Create [EntityFactory.hpp](SuperMarioGame/include/Entities/EntityFactory.hpp) + [EntityFactory.cpp](SuperMarioGame/src/Entities/EntityFactory.cpp)
@@ -308,7 +308,7 @@
   - Config-driven entity definitions: reads from `entities.json` [v2.0]
 - [x] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt) with all entity source files
 - [x] Verify build compiles
-- [ ] Commit: `feat: implement EntityFactory for all 25+ entity types`
+- [x] Commit: `feat: implement EntityFactory for all 25+ entity types`
 - [ ] **Merge**: `git checkout dev && git merge feature/entities`
 
 ---
@@ -368,24 +368,24 @@
 > **Branch**: `git checkout -b feature/graphics dev`
 
 ### 5.1 SpriteSheet Handler
-- [ ] Create [SpriteSheet.hpp/.cpp](SuperMarioGame/include/Graphics/SpriteSheet.hpp)
-- [ ] Commit: `feat: implement SpriteSheet texture atlas handler`
+- [x] Create [SpriteSheet.hpp/.cpp](SuperMarioGame/include/Graphics/SpriteSheet.hpp)
+- [x] Commit: `feat: implement SpriteSheet texture atlas handler`
 
 ### 5.2 Animation System
-- [ ] Create [Animation.hpp/.cpp](SuperMarioGame/include/Graphics/Animation.hpp)
-- [ ] Create [AnimationManager.hpp/.cpp](SuperMarioGame/include/Graphics/AnimationManager.hpp)
+- [x] Create [Animation.hpp/.cpp](SuperMarioGame/include/Graphics/Animation.hpp)
+- [x] Create [AnimationManager.hpp/.cpp](SuperMarioGame/include/Graphics/AnimationManager.hpp)
   - Expanded animation states: wall_slide, ground_pound, swim, climb, crouch, slide, skid [v2.0]
-- [ ] Commit: `feat: implement Animation and AnimationManager`
+- [x] Commit: `feat: implement Animation and AnimationManager`
 
 ### 5.3 HUD
-- [ ] Create [HUD.hpp/.cpp](SuperMarioGame/include/Graphics/HUD.hpp)
+- [x] Create [HUD.hpp/.cpp](SuperMarioGame/include/Graphics/HUD.hpp)
   - Render overlay: Score, Coins, World, Time, Lives
   - Combo counter display [v2.0]
   - P-Switch timer bar [v2.0]
   - Boss health bar [v2.0]
   - Star coin indicators [v2.0]
   - Floating score text [v2.0]
-- [ ] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
+- [x] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
 
 ### 5.4 Minimap [v2.0]
 - [ ] Create [Minimap.hpp/.cpp](SuperMarioGame/include/Graphics/Minimap.hpp)

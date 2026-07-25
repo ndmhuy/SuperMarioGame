@@ -7,6 +7,7 @@ class Character;
 class Enemy;
 class Player;
 class Item;
+class Block;
 
 class CollisionResolver {
 public:
@@ -21,4 +22,5 @@ public:
     void resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info);
     void resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info);
     void resolvePlayerVsPlayer(Player& p1, Player& p2, const CollisionInfo& info);
+    void resolveCharacterVsBlock(Character& character, Block& block, const CollisionInfo& info);
 };
