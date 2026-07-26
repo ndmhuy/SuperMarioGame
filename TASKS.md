@@ -388,10 +388,10 @@
 - [x] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
 
 ### 5.4 Minimap [v2.0]
-- [ ] Create [Minimap.hpp/.cpp](SuperMarioGame/include/Graphics/Minimap.hpp)
+- [x] Create [Minimap.hpp/.cpp](SuperMarioGame/include/Graphics/Minimap.hpp)
   - 200×40 pixel overview, toggleable with M key
   - Shows player (green), enemies (red), items (yellow)
-- [ ] Commit: `feat: implement minimap overlay`
+- [x] Commit: `feat: implement minimap overlay`
 
 ### 5.5 Parallax Background
 - [ ] Implement multi-layer background rendering

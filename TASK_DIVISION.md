@@ -136,8 +136,8 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 #### Phase 5 — Visual Systems (partial)
 - [x] **5.1** SpriteSheet Handler — `SpriteSheet.hpp/.cpp`
 - [x] **5.2** Animation System — `Animation.hpp/.cpp`, `AnimationManager.hpp/.cpp` (11+ animation states)
-- [ ] **5.3** HUD — Score, Coins, World, Time, Lives, Combo counter, P-Switch timer bar, Boss health bar, Star coin indicators, floating score text
-- [ ] **5.4** Minimap — 200×40 pixel overview, toggleable with M key
+- [x] **5.3** HUD — Score, Coins, World, Time, Lives, Combo counter, P-Switch timer bar, Boss health bar, Star coin indicators, floating score text
+- [x] **5.4** Minimap — 200×40 pixel overview, toggleable with M key
 - [ ] **5.6** Particle System — `ParticleSystem.hpp/.cpp`, object-pooled, 8+ particle types (BrickBreak, CoinSparkle, DeathPoof, Stomp, Combo, WallDust, WaterBubble, LavaEmber)
 - [x] **5.8** Entity Death Animations — Goomba squish, enemy flip, Star kill launch, player death
 - [x] **5.9** Invincibility Visual FX — Star rainbow cycling + sparkle trail, hit sprite flashing
