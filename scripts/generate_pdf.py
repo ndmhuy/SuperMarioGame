@@ -101,66 +101,62 @@ def compile_markdown_to_pdf(md_path, pdf_path):
     }
 
     code {
-        font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
-        font-size: 9pt;
-        background-color: #F7FAFC;
-        color: #C53030;
-        padding: 2px 4px;
+        background-color: #EDF2F7;
+        padding: 2px 5px;
         border-radius: 3px;
-        border: 1px solid #EDF2F7;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 9.5pt;
+        color: #805AD5;
     }
 
     pre {
-        background-color: #F7FAFC;
-        border: 1px solid #E2E8F0;
-        border-radius: 6px;
+        background-color: #1A202C;
+        color: #E2E8F0;
         padding: 12px;
+        border-radius: 5px;
         overflow-x: auto;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 9pt;
         margin-bottom: 15px;
-        page-break-inside: avoid;
     }
 
     pre code {
         background-color: transparent;
-        border: none;
-        color: #2D3748;
+        color: inherit;
         padding: 0;
-        font-size: 8.5pt;
+    }
+
+    blockquote {
+        border-left: 4px solid #3182CE;
+        background-color: #EBF8FF;
+        margin: 15px 0;
+        padding: 10px 15px;
+        color: #2C5282;
+        font-style: italic;
     }
 
     table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 15px;
         margin-bottom: 20px;
-        page-break-inside: avoid;
+        font-size: 9.5pt;
     }
 
     th {
-        background-color: #EDF2F7;
-        color: #2D3748;
-        font-weight: bold;
+        background-color: #2B6CB0;
+        color: white;
         text-align: left;
-        border: 1px solid #E2E8F0;
-        padding: 8px 12px;
-        font-size: 9.5pt;
+        padding: 8px 10px;
+        font-weight: 600;
     }
 
     td {
-        border: 1px solid #E2E8F0;
-        padding: 8px 12px;
-        font-size: 9.5pt;
+        padding: 8px 10px;
+        border-bottom: 1px solid #E2E8F0;
     }
 
-    tr:nth-child(even) td {
+    tr:nth-child(even) {
         background-color: #F7FAFC;
-    }
-
-    hr {
-        border: 0;
-        height: 1px;
-        background: #E2E8F0;
-        margin: 25px 0;
     }
 
     a {
@@ -168,8 +164,10 @@ def compile_markdown_to_pdf(md_path, pdf_path):
         text-decoration: none;
     }
 
-    a:hover {
-        text-decoration: underline;
+    hr {
+        border: none;
+        border-top: 1px solid #E2E8F0;
+        margin: 25px 0;
     }
     """
 

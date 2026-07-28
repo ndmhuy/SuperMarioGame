@@ -55,8 +55,9 @@ I guarantee my readiness to deliver this high-quality engine within the project 
 
 """
 
-out_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "25125083.md")
-base_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(os.path.abspath(__file__))
+base_dir = os.path.abspath(os.path.join(script_dir, ".."))
+out_file = os.path.join(base_dir, "25125083.md")
 
 with open(out_file, "w") as f_out:
     f_out.write(intro)

@@ -1,33 +1,6 @@
-# Build Directories
+.venv/
+__pycache__/
+*.pyc
 build/
 bin/
-out/
-cmake-build-debug/
-cmake-build-release/
-
-# IDE files
-.vs/
-.idea/
-.vscode/
-*.user
-*.suo
-*.sln
-*.vcxproj
-*.filters
-
-# Cache and OS files
-.DS_Store
-.cache/
-.DS_Store?
-*~
-lh/
-*.log
-!logs/agent_history.log
-
-# Member-specific agent profiles
-.member_profile.json
-
-# ImGui layout config
-imgui.ini
-SuperMarioGame/imgui.ini
-
+saves/

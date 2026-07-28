@@ -398,10 +398,10 @@
 - [ ] Commit: `feat: implement parallax scrolling backgrounds`
 
 ### 5.6 Particle System
-- [ ] Create [ParticleSystem.hpp/.cpp](SuperMarioGame/include/Graphics/ParticleSystem.hpp)
+- [x] Create [ParticleSystem.hpp/.cpp](SuperMarioGame/include/Graphics/ParticleSystem.hpp)
   - Object-pooled particles [v2.0]
   - Types: BrickBreak, CoinSparkle, DeathPoof, Stomp, Combo, WallDust, WaterBubble, LavaEmber [v2.0: expanded]
-- [ ] Commit: `feat: implement ParticleSystem with object pooling`
+- [x] Commit: `feat: implement ParticleSystem with object pooling`
 
 ### 5.7 Screen Transitions & Screen Shake [v2.0]
 - [ ] Implement fade-in/fade-out transitions
