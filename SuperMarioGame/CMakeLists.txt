@@ -57,7 +57,10 @@ add_executable(${PROJECT_NAME} ${SOURCES}
     include/Graphics/Animator.hpp
     src/Graphics/Animator.cpp
     src/Graphics/HUD.cpp
-    include/Graphics/Minimap.hpp)
+    include/Graphics/Minimap.hpp
+    include/Graphics/ParticleSystem.hpp
+    src/Graphics/ParticleSystem.cpp
+    include/Graphics/ParticleEmitter.hpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -344,6 +347,28 @@ target_include_directories(verify_minimap_visual PUBLIC
 )
 
 target_link_libraries(verify_minimap_visual PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 11. Verification Test Target (verify_particles_visual)
+# ---------------------------------------------------------
+add_executable(verify_particles_visual
+    "tests/verify_particles_visual.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_particles_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_particles_visual PRIVATE 
     SFML::Graphics 
     SFML::Window 
     SFML::System 

@@ -15,8 +15,6 @@ public:
     Minimap(sf::Vector2f position, sf::Vector2f size);
     ~Minimap();
 
-    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
-
     void update(float dt, const Player* player, const std::vector<std::unique_ptr<Entity>>& entityList);
 
     void initialize(const TileMap& tileMap);
@@ -27,6 +25,8 @@ private:
         Enemy,
         Item
     };
+
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
 
     sf::Vector2f m_pos, m_size;
     sf::Texture m_mapTexture;

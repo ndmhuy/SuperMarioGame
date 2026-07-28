@@ -1,0 +1,425 @@
+{
+  "frames": {
+    "Stomp": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "WallDust": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "CoinSparkle": {
+      "frame": {
+        "x": 16,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "Combo": {
+      "frame": {
+        "x": 16,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "BrickBreak": {
+      "frame": {
+        "x": 32,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "WaterBubble": {
+      "frame": {
+        "x": 48,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "DeathPoof": {
+      "frame": {
+        "x": 0,
+        "y": 16,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "LavaEmber": {
+      "frame": {
+        "x": 16,
+        "y": 16,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    }
+  },
+  "meta": {
+    "app": "Sprite Sheet Maker",
+    "version": "1.0",
+    "image": "particles.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 64,
+      "h": 64
+    },
+    "scale": "1",
+    "presets": {
+      "Stomp": {
+        "count": 6,
+        "minVelocity": [
+          -140.0,
+          -30.0
+        ],
+        "maxVelocity": [
+          140.0,
+          0.0
+        ],
+        "acceleration": [
+          0.0,
+          -30.0
+        ],
+        "startColor": [
+          220,
+          220,
+          220,
+          200
+        ],
+        "endColor": [
+          220,
+          220,
+          220,
+          0
+        ],
+        "minLifetime": 0.25,
+        "maxLifetime": 0.45,
+        "startScale": 1.0,
+        "endScale": 0.3
+      },
+      "WallDust": {
+        "count": 4,
+        "minVelocity": [
+          -30.0,
+          -30.0
+        ],
+        "maxVelocity": [
+          30.0,
+          10.0
+        ],
+        "acceleration": [
+          0.0,
+          0.0
+        ],
+        "startColor": [
+          200,
+          200,
+          200,
+          180
+        ],
+        "endColor": [
+          200,
+          200,
+          200,
+          0
+        ],
+        "minLifetime": 0.2,
+        "maxLifetime": 0.4,
+        "startScale": 0.6,
+        "endScale": 0.1
+      },
+      "CoinSparkle": {
+        "count": 8,
+        "minVelocity": [
+          -60.0,
+          -60.0
+        ],
+        "maxVelocity": [
+          60.0,
+          60.0
+        ],
+        "acceleration": [
+          0.0,
+          0.0
+        ],
+        "startColor": [
+          255,
+          215,
+          0,
+          255
+        ],
+        "endColor": [
+          255,
+          215,
+          0,
+          0
+        ],
+        "minLifetime": 0.3,
+        "maxLifetime": 0.5,
+        "startScale": 0.8,
+        "endScale": 0.1
+      },
+      "Combo": {
+        "count": 6,
+        "minVelocity": [
+          -80.0,
+          -160.0
+        ],
+        "maxVelocity": [
+          80.0,
+          -60.0
+        ],
+        "acceleration": [
+          0.0,
+          120.0
+        ],
+        "startColor": [
+          255,
+          255,
+          120,
+          255
+        ],
+        "endColor": [
+          255,
+          100,
+          255,
+          0
+        ],
+        "minLifetime": 0.5,
+        "maxLifetime": 0.9,
+        "startScale": 1.0,
+        "endScale": 0.2
+      },
+      "BrickBreak": {
+        "count": 4,
+        "minVelocity": [
+          -120.0,
+          -300.0
+        ],
+        "maxVelocity": [
+          120.0,
+          -100.0
+        ],
+        "acceleration": [
+          0.0,
+          700.0
+        ],
+        "startColor": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "endColor": [
+          255,
+          255,
+          255,
+          0
+        ],
+        "minLifetime": 0.6,
+        "maxLifetime": 0.9,
+        "startScale": 1.0,
+        "endScale": 0.4
+      },
+      "WaterBubble": {
+        "count": 3,
+        "minVelocity": [
+          -15.0,
+          -50.0
+        ],
+        "maxVelocity": [
+          15.0,
+          -20.0
+        ],
+        "acceleration": [
+          0.0,
+          -15.0
+        ],
+        "startColor": [
+          180,
+          220,
+          255,
+          180
+        ],
+        "endColor": [
+          180,
+          220,
+          255,
+          0
+        ],
+        "minLifetime": 0.8,
+        "maxLifetime": 1.4,
+        "startScale": 0.5,
+        "endScale": 0.9
+      },
+      "DeathPoof": {
+        "count": 12,
+        "minVelocity": [
+          -100.0,
+          -100.0
+        ],
+        "maxVelocity": [
+          100.0,
+          100.0
+        ],
+        "acceleration": [
+          0.0,
+          0.0
+        ],
+        "startColor": [
+          240,
+          240,
+          240,
+          255
+        ],
+        "endColor": [
+          240,
+          240,
+          240,
+          0
+        ],
+        "minLifetime": 0.4,
+        "maxLifetime": 0.7,
+        "startScale": 1.2,
+        "endScale": 0.2
+      },
+      "LavaEmber": {
+        "count": 3,
+        "minVelocity": [
+          -25.0,
+          -90.0
+        ],
+        "maxVelocity": [
+          25.0,
+          -30.0
+        ],
+        "acceleration": [
+          0.0,
+          -10.0
+        ],
+        "startColor": [
+          255,
+          120,
+          0,
+          255
+        ],
+        "endColor": [
+          255,
+          0,
+          0,
+          0
+        ],
+        "minLifetime": 0.7,
+        "maxLifetime": 1.2,
+        "startScale": 0.6,
+        "endScale": 0.1
+      }
+    }
+  }
+}
