@@ -1,10 +1,11 @@
 #include "Graphics/ParticleEmitter.hpp"
-#include <cstdlib>
+#include <random>
 
 static float randomFloat(float minVal, float maxVal) {
     if (minVal >= maxVal) return minVal;
-    float r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-    return minVal + r * (maxVal - minVal);
+    static thread_local std::mt19937 gen(std::random_device{}());
+    std::uniform_real_distribution<float> dist(minVal, maxVal);
+    return dist(gen);
 }
 
 ParticleEmitter::ParticleEmitter(const EmitterSettings& settings)
