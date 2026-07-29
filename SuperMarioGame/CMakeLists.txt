@@ -378,6 +378,28 @@ target_link_libraries(verify_particles_visual PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+# ---------------------------------------------------------
+# 12. Verification Test Target (verify_player_animation_visual)
+# ---------------------------------------------------------
+add_executable(verify_player_animation_visual
+    "tests/verify_player_animation_visual.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_player_animation_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_player_animation_visual PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
 
 
 

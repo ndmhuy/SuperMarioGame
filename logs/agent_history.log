@@ -1134,8 +1134,191 @@ Summary of Changes:
   - WallDust: startScale 0.45 -> 0.585, endScale 0.15 -> 0.195
   - WaterBubble: startScale 0.4 -> 0.52, endScale 0.7 -> 0.91
   - LavaEmber: startScale 0.5 -> 0.65, endScale 0.15 -> 0.195
+---
+[2026-07-29 09:35:00] Branch: B/feature/graphic-visual
+Prompt: Upgrade random number generation in ParticleEmitter to C++ <random> library.
+Files Modified:
+- SuperMarioGame/src/Graphics/ParticleEmitter.cpp
+Summary of Changes:
+- Replaced legacy C `rand()` with `std::mt19937` (Mersenne Twister) and `std::uniform_real_distribution<float>`.
+- Wrapped random generator in `static thread_local` for thread safety, high-precision floating point distribution, and zero allocation overhead.
 - Recompiled and verified `verify_particles_visual.exe` and `SuperMarioGame.exe` with zero errors.
 ---
+[2026-07-29 11:20:00] Branch: B/feature/graphic-visual
+Prompt: Read the sprite_list.md and generate the sprites for it. For player, stop after each player complete animation set to verify.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/players.png (NEW)
+- SuperMarioGame/assets/spriteSheet/player/players.json (NEW)
+- scripts/build_players.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Created scripts/build_players.py generator for player characters sprite sheet canvas (1024x1024 px).
+- Generated complete animation set for Mario across 6 power-up forms:
+  - Small Mario (32x32): idle, walk (3), run (3), jump, fall, crouch, slide, wall_slide, ground_pound (2), swim (2), climb (2), skid, damaged, death
+  - Super Mario (32x64): idle, walk (3), run (3), jump, fall, crouch, slide, wall_slide, ground_pound, swim, climb, skid, damaged
+  - Fire Mario (32x64): Super set + fireball shoot (1)
+  - Cape Mario (32x64): Super set + cape glide (2), swoop (1), spin attack (3)
+  - Mini Mario (16x16): idle, walk (2), jump, fall, damaged, death
+  - Mega Mario (128x128): idle, walk (2), jump
+- Generated players.json metadata mapping all Mario frames in standard test.json format.
+- Stopped after completing Mario as requested by the user for verification.
+---
+[2026-07-29 11:27:50] Branch: B/feature/graphic-visual
+Prompt: Put more detail in the sprites to better indicate the animations.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/players.png (UPDATED)
+- SuperMarioGame/assets/spriteSheet/player/players.json (UPDATED)
+- scripts/build_players.py (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Enhanced Mario pixel art detail across all 6 power-up forms with 16-bit SNES shading, eye gleams, facial expressions, and dynamic limb posing:
+  - Walk/Run stride cycles: Distinct contact, passing, and push-off leg poses + arm swings + forward dash lean + wind-blown cap tilts.
+  - Jump/Fall poses: High raised-fist leap vs spread-arm downward drop.
+  - Skid / Slide poses: Leaning back friction balance + skidding dust particles under boots.
+  - Hurt / Death poses: Squeezed eyes (>_<), open mouth, and starburst defeat recoil.
+  - Fire / Cape poses: Fireball emission aura + horizontal wingspan cape glide & 360-degree spin attack.
+---
+[2026-07-29 11:32:50] Branch: B/feature/graphic-visual
+Prompt: Why does some sprite only have heads, no body?
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/players.png (UPDATED)
+- SuperMarioGame/assets/spriteSheet/player/players.json (UPDATED)
+- scripts/build_players.py (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Identified and fixed missing pose branch condition in scripts/build_players.py where poses like 'slide', 'wall_slide', 'ground_pound', 'swim', 'climb', and 'damaged' were skipping torso/overalls/boots drawing.
+- Implemented full torso, overalls, arms, gloves, legs, and boots rendering for all 90 Mario frames across all 6 power-up forms.
+---
+[2026-07-29 14:04:30] Branch: B/feature/graphic-visual
+Prompt: Create the animation test for the player.
+Files Modified:
+- SuperMarioGame/tests/verify_player_animation_visual.cpp (NEW)
+- SuperMarioGame/CMakeLists.txt
+- logs/agent_history.log
+Summary of Changes:
+- Created interactive player animation test application in `tests/verify_player_animation_visual.cpp`.
+- Integrated `SpriteSheet` and `Animator` with `assets/spriteSheet/player/players.png` and `players.json`.
+- Implemented real-time form switching (Small, Super, Fire), interactive keyboard physics (A/D walk/run, Shift run, Space jump, Down crouch), manual state previews, scale controls, and bounding box overlay.
+- Registered target `verify_player_animation_visual` in `CMakeLists.txt` and verified clean compilation and execution.
+---
+[2026-07-29 14:08:40] Branch: B/feature/graphic-visual
+Prompt: What is the skid animation for and why does it have a grey bar with no leg ?
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/players.png (UPDATED)
+- SuperMarioGame/assets/spriteSheet/player/players.json (UPDATED)
+- scripts/build_players.py (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Answered user query: Skid animation is the direction-reversal braking action when Mario turns while running at high speed.
+- Identified cause of missing legs & grey bar: 'skid' pose was missing from the leg/boot drawing conditional block in scripts/build_players.py, and the ground dust cloud rectangle (M_DUST) was drawing without legs underneath.
+- Updated scripts/build_players.py to render full overalls, front & rear boots, and dust cloud puffs for all 'skid' frames across Small, Super, Fire, and Cape forms.
+---
+[2026-07-29 14:10:00] Branch: B/feature/graphic-visual
+Prompt: Implement the test for mini and mega mario in the same test. Add test for mario with cape too.
+Files Modified:
+- SuperMarioGame/tests/verify_player_animation_visual.cpp (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Expanded `verify_player_animation_visual.cpp` to include all 6 Mario power-up forms: Small (32x32), Super (32x64), Fire (32x64), Cape (32x64), Mini (16x16), and Mega (128x128).
+- Added animations for Cape glide/spin, Mini idle/walk/jump/fall/damaged/death, and Mega idle/walk/jump.
+- Recompiled target `verify_player_animation_visual` with 0 errors and executed visual test.
+---
+[2026-07-29 14:14:00] Branch: B/feature/graphic-visual
+Prompt: The cape should contract when crouched to follow the shoulder. The mini should have more details to improve animation visual. The mega have no arm right now.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/players.png (UPDATED)
+- SuperMarioGame/assets/spriteSheet/player/players.json (UPDATED)
+- scripts/build_players.py (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Updated Cape Mario crouch pose in scripts/build_players.py: contracted cape height and width to hug the lowered shoulder and squat posture.
+- Enhanced Mini Mario (16x16) rendering: created dedicated draw_mini_mario_detailed with pose-specific leg strides, arm swings, hurt face (>_<), and raised mini fist.
+- Added Mega Mario (128x128) arms: created dedicated draw_mega_mario_detailed rendering full giant 3D shaded arms, white gloves, shirt sleeves, and raised fist jump pose.
+- Re-generated players.png and players.json. Recompiled verify_player_animation_visual target with 0 errors.
+---
+[2026-07-29 14:18:45] Branch: B/feature/graphic-visual
+Prompt: Change the name of the json and png to another name for archiving.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/mario_players_archive.png (NEW)
+- SuperMarioGame/assets/spriteSheet/player/mario_players_archive.json (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Executed PowerShell shell copy command to create archived copies of the Mario complete animation sprite sheet:
+  - SuperMarioGame/assets/spriteSheet/player/mario_players_archive.png
+  - SuperMarioGame/assets/spriteSheet/player/mario_players_archive.json
+- Verified both archived files exist in the player sprite directory.
+---
+[2026-07-29 14:24:30] Branch: B/feature/graphic-visual
+Prompt: Create a sprite read and data extracting agent specialize in reading the sprite and extract the frame data into the json. Generate the new sprite sheet and json required in the sprite list for this sprite sheet.
+Files Modified:
+- docs/SPRITE_EXTRACTOR_AGENT.md (NEW)
+- SuperMarioGame/assets/spriteSheet/player/players.png (UPDATED)
+- SuperMarioGame/assets/spriteSheet/player/players.json (UPDATED)
+- scripts/build_players.py (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Registered `sprite_extractor` subagent with define_subagent and documented spec in `docs/SPRITE_EXTRACTOR_AGENT.md`.
+- Added Luigi complete animation set (104 frames) alongside Mario in `scripts/build_players.py` and regenerated `players.png` and `players.json` (194 total player frames).
+- Included Luigi's unique `flutter` kick (2 frames) and `double_jump` 360-degree spin flip across Small, Super, Fire, Cape, Mini, and Mega forms.
+- Recompiled `verify_player_animation_visual` with 0 errors. Stopped after completing Luigi for verification as specified in sprite_list.md rules.
+---
+[2026-07-29 14:31:00] Branch: B/feature/graphic-visual
+Prompt: Temporary stop the workflow until I proceed. Now, use the sprite extractor to extract the sprite from the sprite sheet I gave you.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/extracted/reference_sprites.png (NEW)
+- SuperMarioGame/assets/spriteSheet/extracted/reference_sprites.json (NEW)
+- scripts/extract_reference_sheet.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Paused main player generation workflow per user instruction.
+- Invoked `sprite_extractor` agent and ran `scripts/extract_reference_sheet.py` to process the user-provided reference sprite sheet (`media__1785309545978.png`).
+- Keyed out background backdrop color RGB(67, 71, 119) (`#434777`) to alpha transparency (0, 0, 0, 0).
+- Extracted 2,048 non-empty frame cells into `SuperMarioGame/assets/spriteSheet/extracted/reference_sprites.png` and generated `reference_sprites.json` metadata in standard `test.json` TexturePacker schema format.
+---
+[2026-07-29 14:33:00] Branch: B/feature/graphic-visual
+Prompt: Update scripts/extract_reference_sheet.py with PNG scanline unfiltering and tight bounding box detection.
+Files Modified:
+- scripts/extract_reference_sheet.py (UPDATED)
+- SuperMarioGame/assets/spriteSheet/extracted/reference_sprites.png (UPDATED)
+- SuperMarioGame/assets/spriteSheet/extracted/reference_sprites.json (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added pure Python PNG scanline unfiltering algorithm (Sub, Up, Average, Paeth filters) in `scripts/extract_reference_sheet.py` to handle 24-bit RGB and 32-bit RGBA reference PNGs without external dependencies.
+- Added tight bounding box calculation (`min_x, min_y, max_x, max_y`) inside non-empty grid cells.
+- Executed script and verified 2,048 frame bounding boxes extracted into `reference_sprites.png` (475,609 bytes) and `reference_sprites.json` (725,275 bytes) with 0 errors.
+---
+[2026-07-29 14:33:45] Branch: B/feature/graphic-visual
+Prompt: Save it to the spriteSheet/player_ref folder.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player_ref/reference_sprites.png (NEW)
+- SuperMarioGame/assets/spriteSheet/player_ref/reference_sprites.json (NEW)
+- scripts/extract_reference_sheet.py (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Saved extracted reference sprite sheet PNG and metadata JSON to `SuperMarioGame/assets/spriteSheet/player_ref/`.
+- Updated `out_dir` in `scripts/extract_reference_sheet.py` to target `SuperMarioGame/assets/spriteSheet/player_ref`.
+- Verified both files exist in `SuperMarioGame/assets/spriteSheet/player_ref/`.
+---
+[2026-07-29 14:36:20] Branch: B/feature/graphic-visual
+Prompt: Can you know from the frame what does it belongs to and what animation is it?
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player_ref/annotated_sprites.json (NEW)
+- scripts/analyze_reference_sections.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built `scripts/analyze_reference_sections.py` to map reference sheet geometry to character, state, and animation labels.
+- Classified all 2,048 extracted frames:
+  - Mario: 480 frames (Small, Super, Fire, Cape, Mini, Mega)
+  - Luigi: 480 frames (Small, Super, Fire, Cape, Mini, Mega + Flutter & Double Jump)
+  - Toad: 288 frames
+  - Peach: 288 frames (+ Dress Float)
+  - Item: 320 frames
+  - UI_HUD: 192 frames
+- Saved annotated metadata to `SuperMarioGame/assets/spriteSheet/player_ref/annotated_sprites.json`.
+---
+
+
+
 
 
 
