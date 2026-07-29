@@ -1123,7 +1123,19 @@ Summary of Changes:
   - WallDust: 0.45 -> 0.15
   - WaterBubble: 0.4 -> 0.7
   - LavaEmber: 0.5 -> 0.15
+---
+[2026-07-29 08:51:00] Branch: B/feature/graphic-visual
+Prompt: Increase the BrickBreak, WallDust, WaterBubble and LavaEmber particle size by about 30%
+Files Modified:
+- SuperMarioGame/src/Graphics/ParticleEmitter.cpp
+Summary of Changes:
+- Increased scale by 30% for BrickBreak, WallDust, WaterBubble, and LavaEmber in `ParticleEmitter.cpp`:
+  - BrickBreak: startScale 0.6 -> 0.78, endScale 0.3 -> 0.39
+  - WallDust: startScale 0.45 -> 0.585, endScale 0.15 -> 0.195
+  - WaterBubble: startScale 0.4 -> 0.52, endScale 0.7 -> 0.91
+  - LavaEmber: startScale 0.5 -> 0.65, endScale 0.15 -> 0.195
 - Recompiled and verified `verify_particles_visual.exe` and `SuperMarioGame.exe` with zero errors.
 ---
+
 
 

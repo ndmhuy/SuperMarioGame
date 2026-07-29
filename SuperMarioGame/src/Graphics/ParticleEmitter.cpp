@@ -54,8 +54,8 @@ void ParticleEmitter::burst(sf::Vector2f position, ParticleType type) {
             preset.endColor = sf::Color(255, 255, 255, 0);
             preset.minLifetime = 0.7f;
             preset.maxLifetime = 1.1f;
-            preset.startScale = 0.6f;
-            preset.endScale = 0.3f;
+            preset.startScale = 0.78f;
+            preset.endScale = 0.39f;
             preset.textureRect = sf::IntRect(sf::Vector2i(32, 0), sf::Vector2i(16, 16));
             break;
 
@@ -124,8 +124,8 @@ void ParticleEmitter::burst(sf::Vector2f position, ParticleType type) {
             preset.endColor = sf::Color(200, 200, 200, 0);
             preset.minLifetime = 0.35f;
             preset.maxLifetime = 0.6f;
-            preset.startScale = 0.45f;
-            preset.endScale = 0.15f;
+            preset.startScale = 0.585f;
+            preset.endScale = 0.195f;
             preset.textureRect = sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(16, 16));
             break;
 
@@ -138,8 +138,8 @@ void ParticleEmitter::burst(sf::Vector2f position, ParticleType type) {
             preset.endColor = sf::Color(180, 220, 255, 0);
             preset.minLifetime = 1.0f;
             preset.maxLifetime = 1.6f;
-            preset.startScale = 0.4f;
-            preset.endScale = 0.7f;
+            preset.startScale = 0.52f;
+            preset.endScale = 0.91f;
             preset.textureRect = sf::IntRect(sf::Vector2i(48, 0), sf::Vector2i(16, 16));
             break;
 
@@ -152,8 +152,8 @@ void ParticleEmitter::burst(sf::Vector2f position, ParticleType type) {
             preset.endColor = sf::Color(255, 0, 0, 0);   // Red transparent
             preset.minLifetime = 0.8f;
             preset.maxLifetime = 1.4f;
-            preset.startScale = 0.5f;
-            preset.endScale = 0.15f;
+            preset.startScale = 0.65f;
+            preset.endScale = 0.195f;
             preset.textureRect = sf::IntRect(sf::Vector2i(16, 16), sf::Vector2i(16, 16));
             break;
     }
