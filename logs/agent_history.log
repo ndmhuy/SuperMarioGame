@@ -1316,6 +1316,31 @@ Summary of Changes:
   - UI_HUD: 192 frames
 - Saved annotated metadata to `SuperMarioGame/assets/spriteSheet/player_ref/annotated_sprites.json`.
 ---
+[2026-08-01 12:39:37] Branch: B/feature/graphic-visual
+Prompt: I have changed the player folder. Forget the previous changes. Change the sprite names in player.json. The order is mario (done) -> luigi -> toad -> peach. The order for each player is the same, they follow the same order as mario.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/player/player.json
+- SuperMarioGame/tests/verify_player_animation_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Extracted 23 frame suffixes from Mario's defined keys in `SuperMarioGame/assets/spriteSheet/player/player.json`.
+- Mapped all 92 frame keys across Mario (indices 0..22), Luigi (indices 23..45), Toad (indices 46..68), and Peach (indices 69..91).
+- Updated asset path resolution in `verify_player_animation_visual.cpp` to load `player.png` and `player.json`.
+- Recompiled `verify_player_animation_visual` target successfully with 0 errors.
+---
+[2026-08-01 13:11:00] Branch: B/feature/graphic-visual
+Prompt: Read the player json and update the test. The jump and fall uses the same sprites as current sprite. Do note that you should flip the direction when walking because the sprite is facing left at first.
+Files Modified:
+- SuperMarioGame/tests/verify_player_animation_visual.cpp
+Summary of Changes:
+- Updated texture and metadata path resolution to `assets/spriteSheet/player/player.png` and `assets/spriteSheet/player/player.json`.
+- Mapped Small and Tiny Forms for Mario, Luigi, Toad, and Peach.
+- Implemented sprite flipping scaling rule: `scaleX = facingRight ? -renderScale : renderScale` (properly mirroring default left-facing SMB2 sprites to face right).
+- Set Jump and Fall motion states to fallback to walk/run cycles since the sheet does not define separate jump/fall sprites.
+- Recompiled and executed `verify_player_animation_visual` successfully with 0 errors.
+---
+
+
 
 
 

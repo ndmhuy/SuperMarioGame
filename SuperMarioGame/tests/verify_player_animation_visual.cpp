@@ -13,13 +13,13 @@
 #include "Graphics/Animator.hpp"
 #include "Utils/Constants.hpp"
 
-enum class FormState { Small, Super, Fire, Cape, Mini, Mega };
-enum class MotionState { Idle, Walk, Run, Jump, Fall, Crouch, Skid, Slide, WallSlide, Glide, Spin, Damaged, Death };
+enum class FormState { Small, Tiny };
+enum class MotionState { Idle, Wave, Walk, Jump, Fall, Run, Skid, Crouch, CrouchHold, Climb, Float, Death };
 
 int main() {
-    std::cout << "[VISUAL TEST] Launching Full Player Animation Visualizer (Small, Super, Fire, Cape, Mini, Mega)..." << std::endl;
+    std::cout << "[VISUAL TEST] Launching SMB2 Player Animation Visualizer (from player/player)..." << std::endl;
 
-    sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "Super Mario Full Player Animation Visualizer");
+    sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "SMB2 Player Animation Visualizer");
     window.setFramerateLimit(60);
 
     if (!ImGui::SFML::Init(window)) {
@@ -27,17 +27,17 @@ int main() {
         return 1;
     }
 
-    // Resolve resource paths
+    // Resolve resource paths for player
     ResourceManager& rm = ResourceManager::getInstance();
-    std::string pngPath = "assets/spriteSheet/player/players.png";
-    std::string jsonPath = "assets/spriteSheet/player/players.json";
-    if (!std::filesystem::exists(pngPath)) pngPath = "../assets/spriteSheet/player/players.png";
-    if (!std::filesystem::exists(pngPath)) pngPath = "../../assets/spriteSheet/player/players.png";
-    if (!std::filesystem::exists(pngPath)) pngPath = "SuperMarioGame/assets/spriteSheet/player/players.png";
+    std::string pngPath = "assets/spriteSheet/player/player.png";
+    std::string jsonPath = "assets/spriteSheet/player/player.json";
+    if (!std::filesystem::exists(pngPath)) pngPath = "../assets/spriteSheet/player/player.png";
+    if (!std::filesystem::exists(pngPath)) pngPath = "../../assets/spriteSheet/player/player.png";
+    if (!std::filesystem::exists(pngPath)) pngPath = "SuperMarioGame/assets/spriteSheet/player/player.png";
 
-    if (!std::filesystem::exists(jsonPath)) jsonPath = "../assets/spriteSheet/player/players.json";
-    if (!std::filesystem::exists(jsonPath)) jsonPath = "../../assets/spriteSheet/player/players.json";
-    if (!std::filesystem::exists(jsonPath)) jsonPath = "SuperMarioGame/assets/spriteSheet/player/players.json";
+    if (!std::filesystem::exists(jsonPath)) jsonPath = "../assets/spriteSheet/player/player.json";
+    if (!std::filesystem::exists(jsonPath)) jsonPath = "../../assets/spriteSheet/player/player.json";
+    if (!std::filesystem::exists(jsonPath)) jsonPath = "SuperMarioGame/assets/spriteSheet/player/player.json";
 
     if (!rm.loadTexture("playerTexture", pngPath)) {
         std::cerr << "[VISUAL TEST] Failed to load player texture from " << pngPath << std::endl;
@@ -49,218 +49,92 @@ int main() {
 
     // Build Animations Dictionary
     std::unordered_map<std::string, Animation> anims;
+    std::vector<std::string> characters = {"mario", "luigi", "toad", "peach"};
 
-    // --- 1. Small Mario (32x32) ---
-    anims["small_idle"] = Animation("small_idle");
-    anims["small_idle"].frameList = {{"mario_small_idle", 0.15f}};
+    for (const auto& ch : characters) {
+        // --- Small Form (SMB2 Style) ---
+        anims[ch + "_small_idle"] = Animation(ch + "_small_idle");
+        anims[ch + "_small_idle"].frameList = {{ch + "_small_idle", 0.15f}};
 
-    anims["small_walk"] = Animation("small_walk");
-    anims["small_walk"].frameList = {
-        {"mario_small_walk_0", 0.12f},
-        {"mario_small_walk_1", 0.12f},
-        {"mario_small_walk_2", 0.12f}
-    };
+        anims[ch + "_small_wave"] = Animation(ch + "_small_wave");
+        anims[ch + "_small_wave"].frameList = {{ch + "_small_wave", 0.15f}};
 
-    anims["small_run"] = Animation("small_run");
-    anims["small_run"].frameList = {
-        {"mario_small_run_0", 0.08f},
-        {"mario_small_run_1", 0.08f},
-        {"mario_small_run_2", 0.08f}
-    };
+        anims[ch + "_small_walk"] = Animation(ch + "_small_walk");
+        anims[ch + "_small_walk"].frameList = {
+            {ch + "_small_walk_0", 0.15f},
+            {ch + "_small_walk_1", 0.15f}
+        };
 
-    anims["small_jump"] = Animation("small_jump");
-    anims["small_jump"].frameList = {{"mario_small_jump", 0.15f}};
+        anims[ch + "_small_run"] = Animation(ch + "_small_run");
+        anims[ch + "_small_run"].frameList = {
+            {ch + "_small_run_0", 0.10f},
+            {ch + "_small_run_1", 0.10f}
+        };
 
-    anims["small_fall"] = Animation("small_fall");
-    anims["small_fall"].frameList = {{"mario_small_fall", 0.15f}};
+        anims[ch + "_small_skid"] = Animation(ch + "_small_skid");
+        anims[ch + "_small_skid"].frameList = {{ch + "_small_skid", 0.15f}};
 
-    anims["small_crouch"] = Animation("small_crouch");
-    anims["small_crouch"].frameList = {{"mario_small_crouch", 0.15f}};
+        anims[ch + "_small_crouch"] = Animation(ch + "_small_crouch");
+        anims[ch + "_small_crouch"].frameList = {{ch + "_small_crouch", 0.15f}};
 
-    anims["small_skid"] = Animation("small_skid");
-    anims["small_skid"].frameList = {{"mario_small_skid", 0.15f}};
+        anims[ch + "_small_crouch_hold"] = Animation(ch + "_small_crouch_hold");
+        anims[ch + "_small_crouch_hold"].frameList = {{ch + "_small_crouch_hold", 0.15f}};
 
-    anims["small_slide"] = Animation("small_slide");
-    anims["small_slide"].frameList = {{"mario_small_slide", 0.15f}};
+        anims[ch + "_small_climb"] = Animation(ch + "_small_climb");
+        anims[ch + "_small_climb"].frameList = {
+            {ch + "_small_climb_0", 0.15f},
+            {ch + "_small_climb_1", 0.15f}
+        };
 
-    anims["small_wall_slide"] = Animation("small_wall_slide");
-    anims["small_wall_slide"].frameList = {{"mario_small_wall_slide", 0.15f}};
+        anims[ch + "_small_hurt"] = Animation(ch + "_small_hurt");
+        anims[ch + "_small_hurt"].frameList = {{ch + "_small_hurt", 0.15f}};
 
-    anims["small_damaged"] = Animation("small_damaged");
-    anims["small_damaged"].frameList = {{"mario_small_damaged", 0.15f}};
+        anims[ch + "_small_death"] = Animation(ch + "_small_death");
+        anims[ch + "_small_death"].frameList = {{ch + "_death", 0.15f}};
 
-    anims["small_death"] = Animation("small_death");
-    anims["small_death"].frameList = {{"mario_small_death", 0.15f}};
+        // --- Tiny Form (SMB2 Style) ---
+        anims[ch + "_tiny_idle"] = Animation(ch + "_tiny_idle");
+        anims[ch + "_tiny_idle"].frameList = {{ch + "_tiny_walk_0", 0.15f}}; // fallback to walk_0
 
-    // --- 2. Super Mario (32x64) ---
-    anims["super_idle"] = Animation("super_idle");
-    anims["super_idle"].frameList = {{"mario_super_idle", 0.15f}};
+        anims[ch + "_tiny_wave"] = Animation(ch + "_tiny_wave");
+        anims[ch + "_tiny_wave"].frameList = {{ch + "_tiny_walk_0", 0.15f}}; // fallback to walk_0
 
-    anims["super_walk"] = Animation("super_walk");
-    anims["super_walk"].frameList = {
-        {"mario_super_walk_0", 0.12f},
-        {"mario_super_walk_1", 0.12f},
-        {"mario_super_walk_2", 0.12f}
-    };
+        anims[ch + "_tiny_walk"] = Animation(ch + "_tiny_walk");
+        anims[ch + "_tiny_walk"].frameList = {
+            {ch + "_tiny_walk_0", 0.15f},
+            {ch + "_tiny_walk_1", 0.15f}
+        };
 
-    anims["super_run"] = Animation("super_run");
-    anims["super_run"].frameList = {
-        {"mario_super_run_0", 0.08f},
-        {"mario_super_run_1", 0.08f},
-        {"mario_super_run_2", 0.08f}
-    };
+        anims[ch + "_tiny_run"] = Animation(ch + "_tiny_run");
+        anims[ch + "_tiny_run"].frameList = {
+            {ch + "_tiny_run_0", 0.10f},
+            {ch + "_tiny_run_1", 0.10f}
+        };
 
-    anims["super_jump"] = Animation("super_jump");
-    anims["super_jump"].frameList = {{"mario_super_jump", 0.15f}};
+        anims[ch + "_tiny_skid"] = Animation(ch + "_tiny_skid");
+        anims[ch + "_tiny_skid"].frameList = {{ch + "_tiny_skid", 0.15f}};
 
-    anims["super_fall"] = Animation("super_fall");
-    anims["super_fall"].frameList = {{"mario_super_fall", 0.15f}};
+        anims[ch + "_tiny_crouch"] = Animation(ch + "_tiny_crouch");
+        anims[ch + "_tiny_crouch"].frameList = {{ch + "_tiny_crouch", 0.15f}};
 
-    anims["super_crouch"] = Animation("super_crouch");
-    anims["super_crouch"].frameList = {{"mario_super_crouch", 0.15f}};
+        anims[ch + "_tiny_crouch_hold"] = Animation(ch + "_tiny_crouch_hold");
+        anims[ch + "_tiny_crouch_hold"].frameList = {{ch + "_tiny_crouch_hold", 0.15f}};
 
-    anims["super_skid"] = Animation("super_skid");
-    anims["super_skid"].frameList = {{"mario_super_skid", 0.15f}};
+        anims[ch + "_tiny_climb"] = Animation(ch + "_tiny_climb");
+        anims[ch + "_tiny_climb"].frameList = {
+            {ch + "_tiny_climb_0", 0.15f},
+            {ch + "_tiny_climb_1", 0.15f}
+        };
 
-    anims["super_slide"] = Animation("super_slide");
-    anims["super_slide"].frameList = {{"mario_super_slide", 0.15f}};
+        anims[ch + "_tiny_hurt"] = Animation(ch + "_tiny_hurt");
+        anims[ch + "_tiny_hurt"].frameList = {{ch + "_tiny_hurt", 0.15f}};
 
-    anims["super_wall_slide"] = Animation("super_wall_slide");
-    anims["super_wall_slide"].frameList = {{"mario_super_wall_slide", 0.15f}};
-
-    anims["super_damaged"] = Animation("super_damaged");
-    anims["super_damaged"].frameList = {{"mario_super_damaged", 0.15f}};
-
-    // --- 3. Fire Mario (32x64) ---
-    anims["fire_idle"] = Animation("fire_idle");
-    anims["fire_idle"].frameList = {{"mario_fire_idle", 0.15f}};
-
-    anims["fire_walk"] = Animation("fire_walk");
-    anims["fire_walk"].frameList = {
-        {"mario_fire_walk_0", 0.12f},
-        {"mario_fire_walk_1", 0.12f},
-        {"mario_fire_walk_2", 0.12f}
-    };
-
-    anims["fire_run"] = Animation("fire_run");
-    anims["fire_run"].frameList = {
-        {"mario_fire_run_0", 0.08f},
-        {"mario_fire_run_1", 0.08f},
-        {"mario_fire_run_2", 0.08f}
-    };
-
-    anims["fire_jump"] = Animation("fire_jump");
-    anims["fire_jump"].frameList = {{"mario_fire_jump", 0.15f}};
-
-    anims["fire_fall"] = Animation("fire_fall");
-    anims["fire_fall"].frameList = {{"mario_fire_fall", 0.15f}};
-
-    anims["fire_crouch"] = Animation("fire_crouch");
-    anims["fire_crouch"].frameList = {{"mario_fire_crouch", 0.15f}};
-
-    anims["fire_skid"] = Animation("fire_skid");
-    anims["fire_skid"].frameList = {{"mario_fire_skid", 0.15f}};
-
-    anims["fire_slide"] = Animation("fire_slide");
-    anims["fire_slide"].frameList = {{"mario_fire_slide", 0.15f}};
-
-    anims["fire_wall_slide"] = Animation("fire_wall_slide");
-    anims["fire_wall_slide"].frameList = {{"mario_fire_wall_slide", 0.15f}};
-
-    // --- 4. Cape Mario (32x64) ---
-    anims["cape_idle"] = Animation("cape_idle");
-    anims["cape_idle"].frameList = {{"mario_cape_idle", 0.15f}};
-
-    anims["cape_walk"] = Animation("cape_walk");
-    anims["cape_walk"].frameList = {
-        {"mario_cape_walk_0", 0.12f},
-        {"mario_cape_walk_1", 0.12f},
-        {"mario_cape_walk_2", 0.12f}
-    };
-
-    anims["cape_run"] = Animation("cape_run");
-    anims["cape_run"].frameList = {
-        {"mario_cape_run_0", 0.08f},
-        {"mario_cape_run_1", 0.08f},
-        {"mario_cape_run_2", 0.08f}
-    };
-
-    anims["cape_jump"] = Animation("cape_jump");
-    anims["cape_jump"].frameList = {{"mario_cape_jump", 0.15f}};
-
-    anims["cape_fall"] = Animation("cape_fall");
-    anims["cape_fall"].frameList = {{"mario_cape_fall", 0.15f}};
-
-    anims["cape_crouch"] = Animation("cape_crouch");
-    anims["cape_crouch"].frameList = {{"mario_cape_crouch", 0.15f}};
-
-    anims["cape_skid"] = Animation("cape_skid");
-    anims["cape_skid"].frameList = {{"mario_cape_skid", 0.15f}};
-
-    anims["cape_glide"] = Animation("cape_glide");
-    anims["cape_glide"].frameList = {
-        {"mario_cape_glide_0", 0.12f},
-        {"mario_cape_glide_1", 0.12f}
-    };
-
-    anims["cape_spin"] = Animation("cape_spin");
-    anims["cape_spin"].frameList = {
-        {"mario_cape_spin_0", 0.10f},
-        {"mario_cape_spin_1", 0.10f},
-        {"mario_cape_spin_2", 0.10f}
-    };
-
-    // --- 5. Mini Mario (16x16) ---
-    anims["mini_idle"] = Animation("mini_idle");
-    anims["mini_idle"].frameList = {{"mario_mini_idle", 0.15f}};
-
-    anims["mini_walk"] = Animation("mini_walk");
-    anims["mini_walk"].frameList = {
-        {"mario_mini_walk_0", 0.12f},
-        {"mario_mini_walk_1", 0.12f}
-    };
-
-    anims["mini_run"] = Animation("mini_run");
-    anims["mini_run"].frameList = {
-        {"mario_mini_walk_0", 0.08f},
-        {"mario_mini_walk_1", 0.08f}
-    };
-
-    anims["mini_jump"] = Animation("mini_jump");
-    anims["mini_jump"].frameList = {{"mario_mini_jump", 0.15f}};
-
-    anims["mini_fall"] = Animation("mini_fall");
-    anims["mini_fall"].frameList = {{"mario_mini_fall", 0.15f}};
-
-    anims["mini_damaged"] = Animation("mini_damaged");
-    anims["mini_damaged"].frameList = {{"mario_mini_damaged", 0.15f}};
-
-    anims["mini_death"] = Animation("mini_death");
-    anims["mini_death"].frameList = {{"mario_mini_death", 0.15f}};
-
-    // --- 6. Mega Mario (128x128) ---
-    anims["mega_idle"] = Animation("mega_idle");
-    anims["mega_idle"].frameList = {{"mario_mega_idle", 0.15f}};
-
-    anims["mega_walk"] = Animation("mega_walk");
-    anims["mega_walk"].frameList = {
-        {"mario_mega_walk_0", 0.15f},
-        {"mario_mega_walk_1", 0.15f}
-    };
-
-    anims["mega_run"] = Animation("mega_run");
-    anims["mega_run"].frameList = {
-        {"mario_mega_walk_0", 0.10f},
-        {"mario_mega_walk_1", 0.10f}
-    };
-
-    anims["mega_jump"] = Animation("mega_jump");
-    anims["mega_jump"].frameList = {{"mario_mega_jump", 0.15f}};
-
-    anims["mega_fall"] = Animation("mega_fall");
-    anims["mega_fall"].frameList = {{"mario_mega_jump", 0.15f}};
+        anims[ch + "_tiny_death"] = Animation(ch + "_tiny_death");
+        anims[ch + "_tiny_death"].frameList = {{ch + "_death", 0.15f}}; // fallback to small death
+    }
 
     // Interactive State Variables
+    std::string selectedChar = "mario";
     FormState formState = FormState::Small;
     MotionState motionState = MotionState::Idle;
 
@@ -271,7 +145,7 @@ int main() {
     bool onGround = true;
     bool manualControl = true;
     bool showBBox = true;
-    float renderScale = 2.0f;
+    float renderScale = 3.0f; // Scale up 3x for clear viewing of 16-pixel art
 
     const float groundY = 500.f;
     const float gravity = 1200.f;
@@ -343,8 +217,15 @@ int main() {
 
             // Auto-Determine Motion State
             if (!onGround) {
-                if (marioVel.y < 0.f) motionState = MotionState::Jump;
-                else motionState = MotionState::Fall;
+                // Peach float behavior: check float on descent (after completing ascent)
+                if (selectedChar == "peach" && formState == FormState::Tiny && 
+                    sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) && marioVel.y >= 0.f) {
+                    motionState = MotionState::Float;
+                    marioVel.y = 20.f; // hover slowly
+                } else {
+                    if (marioVel.y < 0.f) motionState = MotionState::Jump;
+                    else motionState = MotionState::Fall;
+                }
             } else if (isCrouching) {
                 motionState = MotionState::Crouch;
             } else if (std::abs(marioVel.x) > 0.f) {
@@ -356,33 +237,29 @@ int main() {
         }
 
         // Determine Animation Key Name
-        std::string prefix = "small_";
-        if (formState == FormState::Super) prefix = "super_";
-        else if (formState == FormState::Fire) prefix = "fire_";
-        else if (formState == FormState::Cape) prefix = "cape_";
-        else if (formState == FormState::Mini) prefix = "mini_";
-        else if (formState == FormState::Mega) prefix = "mega_";
+        std::string formStr = (formState == FormState::Small) ? "_small_" : "_tiny_";
+        std::string animKey = selectedChar + formStr + "idle";
 
-        std::string animKey = prefix + "idle";
         switch (motionState) {
-            case MotionState::Idle: animKey = prefix + "idle"; break;
-            case MotionState::Walk: animKey = prefix + "walk"; break;
-            case MotionState::Run: animKey = prefix + "run"; break;
-            case MotionState::Jump: animKey = prefix + "jump"; break;
-            case MotionState::Fall: animKey = prefix + "fall"; break;
-            case MotionState::Crouch: animKey = prefix + "crouch"; break;
-            case MotionState::Skid: animKey = prefix + "skid"; break;
-            case MotionState::Slide: animKey = prefix + "slide"; break;
-            case MotionState::WallSlide: animKey = prefix + "wall_slide"; break;
-            case MotionState::Glide: animKey = prefix + "glide"; break;
-            case MotionState::Spin: animKey = prefix + "spin"; break;
-            case MotionState::Damaged: animKey = prefix + "damaged"; break;
-            case MotionState::Death: animKey = (formState == FormState::Mini) ? "mini_death" : "small_death"; break;
+            case MotionState::Idle: animKey = selectedChar + formStr + "idle"; break;
+            case MotionState::Wave: animKey = selectedChar + formStr + "wave"; break;
+            case MotionState::Walk: animKey = selectedChar + formStr + "walk"; break;
+            case MotionState::Run: animKey = selectedChar + formStr + "run"; break;
+            case MotionState::Skid: animKey = selectedChar + formStr + "skid"; break;
+            case MotionState::Crouch: animKey = selectedChar + formStr + "crouch"; break;
+            case MotionState::CrouchHold: animKey = selectedChar + formStr + "crouch_hold"; break;
+            case MotionState::Climb: animKey = selectedChar + formStr + "climb"; break;
+            // Jump and fall map to walk per user request (uses same sprites as walk)
+            case MotionState::Jump: animKey = selectedChar + formStr + "walk"; break;
+            case MotionState::Fall: animKey = selectedChar + formStr + "walk"; break;
+            // Float maps to walk
+            case MotionState::Float: animKey = selectedChar + formStr + "walk"; break;
+            case MotionState::Death: animKey = selectedChar + "_death"; break;
         }
 
-        // Fallback for missing animations in Mini/Mega
+        // Fallback for missing animation keys
         if (anims.find(animKey) == anims.end()) {
-            animKey = prefix + "idle";
+            animKey = selectedChar + formStr + "idle";
         }
 
         if (anims.find(animKey) != anims.end()) {
@@ -391,44 +268,49 @@ int main() {
         animator.update(dt);
 
         // ImGui Controls Panel
-        ImGui::Begin("Player Animation Tester (All 6 Forms)");
+        ImGui::Begin("SMB2 Player Animation Tester");
         ImGui::Text("Use A/D (or Left/Right) to Walk/Run");
         ImGui::Text("Hold Shift to Run | Press Space to Jump | Down to Crouch");
+        if (selectedChar == "peach" && formState == FormState::Tiny) {
+            ImGui::TextColored(sf::Color::Yellow, "Hold Space in mid-air (on descent) to FLOAT!");
+        }
 
         ImGui::Separator();
-        ImGui::Text("Character Powerup Form:");
-        int currentForm = static_cast<int>(formState);
-        if (ImGui::RadioButton("Small (32x32)", &currentForm, 0)) formState = FormState::Small; ImGui::SameLine();
-        if (ImGui::RadioButton("Super (32x64)", &currentForm, 1)) formState = FormState::Super; ImGui::SameLine();
-        if (ImGui::RadioButton("Fire (32x64)", &currentForm, 2)) formState = FormState::Fire;
+        ImGui::Text("Select Character:");
+        if (ImGui::RadioButton("Mario", selectedChar == "mario")) selectedChar = "mario"; ImGui::SameLine();
+        if (ImGui::RadioButton("Luigi", selectedChar == "luigi")) selectedChar = "luigi"; ImGui::SameLine();
+        if (ImGui::RadioButton("Toad", selectedChar == "toad")) selectedChar = "toad"; ImGui::SameLine();
+        if (ImGui::RadioButton("Peach", selectedChar == "peach")) selectedChar = "peach";
 
-        if (ImGui::RadioButton("Cape (32x64)", &currentForm, 3)) formState = FormState::Cape; ImGui::SameLine();
-        if (ImGui::RadioButton("Mini (16x16)", &currentForm, 4)) formState = FormState::Mini; ImGui::SameLine();
-        if (ImGui::RadioButton("Mega (128x128)", &currentForm, 5)) formState = FormState::Mega;
+        ImGui::Separator();
+        ImGui::Text("Character Form:");
+        int currentForm = static_cast<int>(formState);
+        if (ImGui::RadioButton("Small Form", &currentForm, 0)) formState = FormState::Small; ImGui::SameLine();
+        if (ImGui::RadioButton("Tiny Form (Mini)", &currentForm, 1)) formState = FormState::Tiny;
 
         ImGui::Separator();
         ImGui::Checkbox("Enable Interactive Keyboard Physics", &manualControl);
         ImGui::Checkbox("Show Bounding Box Overlay", &showBBox);
-        ImGui::SliderFloat("Render Scale", &renderScale, 0.5f, 4.0f, "%.1fx");
+        ImGui::SliderFloat("Render Scale", &renderScale, 1.0f, 6.0f, "%.1fx");
 
         if (!manualControl) {
             ImGui::Separator();
             ImGui::Text("Manual Motion State Preview:");
             int currentMotion = static_cast<int>(motionState);
             if (ImGui::RadioButton("Idle", &currentMotion, 0)) motionState = MotionState::Idle; ImGui::SameLine();
-            if (ImGui::RadioButton("Walk", &currentMotion, 1)) motionState = MotionState::Walk; ImGui::SameLine();
-            if (ImGui::RadioButton("Run", &currentMotion, 2)) motionState = MotionState::Run; ImGui::SameLine();
-            if (ImGui::RadioButton("Jump", &currentMotion, 3)) motionState = MotionState::Jump;
+            if (ImGui::RadioButton("Wave", &currentMotion, 1)) motionState = MotionState::Wave; ImGui::SameLine();
+            if (ImGui::RadioButton("Walk", &currentMotion, 2)) motionState = MotionState::Walk; ImGui::SameLine();
+            if (ImGui::RadioButton("Jump (Walk fallback)", &currentMotion, 3)) motionState = MotionState::Jump;
 
-            if (ImGui::RadioButton("Fall", &currentMotion, 4)) motionState = MotionState::Fall; ImGui::SameLine();
-            if (ImGui::RadioButton("Crouch", &currentMotion, 5)) motionState = MotionState::Crouch; ImGui::SameLine();
+            if (ImGui::RadioButton("Fall (Walk fallback)", &currentMotion, 4)) motionState = MotionState::Fall; ImGui::SameLine();
+            if (ImGui::RadioButton("Run", &currentMotion, 5)) motionState = MotionState::Run; ImGui::SameLine();
             if (ImGui::RadioButton("Skid", &currentMotion, 6)) motionState = MotionState::Skid; ImGui::SameLine();
-            if (ImGui::RadioButton("Slide", &currentMotion, 7)) motionState = MotionState::Slide;
+            if (ImGui::RadioButton("Crouch", &currentMotion, 7)) motionState = MotionState::Crouch;
 
-            if (ImGui::RadioButton("Glide", &currentMotion, 9)) motionState = MotionState::Glide; ImGui::SameLine();
-            if (ImGui::RadioButton("Spin", &currentMotion, 10)) motionState = MotionState::Spin; ImGui::SameLine();
-            if (ImGui::RadioButton("Damaged", &currentMotion, 11)) motionState = MotionState::Damaged; ImGui::SameLine();
-            if (ImGui::RadioButton("Death", &currentMotion, 12)) motionState = MotionState::Death;
+            if (ImGui::RadioButton("Crouch Hold", &currentMotion, 8)) motionState = MotionState::CrouchHold; ImGui::SameLine();
+            if (ImGui::RadioButton("Climb", &currentMotion, 9)) motionState = MotionState::Climb; ImGui::SameLine();
+            if (ImGui::RadioButton("Float (Walk fallback)", &currentMotion, 10)) motionState = MotionState::Float; ImGui::SameLine();
+            if (ImGui::RadioButton("Death", &currentMotion, 11)) motionState = MotionState::Death;
 
             ImGui::Checkbox("Facing Right", &facingRight);
         }
@@ -454,7 +336,8 @@ int main() {
         sf::FloatRect bounds = sprite.getLocalBounds();
         sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
 
-        float scaleX = facingRight ? renderScale : -renderScale;
+        // Sprites face LEFT by default in player.png. Flip them when facing right.
+        float scaleX = facingRight ? -renderScale : renderScale;
         sprite.setScale(sf::Vector2f(scaleX, renderScale));
         sprite.setPosition(marioPos);
 
