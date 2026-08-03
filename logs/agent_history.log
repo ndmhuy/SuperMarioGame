@@ -1339,6 +1339,47 @@ Summary of Changes:
 - Set Jump and Fall motion states to fallback to walk/run cycles since the sheet does not define separate jump/fall sprites.
 - Recompiled and executed `verify_player_animation_visual` successfully with 0 errors.
 ---
+[2026-08-03 09:21:00] Branch: B/feature/graphic-visual
+Prompt: Read the sprites json of player, item and world spritesheet and create a naming convention docs.
+Files Modified:
+- docs/SPRITE_NAMING_CONVENTIONS.md (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Parsed sprite JSON keys for `player.json`, `item.json`, and `world_scenery_item.json`.
+- Documented static sprite lower snake_case naming standards.
+- Documented zero-based frame suffix rule for animations (where standalone prefix keys do not exist).
+- Documented duplication resolution rules (discarding `_0` variants where no higher indices exist, utilizing normal prefix).
+---
+[2026-08-03 09:24:00] Branch: B/feature/graphic-visual
+Prompt: how did you resolve? if you only rename, then revert it and delete one instance of the duplication part.
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/world_scenery_item/world_scenery_item.json (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Parsed and identified duplicate zero-suffix frame keys (`fence_medium_0`, `light_blue_bg_0`, `tree_white_short_0`) in `world_scenery_item.json` that pointed to independent coordinates but replicated static elements.
+- Deleted the `_0` key instances from the JSON, keeping only the canonical normal versions (`fence_medium`, `light_blue_bg`, `tree_white_short`).
+---
+[2026-08-03 20:26:15] Branch: B/feature/graphic-visual
+Prompt: Add the source of the sprite in the sprite list. It is from smb1 from mario mayhem page.
+Files Modified:
+- sprites_list.md
+- logs/agent_history.log
+Summary of Changes:
+- Added a note block at the top of `sprites_list.md` citing the source of the player, item, and world sprite sheets as the SMB1 sheets from the Mario Mayhem page.
+---
+[2026-08-03 22:30:24] Branch: B/feature/graphic-visual
+Prompt: Update the spritesheet.json in the enemy_projectile to be the same as the enemy_projectile.json, with the bullet_bill_body keep intact. In other world, change the sprites name in the target json to match with the base json (both are provided)
+Files Modified:
+- SuperMarioGame/assets/spriteSheet/enemy_projectile/spritesheet.json
+- logs/agent_history.log
+Summary of Changes:
+- Mapped all 128 frame names from `enemy_projectile.json` onto matching frame coordinates in `spritesheet.json`.
+- Kept the extra 129th frame `bullet_bill_body` (`x: 208, y: 268, w: 16, h: 16`) intact (renamed duplicate to `bullet_bill_body_2`).
+- Recompiled and verified all CMake build targets successfully with 0 errors.
+---
+
+
+
 
 
 
