@@ -1377,6 +1377,50 @@ Summary of Changes:
 - Kept the extra 129th frame `bullet_bill_body` (`x: 208, y: 268, w: 16, h: 16`) intact (renamed duplicate to `bullet_bill_body_2`).
 - Recompiled and verified all CMake build targets successfully with 0 errors.
 ---
+[2026-08-04 18:25:00] Branch: B/feature/graphic-visual
+Prompt: I have added the enemies. Check again
+Files Modified:
+- docs/SPRITE_NAMING_CONVENTIONS.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Checked the newly added `enemy_projectile` directory and confirmed `enemy_projectile.json` contains a comprehensive set of SMB1 enemies.
+- Scanned for remaining missing spec items and identified 4 missing enemies (Boo, Thwomp, Chain Chomp, Boom Boom).
+- Updated the sprite naming conventions documentation to outline the detailed prefix conventions and structure for the `enemy_projectile` sheet.
+---
+[2026-08-04 18:38:00] Branch: B/feature/graphic-visual
+Prompt: big coin should be the star coin we need.
+Files Modified:
+- docs/SPRITE_NAMING_CONVENTIONS.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Updated sprite naming conventions documentation to explicitly map the `big_coin` animation frames from the world spritesheet (`big_coin_0..2`) as the Star Coin collectible item.
+---
+[2026-08-04 19:32:44] Branch: B/feature/graphic-visual
+Prompt: Create a sprite sheet merger tool. It will merge both the image and the json (not creating 2 sprites like a sprite sheet creator) and return the new image and json
+Files Modified:
+- tools/spritesheet-merger/spritesheet_merger.html (NEW)
+- scripts/merge_spritesheets.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built the interactive Web-based Spritesheet & Metadata Merger Studio in `tools/spritesheet-merger/spritesheet_merger.html` with support for vertical/horizontal sheet stacking, automatic frame coordinate offset calculation, key collision handling, and export of both merged PNG images and merged JSON metadata files.
+- Created `scripts/merge_spritesheets.py` CLI utility script for merging sprite sheet JSON metadata files and offsetting bounding box coordinates.
+- Tested and verified execution with 0 errors.
+---
+[2026-08-05 09:55:00] Branch: B/feature/graphic-visual
+Prompt: Plan and implement the test for enemies.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt (UPDATED)
+- SuperMarioGame/tests/verify_enemies_visual.cpp (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Registered new executable target `verify_enemies_visual` in `CMakeLists.txt`.
+- Implemented `verify_enemies_visual.cpp` enabling visual testing of Goombas, Koopas, Paratroopas, Buzzy Beetles, Boos, Thwomps, Chain Chomps, Piranha Plants, Lakitus, Spinies, Cheep Cheeps, Bloopers, Bowser, and custom projectiles (Fireballs, Black/Grey Hammers, Lava Fireballs, Bullet Bills/Blasters).
+- Created ImGui controls for scale adjustment, horizontal flipping, state selection, and bounding box rendering.
+- Recompiled and executed visual test successfully with 0 errors.
+---
+
+
+
 
 
 

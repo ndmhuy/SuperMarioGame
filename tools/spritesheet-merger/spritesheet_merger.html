@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spritesheet & Metadata Merger Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(20, 27, 45, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-color: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+            --accent-hover: #0284c7;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --font-family: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(129, 140, 248, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            height: 60px;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .brand h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .brand span {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            border: none;
+            color: #0b0f19;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0284c7, #6366f1);
+            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.35);
+        }
+
+        /* Layout */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-right {
+            border-right: none;
+            border-left: 1px solid var(--panel-border);
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .sheets-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sheet-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        .sheet-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sheet-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--accent-color);
+        }
+
+        .sheet-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .btn-remove {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .btn-remove:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        /* Workspace */
+        .workspace {
+            position: relative;
+            background: #070a12;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            cursor: grab;
+        }
+
+        .canvas-container:active {
+            cursor: grabbing;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            z-index: 5;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: background 0.15s ease;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Right Panel */
+        .inspector-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .field-group {
+            margin-bottom: 12px;
+        }
+
+        .field-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .select-input, .input-text {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-main);
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .select-input option {
+            background: #111827;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+        }
+
+        .stat-label { color: var(--text-muted); }
+        .stat-val { font-family: var(--font-mono); color: var(--accent-color); font-weight: 600; }
+
+        .dropzone-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 15, 25, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 50;
+        }
+
+        .dropzone-box {
+            border: 2px dashed var(--accent-color);
+            border-radius: 12px;
+            padding: 40px 60px;
+            text-align: center;
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .dropzone-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .dropzone-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <div class="brand-icon">M</div>
+            <div>
+                <h1>Spritesheet & Metadata Merger</h1>
+                <span>Combine Images & Frame JSONs</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <input type="file" id="filePairInput" accept="image/png,application/json" multiple style="display: none;">
+            <button class="btn" onclick="document.getElementById('filePairInput').click()">➕ Add Files (PNG + JSON)</button>
+            <button class="btn btn-primary" id="btnExportImage">🖼️ Export Merged PNG</button>
+            <button class="btn btn-primary" id="btnExportJson">📄 Export Merged JSON</button>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main>
+        <!-- Left Panel: Sheet List -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Input Sheets (<span id="sheetCount">0</span>)</span>
+            </div>
+            <div class="sheets-list" id="sheetsList"></div>
+        </div>
+
+        <!-- Center Workspace Canvas -->
+        <div class="workspace" id="workspace">
+            <div class="dropzone-overlay" id="dropzone">
+                <div class="dropzone-box">
+                    <div class="dropzone-title">Drag & Drop PNG Images and JSON Files</div>
+                    <div class="dropzone-desc">Drag multiple PNG + JSON pairs to merge them into one combined sheet</div>
+                </div>
+            </div>
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="mergedCanvas"></canvas>
+            </div>
+            <div class="zoom-controls">
+                <button class="icon-btn" id="btnZoomOut">-</button>
+                <button class="icon-btn" id="btnZoomReset">100%</button>
+                <button class="icon-btn" id="btnZoomIn">+</button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Inspector & Settings -->
+        <div class="panel panel-right">
+            <div class="panel-header">
+                <span class="panel-title">Merger Settings</span>
+            </div>
+            <div class="inspector-section">
+                <div class="field-group">
+                    <label class="field-label">Layout Stacking Mode</label>
+                    <select id="selectMode" class="select-input">
+                        <option value="vertical">Vertical (Stack Below)</option>
+                        <option value="horizontal">Horizontal (Side-by-Side)</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Spacing / Padding (Pixels)</label>
+                    <input type="number" id="inputPadding" class="input-text" value="0" min="0" max="64">
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Key Conflict Resolution</label>
+                    <select id="selectCollision" class="select-input">
+                        <option value="suffix">Auto Suffix (_b, _c)</option>
+                        <option value="overwrite">Overwrite (Use Last)</option>
+                        <option value="keep">Keep First</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <span class="panel-title">Merged Output Stats</span>
+            </div>
+            <div class="inspector-section">
+                <div class="stat-box">
+                    <div class="stat-row">
+                        <span class="stat-label">Canvas Dimensions:</span>
+                        <span class="stat-val" id="statDim">0 x 0 px</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Frame Count:</span>
+                        <span class="stat-val" id="statFrames">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Combined Sheets:</span>
+                        <span class="stat-val" id="statSheets">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State
+        let sheets = []; // Array of { id, name, img, json }
+        let mergedFrames = {};
+        let mergedWidth = 0;
+        let mergedHeight = 0;
+        let zoom = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        // Elements
+        const mergedCanvas = document.getElementById('mergedCanvas');
+        const ctx = mergedCanvas.getContext('2d');
+        const dropzone = document.getElementById('dropzone');
+        const sheetsListEl = document.getElementById('sheetsList');
+        const sheetCountEl = document.getElementById('sheetCount');
+
+        // File Drag & Drop
+        window.addEventListener('dragover', (e) => e.preventDefault());
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            handleFiles(e.dataTransfer.files);
+        });
+
+        document.getElementById('filePairInput').addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            const pngs = {};
+            const jsons = {};
+
+            for (let f of files) {
+                const baseName = f.name.substring(0, f.name.lastIndexOf('.')) || f.name;
+                if (f.type.startsWith('image/')) {
+                    pngs[baseName] = f;
+                } else if (f.name.endsWith('.json')) {
+                    jsons[baseName] = f;
+                }
+            }
+
+            // Match files or load individually
+            const keys = new Set([...Object.keys(pngs), ...Object.keys(jsons)]);
+            keys.forEach(key => {
+                const imgFile = pngs[key] || Object.values(pngs)[0];
+                const jsonFile = jsons[key] || Object.values(jsons)[0];
+
+                if (imgFile || jsonFile) {
+                    loadSheetPair(key, imgFile, jsonFile);
+                }
+            });
+        }
+
+        function loadSheetPair(name, imgFile, jsonFile) {
+            const sheet = {
+                id: Date.now() + Math.random().toString(36).substr(2, 5),
+                name: name,
+                img: null,
+                json: { frames: {} }
+            };
+
+            let imgLoaded = !imgFile;
+            let jsonLoaded = !jsonFile;
+
+            const checkComplete = () => {
+                if (imgLoaded && jsonLoaded) {
+                    sheets.push(sheet);
+                    dropzone.style.display = 'none';
+                    updateSheetsList();
+                    rebuildMergedSheet();
+                }
+            };
+
+            if (imgFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        sheet.img = img;
+                        imgLoaded = true;
+                        checkComplete();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(imgFile);
+            }
+
+            if (jsonFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        sheet.json = JSON.parse(e.target.result);
+                        if (!sheet.json.frames) sheet.json.frames = {};
+                    } catch (err) {
+                        console.error("JSON parse error:", err);
+                    }
+                    jsonLoaded = true;
+                    checkComplete();
+                };
+                reader.readAsText(jsonFile);
+            }
+        }
+
+        function updateSheetsList() {
+            sheetsListEl.innerHTML = '';
+            sheetCountEl.innerText = sheets.length;
+
+            sheets.forEach((sheet, idx) => {
+                const frameCount = Object.keys(sheet.json.frames || {}).length;
+                const w = sheet.img ? sheet.img.width : 0;
+                const h = sheet.img ? sheet.img.height : 0;
+
+                const card = document.createElement('div');
+                card.className = 'sheet-card';
+                card.innerHTML = `
+                    <div class="sheet-header">
+                        <span class="sheet-name">#${idx + 1} ${sheet.name}</span>
+                        <button class="btn-remove" onclick="removeSheet('${sheet.id}')">✕</button>
+                    </div>
+                    <div class="sheet-meta">Size: ${w}x${h} px | Frames: ${frameCount}</div>
+                `;
+                sheetsListEl.appendChild(card);
+            });
+        }
+
+        function removeSheet(id) {
+            sheets = sheets.filter(s => s.id !== id);
+            if (sheets.length === 0) dropzone.style.display = 'flex';
+            updateSheetsList();
+            rebuildMergedSheet();
+        }
+
+        // Merge Logic
+        function rebuildMergedSheet() {
+            if (sheets.length === 0) {
+                mergedWidth = 0;
+                mergedHeight = 0;
+                mergedFrames = {};
+                renderCanvas();
+                updateStats();
+                return;
+            }
+
+            const mode = document.getElementById('selectMode').value;
+            const padding = parseInt(document.getElementById('inputPadding').value) || 0;
+            const collisionMode = document.getElementById('selectCollision').value;
+
+            mergedFrames = {};
+
+            if (mode === 'vertical') {
+                mergedWidth = Math.max(...sheets.map(s => s.img ? s.img.width : 0));
+                let currentY = 0;
+
+                sheets.forEach(sheet => {
+                    if (!sheet.img) return;
+
+                    const frames = sheet.json.frames || {};
+                    for (let key in frames) {
+                        let finalKey = key;
+                        if (mergedFrames[finalKey]) {
+                            if (collisionMode === 'suffix') finalKey = `${key}_${sheet.name}`;
+                            else if (collisionMode === 'keep') continue;
+                        }
+
+                        const origFrame = frames[key].frame;
+                        const newFrame = {
+                            x: origFrame.x,
+                            y: origFrame.y + currentY,
+                            w: origFrame.w,
+                            h: origFrame.h
+                        };
+
+                        mergedFrames[finalKey] = {
+                            ...frames[key],
+                            frame: newFrame
+                        };
+                    }
+
+                    currentY += sheet.img.height + padding;
+                });
+
+                mergedHeight = currentY > 0 ? currentY - padding : 0;
+
+            } else { // horizontal
+                mergedHeight = Math.max(...sheets.map(s => s.img ? s.img.height : 0));
+                let currentX = 0;
+
+                sheets.forEach(sheet => {
+                    if (!sheet.img) return;
+
+                    const frames = sheet.json.frames || {};
+                    for (let key in frames) {
+                        let finalKey = key;
+                        if (mergedFrames[finalKey]) {
+                            if (collisionMode === 'suffix') finalKey = `${key}_${sheet.name}`;
+                            else if (collisionMode === 'keep') continue;
+                        }
+
+                        const origFrame = frames[key].frame;
+                        const newFrame = {
+                            x: origFrame.x + currentX,
+                            y: origFrame.y,
+                            w: origFrame.w,
+                            h: origFrame.h
+                        };
+
+                        mergedFrames[finalKey] = {
+                            ...frames[key],
+                            frame: newFrame
+                        };
+                    }
+
+                    currentX += sheet.img.width + padding;
+                });
+
+                mergedWidth = currentX > 0 ? currentX - padding : 0;
+            }
+
+            // Canvas size
+            mergedCanvas.width = mergedWidth || 1;
+            mergedCanvas.height = mergedHeight || 1;
+
+            renderCanvas();
+            updateStats();
+        }
+
+        function renderCanvas() {
+            ctx.clearRect(0, 0, mergedCanvas.width, mergedCanvas.height);
+            if (sheets.length === 0) return;
+
+            const mode = document.getElementById('selectMode').value;
+            const padding = parseInt(document.getElementById('inputPadding').value) || 0;
+
+            let currentX = 0;
+            let currentY = 0;
+
+            sheets.forEach(sheet => {
+                if (!sheet.img) return;
+
+                ctx.drawImage(sheet.img, currentX, currentY);
+
+                if (mode === 'vertical') {
+                    currentY += sheet.img.height + padding;
+                } else {
+                    currentX += sheet.img.width + padding;
+                }
+            });
+
+            // Draw bounding boxes for merged frames
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+            for (let key in mergedFrames) {
+                const f = mergedFrames[key].frame;
+                ctx.strokeRect(f.x, f.y, f.w, f.h);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('statDim').innerText = `${mergedWidth} x ${mergedHeight} px`;
+            document.getElementById('statFrames').innerText = Object.keys(mergedFrames).length;
+            document.getElementById('statSheets').innerText = sheets.length;
+        }
+
+        // Settings Change Listeners
+        document.getElementById('selectMode').addEventListener('change', () => rebuildMergedSheet());
+        document.getElementById('inputPadding').addEventListener('input', () => rebuildMergedSheet());
+        document.getElementById('selectCollision').addEventListener('change', () => rebuildMergedSheet());
+
+        // Zoom & Pan
+        const workspace = document.getElementById('workspace');
+        workspace.addEventListener('wheel', (e) => {
+            if (sheets.length === 0) return;
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 1.15 : 0.85;
+            zoom = Math.min(Math.max(zoom * delta, 0.2), 10.0);
+            updateCanvasTransform();
+        });
+
+        workspace.addEventListener('mousedown', (e) => {
+            if (e.button === 1 || e.spaceKey) {
+                isDragging = true;
+                dragStartX = e.clientX - panX;
+                dragStartY = e.clientY - panY;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                panX = e.clientX - dragStartX;
+                panY = e.clientY - dragStartY;
+                updateCanvasTransform();
+            }
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        document.getElementById('btnZoomIn').onclick = () => { zoom *= 1.2; updateCanvasTransform(); };
+        document.getElementById('btnZoomOut').onclick = () => { zoom /= 1.2; updateCanvasTransform(); };
+        document.getElementById('btnZoomReset').onclick = () => { zoom = 1.0; panX = 0; panY = 0; updateCanvasTransform(); };
+
+        function updateCanvasTransform() {
+            const container = document.getElementById('canvasContainer');
+            container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            document.getElementById('btnZoomReset').innerText = `${Math.round(zoom * 100)}%`;
+        }
+
+        // Export Actions
+        document.getElementById('btnExportImage').onclick = () => {
+            if (sheets.length === 0) return alert('Load at least one sprite sheet pair first!');
+            const link = document.createElement('a');
+            link.download = 'merged_spritesheet.png';
+            link.href = mergedCanvas.toDataURL('image/png');
+            link.click();
+        };
+
+        document.getElementById('btnExportJson').onclick = () => {
+            if (sheets.length === 0) return alert('Load at least one sprite sheet pair first!');
+            const outputJson = {
+                frames: mergedFrames,
+                meta: {
+                    app: "Spritesheet Merger Studio",
+                    version: "1.0",
+                    image: "merged_spritesheet.png",
+                    size: { w: mergedWidth, h: mergedHeight }
+                }
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(outputJson, null, 2));
+            const link = document.createElement('a');
+            link.download = 'merged_spritesheet.json';
+            link.href = dataStr;
+            link.click();
+        };
+    </script>
+</body>
+</html>
