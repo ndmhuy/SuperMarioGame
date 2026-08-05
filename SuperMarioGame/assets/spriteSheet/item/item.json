@@ -1,9 +1,209 @@
 {
   "frames": {
-    "fire_flower_green_0": {
+    "p_switch_normal": {
       "frame": {
         "x": 1,
         "y": 1,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "p_switch_pressed": {
+      "frame": {
+        "x": 18,
+        "y": 1,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_0": {
+      "frame": {
+        "x": 1,
+        "y": 20,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_1": {
+      "frame": {
+        "x": 18,
+        "y": 20,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_2": {
+      "frame": {
+        "x": 35,
+        "y": 20,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_3": {
+      "frame": {
+        "x": 52,
+        "y": 20,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_4": {
+      "frame": {
+        "x": 1,
+        "y": 37,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_5": {
+      "frame": {
+        "x": 18,
+        "y": 37,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_6": {
+      "frame": {
+        "x": 35,
+        "y": 37,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "pow_block_7": {
+      "frame": {
+        "x": 52,
+        "y": 37,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "fire_flower_green_0": {
+      "frame": {
+        "x": 1,
+        "y": 56,
         "w": 16,
         "h": 16
       },
@@ -23,7 +223,7 @@
     "fire_flower_green_1": {
       "frame": {
         "x": 50,
-        "y": 1,
+        "y": 56,
         "w": 16,
         "h": 16
       },
@@ -43,7 +243,7 @@
     "fire_flower_green_2": {
       "frame": {
         "x": 99,
-        "y": 1,
+        "y": 56,
         "w": 16,
         "h": 16
       },
@@ -63,7 +263,7 @@
     "fire_flower_green_3": {
       "frame": {
         "x": 124,
-        "y": 1,
+        "y": 56,
         "w": 16,
         "h": 16
       },
@@ -83,7 +283,7 @@
     "fire_flower_blue_0": {
       "frame": {
         "x": 1,
-        "y": 18,
+        "y": 73,
         "w": 16,
         "h": 16
       },
@@ -103,7 +303,7 @@
     "fire_flower_blue_1": {
       "frame": {
         "x": 50,
-        "y": 18,
+        "y": 73,
         "w": 16,
         "h": 16
       },
@@ -123,7 +323,7 @@
     "fire_flower_blue_2": {
       "frame": {
         "x": 99,
-        "y": 18,
+        "y": 73,
         "w": 16,
         "h": 16
       },
@@ -143,7 +343,7 @@
     "fire_flower_blue_3": {
       "frame": {
         "x": 124,
-        "y": 18,
+        "y": 73,
         "w": 16,
         "h": 16
       },
@@ -163,7 +363,7 @@
     "star_0": {
       "frame": {
         "x": 1,
-        "y": 35,
+        "y": 90,
         "w": 14,
         "h": 16
       },
@@ -183,7 +383,7 @@
     "star_1": {
       "frame": {
         "x": 50,
-        "y": 35,
+        "y": 90,
         "w": 14,
         "h": 16
       },
@@ -203,7 +403,7 @@
     "star_2": {
       "frame": {
         "x": 99,
-        "y": 35,
+        "y": 90,
         "w": 14,
         "h": 16
       },
@@ -223,7 +423,7 @@
     "star_3": {
       "frame": {
         "x": 124,
-        "y": 35,
+        "y": 90,
         "w": 14,
         "h": 16
       },
@@ -243,7 +443,7 @@
     "coin_0": {
       "frame": {
         "x": 1,
-        "y": 52,
+        "y": 107,
         "w": 8,
         "h": 14
       },
@@ -263,7 +463,7 @@
     "coin_1": {
       "frame": {
         "x": 50,
-        "y": 52,
+        "y": 107,
         "w": 4,
         "h": 14
       },
@@ -283,7 +483,7 @@
     "coin_2": {
       "frame": {
         "x": 99,
-        "y": 52,
+        "y": 107,
         "w": 1,
         "h": 14
       },
@@ -303,7 +503,7 @@
     "coin_3": {
       "frame": {
         "x": 124,
-        "y": 52,
+        "y": 107,
         "w": 4,
         "h": 14
       },
@@ -323,7 +523,7 @@
     "princess": {
       "frame": {
         "x": 1,
-        "y": 67,
+        "y": 122,
         "w": 14,
         "h": 24
       },
@@ -343,7 +543,7 @@
     "question_block_0": {
       "frame": {
         "x": 50,
-        "y": 67,
+        "y": 122,
         "w": 15,
         "h": 15
       },
@@ -363,7 +563,7 @@
     "question_block_1": {
       "frame": {
         "x": 99,
-        "y": 67,
+        "y": 122,
         "w": 15,
         "h": 15
       },
@@ -383,7 +583,7 @@
     "question_block_2": {
       "frame": {
         "x": 124,
-        "y": 67,
+        "y": 122,
         "w": 15,
         "h": 15
       },
@@ -403,7 +603,7 @@
     "trampoline_extended": {
       "frame": {
         "x": 1,
-        "y": 92,
+        "y": 147,
         "w": 16,
         "h": 24
       },
@@ -423,7 +623,7 @@
     "trampoline": {
       "frame": {
         "x": 50,
-        "y": 92,
+        "y": 147,
         "w": 16,
         "h": 16
       },
@@ -443,7 +643,7 @@
     "trampoline_squished": {
       "frame": {
         "x": 99,
-        "y": 92,
+        "y": 147,
         "w": 16,
         "h": 8
       },
@@ -463,7 +663,7 @@
     "vine_top": {
       "frame": {
         "x": 124,
-        "y": 92,
+        "y": 147,
         "w": 8,
         "h": 9
       },
@@ -483,7 +683,7 @@
     "vine_body": {
       "frame": {
         "x": 1,
-        "y": 117,
+        "y": 172,
         "w": 14,
         "h": 16
       },
@@ -503,7 +703,7 @@
     "toad_npc": {
       "frame": {
         "x": 50,
-        "y": 117,
+        "y": 172,
         "w": 16,
         "h": 24
       },
@@ -523,7 +723,7 @@
     "platform_short": {
       "frame": {
         "x": 99,
-        "y": 117,
+        "y": 172,
         "w": 24,
         "h": 8
       },
@@ -543,7 +743,7 @@
     "platform_medium": {
       "frame": {
         "x": 124,
-        "y": 117,
+        "y": 172,
         "w": 32,
         "h": 8
       },
@@ -563,7 +763,7 @@
     "platform_long": {
       "frame": {
         "x": 1,
-        "y": 142,
+        "y": 197,
         "w": 48,
         "h": 8
       },
@@ -583,7 +783,7 @@
     "moving_platform": {
       "frame": {
         "x": 50,
-        "y": 142,
+        "y": 197,
         "w": 48,
         "h": 8
       },
@@ -603,7 +803,7 @@
     "super_mushroom": {
       "frame": {
         "x": 99,
-        "y": 142,
+        "y": 197,
         "w": 16,
         "h": 16
       },
@@ -623,7 +823,87 @@
     "one_up_mushroom": {
       "frame": {
         "x": 124,
-        "y": 142,
+        "y": 197,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "falling_platform_long": {
+      "frame": {
+        "x": 1,
+        "y": 216,
+        "w": 48,
+        "h": 8
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 8
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 8
+      }
+    },
+    "falling_platform_medium": {
+      "frame": {
+        "x": 50,
+        "y": 216,
+        "w": 32,
+        "h": 8
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 8
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 8
+      }
+    },
+    "falling_platform_short": {
+      "frame": {
+        "x": 83,
+        "y": 216,
+        "w": 24,
+        "h": 8
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "sourceSize": {
+        "w": 24,
+        "h": 8
+      }
+    },
+    "Feather": {
+      "frame": {
+        "x": 1,
+        "y": 227,
         "w": 16,
         "h": 16
       },
@@ -642,14 +922,12 @@
     }
   },
   "meta": {
-    "app": "Sprite Sheet Maker",
+    "app": "Spritesheet Merger Studio",
     "version": "1.0",
-    "image": "spritesheet.png",
-    "format": "RGBA8888",
+    "image": "merged_spritesheet.png",
     "size": {
       "w": 157,
-      "h": 159
-    },
-    "scale": "1"
+      "h": 244
+    }
   }
 }

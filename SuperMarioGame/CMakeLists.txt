@@ -400,6 +400,28 @@ target_link_libraries(verify_player_animation_visual PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+# ---------------------------------------------------------
+# 13. Verification Test Target (verify_enemies_visual)
+# ---------------------------------------------------------
+add_executable(verify_enemies_visual
+    "tests/verify_enemies_visual.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_enemies_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_enemies_visual PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
 
 
 
