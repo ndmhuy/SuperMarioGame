@@ -438,6 +438,12 @@
                         <option value="keep">Keep First</option>
                     </select>
                 </div>
+                <div class="field-group">
+                    <label class="field-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" id="chkShowOutlines" checked style="accent-color: var(--accent-color);">
+                        Show Frame Outlines in Preview
+                    </label>
+                </div>
             </div>
 
             <div class="panel-header">
@@ -506,7 +512,6 @@
                 }
             }
 
-            // Match files or load individually
             const keys = new Set([...Object.keys(pngs), ...Object.keys(jsons)]);
             keys.forEach(key => {
                 const imgFile = pngs[key] || Object.values(pngs)[0];
@@ -697,6 +702,7 @@
 
             const mode = document.getElementById('selectMode').value;
             const padding = parseInt(document.getElementById('inputPadding').value) || 0;
+            const showOutlines = document.getElementById('chkShowOutlines').checked;
 
             let currentX = 0;
             let currentY = 0;
@@ -713,12 +719,14 @@
                 }
             });
 
-            // Draw bounding boxes for merged frames
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
-            for (let key in mergedFrames) {
-                const f = mergedFrames[key].frame;
-                ctx.strokeRect(f.x, f.y, f.w, f.h);
+            // Draw bounding boxes for merged frames only if enabled in preview
+            if (showOutlines) {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+                for (let key in mergedFrames) {
+                    const f = mergedFrames[key].frame;
+                    ctx.strokeRect(f.x, f.y, f.w, f.h);
+                }
             }
         }
 
@@ -732,6 +740,7 @@
         document.getElementById('selectMode').addEventListener('change', () => rebuildMergedSheet());
         document.getElementById('inputPadding').addEventListener('input', () => rebuildMergedSheet());
         document.getElementById('selectCollision').addEventListener('change', () => rebuildMergedSheet());
+        document.getElementById('chkShowOutlines').addEventListener('change', () => renderCanvas());
 
         // Zoom & Pan
         const workspace = document.getElementById('workspace');
@@ -774,9 +783,34 @@
         // Export Actions
         document.getElementById('btnExportImage').onclick = () => {
             if (sheets.length === 0) return alert('Load at least one sprite sheet pair first!');
+
+            // Offscreen canvas for clean export without debug lines or outlines
+            const offscreen = document.createElement('canvas');
+            offscreen.width = mergedWidth || 1;
+            offscreen.height = mergedHeight || 1;
+            const oCtx = offscreen.getContext('2d');
+
+            const mode = document.getElementById('selectMode').value;
+            const padding = parseInt(document.getElementById('inputPadding').value) || 0;
+
+            let currentX = 0;
+            let currentY = 0;
+
+            sheets.forEach(sheet => {
+                if (!sheet.img) return;
+
+                oCtx.drawImage(sheet.img, currentX, currentY);
+
+                if (mode === 'vertical') {
+                    currentY += sheet.img.height + padding;
+                } else {
+                    currentX += sheet.img.width + padding;
+                }
+            });
+
             const link = document.createElement('a');
             link.download = 'merged_spritesheet.png';
-            link.href = mergedCanvas.toDataURL('image/png');
+            link.href = offscreen.toDataURL('image/png');
             link.click();
         };
 

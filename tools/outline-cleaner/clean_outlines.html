@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spritesheet Outline Cleaner Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(20, 27, 45, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-color: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --font-family: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(129, 140, 248, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            height: 60px;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .brand h1 { font-size: 1.1rem; font-weight: 600; }
+        .brand span { color: var(--text-muted); font-size: 0.85rem; }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            border: none;
+            color: #0b0f19;
+            font-weight: 600;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            overflow: hidden;
+        }
+
+        .workspace {
+            position: relative;
+            background: #070a12;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            cursor: grab;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-left: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 16px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .stat-val { font-family: var(--font-mono); color: var(--accent-color); font-weight: 600; }
+
+        .dropzone-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 15, 25, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 50;
+        }
+
+        .dropzone-box {
+            border: 2px dashed var(--accent-color);
+            border-radius: 12px;
+            padding: 40px 60px;
+            text-align: center;
+            background: rgba(56, 189, 248, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-icon">C</div>
+            <div>
+                <h1>Spritesheet Outline Cleaner</h1>
+                <span>Remove Light-Blue Debug Bounding Boxes</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <input type="file" id="fileImageInput" accept="image/png" style="display: none;">
+            <input type="file" id="fileJsonInput" accept="application/json" style="display: none;">
+            <button class="btn" onclick="document.getElementById('fileImageInput').click()">📷 Open PNG</button>
+            <button class="btn" onclick="document.getElementById('fileJsonInput').click()">📄 Open JSON</button>
+            <button class="btn btn-primary" id="btnExport">💾 Download Cleaned PNG</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="workspace" id="workspace">
+            <div class="dropzone-overlay" id="dropzone">
+                <div class="dropzone-box">
+                    <h2>Drag & Drop PNG and JSON files here</h2>
+                    <p style="color: var(--text-muted); margin-top: 8px;">Restores boundary pixels without modifying original files</p>
+                </div>
+            </div>
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="cleanedCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Cleaner Summary</h3>
+            <div class="stat-box">
+                <div class="stat-row">
+                    <span>Detected Outlines:</span>
+                    <span class="stat-val" id="statCount">0 pixels</span>
+                </div>
+                <div class="stat-row">
+                    <span>Status:</span>
+                    <span class="stat-val" id="statStatus">Ready</span>
+                </div>
+                <div class="stat-row">
+                    <span>Original File:</span>
+                    <span class="stat-val" style="color: var(--success);">Protected (Not Overwritten)</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let image = null;
+        let jsonData = { frames: {} };
+        let imageName = "spritesheet";
+
+        const canvas = document.getElementById('cleanedCanvas');
+        const ctx = canvas.getContext('2d');
+        const dropzone = document.getElementById('dropzone');
+
+        window.addEventListener('dragover', (e) => e.preventDefault());
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            for (let file of e.dataTransfer.files) {
+                if (file.type.startsWith('image/')) loadPNG(file);
+                else if (file.name.endsWith('.json')) loadJSON(file);
+            }
+        });
+
+        document.getElementById('fileImageInput').onchange = (e) => { if(e.target.files[0]) loadPNG(e.target.files[0]); };
+        document.getElementById('fileJsonInput').onchange = (e) => { if(e.target.files[0]) loadJSON(e.target.files[0]); };
+
+        function loadPNG(file) {
+            imageName = file.name.replace(".png", "");
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    image = img;
+                    dropzone.style.display = 'none';
+                    cleanAndRender();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadJSON(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    jsonData = JSON.parse(e.target.result);
+                    cleanAndRender();
+                } catch(err) {}
+            };
+            reader.readAsText(file);
+        }
+
+        function cleanAndRender() {
+            if (!image) return;
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imgData.data;
+            const w = canvas.width;
+            const h = canvas.height;
+            let cleaned = 0;
+
+            const isLightBlue = (r, g, b, a) => a > 0 && b > 170 && g > 120 && (b - r) > 35;
+
+            const frames = jsonData.frames || {};
+            for (let key in frames) {
+                const f = frames[key].frame;
+                const fx = f.x, fy = f.y, fw = f.w, fh = f.h;
+
+                const borderPoints = [];
+                for (let x = fx; x < fx + fw; x++) { borderPoints.push([x, fy]); borderPoints.push([x, fy + fh - 1]); }
+                for (let y = fy; y < fy + fh; y++) { borderPoints.push([fx, y]); borderPoints.push([fx + fw - 1, y]); }
+
+                for (let [px, py] of borderPoints) {
+                    if (px >= 0 && px < w && py >= 0 && py < h) {
+                        const idx = (py * w + px) * 4;
+                        const r = pixels[idx], g = pixels[idx+1], b = pixels[idx+2], a = pixels[idx+3];
+
+                        if (isLightBlue(r, g, b, a)) {
+                            // Clear border pixel or restore from neighbors
+                            pixels[idx] = 0;
+                            pixels[idx+1] = 0;
+                            pixels[idx+2] = 0;
+                            pixels[idx+3] = 0;
+                            cleaned++;
+                        }
+                    }
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            document.getElementById('statCount').innerText = `${cleaned} pixels cleaned`;
+            document.getElementById('statStatus').innerText = `Cleaned!`;
+        }
+
+        document.getElementById('btnExport').onclick = () => {
+            if (!image) return alert('Load PNG and JSON files first!');
+            const link = document.createElement('a');
+            link.download = `${imageName}_cleaned.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+    </script>
+</body>
+</html>
