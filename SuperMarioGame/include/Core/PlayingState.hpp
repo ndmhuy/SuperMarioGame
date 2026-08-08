@@ -8,6 +8,7 @@
 #include "Graphics/Camera.hpp"
 #include "Utils/LevelLoader.hpp"
 #include "Graphics/Hud.hpp"
+#include "Core/TimeRewindManager.hpp"
 #include <vector>
 #include <memory>
 
@@ -31,10 +32,18 @@ private:
     std::vector<std::unique_ptr<Entity>> m_entities;
     MapEditor m_mapEditor;
     EventBus::SubscriptionId m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_powerUpSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_levelCompleteSubId = static_cast<EventBus::SubscriptionId>(-1);
     Player* m_player = nullptr;
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
     int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
+    TimeRewindManager m_rewindManager;
+
+    bool m_isLevelComplete = false;
+    float m_levelCompleteTimer = 0.0f;
+    int m_levelCompletePoints = 0;
 
     std::unique_ptr<Hud> m_hud;
     float m_levelTimer = 300.0f;

@@ -4,6 +4,8 @@
 #include "Entities/Item.hpp"
 #include "Entities/Block.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/Trampoline.hpp"
+#include "Entities/Fireball.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -103,6 +105,21 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
         resolveCharacterVsBlock(*char2, *block1, flippedInfo);
         return;
     }
+
+    // 5. Fireball vs Enemy
+    auto fireball1 = dynamic_cast<Fireball*>(&e1);
+    auto fireball2 = dynamic_cast<Fireball*>(&e2);
+
+    if (fireball1 && enemy2) {
+        resolveFireballVsEnemy(*fireball1, *enemy2, info);
+        return;
+    }
+    if (enemy1 && fireball2) {
+        CollisionInfo flippedInfo = info;
+        flippedInfo.normal = -info.normal;
+        resolveFireballVsEnemy(*fireball2, *enemy1, flippedInfo);
+        return;
+    }
 }
 
 void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info) {
@@ -126,6 +143,20 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
 
 void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info) {
     if (!item.isCollected()) {
+        if (auto trampoline = dynamic_cast<Trampoline*>(&item)) {
+            // Trampoline only bounces player when landed on from above
+            if (info.normal.y == -1.0f || player.getVelocity().y >= 0.0f) {
+                trampoline->activate(player);
+            } else {
+                // Side / bottom collision acts as solid box displacement
+                player.position.x += info.normal.x * (info.overlap.x + 0.01f);
+                player.position.y += info.normal.y * (info.overlap.y + 0.01f);
+                if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
+                if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
+            }
+            return;
+        }
+
         item.activate(player);
         item.collect();
     }
@@ -193,5 +224,12 @@ void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& blo
                 block.onHitFromBelow(*player);
             }
         }
+    }
+}
+
+void CollisionResolver::resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy, const CollisionInfo& info) {
+    if (fireball.isActive() && enemy.isActive()) {
+        enemy.onHitByFireball();
+        fireball.destroy();
     }
 }

@@ -36,6 +36,7 @@
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/Fireball.hpp"
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/FallingPlatform.hpp"
@@ -131,4 +132,8 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
         default:
             return nullptr;
     }
+}
+
+std::unique_ptr<Entity> EntityFactory::createFireball(sf::Vector2f position, sf::Vector2f velocity) {
+    return std::make_unique<Fireball>(position, velocity);
 }

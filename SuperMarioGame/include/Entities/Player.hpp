@@ -49,6 +49,7 @@ public:
 
 protected:
     friend class Serializer;
+    friend class PlayingState;
     std::unique_ptr<IPlayerState> m_currentState;
 
     // Player stats — modified only through action methods or friends

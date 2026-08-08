@@ -39,17 +39,8 @@ void Player::slide() {
 void Player::shootFireball() {
     if (m_fireballCooldownTimer > 0.0f) return;
 
-    // Fireballs can only be shot if the player is in FireState
-    // Unwrap any decorators (like StarDecorator) to check the base state
-    IPlayerState* state = m_currentState.get();
-    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(state)) {
-        state = decorator->getWrappedState();
-    }
-    
-    if (state && dynamic_cast<FireState*>(state)) {
-        EventBus::getInstance().publish({EventType::PlayerShotFireball, this});
-        m_fireballCooldownTimer = 0.3f; // 0.3s cooldown between shots
-    }
+    EventBus::getInstance().publish({EventType::PlayerShotFireball, this});
+    m_fireballCooldownTimer = 0.3f; // 0.3s cooldown between shots
 }
 
 void Player::powerUp(int itemType) {

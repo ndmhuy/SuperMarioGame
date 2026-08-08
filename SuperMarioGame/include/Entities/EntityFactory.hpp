@@ -62,4 +62,5 @@ public:
 
     // Creation functions declared but not implemented here
     static std::unique_ptr<Entity> create(EntityType type, sf::Vector2f position);
+    static std::unique_ptr<Entity> createFireball(sf::Vector2f position, sf::Vector2f velocity);
 };

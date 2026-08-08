@@ -33,6 +33,7 @@ protected:
     // Friends for controlled physics write access
     friend class PhysicsEngine;
     friend class CollisionResolver;
+    friend class PlayingState;
     friend class IMovementStrategy;
     friend class PatrolStrategy;
     friend class ChaseStrategy;

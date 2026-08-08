@@ -213,6 +213,52 @@ Summary of Changes:
 - Implemented magnitude, normalize, and distance functions in MathUtils.cpp.
 - Verified compilation and successfully committed to branch feature/core-engine.
 ---
+[2026-08-08 21:03:35] Branch: A/flagpole-trampoline
+Prompt: Implement Flagpole level goal victory visuals, sliding flag animation, score scaling, level complete screen, and Trampoline spring compression visuals with directional bouncing.
+Files Modified:
+- SuperMarioGame/include/Entities/Flagpole.hpp
+- SuperMarioGame/src/Entities/Flagpole.cpp
+- SuperMarioGame/include/Entities/Trampoline.hpp
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_flagpole_trampoline.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Enhanced `Flagpole`: metallic silver pole shaft, golden top orb cap, sienna base block, and red Mario victory flag with waving animation.
+- Implemented Flagpole sliding flag animation smoothly moving downward upon collision, calculating catch height score percentage (5000, 2000, 800, 400, 100 pts), playing victory SFX, and publishing `LevelComplete` event.
+- Enhanced `Trampoline`: spring coil rendering, emerald green top cushion, spring compression animation (collapsing to 16px under impact), and directional landing check in `CollisionResolver`.
+- Added "COURSE CLEAR!" victory overlay in `PlayingState` displaying flagpole bonus and total score.
+- Added candidate fallback path resolution in `LevelLoader` and `PlayingState` so assets and fonts load cleanly regardless of CWD.
+- Added `verify_flagpole_trampoline` test target verifying 4 test cases for flagpole scoring, flag slide, trampoline compression, and top landing.
+---
+[2026-08-08 21:10:50] Branch: A/flagpole-trampoline
+Prompt: Restored Fireball entity, glowing SFML graphics, ground bouncing physics, tile collision, enemy hit mechanics, and verify_fireball integration tests after git reset.
+Files Modified:
+- SuperMarioGame/include/Entities/Fireball.hpp
+- SuperMarioGame/src/Entities/Fireball.cpp
+- SuperMarioGame/include/Entities/EntityFactory.hpp
+- SuperMarioGame/src/Entities/EntityFactory.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_fireball.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Restored `Fireball` class with multi-layered glowing SFML visuals (orange-red flame glow, golden yellow outline, bright yellow inner core, spinning spark particles).
+- Restored ground bouncing mechanics (`velocity.y = -240.0f`), horizontal movement (`350 px/s`), 3.0s lifetime expiration, and wall tile destruction.
+- Registered `EntityFactory::createFireball` and `CollisionResolver::resolveFireballVsEnemy`.
+- Restored `verify_fireball` test runner verifying 4 unit test cases (4/4 passed).
+- Re-verified `verify_flagpole_trampoline` (4/4 passed) and `verify_memento_rewind` (4/4 passed).
+- Built main `SuperMarioGame` binary target cleanly (100%).
+---
+
+
 [2026-06-12 20:30:00] Branch: dev
 Prompt: Generate the concrete command classes from the Interface in task 1.5.
 Files Modified:

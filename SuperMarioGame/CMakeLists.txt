@@ -335,15 +335,48 @@ target_link_libraries(verify_hud_boss PRIVATE
     SFML::Graphics 
     SFML::Window 
     SFML::System 
-    SFML::Audio 
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 13. Verification Test Target (verify_fireball)
+# ---------------------------------------------------------
+add_executable(verify_fireball
+    ${SOURCES}
+    tests/verify_fireball.cpp
+)
+target_include_directories(verify_fireball PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(verify_fireball PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 14. Verification Test Target (verify_flagpole_trampoline)
+# ---------------------------------------------------------
+add_executable(verify_flagpole_trampoline
+    ${SOURCES}
+    tests/verify_flagpole_trampoline.cpp
+)
+target_include_directories(verify_flagpole_trampoline PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(verify_flagpole_trampoline PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
     SFML::Network
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
 )
 
 
-
-
-
-=======
->>>>>>> 0ea4125 (docs: write Week 7 progress report (W07) with PDF and add verify_all unit test runner)

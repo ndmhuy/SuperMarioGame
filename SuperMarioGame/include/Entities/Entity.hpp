@@ -34,6 +34,7 @@ protected:
     // Friends are allowed direct write access to coordinate updates
     friend class PhysicsEngine;
     friend class CollisionResolver;
+    friend class PlayingState;
     friend class IMovementStrategy;
     friend class PatrolStrategy;
     friend class ChaseStrategy;

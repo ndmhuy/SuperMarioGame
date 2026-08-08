@@ -31,6 +31,18 @@
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
     std::ifstream file(jsonPath);
     if (!file.is_open()) {
+        std::vector<std::string> fallbacks = {
+            "SuperMarioGame/" + jsonPath,
+            "../" + jsonPath,
+            "SuperMarioGame/assets/levels/" + std::filesystem::path(jsonPath).filename().string(),
+            "assets/levels/" + std::filesystem::path(jsonPath).filename().string()
+        };
+        for (const auto& altPath : fallbacks) {
+            file.open(altPath);
+            if (file.is_open()) break;
+        }
+    }
+    if (!file.is_open()) {
         std::cerr << "[LevelLoader] Failed to open level JSON file: " << jsonPath << std::endl;
         return false;
     }

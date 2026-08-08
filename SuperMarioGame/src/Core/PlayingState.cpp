@@ -20,6 +20,9 @@
 #include "Entities/CapeFeather.hpp"
 #include "Entities/MegaMushroom.hpp"
 #include "Entities/MiniMushroom.hpp"
+#include "Entities/Fireball.hpp"
+#include "Entities/EntityFactory.hpp"
+#include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
 #include <SFML/Window/Event.hpp>
@@ -37,9 +40,19 @@ void PlayingState::enter() {
     
     // Ensure HUD font is loaded in ResourceManager
     ResourceManager& rm = ResourceManager::getInstance();
-    if (!rm.loadFont("PressStart2P", "asset/font/PressStart2P.ttf")) {
-        if (!rm.loadFont("PressStart2P", "C:/Windows/Fonts/consola.ttf")) {
-            rm.loadFont("PressStart2P", "C:/Windows/Fonts/arial.ttf");
+    std::vector<std::string> fontCandidates = {
+        "asset/font/PressStart2P.ttf",
+        "assets/fonts/PressStart2P.ttf",
+        "SuperMarioGame/asset/font/PressStart2P.ttf",
+        "SuperMarioGame/assets/fonts/PressStart2P.ttf",
+        "../asset/font/PressStart2P.ttf",
+        "../assets/fonts/PressStart2P.ttf",
+        "C:/Windows/Fonts/consola.ttf",
+        "C:/Windows/Fonts/arial.ttf"
+    };
+    for (const auto& path : fontCandidates) {
+        if (std::filesystem::exists(path)) {
+            if (rm.loadFont("PressStart2P", path)) break;
         }
     }
 
@@ -61,6 +74,31 @@ void PlayingState::enter() {
             }
         }
     });
+
+    // Fireball Shooting Event Listener
+    m_fireballSubId = EventBus::getInstance().subscribe(EventType::PlayerShotFireball, [this](const GameEvent& ev) {
+        auto* player = std::any_cast<Player*>(ev.data);
+        if (!player) return;
+
+        // Count active fireballs
+        int activeFireballs = 0;
+        for (const auto& entity : m_entities) {
+            if (dynamic_cast<Fireball*>(entity.get())) {
+                activeFireballs++;
+            }
+        }
+
+        if (activeFireballs < 2) { // Max 2 active fireballs on screen
+            float dir = player->isFacingRight() ? 1.0f : -1.0f;
+            sf::Vector2f spawnPos = player->getPosition() + sf::Vector2f(dir * 16.0f, 8.0f);
+            sf::Vector2f vel(dir * 350.0f, 50.0f);
+
+            auto fireball = EntityFactory::createFireball(spawnPos, vel);
+            m_entities.push_back(std::move(fireball));
+
+            SoundManager::getInstance().playSound("fireball");
+        }
+    });
 }
 
 void PlayingState::exit() {
@@ -71,6 +109,13 @@ void PlayingState::exit() {
         EventBus::getInstance().unsubscribe(m_checkpointSubId);
         m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
+    if (m_fireballSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_fireballSubId);
+        m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+
+    // Unregister player from InputManager to prevent dangling pointer crashes on exit
+    InputManager::getInstance().registerPlayer(nullptr, 0);
 }
 
 void PlayingState::handleInput(const sf::Event& event) {
@@ -137,6 +182,38 @@ void PlayingState::update(float dt) {
     StatisticsTracker::getInstance().update(dt);
     AchievementManager::getInstance().update(dt);
 
+    // 0. Time Rewind check (Hold R key to rewind time backwards using Memento snapshots)
+    bool rewindRequested = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R);
+
+    if (rewindRequested && m_rewindManager.hasSnapshots()) {
+        m_rewindManager.setRewinding(true);
+        GameSnapshot snapshot = m_rewindManager.popSnapshot();
+
+        m_levelTimer = snapshot.levelTimer;
+        m_camera.getView().setCenter(snapshot.cameraCenter);
+
+        if (m_player) {
+            m_player->setPosition(snapshot.playerState.position);
+            m_player->setVelocity(snapshot.playerState.velocity);
+            m_player->score = snapshot.playerState.score;
+            m_player->coins = snapshot.playerState.coins;
+            m_player->lives = snapshot.playerState.lives;
+            m_player->onGround = snapshot.playerState.onGround;
+        }
+
+        // Restore active entities states
+        for (std::size_t i = 0; i < m_entities.size() && i < snapshot.entityStates.size(); ++i) {
+            if (m_entities[i]) {
+                m_entities[i]->setPosition(snapshot.entityStates[i].position);
+                m_entities[i]->setVelocity(snapshot.entityStates[i].velocity);
+                m_entities[i]->active = snapshot.entityStates[i].active;
+            }
+        }
+        return; // Skip forward physics integration while rewinding
+    } else {
+        m_rewindManager.setRewinding(false);
+    }
+
     // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run)
     if (m_player) {
         InputManager::getInstance().update(*m_player);
@@ -175,6 +252,34 @@ void PlayingState::update(float dt) {
             hudData.starCoinsCollected = {true, true, false}; // 2 out of 3 collected
         }
         m_hud->sync(hudData);
+    }
+
+    // Record GameSnapshot Memento state at end of frame update
+    if (!m_rewindManager.isRewinding()) {
+        GameSnapshot snapshot;
+        snapshot.levelTimer = m_levelTimer;
+        snapshot.cameraCenter = m_camera.getView().getCenter();
+
+        if (m_player) {
+            snapshot.playerState.position = m_player->getPosition();
+            snapshot.playerState.velocity = m_player->getVelocity();
+            snapshot.playerState.score = m_player->getScore();
+            snapshot.playerState.coins = m_player->getCoins();
+            snapshot.playerState.lives = m_player->getLives();
+            snapshot.playerState.onGround = m_player->isOnGround();
+        }
+
+        for (const auto& entity : m_entities) {
+            if (entity) {
+                snapshot.entityStates.push_back({
+                    entity->getPosition(),
+                    entity->getVelocity(),
+                    entity->isActive()
+                });
+            }
+        }
+
+        m_rewindManager.recordSnapshot(snapshot);
     }
 }
 
@@ -264,6 +369,23 @@ void PlayingState::render(sf::RenderTarget& target) {
         sf::View oldView = target.getView();
         target.setView(target.getDefaultView());
         target.draw(*m_hud);
+
+        if (m_rewindManager.isRewinding()) {
+            sf::RectangleShape rewindBox(sf::Vector2f(360.0f, 40.0f));
+            rewindBox.setPosition({460.0f, 70.0f});
+            rewindBox.setFillColor(sf::Color(0, 0, 0, 200));
+            rewindBox.setOutlineColor(sf::Color(0, 255, 255));
+            rewindBox.setOutlineThickness(2.0f);
+            target.draw(rewindBox);
+
+            sf::Text rewindText(ResourceManager::getInstance().getFont("PressStart2P"));
+            rewindText.setString("TIME REWINDING (" + std::to_string(m_rewindManager.getSnapshotCount()) + ")");
+            rewindText.setCharacterSize(12);
+            rewindText.setFillColor(sf::Color(0, 255, 255));
+            rewindText.setPosition({475.0f, 83.0f});
+            target.draw(rewindText);
+        }
+
         target.setView(oldView);
     }
 
@@ -557,7 +679,20 @@ void PlayingState::setupTestScene() {
     else if (m_selectedLevelIndex == 2) levelPath = "assets/levels/level_3.json";
     else if (m_selectedLevelIndex == 3) levelPath = "assets/levels/bonus_1.json";
 
-    if (loader.loadLevel(levelPath, m_tileMap, levelData)) {
+    std::vector<std::string> pathCandidates = {
+        levelPath,
+        "SuperMarioGame/" + levelPath,
+        "../" + levelPath
+    };
+    std::string chosenPath = levelPath;
+    for (const auto& candidate : pathCandidates) {
+        if (std::filesystem::exists(candidate)) {
+            chosenPath = candidate;
+            break;
+        }
+    }
+
+    if (loader.loadLevel(chosenPath, m_tileMap, levelData)) {
         // Spawn active player character at the spawnPoint loaded from JSON
         spawnSelectedPlayer(levelData.spawnPoint);
         

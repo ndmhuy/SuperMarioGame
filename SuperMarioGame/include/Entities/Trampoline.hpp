@@ -11,4 +11,10 @@ public:
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
     void collect() override;
+
+    bool isCompressed() const { return m_isCompressed; }
+
+private:
+    float m_compressTimer = 0.0f;
+    bool m_isCompressed = false;
 };
