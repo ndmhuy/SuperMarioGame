@@ -25,7 +25,11 @@ enum class EventType {
   StateChanged,
   PauseToggled,
   PlayerShotFireball,
-  MinimapToggled
+  MinimapToggled,
+  POWBlockHit,
+  ThwompSlam,
+  GroundPoundSlam,
+  ScreenShakeTriggered
 };
 
 struct GameEvent {

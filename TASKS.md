@@ -404,9 +404,9 @@
 - [x] Commit: `feat: implement ParticleSystem with object pooling`
 
 ### 5.7 Screen Transitions & Screen Shake [v2.0]
-- [ ] Implement fade-in/fade-out transitions
-- [ ] Implement screen shake system (light/medium/heavy) [v2.0]
-- [ ] Commit: `feat: implement screen transitions and shake system`
+- [x] Implement fade-in/fade-out transitions
+- [x] Implement screen transitions and shake system (light/medium/heavy) [v2.0]
+- [x] Commit: `feat: implement screen transitions and shake system`
 
 ### 5.8 Entity Death Animations [v2.0]
 - [ ] Goomba squish, enemy flip, Star kill launch, player death

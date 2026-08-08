@@ -9,6 +9,7 @@ class Animator {
 public:
     explicit Animator(const SpriteSheet* spriteSheet);
 
+    void setSpriteSheet(const SpriteSheet* spriteSheet);
     void play(const Animation* animation);
     void update(float dt);
     bool isDone() const;

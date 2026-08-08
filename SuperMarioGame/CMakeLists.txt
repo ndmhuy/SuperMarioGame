@@ -50,6 +50,9 @@ file(GLOB_RECURSE SOURCES
     "src/*.cpp"
 )
 
+set(APP_SOURCES ${SOURCES})
+list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
+
 add_executable(${PROJECT_NAME} ${SOURCES}
     src/Entities/EntityFactory.cpp
     include/Graphics/SpriteSheet.hpp
@@ -287,10 +290,7 @@ target_link_libraries(verify_graphics PRIVATE
 # ---------------------------------------------------------
 add_executable(verify_graphics_visual
     "tests/verify_graphics_visual.cpp"
-    "src/Graphics/SpriteSheet.cpp"
-    "src/Graphics/Animator.cpp"
-    "src/Graphics/AnimationManager.cpp"
-    "src/Core/ResourceManager.cpp"
+    ${APP_SOURCES}
 )
 
 target_include_directories(verify_graphics_visual PUBLIC 

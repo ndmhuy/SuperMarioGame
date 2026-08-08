@@ -2,6 +2,7 @@
 #include "Entities/Enemy.hpp"
 #include "Entities/Player.hpp"
 #include "Core/Game.hpp"
+#include "Core/EventBus.hpp"
 #include <cmath>
 
 ProximityTriggerStrategy::ProximityTriggerStrategy(sf::Vector2f homePos)
@@ -53,6 +54,7 @@ void ProximityTriggerStrategy::calculateTarget(Enemy& enemy, float dt) {
             m_state = 2;
             m_timer = 0.0f;
             enemy.onGround = false; // Reset flag
+            EventBus::getInstance().publish({EventType::ThwompSlam, &enemy});
         }
     }
     else if (m_state == 2) {
