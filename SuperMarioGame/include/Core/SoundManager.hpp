@@ -4,6 +4,7 @@
 #include <vector>
 #include <SFML/Audio/Sound.hpp>
 #include <SFML/Audio/Music.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
 
 
 class SoundManager {
@@ -46,4 +47,6 @@ private:
     std::vector<sf::Sound> m_soundPool;
     sf::Music m_music;
     std::string m_musicPath;
+    
+    sf::SoundBuffer m_fallbackBuffer;
 };
