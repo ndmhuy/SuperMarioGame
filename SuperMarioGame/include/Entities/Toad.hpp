@@ -9,4 +9,5 @@ public:
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 };

@@ -8,6 +8,7 @@ public:
     virtual ~KoopaParatroopa() override = default;
 
     void update(float dt) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
     void onStomped() override;
     void onHitByFireball() override;
 

@@ -15,6 +15,16 @@ Spiny::Spiny(sf::Vector2f position)
     setStrategy(std::make_unique<PatrolStrategy>(false, false));
 }
 
+void Spiny::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("spiny");
+    m_animation.frameList = {{"spiny_move_left_0", 0.15f}, {"spiny_move_left_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Spiny::update(float dt) {
     if (m_isFlipped) {
         // Fall off screen: gravity in px/s^2 (GRAVITY = 0.5 px/frame^2 = 1800 px/s^2)

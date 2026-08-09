@@ -10,6 +10,7 @@ public:
 
     void onHitFromBelow(Player& player) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     int getItemType() const { return m_containedItemType; }
     bool isEmpty() const { return m_isEmpty; }

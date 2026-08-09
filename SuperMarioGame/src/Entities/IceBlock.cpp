@@ -14,11 +14,16 @@ void IceBlock::update(float dt) {
     Block::update(dt);
 }
 
+void IceBlock::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("ice_block");
+    m_animation.frameList = {{"solid_block_blue", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void IceBlock::render(sf::RenderTarget& target) {
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(150, 220, 255)); // Light blue color for ice
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Block::render(target);
 }

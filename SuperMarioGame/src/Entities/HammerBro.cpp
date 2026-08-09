@@ -4,12 +4,19 @@
 #include "Core/SoundManager.hpp"
 
 HammerBro::HammerBro(sf::Vector2f position)
-    : Enemy(position, 1000) {
-    boundingBox.width = 32.0f;
-    boundingBox.height = 48.0f;
-    
+    : Enemy(position, 1000, {32.0f, 48.0f}) {
     // Set AI platform patrolling and hammer throwing strategy
     setStrategy(std::make_unique<HammerThrowStrategy>());
+}
+
+void HammerBro::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("hammer_bro");
+    m_animation.frameList = {{"hammer_bros_green_move_left_0", 0.15f}, {"hammer_bros_green_move_left_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void HammerBro::onStomped() {

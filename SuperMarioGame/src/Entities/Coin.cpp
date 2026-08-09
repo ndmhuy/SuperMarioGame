@@ -8,19 +8,26 @@ Coin::Coin(sf::Vector2f pos) : Item(pos) {
 }
 
 void Coin::update(float dt) {
-    // Coins are stationary
+    Item::update(dt);
+}
+
+void Coin::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("coin");
+    m_animation.frameList = {
+        {"coin_0", 0.15f},
+        {"coin_1", 0.15f},
+        {"coin_2", 0.15f},
+        {"coin_3", 0.15f}
+    };
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void Coin::render(sf::RenderTarget& target) {
-    if (!active) return;
-    
-    // Draw gold coin circle
-    sf::CircleShape coin(boundingBox.width / 2.0f);
-    coin.setPosition(position);
-    coin.setFillColor(sf::Color(255, 215, 0)); // Gold
-    coin.setOutlineColor(sf::Color(218, 165, 32)); // Darker gold outline
-    coin.setOutlineThickness(1.0f);
-    target.draw(coin);
+    Item::render(target);
 }
 
 void Coin::activate(Player& player) {

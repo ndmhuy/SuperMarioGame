@@ -9,19 +9,26 @@ FireFlower::FireFlower(sf::Vector2f pos) : Item(pos) {
 }
 
 void FireFlower::update(float dt) {
-    // Stationary, nothing to update
+    Item::update(dt);
+}
+
+void FireFlower::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("fire_flower");
+    m_animation.frameList = {
+        {"fire_flower_green_0", 0.15f},
+        {"fire_flower_green_1", 0.15f},
+        {"fire_flower_green_2", 0.15f},
+        {"fire_flower_green_3", 0.15f}
+    };
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void FireFlower::render(sf::RenderTarget& target) {
-    if (!active) return;
-    
-    // Draw a visual representing a flower (a white/orange circle)
-    sf::CircleShape flower(boundingBox.width / 2.0f);
-    flower.setPosition(position);
-    flower.setFillColor(sf::Color(255, 69, 0)); // Red-Orange
-    flower.setOutlineColor(sf::Color::White);
-    flower.setOutlineThickness(2.0f);
-    target.draw(flower);
+    Item::render(target);
 }
 
 void FireFlower::activate(Player& player) {

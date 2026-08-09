@@ -9,17 +9,21 @@ PSwitch::PSwitch(sf::Vector2f pos) : Item(pos) {
 }
 
 void PSwitch::update(float dt) {
-    // PSwitches are stationary
+    Item::update(dt);
+}
+
+void PSwitch::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("p_switch");
+    m_animation.frameList = {{"p_switch_normal", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void PSwitch::render(sf::RenderTarget& target) {
-    if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(70, 130, 180)); // Steel Blue
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.5f);
-    target.draw(rect);
+    Item::render(target);
 }
 
 void PSwitch::activate(Player& player) {

@@ -10,6 +10,7 @@ public:
     void onStomped() override;
     void onHitByFireball() override;
     void update(float dt) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     float getEggTimer() const { return m_eggTimer; }
     int getSpawnCount() const { return m_spawnCount; }

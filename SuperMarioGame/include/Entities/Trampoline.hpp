@@ -11,10 +11,9 @@ public:
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
     void collect() override;
-
-    bool isCompressed() const { return m_isCompressed; }
-
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 private:
-    float m_compressTimer = 0.0f;
-    bool m_isCompressed = false;
+    float m_bounceTimer = 0.0f;
+    int m_bounceStage = 0;
+    Animation m_bounceAnimation;
 };

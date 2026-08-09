@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Entities/Entity.hpp"
+#include "Graphics/Animator.hpp"
+#include "Graphics/SpriteSheet.hpp"
+#include <memory>
 
 class Player;
 
 class Block : public Entity {
 public:
-    explicit Block(sf::Vector2f position);
+    explicit Block(sf::Vector2f position, sf::Vector2f targetSize = {32.0f, 32.0f});
     ~Block() override = default;
 
     // Triggered when hit from below by a player
@@ -14,7 +17,8 @@ public:
 
     // Overrides Entity lifecycle
     void update(float dt) override;
-    void render(sf::RenderTarget& target) override = 0;
+    void render(sf::RenderTarget& target) override;
+    virtual void setupAnimations(const SpriteSheet* spriteSheet);
 
     bool isBreakable() const { return m_breakable; }
 
@@ -23,4 +27,9 @@ protected:
     bool m_isHit = false;
     float m_bumpTimer = 0.0f;
     sf::Vector2f m_originalPosition;
+
+    std::unique_ptr<Animator> m_animator;
+    Animation m_animation;
+    bool m_hasAnimation = false;
 };
+

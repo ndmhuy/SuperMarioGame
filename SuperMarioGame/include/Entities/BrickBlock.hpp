@@ -9,6 +9,7 @@ public:
 
     void onHitFromBelow(Player& player) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     int getCoinsLeft() const { return m_coinsLeft; }
     bool isEmpty() const { return m_isEmpty; }

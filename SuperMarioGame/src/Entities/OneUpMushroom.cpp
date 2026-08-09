@@ -3,13 +3,15 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
-OneUpMushroom::OneUpMushroom(sf::Vector2f pos) : Item(pos) {
+OneUpMushroom::OneUpMushroom(sf::Vector2f pos) : Item(pos, {32.0f, 32.0f}) {
     velocity = sf::Vector2f{80.0f, 0.0f};
     m_movingRight = true;
+    setTargetSize({32.0f, 32.0f});
 }
 
 void OneUpMushroom::update(float dt) {
     if (!active) return;
+    Item::update(dt);
     
     // Check wall collision (velocity.x cancelled to 0)
     if (std::abs(velocity.x) < 0.01f) {
@@ -18,14 +20,18 @@ void OneUpMushroom::update(float dt) {
     }
 }
 
+void OneUpMushroom::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("one_up_mushroom");
+    m_animation.frameList = {{"mushroom_green", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void OneUpMushroom::render(sf::RenderTarget& target) {
-    if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(50, 205, 50)); // Lime/Green
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Item::render(target);
 }
 
 void OneUpMushroom::activate(Player& player) {

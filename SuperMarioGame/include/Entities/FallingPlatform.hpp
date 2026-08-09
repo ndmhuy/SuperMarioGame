@@ -17,6 +17,7 @@ public:
     void onHitFromBelow(Player& player) override;
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
     const AABB& getBoundingBox() const override;
 
     FallingPlatformState getState() const { return m_state; }

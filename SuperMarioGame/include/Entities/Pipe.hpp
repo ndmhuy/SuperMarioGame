@@ -10,6 +10,7 @@ public:
 
     void onHitFromBelow(Player& player) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     // Checks if warp conditions (player standing on top and pressing down) are met
     bool checkWarp(Player& player) const;

@@ -6,13 +6,19 @@
 #include "Core/SoundManager.hpp"
 
 PiranhaPlant::PiranhaPlant(sf::Vector2f position)
-    : Enemy(position, 100) {
-    // Height is 48px, width is 32px (fits in a pipe)
-    boundingBox.width = 32.0f;
-    boundingBox.height = 48.0f;
-    
+    : Enemy(position, 100, {32.0f, 48.0f}) {
     // Set AI emergence strategy anchored at the spawn position
     setStrategy(std::make_unique<TimerEmergenceStrategy>(position));
+}
+
+void PiranhaPlant::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("pirhana");
+    m_animation.frameList = {{"pirhana_green_0", 0.15f}, {"pirhana_green_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void PiranhaPlant::onStomped() {

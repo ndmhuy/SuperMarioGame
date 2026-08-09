@@ -12,6 +12,16 @@ Lakitu::Lakitu(sf::Vector2f position)
     setStrategy(std::make_unique<FlyStrategy>(FlyMode::FollowPlayer));
 }
 
+void Lakitu::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("lakitu");
+    m_animation.frameList = {{"lakitu_left", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Lakitu::onStomped() {
     SoundManager::getInstance().playSound("stomp");
     EventBus::getInstance().publish({EventType::EnemyDefeated, m_scoreValue});

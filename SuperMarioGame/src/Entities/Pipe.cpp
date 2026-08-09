@@ -6,11 +6,8 @@
 #include <cmath>
 
 Pipe::Pipe(sf::Vector2f position, int pipeId, sf::Vector2f exitPosition, std::string targetLevel, bool isEntrance)
-    : Block(position), m_pipeId(pipeId), m_exitPosition(exitPosition), m_targetLevel(targetLevel), m_isEntrance(isEntrance) {
+    : Block(position, {64.0f, 64.0f}), m_pipeId(pipeId), m_exitPosition(exitPosition), m_targetLevel(targetLevel), m_isEntrance(isEntrance) {
     m_breakable = false;
-    // Warp pipes are usually 64x64 pixels (2x2 tiles)
-    boundingBox.width = 64.0f;
-    boundingBox.height = 64.0f;
 }
 
 void Pipe::onHitFromBelow(Player& player) {
@@ -49,6 +46,16 @@ bool Pipe::checkWarp(Player& player) const {
     return false;
 }
 
+void Pipe::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("pipe");
+    m_animation.frameList = {{"pipe_green_up", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Pipe::render(sf::RenderTarget& target) {
-    // Render pipe texture
+    Block::render(target);
 }

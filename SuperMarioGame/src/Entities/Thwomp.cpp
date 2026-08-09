@@ -4,13 +4,19 @@
 #include "Core/Game.hpp"
 
 Thwomp::Thwomp(sf::Vector2f position)
-    : Enemy(position, 0) {
-    // 2x2 tiles block size
-    boundingBox.width = 64.0f;
-    boundingBox.height = 64.0f;
-    
+    : Enemy(position, 0, {48.0f, 64.0f}) {
     // Proximity trigger slam strategy
     setStrategy(std::make_unique<ProximityTriggerStrategy>());
+}
+
+void Thwomp::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("thwomp");
+    m_animation.frameList = {{"thwomper_dormant", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void Thwomp::onStomped() {

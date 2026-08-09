@@ -12,65 +12,79 @@ Trampoline::Trampoline(sf::Vector2f pos) : Item(pos) {
 }
 
 void Trampoline::update(float dt) {
-    if (m_isCompressed) {
-        m_compressTimer -= dt;
-        if (m_compressTimer <= 0.0f) {
-            m_compressTimer = 0.0f;
-            m_isCompressed = false;
+    if (m_bounceTimer > 0.0f) {
+        m_bounceTimer -= dt;
+        if (m_bounceTimer <= 0.0f) {
+            m_bounceTimer = 0.0f;
+            m_bounceStage = 0;
+            if (m_animator) {
+                m_animator->play(&m_animation);
+            }
         }
+    }
+    Item::update(dt);
+}
+
+void Trampoline::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("trampoline");
+    m_animation.frameList = {{"trampoline", 0.15f}};
+
+    m_bounceAnimation = Animation("trampoline_bounce");
+    m_bounceAnimation.frameList = {
+        {"trampoline_squished", 0.10f},
+        {"trampoline_extended", 0.10f},
+        {"trampoline", 0.10f}
+    };
+    m_bounceAnimation.isLooping = false;
+
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
     }
 }
 
 void Trampoline::render(sf::RenderTarget& target) {
-    if (!active) return;
+    if (!active || collected) return;
+    if (m_animator && m_hasAnimation) {
+        sf::Sprite sprite = m_animator->getSprite();
+        sf::FloatRect bounds = sprite.getLocalBounds();
+        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+            // Base boundingBox remains fixed at base size (32x32)
+            boundingBox.width = m_targetSize.x;
+            boundingBox.height = m_targetSize.y;
 
-    float renderHeight = m_isCompressed ? 16.0f : 32.0f;
-    float renderY = position.y + (32.0f - renderHeight);
+            float scale = m_targetSize.x / 16.0f;
 
-    // 1. Steel base foot plate
-    sf::RectangleShape basePlate({32.0f, 4.0f});
-    basePlate.setPosition({position.x, position.y + 28.0f});
-    basePlate.setFillColor(sf::Color(100, 100, 100));
-    basePlate.setOutlineColor(sf::Color::Black);
-    basePlate.setOutlineThickness(1.0f);
-    target.draw(basePlate);
+            // Sprite origin set to bottom-center and positioned at bottom-center of AABB
+            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
+            sprite.setScale(sf::Vector2f(scale, scale));
+            sprite.setPosition(sf::Vector2f(boundingBox.x + 16.0f, boundingBox.y + 32.0f));
 
-    // 2. Coiled metallic spring coils
-    int numCoils = m_isCompressed ? 2 : 4;
-    float coilStep = (renderHeight - 12.0f) / numCoils;
-
-    for (int i = 0; i < numCoils; ++i) {
-        sf::RectangleShape coil({24.0f, 3.0f});
-        float coilY = renderY + 8.0f + i * coilStep;
-        float offsetX = (i % 2 == 0) ? 2.0f : 6.0f;
-
-        coil.setPosition({position.x + offsetX, coilY});
-        coil.setFillColor(sf::Color(200, 200, 200));
-        coil.setOutlineColor(sf::Color(80, 80, 80));
-        coil.setOutlineThickness(1.0f);
-        target.draw(coil);
+            target.draw(sprite);
+        }
+    } else {
+        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
+        rect.setFillColor(sf::Color::Yellow);
+        rect.setOutlineColor(sf::Color::White);
+        rect.setOutlineThickness(1.0f);
+        target.draw(rect);
     }
-
-    // 3. Green padded top spring cushion
-    sf::RectangleShape topCushion({32.0f, 8.0f});
-    topCushion.setPosition({position.x, renderY});
-    topCushion.setFillColor(sf::Color(46, 204, 113)); // Vibrant Emerald Green Top Pad
-    topCushion.setOutlineColor(sf::Color(255, 235, 100)); // Golden yellow rim
-    topCushion.setOutlineThickness(1.0f);
-    target.draw(topCushion);
 }
 
 void Trampoline::activate(Player& player) {
-    // Compression spring trigger
-    m_isCompressed = true;
-    m_compressTimer = 0.25f;
-
-    // Apply high-bounce impulse ~6 tiles height (-831.4 px/s)
+    // Set upward player velocity (-831.4f)
     sf::Vector2f vel = player.getVelocity();
     vel.y = -831.4f;
     player.setVelocity(vel);
 
-    SoundManager::getInstance().playSound("powerup");
+    // Start 0.3s bounce timer playing "trampoline_squished" -> "trampoline_extended" -> "trampoline"
+    m_bounceTimer = 0.3f;
+    m_bounceStage = 1;
+    if (m_animator) {
+        m_animator->play(&m_bounceAnimation);
+    }
 }
 
 void Trampoline::collect() {
