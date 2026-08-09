@@ -15,6 +15,7 @@ void GameStateManager::pushState(std::unique_ptr<IGameState> state) {
 }
 
 void GameStateManager::popState() {
+    m_pendingState = nullptr;
     if (!m_states.empty()) {
         m_states.top()->exit();
         m_states.pop();

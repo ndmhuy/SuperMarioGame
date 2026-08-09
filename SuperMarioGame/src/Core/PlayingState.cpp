@@ -36,7 +36,9 @@
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig)
     : m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
 
-PlayingState::~PlayingState() = default;
+PlayingState::~PlayingState() {
+    exit();
+}
 
 void PlayingState::enter() {
     std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
@@ -125,8 +127,10 @@ void PlayingState::exit() {
         m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 
-    // Unregister player from InputManager to prevent dangling pointer crashes on exit
+    // Unregister player and tilemap to prevent dangling pointer crashes on exit
     InputManager::getInstance().registerPlayer(nullptr, 0);
+    Game::getInstance().setPlayer(nullptr);
+    Game::getInstance().setTileMap(nullptr);
 }
 
 void PlayingState::handleInput(const sf::Event& event) {
