@@ -20,14 +20,17 @@ public:
 
     // Texture Methods
     bool loadTexture(const std::string& id, const std::string& path);
+    bool hasTexture(const std::string& id) const;
     sf::Texture& getTexture(const std::string& id);
 
     // Font Methods
     bool loadFont(const std::string& id, const std::string& path);
+    bool hasFont(const std::string& id) const;
     sf::Font& getFont(const std::string& id);
 
     // Sound Buffer Methods
     bool loadSoundBuffer(const std::string& id, const std::string& path);
+    bool hasSoundBuffer(const std::string& id) const;
     sf::SoundBuffer& getSoundBuffer(const std::string& id);
 
     // Cleanup Methods

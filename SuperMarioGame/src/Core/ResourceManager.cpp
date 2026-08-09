@@ -18,6 +18,18 @@ bool ResourceManager::loadTexture(const std::string &id,
   return false;
 }
 
+bool ResourceManager::hasTexture(const std::string &id) const {
+  return m_textures.find(id) != m_textures.end();
+}
+
+bool ResourceManager::hasFont(const std::string &id) const {
+  return m_fonts.find(id) != m_fonts.end();
+}
+
+bool ResourceManager::hasSoundBuffer(const std::string &id) const {
+  return m_soundBuffers.find(id) != m_soundBuffers.end();
+}
+
 sf::Texture &ResourceManager::getTexture(const std::string &id) {
   auto it = m_textures.find(id);
   if (it != m_textures.end()) {

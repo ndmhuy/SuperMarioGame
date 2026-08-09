@@ -1726,3 +1726,22 @@ Summary of Changes:
 - Overhead Player Spawn Drop-off: Fixed player spawn location at top-left overhead position `(96.0f, 64.0f)`. Player drops down under gravity physics onto the floor on level start.
 - Verified 100% clean build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
 ---
+[2026-08-09 08:32:35] Branch: dev
+Git Fingerprint: 8cbaf62 (before) → 8cbaf62 (working tree)
+Prompt: Audit Memento encapsulation with friend declaration and encapsulated createSnapshot()/restoreMemento() methods, trigger rewind on R or Shift keys, reimplement void fall damage & revive when having lives, add Return to Main Menu button in Play Mode, and wire sprite texture rendering.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Encapsulation Audit & Memento Methods: Implemented `Player::createSnapshot()` and `Player::restoreMemento(const PlayerSnapshot& snapshot)` in `Player.hpp/.cpp`, and declared `friend class TimeRewindManager;`. Eliminates raw public setter mutation when recording or restoring Memento state.
+- Rewind Trigger Keys: Updated `PlayingState.cpp` to trigger Memento time rewind when holding either **R** or **LShift / RShift** keys.
+- Fall Damage & Void Fall Revive Mechanics: In `PlayingState.cpp`, when player falls into bottom void pit (`position.y > mapHeight * TILE_SIZE + 32`), if `lives > 1`, player loses 1 life (`loseLife()`), plays `pipe` SFX, and revives at overhead spawn `(96.0f, 64.0f)`. If `lives <= 1`, triggers Game Over state transition to `MenuState`.
+- Play Mode Navigation Button: Added prominent **"🏠 Return to Main Menu"** and **"🛠️ Toggle Map Editor (F1)"** buttons to `PlayingState` ImGui control panel.
+- Sprite Texture Wiring: Updated `Mario::render(target)` to render sprite texture `player` from `ResourceManager` when available, falling back gracefully to shape rendering when textures are absent.
+- Verified 100% clean C++ build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
+---

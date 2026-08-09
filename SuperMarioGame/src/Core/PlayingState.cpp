@@ -193,8 +193,10 @@ void PlayingState::update(float dt) {
     StatisticsTracker::getInstance().update(dt);
     AchievementManager::getInstance().update(dt);
 
-    // 0. Time Rewind check (Hold R key to rewind time backwards using Memento snapshots)
-    bool rewindRequested = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R);
+    // 0. Time Rewind check (Hold R or Left/Right Shift keys to rewind time using Memento snapshots)
+    bool rewindRequested = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R) ||
+                           sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ||
+                           sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift);
 
     if (rewindRequested && m_rewindManager.hasSnapshots()) {
         m_rewindManager.setRewinding(true);
@@ -204,12 +206,7 @@ void PlayingState::update(float dt) {
         m_camera.getView().setCenter(snapshot.cameraCenter);
 
         if (m_player) {
-            m_player->setPosition(snapshot.playerState.position);
-            m_player->setVelocity(snapshot.playerState.velocity);
-            m_player->score = snapshot.playerState.score;
-            m_player->coins = snapshot.playerState.coins;
-            m_player->lives = snapshot.playerState.lives;
-            m_player->onGround = snapshot.playerState.onGround;
+            m_player->restoreMemento(snapshot.playerState);
         }
 
         // Restore active entities states
@@ -223,6 +220,19 @@ void PlayingState::update(float dt) {
         return; // Skip forward physics integration while rewinding
     } else {
         m_rewindManager.setRewinding(false);
+        // Record Memento snapshot when not rewinding
+        if (m_player) {
+            GameSnapshot currentSnap;
+            currentSnap.playerState = m_player->createSnapshot();
+            currentSnap.levelTimer = m_levelTimer;
+            currentSnap.cameraCenter = m_camera.getView().getCenter();
+            for (const auto& entity : m_entities) {
+                if (entity) {
+                    currentSnap.entityStates.push_back({entity->getPosition(), entity->getVelocity(), entity->isActive()});
+                }
+            }
+            m_rewindManager.recordSnapshot(currentSnap);
+        }
     }
 
     // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run)
@@ -247,6 +257,24 @@ void PlayingState::update(float dt) {
         }),
         m_entities.end()
     );
+
+    // 3c. Void fall detection & Revive Mechanics
+    float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
+    if (m_player && m_player->getPosition().y > bottomVoidY) {
+        SoundManager::getInstance().playSound("pipe");
+        if (m_player->getLives() > 1) {
+            m_player->loseLife();
+            m_player->setPosition(sf::Vector2f(96.0f, 64.0f));
+            m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
+            m_camera.getView().setCenter(sf::Vector2f(640.0f, 360.0f));
+            std::cout << "[PlayingState] Player fell into void pit! Revived at overhead spawn. Lives remaining: " << m_player->getLives() << std::endl;
+        } else {
+            m_player->loseLife();
+            std::cout << "[PlayingState] Game Over! Out of lives." << std::endl;
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+            return;
+        }
+    }
 
     // 4. Update Camera & Screen Transitions
     if (m_player) {
@@ -423,14 +451,23 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Render screen transitions overlay
     ScreenTransitionManager::getInstance().render(target);
 
-    // ImGui Panel for controlling and monitoring the physics simulation
-    ImGui::Begin("Physics Simulation (Phase 2)");
+    // ImGui Panel for controlling and monitoring the gameplay simulation
+    ImGui::Begin("Gameplay Controls & Navigation");
     ImGui::Text("Simulation State:");
-    if (!m_entities.empty() && m_entities[0]) {
-        ImGui::Text("Entity Position: (%.1f, %.1f)", m_entities[0]->getPosition().x, m_entities[0]->getPosition().y);
-        ImGui::Text("Entity Velocity: (%.1f, %.1f)", m_entities[0]->getVelocity().x, m_entities[0]->getVelocity().y);
+    if (m_player) {
+        ImGui::Text("Player Position: (%.1f, %.1f)", m_player->getPosition().x, m_player->getPosition().y);
+        ImGui::Text("Player Velocity: (%.1f, %.1f)", m_player->getVelocity().x, m_player->getVelocity().y);
+        ImGui::Text("Lives: %d | Coins: %d | Score: %d", m_player->getLives(), m_player->getCoins(), m_player->getScore());
     } else {
-        ImGui::Text("No active entities.");
+        ImGui::Text("No active player.");
+    }
+    ImGui::Separator();
+    if (ImGui::Button("🏠 Return to Main Menu")) {
+        Game::getInstance().changeState(std::make_unique<MenuState>());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🛠️ Toggle Map Editor (F1)")) {
+        m_mapEditor.toggleActive();
     }
     ImGui::End();
     // Draw Map Editor overlays if active

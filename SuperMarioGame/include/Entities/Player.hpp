@@ -4,6 +4,8 @@
 #include "Entities/IPlayerState.hpp"
 #include <memory>
 
+struct PlayerSnapshot;
+
 class Player : public Character {
 public:
     Player() = default;
@@ -47,9 +49,14 @@ public:
     bool isRunRequested() const { return m_runRequested; }
     void clearMovementRequests() override;
 
+    // Encapsulated Memento pattern methods
+    PlayerSnapshot createSnapshot() const;
+    void restoreMemento(const PlayerSnapshot& snapshot);
+
 protected:
     friend class Serializer;
     friend class PlayingState;
+    friend class TimeRewindManager;
     std::unique_ptr<IPlayerState> m_currentState;
 
     // Player stats — modified only through action methods or friends

@@ -1,5 +1,6 @@
 #include "Entities/Player.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/GameSnapshot.hpp"
 #include "Utils/Constants.hpp"
 
 void Player::run() {
@@ -247,6 +248,26 @@ void Player::incrementCombo() {
 void Player::clearMovementRequests() {
     Character::clearMovementRequests();
     m_runRequested = false;
+}
+
+PlayerSnapshot Player::createSnapshot() const {
+    PlayerSnapshot snap;
+    snap.position = getPosition();
+    snap.velocity = getVelocity();
+    snap.score = score;
+    snap.coins = coins;
+    snap.lives = lives;
+    snap.onGround = onGround;
+    return snap;
+}
+
+void Player::restoreMemento(const PlayerSnapshot& snapshot) {
+    setPosition(snapshot.position);
+    setVelocity(snapshot.velocity);
+    score = snapshot.score;
+    coins = snapshot.coins;
+    lives = snapshot.lives;
+    onGround = snapshot.onGround;
 }
 
 
