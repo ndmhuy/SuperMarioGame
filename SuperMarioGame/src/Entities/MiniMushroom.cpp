@@ -3,9 +3,10 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
-MiniMushroom::MiniMushroom(sf::Vector2f pos) : Item(pos, {16.0f, 16.0f}) {
+MiniMushroom::MiniMushroom(sf::Vector2f pos) : Item(pos, {32.0f, 32.0f}) {
     velocity = sf::Vector2f{80.0f, 0.0f};
     m_movingRight = true;
+    setTargetSize({32.0f, 32.0f});
 }
 
 void MiniMushroom::update(float dt) {

@@ -13,7 +13,9 @@ public:
     void collect() override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 private:
+    Animation m_idleAnim;
+    Animation m_squishAnim;
+    Animation m_extendAnim;
     float m_bounceTimer = 0.0f;
-    int m_bounceStage = 0;
-    Animation m_bounceAnimation;
+    bool m_isBouncing = false;
 };

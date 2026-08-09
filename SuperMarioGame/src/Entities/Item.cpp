@@ -34,9 +34,10 @@ void Item::render(sf::RenderTarget& target) {
         sf::Sprite sprite = m_animator->getSprite();
         sf::FloatRect bounds = sprite.getLocalBounds();
         if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
-            float scaledW = bounds.size.x * scale;
-            float scaledH = bounds.size.y * scale;
+            if (m_baseScale <= 0.0f) {
+                m_baseScale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
+            }
+            float scale = m_baseScale;
 
             // Base AABB remains locked to m_targetSize during all animation frames
             boundingBox.width = m_targetSize.x;

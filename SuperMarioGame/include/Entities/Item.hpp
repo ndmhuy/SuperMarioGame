@@ -28,6 +28,7 @@ protected:
     std::unique_ptr<Animator> m_animator;
     Animation m_animation;
     bool m_hasAnimation = false;
+    float m_baseScale = 0.0f;
 };
 
 

@@ -167,7 +167,7 @@ int main() {
     blocks.push_back({"Conveyor Belt", std::make_unique<ConveyorBelt>(sf::Vector2f(970, 200))});
 
     for (auto& b : blocks) {
-        if (b.first == "Moving Platform" || b.first == "Falling Platform") {
+        if (b.first == "Moving Platform" || b.first == "Falling Platform" || b.first == "Conveyor Belt") {
             b.second->setupAnimations(&itemSheet);
         } else {
             b.second->setupAnimations(&scenerySheet);

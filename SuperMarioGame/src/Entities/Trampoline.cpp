@@ -8,13 +8,22 @@ Trampoline::Trampoline(sf::Vector2f pos) : Item(pos) {
 }
 
 void Trampoline::update(float dt) {
-    if (m_bounceTimer > 0.0f) {
+    if (m_isBouncing) {
         m_bounceTimer -= dt;
-        if (m_bounceTimer <= 0.0f) {
-            m_bounceTimer = 0.0f;
-            m_bounceStage = 0;
+        float elapsed = 0.3f - m_bounceTimer;
+        if (elapsed < 0.1f) {
             if (m_animator) {
-                m_animator->play(&m_animation);
+                m_animator->play(&m_squishAnim);
+            }
+        } else if (elapsed < 0.25f) {
+            if (m_animator) {
+                m_animator->play(&m_extendAnim);
+            }
+        } else {
+            m_isBouncing = false;
+            m_bounceTimer = 0.0f;
+            if (m_animator) {
+                m_animator->play(&m_idleAnim);
             }
         }
     }
@@ -23,19 +32,17 @@ void Trampoline::update(float dt) {
 
 void Trampoline::setupAnimations(const SpriteSheet* spriteSheet) {
     Item::setupAnimations(spriteSheet);
-    m_animation = Animation("trampoline");
-    m_animation.frameList = {{"trampoline", 0.15f}};
+    m_idleAnim = Animation("trampoline");
+    m_idleAnim.frameList = {{"trampoline", 0.15f}};
 
-    m_bounceAnimation = Animation("trampoline_bounce");
-    m_bounceAnimation.frameList = {
-        {"trampoline_squished", 0.10f},
-        {"trampoline_extended", 0.10f},
-        {"trampoline", 0.10f}
-    };
-    m_bounceAnimation.isLooping = false;
+    m_squishAnim = Animation("trampoline_squished");
+    m_squishAnim.frameList = {{"trampoline_squished", 0.10f}};
+
+    m_extendAnim = Animation("trampoline_extended");
+    m_extendAnim.frameList = {{"trampoline_extended", 0.15f}};
 
     if (m_animator) {
-        m_animator->play(&m_animation);
+        m_animator->play(&m_idleAnim);
         m_hasAnimation = true;
     }
 }
@@ -70,17 +77,15 @@ void Trampoline::render(sf::RenderTarget& target) {
 }
 
 void Trampoline::activate(Player& player) {
-    // Set upward player velocity (-831.4f)
+    m_isBouncing = true;
+    m_bounceTimer = 0.3f;
+    if (m_animator) {
+        m_animator->play(&m_squishAnim);
+    }
+
     sf::Vector2f vel = player.getVelocity();
     vel.y = -831.4f;
     player.setVelocity(vel);
-
-    // Start 0.3s bounce timer playing "trampoline_squished" -> "trampoline_extended" -> "trampoline"
-    m_bounceTimer = 0.3f;
-    m_bounceStage = 1;
-    if (m_animator) {
-        m_animator->play(&m_bounceAnimation);
-    }
 }
 
 void Trampoline::collect() {

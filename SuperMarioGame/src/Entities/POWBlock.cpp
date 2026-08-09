@@ -16,14 +16,14 @@ void POWBlock::setupAnimations(const SpriteSheet* spriteSheet) {
     Item::setupAnimations(spriteSheet);
     m_animation = Animation("pow_block");
     m_animation.frameList = {
-        {"pow_block_0", 0.08f},
-        {"pow_block_1", 0.08f},
-        {"pow_block_2", 0.08f},
-        {"pow_block_3", 0.08f},
-        {"pow_block_4", 0.08f},
-        {"pow_block_5", 0.08f},
-        {"pow_block_6", 0.08f},
-        {"pow_block_7", 0.08f}
+        {"pow_block_0", 0.15f},
+        {"pow_block_1", 0.15f},
+        {"pow_block_2", 0.15f},
+        {"pow_block_3", 0.15f},
+        {"pow_block_4", 0.15f},
+        {"pow_block_5", 0.15f},
+        {"pow_block_6", 0.15f},
+        {"pow_block_7", 0.15f}
     };
     if (m_animator) {
         m_animator->play(&m_animation);
