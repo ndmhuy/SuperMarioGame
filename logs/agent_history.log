@@ -1694,3 +1694,18 @@ Summary of Changes:
 - Recovered Memento Time Rewind: added full-screen cyan vignette scanline filter, top banner "⏪ MEMENTO TIME REWINDING (N frames)", and audio cues during rewind.
 - Verified 100% clean C++ compilation and 100% pass rate across test suite (`verify_all` 6/6 passed, `verify_fireball` 4/4 passed).
 ---
+[2026-08-09 08:20:20] Branch: dev
+Git Fingerprint: 67bbbc2 (before) → 67bbbc2 (working tree)
+Prompt: Make sure Map Generator guarantees winnable level layout, midpoint checkpoint, victory flagpole/castle winning point, and diverse difficulty-based entity generation.
+Files Modified:
+- SuperMarioGame/src/Utils/MapGenerator.cpp
+- SuperMarioGame/tests/verify_map_generator.cpp (NEW)
+- SuperMarioGame/CMakeLists.txt
+- logs/agent_history.log
+Summary of Changes:
+- Solvability Guarantees: Guaranteed solid ground spawn zone (0..20) and exit zone (width-25..width); capped pit gaps at 2-3 tiles max (96px, easily jumpable by player); added floating stepping stone blocks in 3-tile pits for 100% winnability; enforced 4-tile solid ground cooldown between pits.
+- Midpoint Checkpoint: Generated mid-level checkpoint station (x = width / 2) with twin 3-height pipes, central Question Block containing 1Up Mushroom, Trampoline, and StarCoin.
+- Victory Flagpole & Castle: Built 5-step victory staircase (exitX-5..exitX-1), placed Goal Flagpole winning point (exitX = width-15), and built End Level Victory Castle (exitX+4..exitX+8) with doorway cutout.
+- Diverse Entity Pools by Difficulty & Theme: Easy (Goombas, KoopaTroopas, Mushrooms), Medium (Paratroopas, Spinies, FireFlowers, CapeFeathers, StarCoins), Hard (HammerBros, Lakitus with Spinies, Thwomp ceiling traps, Bowser boss guarding exit).
+- Created `verify_map_generator` unit test runner and verified 100% pass rate across tests.
+---
