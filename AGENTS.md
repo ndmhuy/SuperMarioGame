@@ -155,6 +155,7 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 > 3. **Automatic Task & Prompt Logging**:
 >    - Agents must automatically append a summary of each user prompt and the corresponding output/results to the local log file: [agent_history.log](logs/agent_history.log).
 >    - Do not skip this step; ensure the log is updated at the end of every interaction.
+>    - Every log entry **MUST** include a `Git Fingerprint` field recording the commit hash before and after the session's work (see log format below).
 >
 > 4. **Plan Deviations**:
 >    - If you plan to deviate from the approved implementation plan or do what is not in the plan, you **MUST** inform the user and discuss/obtain confirmation first.
@@ -170,6 +171,14 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 > 6. **Read SPEC.md Before Implementing**:
 >    - Always check `SPEC.md` for exact values, schemas, and behavioral rules before writing code.
 >    - Do NOT guess physics constants, JSON schemas, or enemy behaviors — they are all defined in the spec.
+>
+> 7. **Version Control Safety — Git Fingerprint Cross-Reference**:
+>    - When dealing with **any** version control operation (`reset`, `rebase`, `checkout`, `clean`, `merge`), agents **MUST**:
+>      1. Record the current `HEAD` commit hash **before** the operation in the log.
+>      2. Record the resulting `HEAD` commit hash **after** the operation in the log.
+>      3. Before running destructive git commands (`git reset --hard`, `git clean -fd`, `git checkout -- .`), **check for uncommitted/untracked work** via `git status` and **explicitly warn the user** if any files would be lost. **Do NOT proceed without user confirmation.**
+>      4. Cross-reference the `Git Fingerprint` fields in `agent_history.log` to verify that the codebase is at the expected state before making changes.
+>    - **Rationale**: A previous agent session ran `git reset --hard && git clean -fd` and permanently destroyed untracked files including the Week 8 progress report (`docs/Group52_08/`). This rule prevents such data loss.
 
 ---
 
@@ -320,11 +329,14 @@ public:
 > Every time you finish a task, append to `logs/agent_history.log` in this format:
 > ```text
 > [YYYY-MM-DD HH:MM:SS] Branch: <branch_name>
+> Git Fingerprint: <short_hash> (before) → <short_hash> (after)
 > Prompt: <brief prompt summary>
 > Files Modified: <list of files>
 > Summary of Changes: <brief bulleted list>
 > ---
 > ```
+> The `Git Fingerprint` field records the HEAD commit hash at the start and end of the session.
+> This enables agents to cross-reference the codebase state and detect unexpected rewinding or data loss.
 
 ---
 

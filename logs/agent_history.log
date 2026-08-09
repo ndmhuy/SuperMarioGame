@@ -1608,6 +1608,20 @@ Summary of Changes:
 - Upgraded `verify_graphics_visual` with a dedicated "Transform & Color Filter FX" ImGui tab featuring interactive trigger buttons and sliders for all death launch trajectories, star power rainbow cycling, hurt flicker, and transformation scale lerping.
 - Verified C++17 SFML 3.0.2 source code architecture.
 ---
+[2026-08-09 07:20:00] Branch: dev
+Prompt: Merged origin/B/feature/graphic-visual into dev, resolved font and history conflicts, added non-solid tile coin pickup handling in PhysicsEngine, and pushed dev to remote origin.
+Files Modified:
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Fetched all remote branches (`git fetch --all`) and merged `origin/B/feature/graphic-visual` into local `dev` branch.
+- Resolved merge conflicts in `PlayingState.cpp` and `logs/agent_history.log`.
+- Fixed tile-based coin collection bug in `PhysicsEngine::update()`: added non-solid tile detection for `TileType::Coin` so player walking into coin grid tiles picks up coins, adds score, plays `coin.wav` SFX, and clears tile to `TileType::Empty`.
+- Verified all test runners (`verify_fireball`, `verify_flagpole_trampoline`, `verify_memento_rewind`, `verify_all`) with 100% pass rates.
+- Pushed updated `dev` branch to remote repository (`origin/dev`).
+---
+
 
 
 
@@ -1633,4 +1647,20 @@ Summary of Changes:
 - Reverted ResourceManager changes to keep it pristine.
 - Created verify_sound_visual tool and registered it in CMakeLists.txt.
 - Successfully built verify_sound_visual.exe.
+---
+[2026-08-09 07:30:00] Branch: dev
+Git Fingerprint: d12e763 (before) → 8ee84fc (after)
+Prompt: Post-rewind recovery audit — regenerate lost W08 report, write W09 report, add Git Fingerprint safety rule to AGENTS.md.
+Files Modified:
+- docs/Group52_08/52.md (NEW — reconstructed)
+- docs/Group52_09/52.md (NEW)
+- AGENTS.md (UPDATED)
+- logs/agent_history.log (UPDATED)
+Summary of Changes:
+- Audited 4 past conversation transcripts to identify what was lost during a destructive `git reset --hard && git clean -fd` in the "Game Launch Request Handling" session.
+- Confirmed all code changes survived (committed to A/flagpole-trampoline → merged to dev), but docs/Group52_08/ (W08 report) was permanently deleted as untracked files.
+- Reconstructed W08 report (2026-07-26 – 2026-08-01) from agent_history.log evidence and git commit history.
+- Wrote W09 report (2026-08-02 – 2026-08-08) covering Fireball, Flagpole, Trampoline, CheckpointFlag, Memento/TimeRewind, MapGenerator, Dual Bounding Box, void fall detection, head-butt tile reactions, Player encapsulation, coin pickup fix, remote merge, SpriteColorFilter, SpriteTransformAnim, EntityDeathEffect.
+- Updated AGENTS.md with new directive #7 "Version Control Safety — Git Fingerprint Cross-Reference" requiring agents to check for uncommitted work before destructive git commands and record before/after commit hashes.
+- Updated AGENTS.md log entry format to include mandatory `Git Fingerprint` field.
 ---
