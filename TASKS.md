@@ -388,25 +388,25 @@
 - [x] Commit: `feat: implement expanded HUD with combo, boss bar, and star coins`
 
 ### 5.4 Minimap [v2.0]
-- [ ] Create [Minimap.hpp/.cpp](SuperMarioGame/include/Graphics/Minimap.hpp)
+- [x] Create [Minimap.hpp/.cpp](SuperMarioGame/include/Graphics/Minimap.hpp)
   - 200×40 pixel overview, toggleable with M key
   - Shows player (green), enemies (red), items (yellow)
-- [ ] Commit: `feat: implement minimap overlay`
+- [x] Commit: `feat: implement minimap overlay`
 
 ### 5.5 Parallax Background
 - [ ] Implement multi-layer background rendering
 - [ ] Commit: `feat: implement parallax scrolling backgrounds`
 
 ### 5.6 Particle System
-- [ ] Create [ParticleSystem.hpp/.cpp](SuperMarioGame/include/Graphics/ParticleSystem.hpp)
+- [x] Create [ParticleSystem.hpp/.cpp](SuperMarioGame/include/Graphics/ParticleSystem.hpp)
   - Object-pooled particles [v2.0]
   - Types: BrickBreak, CoinSparkle, DeathPoof, Stomp, Combo, WallDust, WaterBubble, LavaEmber [v2.0: expanded]
-- [ ] Commit: `feat: implement ParticleSystem with object pooling`
+- [x] Commit: `feat: implement ParticleSystem with object pooling`
 
 ### 5.7 Screen Transitions & Screen Shake [v2.0]
-- [ ] Implement fade-in/fade-out transitions
-- [ ] Implement screen shake system (light/medium/heavy) [v2.0]
-- [ ] Commit: `feat: implement screen transitions and shake system`
+- [x] Implement fade-in/fade-out transitions
+- [x] Implement screen transitions and shake system (light/medium/heavy) [v2.0]
+- [x] Commit: `feat: implement screen transitions and shake system`
 
 ### 5.8 Entity Death Animations [v2.0]
 - [ ] Goomba squish, enemy flip, Star kill launch, player death

@@ -70,3 +70,13 @@ sf::Sprite SpriteSheet::getSprite(const std::string& spriteName) const {
 
     return sf::Sprite(*m_spriteSheet, it->second);
 }
+
+std::vector<std::string> SpriteSheet::getFrameNames() const {
+    std::vector<std::string> names;
+    names.reserve(m_frames.size());
+    for (const auto& pair : m_frames) {
+        names.push_back(pair.first);
+    }
+    std::sort(names.begin(), names.end());
+    return names;
+}

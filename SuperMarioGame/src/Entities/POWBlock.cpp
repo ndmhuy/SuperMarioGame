@@ -24,5 +24,5 @@ void POWBlock::render(sf::RenderTarget& target) {
 
 void POWBlock::activate(Player& player) {
     // Triggers a screen-shake and flips all grounded enemies via EventBus
-    EventBus::getInstance().publish({EventType::BlockBroken, this});
+    EventBus::getInstance().publish({EventType::POWBlockHit, this});
 }

@@ -1,0 +1,1855 @@
+{
+  "frames": {
+    "mario_small_idle": {
+      "frame": {
+        "x": 1,
+        "y": 1,
+        "w": 16,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 26
+      }
+    },
+    "mario_small_wave": {
+      "frame": {
+        "x": 18,
+        "y": 1,
+        "w": 16,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 26
+      }
+    },
+    "mario_small_walk_0": {
+      "frame": {
+        "x": 35,
+        "y": 1,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "mario_small_walk_1": {
+      "frame": {
+        "x": 52,
+        "y": 1,
+        "w": 16,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 26
+      }
+    },
+    "mario_small_hurt": {
+      "frame": {
+        "x": 69,
+        "y": 1,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "mario_small_run_0": {
+      "frame": {
+        "x": 86,
+        "y": 1,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "mario_small_run_1": {
+      "frame": {
+        "x": 103,
+        "y": 1,
+        "w": 16,
+        "h": 26
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 26
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 26
+      }
+    },
+    "mario_small_skid": {
+      "frame": {
+        "x": 120,
+        "y": 1,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "mario_small_crouch": {
+      "frame": {
+        "x": 137,
+        "y": 1,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "mario_small_crouch_hold": {
+      "frame": {
+        "x": 154,
+        "y": 1,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "mario_small_climb_0": {
+      "frame": {
+        "x": 1,
+        "y": 29,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "mario_small_climb_1": {
+      "frame": {
+        "x": 18,
+        "y": 29,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "mario_death": {
+      "frame": {
+        "x": 35,
+        "y": 29,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "mario_tiny_walk_0": {
+      "frame": {
+        "x": 52,
+        "y": 29,
+        "w": 15,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 19
+      }
+    },
+    "mario_tiny_walk_1": {
+      "frame": {
+        "x": 69,
+        "y": 29,
+        "w": 15,
+        "h": 18
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 18
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 18
+      }
+    },
+    "mario_tiny_hurt": {
+      "frame": {
+        "x": 86,
+        "y": 29,
+        "w": 13,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 13,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 13,
+        "h": 15
+      }
+    },
+    "mario_tiny_run_0": {
+      "frame": {
+        "x": 103,
+        "y": 29,
+        "w": 16,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 19
+      }
+    },
+    "mario_tiny_run_1": {
+      "frame": {
+        "x": 120,
+        "y": 29,
+        "w": 16,
+        "h": 18
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 18
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 18
+      }
+    },
+    "mario_tiny_skid": {
+      "frame": {
+        "x": 137,
+        "y": 29,
+        "w": 15,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 19
+      }
+    },
+    "mario_tiny_crouch": {
+      "frame": {
+        "x": 154,
+        "y": 29,
+        "w": 14,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 15
+      }
+    },
+    "mario_tiny_crouch_hold": {
+      "frame": {
+        "x": 1,
+        "y": 57,
+        "w": 16,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 15
+      }
+    },
+    "mario_tiny_climb_0": {
+      "frame": {
+        "x": 18,
+        "y": 57,
+        "w": 15,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 19
+      }
+    },
+    "mario_tiny_climb_1": {
+      "frame": {
+        "x": 35,
+        "y": 57,
+        "w": 15,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 19
+      }
+    },
+    "luigi_small_idle": {
+      "frame": {
+        "x": 52,
+        "y": 57,
+        "w": 16,
+        "h": 29
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 29
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 29
+      }
+    },
+    "luigi_small_wave": {
+      "frame": {
+        "x": 69,
+        "y": 57,
+        "w": 16,
+        "h": 29
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 29
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 29
+      }
+    },
+    "luigi_small_walk_0": {
+      "frame": {
+        "x": 86,
+        "y": 57,
+        "w": 15,
+        "h": 31
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 31
+      }
+    },
+    "luigi_small_walk_1": {
+      "frame": {
+        "x": 103,
+        "y": 57,
+        "w": 16,
+        "h": 30
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 30
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 30
+      }
+    },
+    "luigi_small_hurt": {
+      "frame": {
+        "x": 120,
+        "y": 57,
+        "w": 16,
+        "h": 25
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 25
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 25
+      }
+    },
+    "luigi_small_run_0": {
+      "frame": {
+        "x": 137,
+        "y": 57,
+        "w": 15,
+        "h": 31
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 31
+      }
+    },
+    "luigi_small_run_1": {
+      "frame": {
+        "x": 154,
+        "y": 57,
+        "w": 16,
+        "h": 30
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 30
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 30
+      }
+    },
+    "luigi_small_skid": {
+      "frame": {
+        "x": 1,
+        "y": 89,
+        "w": 16,
+        "h": 31
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 31
+      }
+    },
+    "luigi_small_crouch": {
+      "frame": {
+        "x": 18,
+        "y": 89,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "luigi_small_crouch_hold": {
+      "frame": {
+        "x": 35,
+        "y": 89,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "luigi_small_climb_0": {
+      "frame": {
+        "x": 52,
+        "y": 89,
+        "w": 16,
+        "h": 30
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 30
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 30
+      }
+    },
+    "luigi_small_climb_1": {
+      "frame": {
+        "x": 69,
+        "y": 89,
+        "w": 16,
+        "h": 30
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 30
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 30
+      }
+    },
+    "luigi_death": {
+      "frame": {
+        "x": 86,
+        "y": 89,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "luigi_tiny_walk_0": {
+      "frame": {
+        "x": 103,
+        "y": 89,
+        "w": 14,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 23
+      }
+    },
+    "luigi_tiny_walk_1": {
+      "frame": {
+        "x": 120,
+        "y": 89,
+        "w": 14,
+        "h": 22
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 22
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 22
+      }
+    },
+    "luigi_tiny_hurt": {
+      "frame": {
+        "x": 137,
+        "y": 89,
+        "w": 13,
+        "h": 17
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 13,
+        "h": 17
+      },
+      "sourceSize": {
+        "w": 13,
+        "h": 17
+      }
+    },
+    "luigi_tiny_run_0": {
+      "frame": {
+        "x": 154,
+        "y": 89,
+        "w": 15,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 23
+      }
+    },
+    "luigi_tiny_run_1": {
+      "frame": {
+        "x": 1,
+        "y": 121,
+        "w": 15,
+        "h": 22
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 22
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 22
+      }
+    },
+    "luigi_tiny_skid": {
+      "frame": {
+        "x": 18,
+        "y": 121,
+        "w": 15,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 23
+      }
+    },
+    "luigi_tiny_crouch": {
+      "frame": {
+        "x": 35,
+        "y": 121,
+        "w": 16,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 15
+      }
+    },
+    "luigi_tiny_crouch_hold": {
+      "frame": {
+        "x": 52,
+        "y": 121,
+        "w": 16,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 15
+      }
+    },
+    "luigi_tiny_climb_0": {
+      "frame": {
+        "x": 69,
+        "y": 121,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "luigi_tiny_climb_1": {
+      "frame": {
+        "x": 86,
+        "y": 121,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "toad_small_idle": {
+      "frame": {
+        "x": 103,
+        "y": 121,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "toad_small_wave": {
+      "frame": {
+        "x": 120,
+        "y": 121,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "toad_small_walk_0": {
+      "frame": {
+        "x": 137,
+        "y": 121,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "toad_small_walk_1": {
+      "frame": {
+        "x": 154,
+        "y": 121,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "toad_small_hurt": {
+      "frame": {
+        "x": 1,
+        "y": 149,
+        "w": 16,
+        "h": 21
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 21
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 21
+      }
+    },
+    "toad_small_run_0": {
+      "frame": {
+        "x": 18,
+        "y": 149,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "toad_small_run_1": {
+      "frame": {
+        "x": 35,
+        "y": 149,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "toad_small_skid": {
+      "frame": {
+        "x": 52,
+        "y": 149,
+        "w": 16,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 27
+      }
+    },
+    "toad_small_crouch": {
+      "frame": {
+        "x": 69,
+        "y": 149,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "toad_small_crouch_hold": {
+      "frame": {
+        "x": 86,
+        "y": 149,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "toad_small_climb_0": {
+      "frame": {
+        "x": 103,
+        "y": 149,
+        "w": 15,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 27
+      }
+    },
+    "toad_small_climb_1": {
+      "frame": {
+        "x": 120,
+        "y": 149,
+        "w": 15,
+        "h": 27
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 27
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 27
+      }
+    },
+    "toad_death": {
+      "frame": {
+        "x": 137,
+        "y": 149,
+        "w": 16,
+        "h": 20
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 20
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 20
+      }
+    },
+    "toad_tiny_walk_0": {
+      "frame": {
+        "x": 154,
+        "y": 149,
+        "w": 16,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 19
+      }
+    },
+    "toad_tiny_walk_1": {
+      "frame": {
+        "x": 1,
+        "y": 177,
+        "w": 16,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 19
+      }
+    },
+    "toad_tiny_hurt": {
+      "frame": {
+        "x": 18,
+        "y": 177,
+        "w": 15,
+        "h": 13
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 13
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 13
+      }
+    },
+    "toad_tiny_run_0": {
+      "frame": {
+        "x": 35,
+        "y": 177,
+        "w": 16,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 19
+      }
+    },
+    "toad_tiny_run_1": {
+      "frame": {
+        "x": 52,
+        "y": 177,
+        "w": 16,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 19
+      }
+    },
+    "toad_tiny_skid": {
+      "frame": {
+        "x": 69,
+        "y": 177,
+        "w": 16,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 19
+      }
+    },
+    "toad_tiny_crouch": {
+      "frame": {
+        "x": 86,
+        "y": 177,
+        "w": 14,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 15
+      }
+    },
+    "toad_tiny_crouch_hold": {
+      "frame": {
+        "x": 103,
+        "y": 177,
+        "w": 16,
+        "h": 15
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 15
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 15
+      }
+    },
+    "toad_tiny_climb_0": {
+      "frame": {
+        "x": 120,
+        "y": 177,
+        "w": 15,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 19
+      }
+    },
+    "toad_tiny_climb_1": {
+      "frame": {
+        "x": 137,
+        "y": 177,
+        "w": 15,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 19
+      }
+    },
+    "peach_small_idle": {
+      "frame": {
+        "x": 154,
+        "y": 177,
+        "w": 16,
+        "h": 31
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 31
+      }
+    },
+    "peach_small_wave": {
+      "frame": {
+        "x": 1,
+        "y": 209,
+        "w": 16,
+        "h": 31
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 31
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 31
+      }
+    },
+    "peach_small_walk_0": {
+      "frame": {
+        "x": 18,
+        "y": 209,
+        "w": 15,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 32
+      }
+    },
+    "peach_small_walk_1": {
+      "frame": {
+        "x": 35,
+        "y": 209,
+        "w": 16,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 32
+      }
+    },
+    "peach_small_hurt": {
+      "frame": {
+        "x": 52,
+        "y": 209,
+        "w": 16,
+        "h": 28
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 28
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 28
+      }
+    },
+    "peach_small_run_0": {
+      "frame": {
+        "x": 69,
+        "y": 209,
+        "w": 15,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 15,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 15,
+        "h": 32
+      }
+    },
+    "peach_small_run_1": {
+      "frame": {
+        "x": 86,
+        "y": 209,
+        "w": 16,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 32
+      }
+    },
+    "peach_small_skid": {
+      "frame": {
+        "x": 103,
+        "y": 209,
+        "w": 16,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 32
+      }
+    },
+    "peach_small_crouch": {
+      "frame": {
+        "x": 120,
+        "y": 209,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "peach_small_crouch_hold": {
+      "frame": {
+        "x": 137,
+        "y": 209,
+        "w": 16,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 16
+      }
+    },
+    "peach_small_climb_0": {
+      "frame": {
+        "x": 154,
+        "y": 209,
+        "w": 16,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 32
+      }
+    },
+    "peach_small_climb_1": {
+      "frame": {
+        "x": 1,
+        "y": 242,
+        "w": 16,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 32
+      }
+    },
+    "peach_death": {
+      "frame": {
+        "x": 18,
+        "y": 242,
+        "w": 16,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 23
+      }
+    },
+    "peach_tiny_walk_0": {
+      "frame": {
+        "x": 35,
+        "y": 242,
+        "w": 14,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 24
+      }
+    },
+    "peach_tiny_walk_1": {
+      "frame": {
+        "x": 52,
+        "y": 242,
+        "w": 14,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 24
+      }
+    },
+    "peach_tiny_hurt": {
+      "frame": {
+        "x": 69,
+        "y": 242,
+        "w": 14,
+        "h": 20
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 20
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 20
+      }
+    },
+    "peach_tiny_run_0": {
+      "frame": {
+        "x": 86,
+        "y": 242,
+        "w": 14,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 24
+      }
+    },
+    "peach_tiny_run_1": {
+      "frame": {
+        "x": 103,
+        "y": 242,
+        "w": 14,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 24
+      }
+    },
+    "peach_tiny_skid": {
+      "frame": {
+        "x": 120,
+        "y": 242,
+        "w": 14,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 24
+      }
+    },
+    "peach_tiny_crouch": {
+      "frame": {
+        "x": 137,
+        "y": 242,
+        "w": 14,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 16
+      }
+    },
+    "peach_tiny_crouch_hold": {
+      "frame": {
+        "x": 154,
+        "y": 242,
+        "w": 14,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 16
+      },
+      "sourceSize": {
+        "w": 14,
+        "h": 16
+      }
+    },
+    "peach_tiny_climb_0": {
+      "frame": {
+        "x": 1,
+        "y": 275,
+        "w": 16,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 24
+      }
+    },
+    "peach_tiny_climb_1": {
+      "frame": {
+        "x": 18,
+        "y": 275,
+        "w": 16,
+        "h": 24
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 16,
+        "h": 24
+      },
+      "sourceSize": {
+        "w": 16,
+        "h": 24
+      }
+    }
+  },
+  "meta": {
+    "app": "Sprite Sheet Maker",
+    "version": "1.0",
+    "image": "spritesheet.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 171,
+      "h": 300
+    },
+    "scale": "1"
+  }
+}

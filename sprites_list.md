@@ -1,5 +1,8 @@
 # Super Mario Game — Required Sprites and Animations List
 
+> [!NOTE]
+> **Sprite Asset Source**: The player, item, and world spritesheets implemented in this project are sourced from the **SMB1 sheets on the Mario Mayhem page**.
+
 This document lists all the sprites and animations required for the 16-bit SNES-style Super Mario Game, categorized by characters, enemies, items, blocks, and visual effects, along with recommended web asset links.
 
 ---

@@ -3,6 +3,7 @@
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
+#include "Graphics/ScreenTransitionManager.hpp"
 #include "Entities/Entity.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/StatisticsTracker.hpp"
@@ -41,6 +42,7 @@ void PlayingState::enter() {
     // Ensure HUD font is loaded in ResourceManager
     ResourceManager& rm = ResourceManager::getInstance();
     std::vector<std::string> fontCandidates = {
+        "assets/font/PressStart2P.ttf",
         "asset/font/PressStart2P.ttf",
         "assets/fonts/PressStart2P.ttf",
         "SuperMarioGame/asset/font/PressStart2P.ttf",
@@ -229,7 +231,14 @@ void PlayingState::update(float dt) {
     // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
 
-    // 4. Sync HUD with player stats or fallback mock data
+    // 4. Update Camera & Screen Transitions
+    if (m_player) {
+        m_camera.follow(m_player->getPosition(), dt);
+    }
+    m_camera.update(dt);
+    ScreenTransitionManager::getInstance().update(dt);
+
+    // 5. Sync HUD with player stats or fallback mock data
     if (m_hud) {
         HudData hudData;
         hudData.timeLeft = static_cast<int>(m_levelTimer);
@@ -388,6 +397,9 @@ void PlayingState::render(sf::RenderTarget& target) {
 
         target.setView(oldView);
     }
+
+    // Render screen transitions overlay
+    ScreenTransitionManager::getInstance().render(target);
 
     // ImGui Panel for controlling and monitoring the physics simulation
     ImGui::Begin("Physics Simulation (Phase 2)");

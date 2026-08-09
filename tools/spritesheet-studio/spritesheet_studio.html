@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spritesheet Metadata Renamer Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(20, 27, 45, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-color: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+            --accent-hover: #0284c7;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --font-family: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(129, 140, 248, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            height: 60px;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .brand h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .brand span {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            border: none;
+            color: #0b0f19;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0284c7, #6366f1);
+            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.35);
+        }
+
+        /* Layout Main */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            overflow: hidden;
+        }
+
+        /* Left Panel: Frame List & Reference Names */
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-right {
+            border-right: none;
+            border-left: 1px solid var(--panel-border);
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .search-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .input-text {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-main);
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .input-text:focus {
+            border-color: var(--accent-color);
+        }
+
+        .frame-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .frame-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .frame-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        .frame-item.active {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-color);
+            border-left: 3px solid var(--accent-color);
+            font-weight: 500;
+        }
+
+        .frame-badge {
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+
+        /* Canvas Workspace Center */
+        .workspace {
+            position: relative;
+            background: #070a12;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            cursor: grab;
+        }
+
+        .canvas-container:active {
+            cursor: grabbing;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            z-index: 5;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: background 0.15s ease;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Right Inspector Panel */
+        .inspector-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .preview-box {
+            width: 100%;
+            height: 160px;
+            background-color: #111827;
+            background-image: 
+                linear-gradient(45deg, #1f2937 25%, transparent 25%), 
+                linear-gradient(-45deg, #1f2937 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1f2937 75%), 
+                linear-gradient(-45deg, transparent 75%, #1f2937 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            border-radius: 8px;
+            border: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .preview-canvas {
+            image-rendering: pixelated;
+        }
+
+        .field-group {
+            margin-bottom: 16px;
+        }
+
+        .field-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .reference-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .ref-category {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent-color);
+            margin: 12px 0 6px 0;
+        }
+
+        .ref-category:first-child {
+            margin-top: 0;
+        }
+
+        .ref-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.78rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            cursor: pointer;
+            margin: 2px 4px 4px 0;
+            transition: all 0.15s ease;
+        }
+
+        .ref-tag:hover {
+            background: rgba(56, 189, 248, 0.2);
+            color: #fff;
+            border-color: var(--accent-color);
+        }
+
+        .dropzone-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 15, 25, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 50;
+            transition: opacity 0.2s ease;
+        }
+
+        .dropzone-box {
+            border: 2px dashed var(--accent-color);
+            border-radius: 12px;
+            padding: 40px 60px;
+            text-align: center;
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .dropzone-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .dropzone-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <div>
+                <h1>Spritesheet Renamer</h1>
+                <span>Super Mario Game Asset Tool</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <input type="file" id="fileImageInput" accept="image/png" style="display: none;">
+            <input type="file" id="fileJsonInput" accept="application/json" style="display: none;">
+            <button class="btn" onclick="document.getElementById('fileImageInput').click()">📷 Open PNG</button>
+            <button class="btn" onclick="document.getElementById('fileJsonInput').click()">📄 Open JSON</button>
+            <button class="btn btn-primary" id="btnExport">💾 Export JSON</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main>
+        <!-- Left Panel: Frames List -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Frames (<span id="frameCount">0</span>)</span>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchFrame" class="input-text" placeholder="Search frame name...">
+            </div>
+            <div class="frame-list" id="frameList"></div>
+        </div>
+
+        <!-- Center Workspace Canvas -->
+        <div class="workspace" id="workspace">
+            <div class="dropzone-overlay" id="dropzone">
+                <div class="dropzone-box">
+                    <div class="dropzone-title">Drag & Drop Spritesheet PNG and JSON Metadata</div>
+                    <div class="dropzone-desc">Or use the top header buttons to load files</div>
+                </div>
+            </div>
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="mainCanvas"></canvas>
+            </div>
+            <div class="zoom-controls">
+                <button class="icon-btn" id="btnZoomOut">-</button>
+                <button class="icon-btn" id="btnZoomReset">100%</button>
+                <button class="icon-btn" id="btnZoomIn">+</button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Frame Inspector & Reference Names -->
+        <div class="panel panel-right">
+            <div class="panel-header">
+                <span class="panel-title">Inspector</span>
+            </div>
+            <div class="inspector-section">
+                <div class="preview-box">
+                    <canvas id="previewCanvas" class="preview-canvas"></canvas>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Frame Identifier (Name)</label>
+                    <input type="text" id="inputFrameName" class="input-text" placeholder="Select a frame..." disabled>
+                </div>
+                <div class="grid-2">
+                    <div class="field-group">
+                        <label class="field-label">Position X, Y</label>
+                        <input type="text" id="inputFramePos" class="input-text" readonly disabled>
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Size W x H</label>
+                        <input type="text" id="inputFrameSize" class="input-text" readonly disabled>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <span class="panel-title">Quick Name Blueprints</span>
+            </div>
+            <div class="reference-list" id="referenceList">
+                <div class="ref-category">Player Base States</div>
+                <span class="ref-tag">mario_small_idle</span>
+                <span class="ref-tag">mario_small_walk_0</span>
+                <span class="ref-tag">mario_small_walk_1</span>
+                <span class="ref-tag">mario_small_walk_2</span>
+                <span class="ref-tag">mario_small_run_0</span>
+                <span class="ref-tag">mario_small_run_1</span>
+                <span class="ref-tag">mario_small_run_2</span>
+                <span class="ref-tag">mario_small_jump</span>
+                <span class="ref-tag">mario_small_fall</span>
+                <span class="ref-tag">mario_small_crouch</span>
+                <span class="ref-tag">mario_small_skid</span>
+                <span class="ref-tag">mario_small_death</span>
+
+                <div class="ref-category">Luigi Special</div>
+                <span class="ref-tag">luigi_flutter_0</span>
+                <span class="ref-tag">luigi_flutter_1</span>
+                <span class="ref-tag">luigi_double_jump</span>
+
+                <div class="ref-category">Power-Ups / Form States</div>
+                <span class="ref-tag">mario_super_idle</span>
+                <span class="ref-tag">mario_super_walk_0</span>
+                <span class="ref-tag">mario_fire_shoot</span>
+                <span class="ref-tag">mario_cape_glide_0</span>
+
+                <div class="ref-category">Enemies</div>
+                <span class="ref-tag">goomba_brown_move_0</span>
+                <span class="ref-tag">goomba_brown_move_1</span>
+                <span class="ref-tag">goomba_brown_squished</span>
+                <span class="ref-tag">koopa_green_move_left_0</span>
+                <span class="ref-tag">koopa_green_shell</span>
+                <span class="ref-tag">boo_idle</span>
+
+                <div class="ref-category">Items & Blocks</div>
+                <span class="ref-tag">super_mushroom</span>
+                <span class="ref-tag">fire_flower_0</span>
+                <span class="ref-tag">star_0</span>
+                <span class="ref-tag">coin_spin_0</span>
+                <span class="ref-tag">brick_block</span>
+                <span class="ref-tag">question_block_0</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State
+        let image = null;
+        let jsonData = { frames: {}, meta: {} };
+        let selectedFrameKey = null;
+        let zoom = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        // Elements
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const pCtx = previewCanvas.getContext('2d');
+        const dropzone = document.getElementById('dropzone');
+        const frameListEl = document.getElementById('frameList');
+        const frameCountEl = document.getElementById('frameCount');
+        const inputFrameName = document.getElementById('inputFrameName');
+        const inputFramePos = document.getElementById('inputFramePos');
+        const inputFrameSize = document.getElementById('inputFrameSize');
+        const searchFrame = document.getElementById('searchFrame');
+
+        // File Drag & Drop
+        window.addEventListener('dragover', (e) => e.preventDefault());
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            for (let file of files) {
+                if (file.type.startsWith('image/')) loadPNG(file);
+                else if (file.name.endsWith('.json')) loadJSON(file);
+            }
+        });
+
+        document.getElementById('fileImageInput').addEventListener('change', (e) => {
+            if (e.target.files[0]) loadPNG(e.target.files[0]);
+        });
+
+        document.getElementById('fileJsonInput').addEventListener('change', (e) => {
+            if (e.target.files[0]) loadJSON(e.target.files[0]);
+        });
+
+        function loadPNG(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    image = img;
+                    dropzone.style.display = 'none';
+                    resetCanvasView();
+                    render();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadJSON(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    jsonData = JSON.parse(event.target.result);
+                    if (!jsonData.frames) jsonData.frames = {};
+                    updateFrameList();
+                    render();
+                } catch (err) {
+                    alert('Invalid JSON file format!');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetCanvasView() {
+            if (!image) return;
+            mainCanvas.width = image.width;
+            mainCanvas.height = image.height;
+            zoom = Math.min(
+                (document.getElementById('workspace').clientWidth - 40) / image.width,
+                (document.getElementById('workspace').clientHeight - 40) / image.height,
+                2.0
+            );
+            panX = 0;
+            panY = 0;
+            updateCanvasTransform();
+        }
+
+        function updateCanvasTransform() {
+            const container = document.getElementById('canvasContainer');
+            container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+            document.getElementById('btnZoomReset').innerText = `${Math.round(zoom * 100)}%`;
+        }
+
+        // Render Canvas
+        function render() {
+            if (!image) return;
+            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.drawImage(image, 0, 0);
+
+            // Draw frame boxes
+            for (let key in jsonData.frames) {
+                const f = jsonData.frames[key].frame;
+                const isSelected = (key === selectedFrameKey);
+
+                ctx.lineWidth = isSelected ? 2 : 1;
+                ctx.strokeStyle = isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.4)';
+                ctx.strokeRect(f.x, f.y, f.w, f.h);
+
+                if (isSelected) {
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+                    ctx.fillRect(f.x, f.y, f.w, f.h);
+                }
+            }
+        }
+
+        // Pan & Zoom Controls
+        const workspace = document.getElementById('workspace');
+        workspace.addEventListener('wheel', (e) => {
+            if (!image) return;
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 1.15 : 0.85;
+            zoom = Math.min(Math.max(zoom * delta, 0.2), 10.0);
+            updateCanvasTransform();
+        });
+
+        workspace.addEventListener('mousedown', (e) => {
+            if (e.button === 1 || e.spaceKey) {
+                isDragging = true;
+                dragStartX = e.clientX - panX;
+                dragStartY = e.clientY - panY;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                panX = e.clientX - dragStartX;
+                panY = e.clientY - dragStartY;
+                updateCanvasTransform();
+            }
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        document.getElementById('btnZoomIn').onclick = () => { zoom *= 1.2; updateCanvasTransform(); };
+        document.getElementById('btnZoomOut').onclick = () => { zoom /= 1.2; updateCanvasTransform(); };
+        document.getElementById('btnZoomReset').onclick = () => resetCanvasView();
+
+        // Canvas Box Selection
+        mainCanvas.addEventListener('click', (e) => {
+            if (!image) return;
+            const rect = mainCanvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) / zoom;
+            const clickY = (e.clientY - rect.top) / zoom;
+
+            let hitKey = null;
+            for (let key in jsonData.frames) {
+                const f = jsonData.frames[key].frame;
+                if (clickX >= f.x && clickX <= f.x + f.w && clickY >= f.y && clickY <= f.y + f.h) {
+                    hitKey = key;
+                    break;
+                }
+            }
+
+            selectFrame(hitKey);
+        });
+
+        function selectFrame(key) {
+            selectedFrameKey = key;
+            render();
+            updateInspector();
+            highlightFrameListItem();
+        }
+
+        function updateFrameList() {
+            const filter = searchFrame.value.toLowerCase();
+            frameListEl.innerHTML = '';
+            let count = 0;
+
+            for (let key in jsonData.frames) {
+                count++;
+                if (filter && !key.toLowerCase().includes(filter)) continue;
+
+                const f = jsonData.frames[key].frame;
+                const div = document.createElement('div');
+                div.className = `frame-item ${key === selectedFrameKey ? 'active' : ''}`;
+                div.dataset.key = key;
+                div.innerHTML = `
+                    <span>${key}</span>
+                    <span class="frame-badge">${f.w}x${f.h}</span>
+                `;
+                div.onclick = () => selectFrame(key);
+                frameListEl.appendChild(div);
+            }
+            frameCountEl.innerText = count;
+        }
+
+        function highlightFrameListItem() {
+            document.querySelectorAll('.frame-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.key === selectedFrameKey);
+                if (el.dataset.key === selectedFrameKey) el.scrollIntoView({ block: 'nearest' });
+            });
+        }
+
+        function updateInspector() {
+            if (!selectedFrameKey || !jsonData.frames[selectedFrameKey]) {
+                inputFrameName.value = '';
+                inputFrameName.disabled = true;
+                inputFramePos.value = '';
+                inputFrameSize.value = '';
+                pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                return;
+            }
+
+            const frameData = jsonData.frames[selectedFrameKey];
+            const f = frameData.frame;
+
+            inputFrameName.disabled = false;
+            inputFrameName.value = selectedFrameKey;
+            inputFramePos.value = `${f.x}, ${f.y}`;
+            inputFrameSize.value = `${f.w} x ${f.h}`;
+
+            // Render Preview Crop
+            previewCanvas.width = f.w * 3;
+            previewCanvas.height = f.h * 3;
+            pCtx.imageSmoothingEnabled = false;
+            pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            if (image) {
+                pCtx.drawImage(image, f.x, f.y, f.w, f.h, 0, 0, previewCanvas.width, previewCanvas.height);
+            }
+        }
+
+        // Rename Handling
+        inputFrameName.addEventListener('change', () => renameCurrentFrame());
+        inputFrameName.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                renameCurrentFrame();
+                selectNextFrame();
+            }
+        });
+
+        function renameCurrentFrame() {
+            const newName = inputFrameName.value.trim();
+            if (!selectedFrameKey || !newName || newName === selectedFrameKey) return;
+
+            if (jsonData.frames[newName]) {
+                alert('A frame with this name already exists!');
+                inputFrameName.value = selectedFrameKey;
+                return;
+            }
+
+            const newFrames = {};
+            for (let k in jsonData.frames) {
+                if (k === selectedFrameKey) {
+                    newFrames[newName] = jsonData.frames[k];
+                } else {
+                    newFrames[k] = jsonData.frames[k];
+                }
+            }
+            jsonData.frames = newFrames;
+            selectedFrameKey = newName;
+
+            updateFrameList();
+            render();
+        }
+
+        function selectNextFrame() {
+            const keys = Object.keys(jsonData.frames);
+            const index = keys.indexOf(selectedFrameKey);
+            if (index !== -1 && index + 1 < keys.length) {
+                selectFrame(keys[index + 1]);
+                inputFrameName.focus();
+            }
+        }
+
+        // Quick Reference Tag Click
+        document.getElementById('referenceList').addEventListener('click', (e) => {
+            if (e.target.classList.contains('ref-tag')) {
+                const name = e.target.innerText;
+                if (selectedFrameKey) {
+                    inputFrameName.value = name;
+                    renameCurrentFrame();
+                }
+            }
+        });
+
+        searchFrame.addEventListener('input', () => updateFrameList());
+
+        // Export JSON
+        document.getElementById('btnExport').onclick = () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "sprites_metadata.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        };
+    </script>
+</body>
+</html>

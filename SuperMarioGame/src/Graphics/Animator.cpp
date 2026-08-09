@@ -6,6 +6,10 @@
 Animator::Animator(const SpriteSheet* spriteSheet)
     : m_spriteSheet(spriteSheet) {}
 
+void Animator::setSpriteSheet(const SpriteSheet* spriteSheet) {
+    m_spriteSheet = spriteSheet;
+}
+
 void Animator::play(const Animation* animation) {
     if (m_animation == animation) return;
     m_animation = animation;

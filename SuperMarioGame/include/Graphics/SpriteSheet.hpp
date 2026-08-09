@@ -15,6 +15,7 @@ public:
     sf::Sprite getSprite(sf::IntRect frameRect) const;
     sf::Sprite getSprite(int x,int y,int w,int h) const;
     sf::Sprite getSprite(const std::string& spriteName) const;
+    std::vector<std::string> getFrameNames() const;
 
 private:
     const sf::Texture* m_spriteSheet = nullptr;
