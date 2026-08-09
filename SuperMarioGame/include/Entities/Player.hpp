@@ -2,11 +2,13 @@
 
 #include "Entities/Character.hpp"
 #include "Entities/IPlayerState.hpp"
+#include "Graphics/Animator.hpp"
+#include "Graphics/SpriteSheet.hpp"
 #include <memory>
 
 class Player : public Character {
 public:
-    Player() = default;
+    explicit Player(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f}) : Character(pos, targetSize) {}
     ~Player() override = default;
 
     // Advanced movement controls
@@ -25,6 +27,8 @@ public:
     IPlayerState* getCurrentState() const;
     void changeState(std::unique_ptr<IPlayerState> state);
     void update(float dt) override;
+    void render(sf::RenderTarget& target) override;
+    virtual void setupAnimations(const SpriteSheet* spriteSheet);
 
     // Action methods (enforce game rules)
     void addCoins(int amount);
@@ -66,5 +70,10 @@ protected:
     bool m_crouchRequestedThisFrame = false;
     bool m_runRequested = false;
     float m_fireballCooldownTimer = 0.0f;
+
+    std::unique_ptr<Animator> m_animator;
+    Animation m_animation;
+    bool m_hasAnimation = false;
 };
+
 

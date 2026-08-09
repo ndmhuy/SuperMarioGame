@@ -12,6 +12,16 @@ ChainChomp::ChainChomp(sf::Vector2f position)
     setStrategy(std::make_unique<TetheredChaseStrategy>(position));
 }
 
+void ChainChomp::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("chain_chomp");
+    m_animation.frameList = {{"chained_chomp_head_left_0", 0.15f}, {"chained_chomp_head_left_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void ChainChomp::onStomped() {
     // Spiky/Iron ball: cannot be stomped, inflicts damage
     Player* player = Game::getInstance().getPlayer();

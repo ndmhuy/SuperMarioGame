@@ -22,7 +22,7 @@ void BrickBlock::onHitFromBelow(Player& player) {
         // Just bump/bounce the block
         if (!m_isHit) {
             m_isHit = true;
-            m_bumpTimer = 0.15f;
+            m_bumpTimer = 0.20f;
             m_originalPosition = position;
 
             if (m_coinsLeft > 0) {
@@ -40,6 +40,16 @@ void BrickBlock::onHitFromBelow(Player& player) {
     }
 }
 
+void BrickBlock::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("brick_block");
+    m_animation.frameList = {{"solid_block_brown", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void BrickBlock::render(sf::RenderTarget& target) {
-    // Render blank or empty block if m_isEmpty, otherwise brick texture
+    Block::render(target);
 }

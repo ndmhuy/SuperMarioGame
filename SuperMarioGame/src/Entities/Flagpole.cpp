@@ -5,9 +5,8 @@
 #include <algorithm>
 
 Flagpole::Flagpole(sf::Vector2f position, float poleHeight)
-    : Block(position), m_poleHeight(poleHeight), m_triggered(false) {
+    : Block(position, {32.0f, 300.0f}), m_poleHeight(poleHeight), m_triggered(false) {
     m_breakable = false;
-    boundingBox.width = 16.0f; // Thin flagpole
     boundingBox.height = m_poleHeight;
 }
 
@@ -45,6 +44,16 @@ void Flagpole::onPlayerCollision(Player& player, float collisionY) {
     EventBus::getInstance().publish({EventType::LevelComplete, points});
 }
 
+void Flagpole::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("flagpole");
+    m_animation.frameList = {{"flag_white", 0.15f}, {"flag_reddish_white", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Flagpole::render(sf::RenderTarget& target) {
-    // Render flagpole sprite
+    Block::render(target);
 }

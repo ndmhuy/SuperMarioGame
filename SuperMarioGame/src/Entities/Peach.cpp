@@ -5,7 +5,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
-Peach::Peach(sf::Vector2f pos) {
+Peach::Peach(sf::Vector2f pos) : Player(pos) {
     position = pos;
     speed = Constants::WALK_SPEED * 0.9f;
     jumpForce = std::sqrt(2.0f * Constants::GRAVITY * Constants::GRAVITY_SCALE * Constants::JUMP_HEIGHT);
@@ -13,6 +13,17 @@ Peach::Peach(sf::Vector2f pos) {
     
     boundingBox = AABB{pos.x, pos.y, 32.0f, 32.0f};
     changeState(std::make_unique<SmallState>());
+}
+
+void Peach::setupAnimations(const SpriteSheet* spriteSheet) {
+    if (!spriteSheet) return;
+    m_animator = std::make_unique<Animator>(spriteSheet);
+    m_animation = Animation("peach_small_idle");
+    m_animation.frameList = {{"peach_small_idle", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void Peach::update(float dt) {
@@ -47,12 +58,16 @@ void Peach::update(float dt) {
 
 void Peach::render(sf::RenderTarget& target) {
     if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(255, 105, 180)); // Hot Pink
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    if (m_animator && m_hasAnimation) {
+        Player::render(target);
+    } else {
+        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
+        rect.setFillColor(sf::Color(255, 105, 180)); // Hot Pink
+        rect.setOutlineColor(sf::Color::White);
+        rect.setOutlineThickness(1.0f);
+        target.draw(rect);
+    }
 }
 
 void Peach::floatHover() {

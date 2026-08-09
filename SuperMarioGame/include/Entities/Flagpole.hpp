@@ -9,6 +9,7 @@ public:
 
     void onHitFromBelow(Player& player) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     // Calculates completion score based on player's collision Y coordinate
     void onPlayerCollision(Player& player, float collisionY);

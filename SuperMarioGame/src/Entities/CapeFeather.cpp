@@ -8,17 +8,21 @@ CapeFeather::CapeFeather(sf::Vector2f pos) : Item(pos) {
 }
 
 void CapeFeather::update(float dt) {
-    // CapeFeather stays stationary or floats gently. Let's keep it simple and stationary.
+    Item::update(dt);
+}
+
+void CapeFeather::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("cape_feather");
+    m_animation.frameList = {{"cape_feather", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void CapeFeather::render(sf::RenderTarget& target) {
-    if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(255, 235, 150)); // Light Yellow-Feather color
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Item::render(target);
 }
 
 void CapeFeather::activate(Player& player) {

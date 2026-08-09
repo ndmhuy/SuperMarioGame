@@ -1558,3 +1558,123 @@ Summary of Changes:
 - Created verify_sound_visual tool and registered it in CMakeLists.txt.
 - Successfully built verify_sound_visual.exe.
 ---
+[2026-08-09 17:30:00] Branch: B/feature/graphic-visual
+Prompt: Execute implementation_plan.md to wire sprites and animations for all Items, Enemies, and Blocks, and fix AABB vs sprite location matching anchored at bottom-center.
+Files Modified:
+- SuperMarioGame/include/Entities/Item.hpp, SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/include/Entities/Mushroom.hpp, SuperMarioGame/src/Entities/Mushroom.cpp
+- SuperMarioGame/include/Entities/FireFlower.hpp, SuperMarioGame/src/Entities/FireFlower.cpp
+- SuperMarioGame/include/Entities/Star.hpp, SuperMarioGame/src/Entities/Star.cpp
+- SuperMarioGame/include/Entities/Coin.hpp, SuperMarioGame/src/Entities/Coin.cpp
+- SuperMarioGame/include/Entities/OneUpMushroom.hpp, SuperMarioGame/src/Entities/OneUpMushroom.cpp
+- SuperMarioGame/include/Entities/CapeFeather.hpp, SuperMarioGame/src/Entities/CapeFeather.cpp
+- SuperMarioGame/include/Entities/MegaMushroom.hpp, SuperMarioGame/src/Entities/MegaMushroom.cpp
+- SuperMarioGame/include/Entities/MiniMushroom.hpp, SuperMarioGame/src/Entities/MiniMushroom.cpp
+- SuperMarioGame/include/Entities/POWBlock.hpp, SuperMarioGame/src/Entities/POWBlock.cpp
+- SuperMarioGame/include/Entities/PSwitch.hpp, SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/include/Entities/Trampoline.hpp, SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/include/Entities/StarCoin.hpp, SuperMarioGame/src/Entities/StarCoin.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp, SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/Goomba.hpp, SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp, SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/include/Entities/KoopaParatroopa.hpp, SuperMarioGame/src/Entities/KoopaParatroopa.cpp
+- SuperMarioGame/include/Entities/Boo.hpp, SuperMarioGame/src/Entities/Boo.cpp
+- SuperMarioGame/include/Entities/PiranhaPlant.hpp, SuperMarioGame/src/Entities/PiranhaPlant.cpp
+- SuperMarioGame/include/Entities/BulletBill.hpp, SuperMarioGame/src/Entities/BulletBill.cpp
+- SuperMarioGame/include/Entities/HammerBro.hpp, SuperMarioGame/src/Entities/HammerBro.cpp
+- SuperMarioGame/include/Entities/Thwomp.hpp, SuperMarioGame/src/Entities/Thwomp.cpp
+- SuperMarioGame/include/Entities/ChainChomp.hpp, SuperMarioGame/src/Entities/ChainChomp.cpp
+- SuperMarioGame/include/Entities/Lakitu.hpp, SuperMarioGame/src/Entities/Lakitu.cpp
+- SuperMarioGame/include/Entities/Spiny.hpp, SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/include/Entities/Block.hpp, SuperMarioGame/src/Entities/Block.cpp
+- SuperMarioGame/include/Entities/QuestionBlock.hpp, SuperMarioGame/src/Entities/QuestionBlock.cpp
+- SuperMarioGame/include/Entities/BrickBlock.hpp, SuperMarioGame/src/Entities/BrickBlock.cpp
+- SuperMarioGame/include/Entities/Pipe.hpp, SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/include/Entities/Flagpole.hpp, SuperMarioGame/src/Entities/Flagpole.cpp
+- SuperMarioGame/include/Entities/HiddenBlock.hpp, SuperMarioGame/src/Entities/HiddenBlock.cpp
+- SuperMarioGame/include/Entities/MovingPlatform.hpp, SuperMarioGame/src/Entities/MovingPlatform.cpp
+- SuperMarioGame/include/Entities/FallingPlatform.hpp, SuperMarioGame/src/Entities/FallingPlatform.cpp
+- SuperMarioGame/include/Entities/IceBlock.hpp, SuperMarioGame/src/Entities/IceBlock.cpp
+- SuperMarioGame/include/Entities/ConveyorBelt.hpp, SuperMarioGame/src/Entities/ConveyorBelt.cpp
+- SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Entities/Mario.cpp, SuperMarioGame/src/Entities/Luigi.cpp, SuperMarioGame/src/Entities/Toad.cpp, SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+Summary of Changes:
+- Added setupAnimations, update, and render with bottom-center origin anchoring to Item, Enemy, and Block base classes and all 32 derived entity subclasses.
+- Wired authentic sprite frames from sprite sheet JSON catalogs for all 12 Item subclasses, 11 Enemy subclasses, 9 Block subclasses, and 4 Player subclasses.
+- Configured horizontal scale flipping (facingRight ? -1.0f : 1.0f) for Enemy and Player sprites.
+- Updated verify_all_entities_visual.cpp to construct SpriteSheet instances using loaded textures and pass them via setupAnimations to all entity categories.
+---
+[2026-08-09 18:42:00] Branch: dev
+Prompt: Fix the AABB (0,0) positioning bug and missing item/enemy sprite frame key mismatches across all entities.
+Files Modified:
+- SuperMarioGame/include/Entities/Entity.hpp, SuperMarioGame/src/Entities/Entity.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp, SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Mario.hpp, SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/include/Entities/Luigi.hpp, SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/include/Entities/Toad.hpp, SuperMarioGame/src/Entities/Toad.cpp
+- SuperMarioGame/include/Entities/Peach.hpp, SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/src/Entities/Star.cpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/src/Entities/KoopaParatroopa.cpp
+- SuperMarioGame/src/Entities/Block.cpp
+- SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Fixed AABB at (0,0) bug by updating Entity constructor Entity(sf::Vector2f pos = {0,0}) to set position and boundingBox x, y, and updating Enemy constructor to pass position to Character(position) and sync boundingBox x, y.
+- Synced constructor and setPosition across Character, Player, Block, and Item subclasses.
+- Fixed invalid atlas frame key mismatches: Star.cpp frame list updated to star_1, star_2, star_3; Goomba.cpp frame list updated to goomba_brown_move_0/1; KoopaTroopa/KoopaParatroopa frame keys verified for green koopa frames.
+- Implemented setupAnimations(const SpriteSheet*) for Mario, Luigi, Toad, Peach with character-specific idle frame keys (mario_small_idle, luigi_small_idle, toad_small_idle, peach_small_idle).
+- Standardized sprite rendering and origin math for Items, Enemies, Players (bottom-center origin) and Blocks (top-left 0,0 origin).
+- Updated verify_all_entities_visual.cpp so all Item entities and item-based platform blocks use itemSheet (item.json).
+- Registered verify_all_entities_visual in CMakeLists.txt and built target cleanly with exit code 0.
+---
+[2026-08-09 19:10:00] Branch: dev
+Prompt: Implement aspect-ratio scaling for entity sprites based on target AABB size, and update boundingBox dimensions to match the scaled sprite.
+Files Modified:
+- SuperMarioGame/include/Entities/Entity.hpp, SuperMarioGame/src/Entities/Entity.cpp
+- SuperMarioGame/include/Entities/Character.hpp
+- SuperMarioGame/include/Entities/Block.hpp, SuperMarioGame/src/Entities/Block.cpp
+- SuperMarioGame/include/Entities/Item.hpp, SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp, SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Entities/Mario.cpp, SuperMarioGame/src/Entities/Luigi.cpp, SuperMarioGame/src/Entities/Toad.cpp, SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/src/Entities/MiniMushroom.cpp, SuperMarioGame/src/Entities/MegaMushroom.cpp
+- SuperMarioGame/src/Entities/Pipe.cpp, SuperMarioGame/src/Entities/Flagpole.cpp
+- SuperMarioGame/src/Entities/Thwomp.cpp, SuperMarioGame/src/Entities/PiranhaPlant.cpp
+- SuperMarioGame/src/Entities/FallingPlatform.cpp, SuperMarioGame/src/Entities/MovingPlatform.cpp, SuperMarioGame/src/Entities/HammerBro.cpp
+Summary of Changes:
+- Added m_targetSize member (default 32.0f, 32.0f) with getTargetSize() and setTargetSize() to Entity base class and updated Entity constructor to set position, m_targetSize, and boundingBox.
+- Forwarded targetSize through Character, Block, Item, Enemy, and Player base constructors.
+- Configured specific targetSize for entity subclasses: standard 1-tile entities ({32.0f, 32.0f}), MiniMushroom ({16.0f, 16.0f}), MegaMushroom ({64.0f, 64.0f}), Pipe ({64.0f, 64.0f}), Flagpole ({32.0f, 300.0f}), Thwomp ({48.0f, 64.0f}), PiranhaPlant ({32.0f, 48.0f}), Platforms ({64.0f, 16.0f}), and HammerBro ({32.0f, 48.0f}).
+- Implemented aspect-ratio sprite scaling math in Item::render, Enemy::render, Player::render, and Block::render using std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y).
+- Updated boundingBox width and height in render functions to match scaled sprite dimensions.
+- Standardized origin/position setting: Actors (Item, Enemy, Player) set bottom-center origin (bounds.size.x * 0.5f, bounds.size.y) with position at (boundingBox.x + scaledW * 0.5f, boundingBox.y + scaledH); Blocks set top-left origin (0, 0) with position at (boundingBox.x, boundingBox.y).
+- Added interactive ImGui "Entity Scale Factor" slider (0.25x to 4.00x) in verify_all_entities_visual.cpp to dynamically rescale all entity target sizes in real-time.
+---
+Date/Time: 2026-08-09 19:27:00
+Task: Entity Animations, Scale Matching, AABB Constancy & Test Harness Action Wiring
+Files Modified:
+- SuperMarioGame/include/Entities/Trampoline.hpp
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/src/Entities/POWBlock.cpp
+- SuperMarioGame/src/Entities/QuestionBlock.cpp
+- SuperMarioGame/src/Entities/BrickBlock.cpp
+- SuperMarioGame/src/Entities/Block.cpp
+- SuperMarioGame/src/Entities/Mushroom.cpp
+- SuperMarioGame/src/Entities/OneUpMushroom.cpp
+- SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+Summary of Changes:
+- Task 1: Added bounce animation state (m_bounceTimer, m_bounceStage, m_bounceAnimation) to Trampoline. Updated activate() to apply upward velocity (-831.4f) and play 0.3s bounce sequence ("trampoline_squished" -> "trampoline_extended" -> "trampoline"). Fixed render() to maintain base AABB (32x32) with bottom-center origin at (boundingBox.x + 16.0f, boundingBox.y + 32.0f).
+- Task 2: Configured POWBlock animation frameList with all 8 frames (pow_block_0 through pow_block_7) at 0.08s frame duration.
+- Task 3: Implemented 0.20s parabolic bump offset animation in QuestionBlock, BrickBlock, and Block onHitFromBelow (moves up 8px over 0.1s and returns over 0.1s).
+- Task 4: Ensured Red Mushroom and Green 1Up Mushroom constructors explicitly pass m_targetSize = {32.0f, 32.0f} for identical 1:1 scale rendering.
+- Task 5: Enforced base AABB constancy during animation frames across Item, Enemy, Player, and Block render methods, keeping boundingBox width and height locked to base targetSize.
+- Task 6: Wired test harness action buttons in verify_all_entities_visual.cpp for "Bounce Trampoline" (calling activate()), "Bump Block" (calling onHitFromBelow()), and "Fireball Hit" (calling onHitByFireball()).
+---
+

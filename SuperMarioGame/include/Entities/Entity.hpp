@@ -9,7 +9,7 @@ class CollisionResolver;
 
 class Entity {
 public:
-    Entity() = default;
+    explicit Entity(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f});
     virtual ~Entity() = default;
 
     // Pure virtual lifecycle methods
@@ -25,10 +25,12 @@ public:
     // Getters/Setters for external access
     sf::Vector2f getPosition() const;
     sf::Vector2f getVelocity() const;
+    sf::Vector2f getTargetSize() const { return m_targetSize; }
 
     // Setters for coordinates
     void setPosition(sf::Vector2f pos);
     void setVelocity(sf::Vector2f vel);
+    void setTargetSize(sf::Vector2f size) { m_targetSize = size; boundingBox.width = size.x; boundingBox.height = size.y; }
 
 protected:
     // Friends are allowed direct write access to coordinate updates
@@ -49,5 +51,6 @@ protected:
     sf::Vector2f velocity;
     bool active = true;
     AABB boundingBox;
+    sf::Vector2f m_targetSize{32.0f, 32.0f};
 };
 

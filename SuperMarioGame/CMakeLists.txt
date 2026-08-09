@@ -422,6 +422,29 @@ target_link_libraries(verify_enemies_visual PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+# ---------------------------------------------------------
+# 14. Verification Test Target (verify_all_entities_visual)
+# ---------------------------------------------------------
+add_executable(verify_all_entities_visual
+    "tests/verify_all_entities_visual.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_all_entities_visual PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_all_entities_visual PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+
 
 
 

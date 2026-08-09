@@ -4,7 +4,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
-Mario::Mario(sf::Vector2f pos) {
+Mario::Mario(sf::Vector2f pos) : Player(pos) {
     position = pos;
     speed = Constants::WALK_SPEED;
     jumpForce = std::sqrt(2.0f * Constants::GRAVITY * Constants::GRAVITY_SCALE * Constants::JUMP_HEIGHT);
@@ -15,18 +15,33 @@ Mario::Mario(sf::Vector2f pos) {
     changeState(std::make_unique<SmallState>());
 }
 
+void Mario::setupAnimations(const SpriteSheet* spriteSheet) {
+    if (!spriteSheet) return;
+    m_animator = std::make_unique<Animator>(spriteSheet);
+    m_animation = Animation("mario_small_idle");
+    m_animation.frameList = {{"mario_small_idle", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Mario::update(float dt) {
     Player::update(dt);
 }
 
 void Mario::render(sf::RenderTarget& target) {
     if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color::Red);
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    if (m_animator && m_hasAnimation) {
+        Player::render(target);
+    } else {
+        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
+        rect.setFillColor(sf::Color::Red);
+        rect.setOutlineColor(sf::Color::White);
+        rect.setOutlineThickness(1.0f);
+        target.draw(rect);
+    }
 }
 
 void Mario::shootFireball() {

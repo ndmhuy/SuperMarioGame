@@ -10,6 +10,7 @@ public:
     void onStomped() override;
     void onHitByFireball() override;
     void update(float dt) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
     const AABB& getBoundingBox() const override;
 
     bool isFlipped() const { return m_isFlipped; }

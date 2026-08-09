@@ -7,7 +7,7 @@ class CollisionResolver;
 
 class Character : public Entity {
 public:
-    Character() = default;
+    explicit Character(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f}) : Entity(pos, targetSize) {}
     ~Character() override = default;
 
     // Direct movement commands called by Input/AI

@@ -6,10 +6,8 @@
 #include <cmath>
 
 FallingPlatform::FallingPlatform(sf::Vector2f position)
-    : Block(position), m_state(FallingPlatformState::Idle) {
+    : Block(position, {64.0f, 16.0f}), m_state(FallingPlatformState::Idle) {
     m_breakable = false;
-    boundingBox.width = 64.0f;
-    boundingBox.height = 16.0f;
 }
 
 void FallingPlatform::onHitFromBelow(Player& player) {
@@ -89,15 +87,19 @@ void FallingPlatform::update(float dt) {
     }
 }
 
+void FallingPlatform::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("falling_platform");
+    m_animation.frameList = {{"falling_platform_medium", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void FallingPlatform::render(sf::RenderTarget& target) {
     if (m_state == FallingPlatformState::Respawning) return;
-
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position + m_shakeOffset);
-    rect.setFillColor(sf::Color(150, 100, 100)); // Distinct dark red/gray color
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Block::render(target);
 }
 
 const AABB& FallingPlatform::getBoundingBox() const {

@@ -1,5 +1,11 @@
 #include "Entities/Entity.hpp"
 
+Entity::Entity(sf::Vector2f pos, sf::Vector2f targetSize) {
+    position = pos;
+    m_targetSize = targetSize;
+    boundingBox = AABB{pos.x, pos.y, targetSize.x, targetSize.y};
+}
+
 const AABB& Entity::getBoundingBox() const {
     return boundingBox;
 }
