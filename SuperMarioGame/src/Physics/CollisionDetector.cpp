@@ -85,6 +85,8 @@ std::vector<CollisionInfo> CollisionDetector::checkEntityVsTileMap(Entity& entit
                 if (entityBox.intersects(tileBox)) {
                     CollisionInfo collisionInfo;
                     collisionInfo.collided = true;
+                    collisionInfo.tileX = x;
+                    collisionInfo.tileY = y;
                     collisionInfo.other = nullptr;
 
                     AABB overlapBox = entityBox.getOverlap(tileBox);

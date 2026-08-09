@@ -33,36 +33,43 @@
 #include <cmath>
 #include <algorithm>
 
-PlayingState::PlayingState() = default;
+PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig)
+    : m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
+
 PlayingState::~PlayingState() = default;
 
 void PlayingState::enter() {
-    std::cout << "Entering PlayingState" << std::endl;
-    
-    // Ensure HUD font is loaded in ResourceManager
-    ResourceManager& rm = ResourceManager::getInstance();
-    std::vector<std::string> fontCandidates = {
-        "assets/font/PressStart2P.ttf",
-        "asset/font/PressStart2P.ttf",
-        "assets/fonts/PressStart2P.ttf",
-        "SuperMarioGame/asset/font/PressStart2P.ttf",
-        "SuperMarioGame/assets/fonts/PressStart2P.ttf",
-        "../asset/font/PressStart2P.ttf",
-        "../assets/fonts/PressStart2P.ttf",
-        "C:/Windows/Fonts/consola.ttf",
-        "C:/Windows/Fonts/arial.ttf"
-    };
-    for (const auto& path : fontCandidates) {
-        if (std::filesystem::exists(path)) {
-            if (rm.loadFont("PressStart2P", path)) break;
-        }
-    }
-
+    std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
     // Initialize HUD and Level Timer
     m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT));
     m_levelTimer = 300.0f;
 
-    setupTestScene();
+    if (m_isProcedural) {
+        cleanupTestScene();
+        MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+        
+        m_player = nullptr;
+        for (const auto& entity : m_entities) {
+            if (auto p = dynamic_cast<Player*>(entity.get())) {
+                m_player = p;
+                break;
+            }
+        }
+        if (!m_player) {
+            spawnSelectedPlayer(sf::Vector2f(96.0f, 500.0f));
+        } else {
+            InputManager::getInstance().registerPlayer(m_player, 0);
+            Game::getInstance().setPlayer(m_player);
+        }
+        Game::getInstance().setTileMap(&m_tileMap);
+        m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+    } else {
+        setupTestScene();
+    }
+
+    if (m_startInEditor && !m_mapEditor.isActive()) {
+        m_mapEditor.toggleActive();
+    }
 
     // Auto-save at checkpoint
     m_checkpointSubId = EventBus::getInstance().subscribe(EventType::CheckpointActivated, [this](const GameEvent& ev) {
@@ -85,8 +92,10 @@ void PlayingState::enter() {
         // Count active fireballs
         int activeFireballs = 0;
         for (const auto& entity : m_entities) {
-            if (dynamic_cast<Fireball*>(entity.get())) {
-                activeFireballs++;
+            if (auto fb = dynamic_cast<Fireball*>(entity.get())) {
+                if (fb->isActive()) {
+                    activeFireballs++;
+                }
             }
         }
 
@@ -230,6 +239,14 @@ void PlayingState::update(float dt) {
 
     // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
+
+    // 3b. Prune inactive entities (keep m_player intact even if inactive)
+    m_entities.erase(
+        std::remove_if(m_entities.begin(), m_entities.end(), [this](const std::unique_ptr<Entity>& entity) {
+            return entity && !entity->isActive() && entity.get() != m_player;
+        }),
+        m_entities.end()
+    );
 
     // 4. Update Camera & Screen Transitions
     if (m_player) {
@@ -380,18 +397,23 @@ void PlayingState::render(sf::RenderTarget& target) {
         target.draw(*m_hud);
 
         if (m_rewindManager.isRewinding()) {
-            sf::RectangleShape rewindBox(sf::Vector2f(360.0f, 40.0f));
-            rewindBox.setPosition({460.0f, 70.0f});
-            rewindBox.setFillColor(sf::Color(0, 0, 0, 200));
+            // Full-screen cyan vignette scanline filter overlay
+            sf::RectangleShape rewindOverlay(sf::Vector2f(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT));
+            rewindOverlay.setFillColor(sf::Color(0, 200, 255, 45));
+            target.draw(rewindOverlay);
+
+            sf::RectangleShape rewindBox(sf::Vector2f(420.0f, 44.0f));
+            rewindBox.setPosition({430.0f, 65.0f});
+            rewindBox.setFillColor(sf::Color(0, 0, 0, 220));
             rewindBox.setOutlineColor(sf::Color(0, 255, 255));
             rewindBox.setOutlineThickness(2.0f);
             target.draw(rewindBox);
 
             sf::Text rewindText(ResourceManager::getInstance().getFont("PressStart2P"));
-            rewindText.setString("TIME REWINDING (" + std::to_string(m_rewindManager.getSnapshotCount()) + ")");
+            rewindText.setString("<< MEMENTO TIME REWINDING (" + std::to_string(m_rewindManager.getSnapshotCount()) + ")");
             rewindText.setCharacterSize(12);
             rewindText.setFillColor(sf::Color(0, 255, 255));
-            rewindText.setPosition({475.0f, 83.0f});
+            rewindText.setPosition({445.0f, 80.0f});
             target.draw(rewindText);
         }
 

@@ -70,8 +70,8 @@ private:
     void shutdown();
 
     // Window and loop state
-    sf::RenderWindow m_window;
     GameStateManager m_gsm;
+    sf::RenderWindow m_window;
     bool m_isRunning = false;
 
     // Persistent Settings & Slot State

@@ -9,6 +9,8 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/EventBus.hpp"
+#include "Graphics/ParticleEmitter.hpp"
 #include "Utils/MathUtils.hpp"
 #include <cmath>
 #include <algorithm>
@@ -188,6 +190,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
 
+        float preVelY = entity->velocity.y;
         entity->position.y += entity->velocity.y * dt;
         entity->boundingBox.y = entity->position.y;
 
@@ -212,6 +215,40 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                 }
             } else {
                 m_resolver.resolveEntityVsTile(*entity, maxCollision);
+
+                // Head-butt logic for Player hitting ceiling tiles from below
+                if (auto player = dynamic_cast<Player*>(entity.get())) {
+                    for (const auto& col : collisions) {
+                        if (col.tileX != -1 && col.tileY != -1 && (col.normal.y == 1.0f || preVelY < 0.0f)) {
+                            TileType hitTile = tileMap.getTileType(col.tileX, col.tileY);
+                            
+                            if (hitTile == TileType::Brick) {
+                                // If player is Super+ (height > 32px), break block
+                                if (player->getBoundingBox().height > 32.0f) {
+                                    tileMap.setTile(col.tileX, col.tileY, TileType::Empty);
+                                    player->addScore(100);
+                                    SoundManager::getInstance().playSound("break_block");
+                                    EventBus::getInstance().publish({EventType::BlockBroken, 100});
+                                } else {
+                                    // Small player just bumps it
+                                    SoundManager::getInstance().playSound("bump");
+                                }
+                            } else if (hitTile == TileType::Question) {
+                                // Yield coin and convert to used block
+                                tileMap.setTile(col.tileX, col.tileY, TileType::Used);
+                                player->addCoins(1);
+                                player->addScore(200);
+                                SoundManager::getInstance().playSound("coin");
+                            } else if (hitTile == TileType::Coin) {
+                                // Collect coin tile
+                                tileMap.setTile(col.tileX, col.tileY, TileType::Empty);
+                                player->addCoins(1);
+                                player->addScore(200);
+                                SoundManager::getInstance().playSound("coin");
+                            }
+                        }
+                    }
+                }
             }
         }
     }

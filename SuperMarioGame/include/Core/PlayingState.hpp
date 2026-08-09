@@ -12,12 +12,14 @@
 #include <vector>
 #include <memory>
 
+#include "Utils/MapGenerator.hpp"
+
 class Entity;
 class Player;
 
 class PlayingState : public IGameState {
 public:
-    PlayingState();
+    explicit PlayingState(bool startInEditor = false, bool isProcedural = false, const MapGeneratorConfig& genConfig = MapGeneratorConfig());
     ~PlayingState() override;
 
     void enter() override;
@@ -47,6 +49,10 @@ private:
 
     std::unique_ptr<Hud> m_hud;
     float m_levelTimer = 300.0f;
+
+    bool m_startInEditor = false;
+    bool m_isProcedural = false;
+    MapGeneratorConfig m_genConfig;
 
     void setupTestScene();
     void cleanupTestScene();

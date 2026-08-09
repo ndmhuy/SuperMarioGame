@@ -4,3 +4,6 @@ __pycache__/
 build/
 bin/
 saves/
+.cache/
+.member_profile.json
+

@@ -2,6 +2,8 @@
 #include "Utils/Constants.hpp"
 #include "Entities/Entity.hpp"
 #include "Utils/LevelLoader.hpp"
+#include "Core/Game.hpp"
+#include "Core/MenuState.hpp"
 #include <imgui.h>
 #include <iostream>
 #include <cmath>
@@ -238,6 +240,16 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
         tileMap.initialize(tileMap.getWidth(), tileMap.getHeight());
         entities.clear();
         clearHistory();
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("🎮 Switch to Play Mode (F1)")) {
+        toggleActive();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("🏠 Return to Main Menu")) {
+        toggleActive();
+        Game::getInstance().changeState(std::make_unique<MenuState>());
     }
 
     ImGui::TextDisabled("\nViewport Controls:\n"

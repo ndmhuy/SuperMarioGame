@@ -12,6 +12,8 @@ struct CollisionInfo {
     sf::Vector2f overlap{0.0f, 0.0f};
     sf::Vector2f normal{0.0f, 0.0f};
     Entity* other = nullptr;
+    int tileX = -1;
+    int tileY = -1;
 };
 
 class CollisionDetector {

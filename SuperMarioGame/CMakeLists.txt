@@ -178,6 +178,8 @@ add_executable(verify_blocks
     "src/Entities/IPlayerState.cpp"
     "src/Entities/Enemy.cpp"
     "src/Entities/Item.cpp"
+    "src/Entities/Fireball.cpp"
+    "src/Entities/Trampoline.cpp"
     "src/Core/EventBus.cpp"
     "src/Physics/AABB.cpp"
     "src/Physics/CollisionResolver.cpp"
@@ -339,6 +341,7 @@ target_link_libraries(verify_hud_boss PRIVATE
     SFML::Graphics 
     SFML::Window 
     SFML::System 
+    SFML::Audio
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
 )

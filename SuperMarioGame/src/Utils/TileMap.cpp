@@ -44,6 +44,10 @@ const TileInfo& TileMap::getInfo(TileType type) {
             static const TileInfo info{TileType::Coin, false, sf::Color(255, 215, 0), "Coin"};
             return info;
         }
+        case TileType::Used: {
+            static const TileInfo info{TileType::Used, true, sf::Color(100, 70, 20), "Used"};
+            return info;
+        }
         default: {
             static const TileInfo defaultInfo{TileType::Empty, false, sf::Color::Transparent, "Unknown"};
             return defaultInfo;

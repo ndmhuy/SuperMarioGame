@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Audio/SoundBuffer.hpp>
@@ -41,4 +42,5 @@ private:
     std::unordered_map<std::string, sf::Texture> m_textures;
     std::unordered_map<std::string, sf::Font> m_fonts;
     std::unordered_map<std::string, sf::SoundBuffer> m_soundBuffers;
+    std::unordered_set<std::string> m_reportedMissing;
 };

@@ -23,7 +23,10 @@ sf::Texture &ResourceManager::getTexture(const std::string &id) {
   if (it != m_textures.end()) {
     return it->second;
   }
-  std::cerr << "[ResourceManager] Texture not found: " << id << std::endl;
+  if (m_reportedMissing.find("texture:" + id) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] Texture not found: " << id << std::endl;
+    m_reportedMissing.insert("texture:" + id);
+  }
   static sf::Texture dummy;
   return dummy;
 }
@@ -34,7 +37,10 @@ bool ResourceManager::loadFont(const std::string &id, const std::string &path) {
     m_fonts[id] = std::move(font);
     return true;
   }
-  std::cerr << "[ResourceManager] Failed to load font: " << path << std::endl;
+  if (m_reportedMissing.find("font_path:" + path) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] Failed to load font: " << path << std::endl;
+    m_reportedMissing.insert("font_path:" + path);
+  }
   return false;
 }
 
@@ -43,7 +49,10 @@ sf::Font &ResourceManager::getFont(const std::string &id) {
   if (it != m_fonts.end()) {
     return it->second;
   }
-  std::cerr << "[ResourceManager] Font not found: " << id << std::endl;
+  if (m_reportedMissing.find("font:" + id) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] Font not found: " << id << std::endl;
+    m_reportedMissing.insert("font:" + id);
+  }
   static sf::Font dummy;
   return dummy;
 }
@@ -55,8 +64,11 @@ bool ResourceManager::loadSoundBuffer(const std::string &id,
     m_soundBuffers[id] = std::move(soundBuffer);
     return true;
   }
-  std::cerr << "[ResourceManager] Failed to load sound buffer: " << path
-            << std::endl;
+  if (m_reportedMissing.find("sound_path:" + path) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] Failed to load sound buffer: " << path
+              << std::endl;
+    m_reportedMissing.insert("sound_path:" + path);
+  }
   return false;
 }
 
@@ -65,7 +77,10 @@ sf::SoundBuffer &ResourceManager::getSoundBuffer(const std::string &id) {
   if (it != m_soundBuffers.end()) {
     return it->second;
   }
-  std::cerr << "[ResourceManager] SoundBuffer not found: " << id << std::endl;
+  if (m_reportedMissing.find("sound:" + id) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] SoundBuffer not found: " << id << std::endl;
+    m_reportedMissing.insert("sound:" + id);
+  }
   static sf::SoundBuffer dummy;
   return dummy;
 }
@@ -74,4 +89,5 @@ void ResourceManager::clear() {
   m_textures.clear();
   m_fonts.clear();
   m_soundBuffers.clear();
+  m_reportedMissing.clear();
 }

@@ -1,6 +1,7 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/ResourceManager.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
 #include "Utils/Constants.hpp"
@@ -30,6 +31,29 @@ void Game::run() {
     // Initialize tracking systems
     StatisticsTracker::getInstance().init();
     AchievementManager::getInstance().init();
+
+    // Ensure HUD font is loaded in ResourceManager before any state (and its Hud) is constructed
+    ResourceManager& rm = ResourceManager::getInstance();
+    std::vector<std::string> fontCandidates = {
+        "assets/font/PressStart2P.ttf",
+        "SuperMarioGame/assets/font/PressStart2P.ttf",
+        "asset/font/PressStart2P.ttf",
+        "assets/fonts/PressStart2P.ttf",
+        "SuperMarioGame/asset/font/PressStart2P.ttf",
+        "SuperMarioGame/assets/fonts/PressStart2P.ttf",
+        "../asset/font/PressStart2P.ttf",
+        "../assets/fonts/PressStart2P.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/Library/Fonts/Arial.ttf",
+        "C:/Windows/Fonts/consola.ttf",
+        "C:/Windows/Fonts/arial.ttf"
+    };
+    for (const auto& path : fontCandidates) {
+        if (std::filesystem::exists(path)) {
+            if (rm.loadFont("PressStart2P", path)) break;
+        }
+    }
 
     // Push initial menu state
     m_gsm.pushState(std::make_unique<MenuState>());
@@ -121,6 +145,14 @@ void Game::initImGui() {
 void Game::shutdown() {
     // Save configuration settings
     Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
+
+    // Pop all remaining game states before shutting down managers
+    while (!m_gsm.isEmpty()) {
+        m_gsm.popState();
+    }
+
+    m_player = nullptr;
+    m_tileMap = nullptr;
 
     // Shutdown managers
     StatisticsTracker::getInstance().shutdown();

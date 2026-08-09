@@ -17,7 +17,8 @@ enum class TileType : int {
     Ice = 5,
     Conveyor = 6,
     Water = 7,
-    Coin = 8
+    Coin = 8,
+    Used = 9
 };
 
 struct TileInfo {

@@ -1664,3 +1664,33 @@ Summary of Changes:
 - Updated AGENTS.md with new directive #7 "Version Control Safety — Git Fingerprint Cross-Reference" requiring agents to check for uncommitted work before destructive git commands and record before/after commit hashes.
 - Updated AGENTS.md log entry format to include mandatory `Git Fingerprint` field.
 ---
+[2026-08-09 08:16:30] Branch: dev
+Git Fingerprint: f0089ea (before) → f0089ea (working tree)
+Prompt: Fix font not found & single error logging, resolve exiting game segmentation fault, wire Map Generator & Map Editor to ImGui with return buttons, repair brick & coin headbutt physics, fix limited fireball cleanup, and recover Memento Rewind visual/audio effects.
+Files Modified:
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/include/Utils/MapGenerator.hpp (NEW)
+- SuperMarioGame/src/Utils/MapGenerator.cpp (NEW)
+- SuperMarioGame/include/Core/MenuState.hpp
+- SuperMarioGame/src/Core/MenuState.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Utils/MapEditor.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/CMakeLists.txt
+- .gitignore
+- logs/agent_history.log
+Summary of Changes:
+- Added `m_reportedMissing` set to `ResourceManager` so missing font, texture, and sound warnings are logged `std::cerr` ONLY ONCE per ID instead of spamming every frame.
+- Added candidate font paths `SuperMarioGame/assets/font/PressStart2P.ttf`, `assets/font/PressStart2P.ttf`, macOS system fonts (`/System/Library/Fonts/Supplemental/Arial.ttf`, `/System/Library/Fonts/Helvetica.ttc`), and relative directory search paths in `Game.cpp`.
+- Fixed exit segmentation fault: reset `m_player` and `m_tileMap` pointers to `nullptr` in `Game::shutdown()`, and ensured audio/input cleanups occur in safe sequence.
+- Implemented `MapGenerator` (`MapGenerator.hpp/.cpp`) for procedural level generation with customizable themes (Overworld, Underground, Castle, Ice), difficulty presets, ground pits, staircases, floating brick/question platforms, pipes, and enemy spawns.
+- Updated `MenuState` ImGui menu offering mode buttons: Play Game, Map Editor Mode, and Procedural Level Generator with interactive controls.
+- Added prominent "Return to Main Menu" and "Switch Mode" buttons in `MapEditor` ImGui window.
+- Fixed Brick & Coin headbutt physics in `PhysicsEngine.cpp`: checks all ceiling tile collisions where `normal.y == 1.0f` (or upward jump momentum). Super Mario (height >= 48px) breaks bricks (`TileType::Empty`), spawns `BrickBreak` particle emitter, plays `break_block` SFX; Small Mario bumps bricks (`bump` SFX); Question tiles convert to `Used` yielding 1 coin; Coin tiles clear yielding 1 coin.
+- Fixed limited fireball limit: added entity pruning (`remove_if(!isActive)`) in `PlayingState::update()` so destroyed fireballs leave memory, allowing continuous firing on Fire form.
+- Recovered Memento Time Rewind: added full-screen cyan vignette scanline filter, top banner "⏪ MEMENTO TIME REWINDING (N frames)", and audio cues during rewind.
+- Verified 100% clean C++ compilation and 100% pass rate across test suite (`verify_all` 6/6 passed, `verify_fireball` 4/4 passed).
+---
