@@ -8,6 +8,7 @@
 #include "Entities/Fireball.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
+#include "Core/SoundManager.hpp"
 #include "Utils/MathUtils.hpp"
 #include <cmath>
 #include <algorithm>
@@ -45,6 +46,29 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                 if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
                     character->position.x += Constants::CONVEYOR_SPEED * dt;
                     character->boundingBox.x = character->position.x;
+                }
+            }
+        }
+    }
+
+    // 1.1. Check non-solid interactive tile pickups (Coin tile collection)
+    for (const auto& entity : entities) {
+        if (!entity || !entity->isActive()) continue;
+        if (auto player = dynamic_cast<Player*>(entity.get())) {
+            AABB pBox = player->getBoundingBox();
+            int startX = static_cast<int>(std::floor(pBox.x / Constants::TILE_SIZE));
+            int endX = static_cast<int>(std::floor((pBox.x + pBox.width) / Constants::TILE_SIZE));
+            int startY = static_cast<int>(std::floor(pBox.y / Constants::TILE_SIZE));
+            int endY = static_cast<int>(std::floor((pBox.y + pBox.height) / Constants::TILE_SIZE));
+
+            for (int y = startY; y <= endY; ++y) {
+                for (int x = startX; x <= endX; ++x) {
+                    if (tileMap.getTileType(x, y) == TileType::Coin) {
+                        tileMap.setTile(x, y, TileType::Empty);
+                        player->addCoins(1);
+                        player->addScore(200);
+                        SoundManager::getInstance().playSound("coin");
+                    }
                 }
             }
         }
