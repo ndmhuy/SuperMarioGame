@@ -22,14 +22,22 @@ void GameStateManager::popState() {
 }
 
 void GameStateManager::changeState(std::unique_ptr<IGameState> state) {
-    if (!m_states.empty()) {
-        m_states.top()->exit();
-        m_states.pop();
+    m_pendingState = std::move(state);
+}
+
+void GameStateManager::processPendingState() {
+    if (m_pendingState) {
+        if (!m_states.empty()) {
+            m_states.top()->exit();
+            m_states.pop();
+        }
+        pushState(std::move(m_pendingState));
+        m_pendingState = nullptr;
     }
-    pushState(std::move(state));
 }
 
 void GameStateManager::handleInput(const sf::Event& event) {
+    processPendingState();
     if (!m_states.empty()) {
         m_states.top()->handleInput(event);
     }
@@ -39,6 +47,7 @@ void GameStateManager::update(float dt) {
     if (!m_states.empty()) {
         m_states.top()->update(dt);
     }
+    processPendingState();
 }
 
 void GameStateManager::render(sf::RenderTarget& target) {

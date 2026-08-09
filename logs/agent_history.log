@@ -1724,6 +1724,26 @@ Summary of Changes:
 - Out-of-Grid Sight Rendering: Rendered grid lines beyond initial map width up to current camera right view bound + 10 tiles, highlighted with distinct cyan out-of-bounds grid lines (`sf::Color(0, 200, 255, 60)`).
 - TileMap Auto-Expansion: Added `TileMap::expandToFit(requiredWidth, requiredHeight)`. Placing tiles or entities at `gx >= width` dynamically expands grid columns with zero data loss, enabling infinite level creation.
 - Overhead Player Spawn Drop-off: Fixed player spawn location at top-left overhead position `(96.0f, 64.0f)`. Player drops down under gravity physics onto the floor on level start.
+- Verified 100% clean C++ build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
+---
+[2026-08-09 08:43:50] Branch: dev
+Git Fingerprint: e97bd38 (before) → e97bd38 (working tree)
+Prompt: Fix uncaught exception / mutex lock crash on state exit, fix Map Editor free camera movement, enforce physical level map boundaries for player and entities, and fix player sprite texture rendering.
+Files Modified:
+- SuperMarioGame/include/Core/GameStateManager.hpp
+- SuperMarioGame/src/Core/GameStateManager.cpp
+- SuperMarioGame/include/Graphics/Camera.hpp
+- SuperMarioGame/src/Graphics/Camera.cpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/src/Utils/MapEditor.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Deferred State Transition (Crash Fix): Implemented `GameStateManager::processPendingState()` and `m_pendingState` in `GameStateManager.hpp/.cpp`. State transitions requested during active update cycles are queued and executed safely outside the state update loop, completely resolving mid-execution deletion and `mutex lock failed` exit crashes.
+- Map Editor Free Camera Panning: Added `setPosition`, `move`, and `setBoundsEnabled` methods to `Camera.hpp/.cpp`. Updated `MapEditor.cpp` to move camera using `camera->move(...)` and disable bounds clamping when active, enabling 100% free camera panning in all 4 directions (A/D/W/S, Arrow Keys, Middle Mouse Drag) without boundary locking.
+- Map Boundary Clamping for Player & Entities: In `PhysicsEngine.cpp`, enforced left (`x = 0`) and right (`x = tileMap.getWidth() * TILE_SIZE`) level boundaries. Clamps player/entity positions within valid level bounds and reverses patrol enemy velocities at boundaries.
+- Player Sprite Texture Rendering & Pre-Loading: Added texture pre-loading candidates for `player.png` and `tileset_blocks.png` in `Game::run()`. Updated `Mario::render(target)` to crop, scale, and orient sprite frames (`mario_small_idle`) from `ResourceManager::getInstance().getTexture("player")`.
 - Verified 100% clean build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
 ---
 [2026-08-09 08:32:35] Branch: dev

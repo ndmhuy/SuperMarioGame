@@ -24,5 +24,8 @@ public:
     bool isEmpty() const;
 
 private:
+    void processPendingState();
+
     std::stack<std::unique_ptr<IGameState>> m_states;
+    std::unique_ptr<IGameState> m_pendingState = nullptr;
 };

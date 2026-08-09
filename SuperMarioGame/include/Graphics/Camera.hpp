@@ -40,6 +40,13 @@ public:
     sf::View& getView();
     AABB getVisibleBounds() const;
 
+    // Position & Bounds Control
+    void setPosition(const sf::Vector2f& pos);
+    void move(const sf::Vector2f& offset);
+    sf::Vector2f getPosition() const;
+    void setBoundsEnabled(bool enabled);
+    bool isBoundsEnabled() const;
+
     // Screen Shake API
     void triggerScreenShake(ShakePreset preset);
     void triggerScreenShake(float intensity, float duration, sf::Vector2f direction = {0.0f, 0.0f}, bool useDecay = true);
@@ -62,6 +69,7 @@ private:
     sf::View m_view;
     AABB m_bounds;
     sf::Vector2f m_position;
+    bool m_boundsEnabled = true;
 
     // Active shake runtime state
     ShakeParams m_activeShake;

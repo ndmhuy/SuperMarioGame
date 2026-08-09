@@ -2,6 +2,7 @@
 #include "Entities/Entity.hpp"
 #include "Entities/Character.hpp"
 #include "Entities/Player.hpp"
+#include "Entities/Enemy.hpp"
 #include "Entities/Luigi.hpp"
 #include "Entities/Toad.hpp"
 #include "Entities/Peach.hpp"
@@ -250,6 +251,43 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                     }
                 }
             }
+        }
+    }
+
+    // 4.5. Enforce Level Map Boundaries (x = 0 and x = mapWidth * TILE_SIZE) for all entities
+    float maxMapX = tileMap.getWidth() * Constants::TILE_SIZE;
+    for (const auto& entity : entities) {
+        if (!entity || !entity->isActive()) continue;
+
+        sf::Vector2f pos = entity->getPosition();
+        sf::Vector2f vel = entity->getVelocity();
+        float width = entity->getBoundingBox().width;
+
+        // Left Map Boundary (x = 0)
+        if (pos.x < 0.0f) {
+            pos.x = 0.0f;
+            if (vel.x < 0.0f) {
+                if (dynamic_cast<Enemy*>(entity.get())) {
+                    vel.x = -vel.x; // Patrol enemy turns around at left map border
+                } else {
+                    vel.x = 0.0f;   // Player/Item stops at left map border
+                }
+            }
+            entity->setPosition(pos);
+            entity->setVelocity(vel);
+        }
+        // Right Map Boundary (x = maxMapX)
+        else if (pos.x + width > maxMapX && maxMapX > 0.0f) {
+            pos.x = maxMapX - width;
+            if (vel.x > 0.0f) {
+                if (dynamic_cast<Enemy*>(entity.get())) {
+                    vel.x = -vel.x; // Patrol enemy turns around at right map border
+                } else {
+                    vel.x = 0.0f;   // Player/Item stops at right map border
+                }
+            }
+            entity->setPosition(pos);
+            entity->setVelocity(vel);
         }
     }
 

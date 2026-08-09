@@ -55,6 +55,30 @@ void Game::run() {
         }
     }
 
+    // Load Player texture into ResourceManager
+    std::vector<std::string> playerTextureCandidates = {
+        "assets/spriteSheet/player/player.png",
+        "SuperMarioGame/assets/spriteSheet/player/player.png",
+        "../assets/spriteSheet/player/player.png"
+    };
+    for (const auto& path : playerTextureCandidates) {
+        if (std::filesystem::exists(path)) {
+            if (rm.loadTexture("player", path)) break;
+        }
+    }
+
+    // Load Tileset texture into ResourceManager
+    std::vector<std::string> tilesetCandidates = {
+        "assets/spriteSheet/tileset/tileset_blocks.png",
+        "SuperMarioGame/assets/spriteSheet/tileset/tileset_blocks.png",
+        "../assets/spriteSheet/tileset/tileset_blocks.png"
+    };
+    for (const auto& path : tilesetCandidates) {
+        if (std::filesystem::exists(path)) {
+            if (rm.loadTexture("tileset_blocks", path)) break;
+        }
+    }
+
     // Push initial menu state
     m_gsm.pushState(std::make_unique<MenuState>());
 

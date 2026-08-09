@@ -83,18 +83,19 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
 
     // 1. Free Camera Panning Controls (A / D / W / S or Arrow Keys or Middle Mouse Drag)
     if (camera) {
+        camera->setBoundsEnabled(false);
         float panSpeed = 650.0f;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
-            camera->getView().move(sf::Vector2f(-panSpeed * dt, 0.0f));
+            camera->move(sf::Vector2f(-panSpeed * dt, 0.0f));
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
-            camera->getView().move(sf::Vector2f(panSpeed * dt, 0.0f));
+            camera->move(sf::Vector2f(panSpeed * dt, 0.0f));
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-            camera->getView().move(sf::Vector2f(0.0f, -panSpeed * dt));
+            camera->move(sf::Vector2f(0.0f, -panSpeed * dt));
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-            camera->getView().move(sf::Vector2f(0.0f, panSpeed * dt));
+            camera->move(sf::Vector2f(0.0f, panSpeed * dt));
         }
 
         // Mouse Drag Panning (Middle Mouse Button)
@@ -102,7 +103,7 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Middle)) {
             sf::Vector2i currentMousePos = sf::Mouse::getPosition();
             sf::Vector2f delta = sf::Vector2f(lastMousePos - currentMousePos);
-            camera->getView().move(delta);
+            camera->move(delta);
         }
         lastMousePos = sf::Mouse::getPosition();
     }

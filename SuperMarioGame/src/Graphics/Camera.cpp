@@ -28,6 +28,28 @@ void Camera::follow(const sf::Vector2f& target, float dt) {
     m_position.y += (target.y - m_position.y) * 5.0f * dt;
 }
 
+void Camera::setPosition(const sf::Vector2f& pos) {
+    m_position = pos;
+    m_view.setCenter(m_position);
+}
+
+void Camera::move(const sf::Vector2f& offset) {
+    m_position += offset;
+    m_view.setCenter(m_position);
+}
+
+sf::Vector2f Camera::getPosition() const {
+    return m_position;
+}
+
+void Camera::setBoundsEnabled(bool enabled) {
+    m_boundsEnabled = enabled;
+}
+
+bool Camera::isBoundsEnabled() const {
+    return m_boundsEnabled;
+}
+
 void Camera::setBounds(const AABB& bounds) {
     m_bounds = bounds;
 }
@@ -203,24 +225,28 @@ sf::Vector2f Camera::calculateShakeOffset(float dt) {
 }
 
 void Camera::update(float dt) {
-    float halfWidth = m_view.getSize().x / 2.0f;
-    float halfHeight = m_view.getSize().y / 2.0f;
+    sf::Vector2f finalCenter = m_position;
 
-    float clampedX = m_position.x;
-    if (m_bounds.width > m_view.getSize().x) {
-        clampedX = MathUtils::clamp(m_position.x, m_bounds.x + halfWidth, m_bounds.x + m_bounds.width - halfWidth);
-    } else {
-        clampedX = m_bounds.x + m_bounds.width / 2.0f;
+    if (m_boundsEnabled) {
+        float halfWidth = m_view.getSize().x / 2.0f;
+        float halfHeight = m_view.getSize().y / 2.0f;
+
+        float clampedX = m_position.x;
+        if (m_bounds.width > m_view.getSize().x) {
+            clampedX = MathUtils::clamp(m_position.x, m_bounds.x + halfWidth, m_bounds.x + m_bounds.width - halfWidth);
+        } else {
+            clampedX = m_bounds.x + m_bounds.width / 2.0f;
+        }
+
+        float clampedY = m_position.y;
+        if (m_bounds.height > m_view.getSize().y) {
+            clampedY = MathUtils::clamp(m_position.y, m_bounds.y + halfHeight, m_bounds.y + m_bounds.height - halfHeight);
+        } else {
+            clampedY = m_bounds.y + m_bounds.height / 2.0f;
+        }
+
+        finalCenter = sf::Vector2f(clampedX, clampedY);
     }
-
-    float clampedY = m_position.y;
-    if (m_bounds.height > m_view.getSize().y) {
-        clampedY = MathUtils::clamp(m_position.y, m_bounds.y + halfHeight, m_bounds.y + m_bounds.height - halfHeight);
-    } else {
-        clampedY = m_bounds.y + m_bounds.height / 2.0f;
-    }
-
-    sf::Vector2f finalCenter(clampedX, clampedY);
 
     sf::Vector2f shakeOffset = calculateShakeOffset(dt);
     finalCenter += shakeOffset;
