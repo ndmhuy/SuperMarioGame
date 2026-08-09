@@ -56,7 +56,7 @@ void PlayingState::enter() {
             }
         }
         if (!m_player) {
-            spawnSelectedPlayer(sf::Vector2f(96.0f, 500.0f));
+            spawnSelectedPlayer(sf::Vector2f(96.0f, 64.0f));
         } else {
             InputManager::getInstance().registerPlayer(m_player, 0);
             Game::getInstance().setPlayer(m_player);
@@ -183,9 +183,9 @@ void PlayingState::handleInput(const sf::Event& event) {
 
 void PlayingState::update(float dt) {
     if (m_mapEditor.isActive()) {
-        sf::View defaultView(sf::FloatRect({0.f, 0.f}, {1280.f, 720.f}));
-        sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(defaultView);
-        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt);
+        sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(m_camera.getView());
+        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt, &m_camera);
+        m_camera.update(dt);
         return;
     }
 
@@ -435,7 +435,7 @@ void PlayingState::render(sf::RenderTarget& target) {
     ImGui::End();
     // Draw Map Editor overlays if active
     if (m_mapEditor.isActive()) {
-        m_mapEditor.render(target, m_tileMap, m_entities);
+        m_mapEditor.render(target, m_tileMap, m_entities, &m_camera);
         m_mapEditor.renderImGui(m_tileMap, m_entities);
     } else {
         // Reset view to default view for static screen space rendering (HUD, ImGui overlays)

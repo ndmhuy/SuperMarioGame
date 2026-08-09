@@ -76,8 +76,36 @@ void MapEditor::loadLevel(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>
 }
 
 
-void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, const sf::Vector2f& mouseWorldPos, float dt) {
+#include "Graphics/Camera.hpp"
+
+void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, const sf::Vector2f& mouseWorldPos, float dt, Camera* camera) {
     if (!m_active) return;
+
+    // 1. Free Camera Panning Controls (A / D / W / S or Arrow Keys or Middle Mouse Drag)
+    if (camera) {
+        float panSpeed = 650.0f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+            camera->getView().move(sf::Vector2f(-panSpeed * dt, 0.0f));
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+            camera->getView().move(sf::Vector2f(panSpeed * dt, 0.0f));
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+            camera->getView().move(sf::Vector2f(0.0f, -panSpeed * dt));
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+            camera->getView().move(sf::Vector2f(0.0f, panSpeed * dt));
+        }
+
+        // Mouse Drag Panning (Middle Mouse Button)
+        static sf::Vector2i lastMousePos;
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Middle)) {
+            sf::Vector2i currentMousePos = sf::Mouse::getPosition();
+            sf::Vector2f delta = sf::Vector2f(lastMousePos - currentMousePos);
+            camera->getView().move(delta);
+        }
+        lastMousePos = sf::Mouse::getPosition();
+    }
 
     // Trigger placement or deletion via mouse clicks when not interacting with ImGui panels
     if (ImGui::GetIO().WantCaptureMouse) return;
@@ -85,15 +113,20 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
     int gx = static_cast<int>(std::floor(mouseWorldPos.x / Constants::TILE_SIZE));
     int gy = static_cast<int>(std::floor(mouseWorldPos.y / Constants::TILE_SIZE));
 
-    if (gx >= 0 && gx < tileMap.getWidth() && gy >= 0 && gy < tileMap.getHeight()) {
+    // Auto-expansion and free placement beyond current map bounds
+    if (gx >= 0 && gy >= 0) {
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
             if (m_isTileMode) {
-                // Click places a tile if it is different from the current one
+                if (gx >= tileMap.getWidth() || gy >= tileMap.getHeight()) {
+                    tileMap.expandToFit(gx + 10, gy + 1);
+                }
                 if (tileMap.getTileType(gx, gy) != m_selectedTileType) {
                     executeCommand(std::make_unique<PlaceTileCommand>(tileMap, gx, gy, m_selectedTileType));
                 }
             } else {
-                // Click places an entity if the cell is not already occupied
+                if (gx >= tileMap.getWidth() || gy >= tileMap.getHeight()) {
+                    tileMap.expandToFit(gx + 10, gy + 1);
+                }
                 float wx = gx * Constants::TILE_SIZE;
                 float wy = gy * Constants::TILE_SIZE;
                 bool occupied = false;
@@ -108,44 +141,51 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
                 }
             }
         } else if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right)) {
-            if (m_isTileMode) {
-                // Right click erases a tile
-                if (tileMap.getTileType(gx, gy) != TileType::Empty) {
-                    executeCommand(std::make_unique<EraseTileCommand>(tileMap, gx, gy));
-                }
-            } else {
-                // Right click erases an entity under the cursor
-                float wx = gx * Constants::TILE_SIZE;
-                float wy = gy * Constants::TILE_SIZE;
-                Entity* target = nullptr;
-                for (const auto& e : entities) {
-                    if (e && std::abs(e->getPosition().x - wx) < Constants::TILE_SIZE && std::abs(e->getPosition().y - wy) < Constants::TILE_SIZE) {
-                        target = e.get();
-                        break;
+            if (gx < tileMap.getWidth() && gy < tileMap.getHeight()) {
+                if (m_isTileMode) {
+                    if (tileMap.getTileType(gx, gy) != TileType::Empty) {
+                        executeCommand(std::make_unique<EraseTileCommand>(tileMap, gx, gy));
                     }
-                }
-                if (target) {
-                    executeCommand(std::make_unique<EraseEntityCommand>(entities, target));
+                } else {
+                    float wx = gx * Constants::TILE_SIZE;
+                    float wy = gy * Constants::TILE_SIZE;
+                    Entity* target = nullptr;
+                    for (const auto& e : entities) {
+                        if (e && std::abs(e->getPosition().x - wx) < Constants::TILE_SIZE && std::abs(e->getPosition().y - wy) < Constants::TILE_SIZE) {
+                            target = e.get();
+                            break;
+                        }
+                    }
+                    if (target) {
+                        executeCommand(std::make_unique<EraseEntityCommand>(entities, target));
+                    }
                 }
             }
         }
     }
 }
 
-void MapEditor::render(sf::RenderTarget& target, const TileMap& tileMap, const std::vector<std::unique_ptr<Entity>>& entities) const {
+void MapEditor::render(sf::RenderTarget& target, const TileMap& tileMap, const std::vector<std::unique_ptr<Entity>>& entities, Camera* camera) const {
     if (!m_active || !m_showGrid) return;
 
-    int width = tileMap.getWidth();
+    int renderWidth = tileMap.getWidth();
+    if (camera) {
+        float cameraRightX = camera->getView().getCenter().x + Constants::WINDOW_WIDTH * 0.5f;
+        int cameraRightTile = static_cast<int>(std::floor(cameraRightX / Constants::TILE_SIZE)) + 10;
+        renderWidth = std::max(renderWidth, cameraRightTile);
+    }
     int height = tileMap.getHeight();
     float size = Constants::TILE_SIZE;
 
-    sf::Color gridColor(255, 255, 255, 50); // Soft semi-transparent white lines
+    sf::Color gridColor(255, 255, 255, 45); // Soft semi-transparent white lines
+    sf::Color outOfBoundsGridColor(0, 200, 255, 60); // Cyan grid lines for out-of-bounds auto-expansion area
 
-    // Vertical lines
-    for (int x = 0; x <= width; ++x) {
+    // Vertical lines (extending to out-of-grid sight area)
+    for (int x = 0; x <= renderWidth; ++x) {
+        sf::Color col = (x <= tileMap.getWidth()) ? gridColor : outOfBoundsGridColor;
         sf::Vertex line[] = {
-            sf::Vertex{sf::Vector2f(x * size, 0.0f), gridColor},
-            sf::Vertex{sf::Vector2f(x * size, height * size), gridColor}
+            sf::Vertex{sf::Vector2f(x * size, 0.0f), col},
+            sf::Vertex{sf::Vector2f(x * size, height * size), col}
         };
         target.draw(line, 2, sf::PrimitiveType::Lines);
     }
@@ -154,7 +194,7 @@ void MapEditor::render(sf::RenderTarget& target, const TileMap& tileMap, const s
     for (int y = 0; y <= height; ++y) {
         sf::Vertex line[] = {
             sf::Vertex{sf::Vector2f(0.0f, y * size), gridColor},
-            sf::Vertex{sf::Vector2f(width * size, y * size), gridColor}
+            sf::Vertex{sf::Vector2f(renderWidth * size, y * size), gridColor}
         };
         target.draw(line, 2, sf::PrimitiveType::Lines);
     }

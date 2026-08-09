@@ -48,8 +48,9 @@ public:
     TileType getTileSurfaceType(float px, float py) const;
     void swapBricksAndCoins();
 
-    // Initialization for testing
+    // Initialization & Auto-Expansion for Map Editor
     void initialize(int width, int height);
+    void expandToFit(int requiredWidth, int requiredHeight);
     void setTile(int gx, int gy, TileType type);
     int getWidth() const { return m_width; }
     int getHeight() const { return m_height; }

@@ -8,14 +8,15 @@
 #include <string>
 
 class Entity;
+class Camera;
 
 class MapEditor {
 public:
     MapEditor();
     ~MapEditor() = default;
 
-    void update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, const sf::Vector2f& mouseWorldPos, float dt);
-    void render(sf::RenderTarget& target, const TileMap& tileMap, const std::vector<std::unique_ptr<Entity>>& entities) const;
+    void update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, const sf::Vector2f& mouseWorldPos, float dt, Camera* camera = nullptr);
+    void render(sf::RenderTarget& target, const TileMap& tileMap, const std::vector<std::unique_ptr<Entity>>& entities, Camera* camera = nullptr) const;
     void renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities);
 
     void toggleActive();

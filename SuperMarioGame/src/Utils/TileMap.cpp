@@ -119,8 +119,27 @@ void TileMap::initialize(int width, int height) {
     m_grid.assign(height, std::vector<TileType>(width, TileType::Empty));
 }
 
-void TileMap::setTile(int gx, int gy, TileType type) {
-    if (gx >= 0 && gx < m_width && gy >= 0 && gy < m_height) {
-        m_grid[gy][gx] = type;
+void TileMap::expandToFit(int requiredWidth, int requiredHeight) {
+    if (requiredWidth <= m_width && requiredHeight <= m_height) return;
+
+    int newWidth = std::max(m_width, requiredWidth);
+    int newHeight = std::max(m_height, requiredHeight);
+
+    for (int y = 0; y < m_height; ++y) {
+        m_grid[y].resize(newWidth, TileType::Empty);
     }
+    for (int y = m_height; y < newHeight; ++y) {
+        m_grid.push_back(std::vector<TileType>(newWidth, TileType::Empty));
+    }
+
+    m_width = newWidth;
+    m_height = newHeight;
+}
+
+void TileMap::setTile(int gx, int gy, TileType type) {
+    if (gx < 0 || gy < 0) return;
+    if (gx >= m_width || gy >= m_height) {
+        expandToFit(gx + 10, gy + 1);
+    }
+    m_grid[gy][gx] = type;
 }
