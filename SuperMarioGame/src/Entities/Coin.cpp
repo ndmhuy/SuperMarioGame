@@ -23,6 +23,10 @@ void Coin::setupAnimations(const SpriteSheet* spriteSheet) {
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;
+        sf::FloatRect bounds = m_animator->getSprite().getLocalBounds();
+        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+            m_baseScale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
+        }
     }
 }
 

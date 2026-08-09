@@ -1911,4 +1911,24 @@ Summary of Changes:
 - Task 5: Enforced base AABB constancy during animation frames across Item, Enemy, Player, and Block render methods, keeping boundingBox width and height locked to base targetSize.
 - Task 6: Wired test harness action buttons in verify_all_entities_visual.cpp for "Bounce Trampoline" (calling activate()), "Bump Block" (calling onHitFromBelow()), and "Fireball Hit" (calling onHitByFireball()).
 ---
+Date/Time: 2026-08-09 22:45:00
+Task: Coin AABB Constancy, POW Block Animation, Trampoline Bounce Triggering, Mushroom Scale Matching, and Conveyor Belt Rendering
+Files Modified:
+- SuperMarioGame/include/Entities/Item.hpp
+- SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/src/Entities/Coin.cpp
+- SuperMarioGame/src/Entities/POWBlock.cpp
+- SuperMarioGame/include/Entities/Trampoline.hpp
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/src/Entities/MiniMushroom.cpp
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+Summary of Changes:
+- Task 1: Coin AABB Constancy & Size — Derived base scale strictly from frame 0 (coin_0) bounds in Coin::setupAnimations / Item::render and locked boundingBox.width/height to m_targetSize (32x32) to prevent narrower spinning frames (like coin_2) from altering physical AABB width.
+- Task 2: POW Block 8-Frame Animation Duration — Configured all 8 frames (pow_block_0 through pow_block_7) to 0.15f per frame duration in POWBlock.cpp.
+- Task 3: Trampoline Bounce Animation Triggering — Added m_idleAnim, m_squishAnim, m_extendAnim, m_bounceTimer, m_isBouncing to Trampoline. Updated activate() to propel player upward (-831.4f), start 0.3s bounce timer, and play squish animation. Updated update(dt) to transition squished (0.0s–0.1s) -> extended (0.1s–0.25s) -> idle (0.25s+). Anchored sprite to (boundingBox.x + 16.0f, boundingBox.y + 32.0f) in render().
+- Task 4: Mushroom Scale Matching — Updated MiniMushroom constructor to use Item(pos, {32.0f, 32.0f}) and setTargetSize({32.0f, 32.0f}) matching Red Mushroom and Green 1Up Mushroom.
+- Task 5: Last Block (Conveyor Belt) Rendering — Updated verify_all_entities_visual.cpp to pass itemSheet to Conveyor Belt block.
+- Task 6: Successfully rebuilt verify_all_entities_visual target with CMake (exit code 0).
+---
+
 
