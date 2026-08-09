@@ -1761,6 +1761,18 @@ Summary of Changes:
   4. `SpatialHash` & `PhysicsEngine`: Audited spatial hash queries and raw pointer entity iterations for null pointer safety.
 - Verified 100% clean build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
 ---
+[2026-08-09 08:56:30] Branch: dev
+Git Fingerprint: 8cc2e16 (before) → 8cc2e16 (working tree)
+Prompt: Diagnose crash report showing SIGABRT in sf::priv::SFContext::~SFContext() during Game::~Game static destruction.
+Files Modified:
+- SuperMarioGame/src/Core/Game.cpp
+- logs/agent_history.log
+Summary of Changes:
+- SFContext Static Destruction Crash Resolution:
+  1. Root Cause: In macOS / SFML 3, when exiting via `exit()` or returning from `main()`, static destruction of `Game` singleton ran `sf::RenderWindow::~RenderWindow()` -> `sf::GlResource` -> `sf::priv::SFContext::~SFContext()` after macOS Cocoa / OpenGL windowing resources were already torn down by OS static teardown, causing `__abort_message` and `SIGABRT` (Abort trap 6).
+  2. Resolution: Updated `Game::shutdown()` in `Game.cpp` to explicitly invoke `m_window.close()` during normal runtime shutdown, ensuring OpenGL contexts and window handles are destroyed cleanly while the windowing system is fully active. Updated `Game::quit()` to signal `m_isRunning = false` so control loops exit cleanly into `shutdown()`.
+- Verified 100% clean build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
+---
 [2026-08-09 08:32:35] Branch: dev
 Git Fingerprint: 8cbaf62 (before) → 8cbaf62 (working tree)
 Prompt: Audit Memento encapsulation with friend declaration and encapsulated createSnapshot()/restoreMemento() methods, trigger rewind on R or Shift keys, reimplement void fall damage & revive when having lives, add Return to Main Menu button in Play Mode, and wire sprite texture rendering.

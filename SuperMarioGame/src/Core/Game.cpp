@@ -136,7 +136,6 @@ void Game::run() {
 
 void Game::quit() {
     m_isRunning = false;
-    m_window.close();
 }
 
 sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
@@ -170,7 +169,7 @@ void Game::shutdown() {
     // Save configuration settings
     Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
 
-    // Pop all remaining game states before shutting down managers
+    // Pop all remaining game states before shutting down window and managers
     while (!m_gsm.isEmpty()) {
         m_gsm.popState();
     }
@@ -183,6 +182,11 @@ void Game::shutdown() {
     AchievementManager::getInstance().shutdown();
     SoundManager::getInstance().shutdown();
     ImGui::SFML::Shutdown();
+
+    // Explicitly close window before static destructors run
+    if (m_window.isOpen()) {
+        m_window.close();
+    }
 }
 
 Player* Game::getPlayer() const {
