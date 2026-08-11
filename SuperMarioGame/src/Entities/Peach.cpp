@@ -16,14 +16,7 @@ Peach::Peach(sf::Vector2f pos) : Player(pos) {
 }
 
 void Peach::setupAnimations(const SpriteSheet* spriteSheet) {
-    if (!spriteSheet) return;
-    m_animator = std::make_unique<Animator>(spriteSheet);
-    m_animation = Animation("peach_small_idle");
-    m_animation.frameList = {{"peach_small_idle", 0.15f}};
-    if (m_animator) {
-        m_animator->play(&m_animation);
-        m_hasAnimation = true;
-    }
+    Player::setupCharacterAnimations(spriteSheet, "peach_small");
 }
 
 void Peach::update(float dt) {
@@ -79,4 +72,8 @@ float Peach::getGravityMultiplier() const {
         return 0.0f;
     }
     return 1.0f;
+}
+
+std::string Peach::getCharacterName() const {
+    return "peach";
 }

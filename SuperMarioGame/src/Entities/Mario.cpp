@@ -18,14 +18,7 @@ Mario::Mario(sf::Vector2f pos) : Player(pos) {
 }
 
 void Mario::setupAnimations(const SpriteSheet* spriteSheet) {
-    if (!spriteSheet) return;
-    m_animator = std::make_unique<Animator>(spriteSheet);
-    m_animation = Animation("mario_small_idle");
-    m_animation.frameList = {{"mario_small_idle", 0.15f}};
-    if (m_animator) {
-        m_animator->play(&m_animation);
-        m_hasAnimation = true;
-    }
+    Player::setupCharacterAnimations(spriteSheet, "mario_small");
 }
 
 void Mario::update(float dt) {
@@ -48,4 +41,8 @@ void Mario::render(sf::RenderTarget& target) {
 
 void Mario::shootFireball() {
     Player::shootFireball();
+}
+
+std::string Mario::getCharacterName() const {
+    return "mario";
 }

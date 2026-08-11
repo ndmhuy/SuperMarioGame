@@ -14,6 +14,7 @@ public:
     void jump() override;
     void doubleJump();
     float getGravityMultiplier() const override;
+    std::string getCharacterName() const override;
 
 private:
     bool m_hasDoubleJumped = false;

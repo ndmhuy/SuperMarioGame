@@ -12,4 +12,5 @@ public:
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     void shootFireball() override;
+    std::string getCharacterName() const override;
 };

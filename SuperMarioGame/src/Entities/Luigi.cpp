@@ -16,14 +16,7 @@ Luigi::Luigi(sf::Vector2f pos) : Player(pos) {
 }
 
 void Luigi::setupAnimations(const SpriteSheet* spriteSheet) {
-    if (!spriteSheet) return;
-    m_animator = std::make_unique<Animator>(spriteSheet);
-    m_animation = Animation("luigi_small_idle");
-    m_animation.frameList = {{"luigi_small_idle", 0.15f}};
-    if (m_animator) {
-        m_animator->play(&m_animation);
-        m_hasAnimation = true;
-    }
+    Player::setupCharacterAnimations(spriteSheet, "luigi_small");
 }
 
 void Luigi::update(float dt) {
@@ -63,4 +56,8 @@ void Luigi::doubleJump() {
 
 float Luigi::getGravityMultiplier() const {
     return Constants::LUIGI_GRAVITY_MULT;
+}
+
+std::string Luigi::getCharacterName() const {
+    return "luigi";
 }

@@ -13,6 +13,7 @@ public:
 
     void floatHover();
     float getGravityMultiplier() const override;
+    std::string getCharacterName() const override;
 
 private:
     float m_hoverTimer = 0.0f;

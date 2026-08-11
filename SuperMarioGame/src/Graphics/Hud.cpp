@@ -1,13 +1,15 @@
 #include "Graphics/Hud.hpp"
 #include "Core/ResourceManager.hpp"
+#include "Graphics/SpriteSheet.hpp"
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
+#include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Text.hpp>
 #include <cmath>
 #include <iostream>
 #include <algorithm>
 
-Hud::Hud(sf::Vector2i windowSize)
+Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteSheet* playerSheet)
     : m_scoreText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_coinsText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_worldText(ResourceManager::getInstance().getFont("PressStart2P")),
@@ -15,7 +17,9 @@ Hud::Hud(sf::Vector2i windowSize)
       m_livesText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_comboCountText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_pSwitchTimeText(ResourceManager::getInstance().getFont("PressStart2P")),
-      m_bossNameText(ResourceManager::getInstance().getFont("PressStart2P")) {
+      m_bossNameText(ResourceManager::getInstance().getFont("PressStart2P")),
+      m_itemSheet(itemSheet),
+      m_playerSheet(playerSheet) {
 
     // Initialize text attributes
     m_scoreText.setCharacterSize(24);
@@ -104,7 +108,11 @@ void Hud::sync(const HudData& data) {
     char livesBuf[32];
     std::snprintf(livesBuf, sizeof(livesBuf), "x  %d", m_curData.lives);
     m_livesText.setString(livesBuf);
-    m_livesText.setPosition(sf::Vector2f(60.f, 60.f));
+    if (m_playerSheet) {
+        m_livesText.setPosition(sf::Vector2f(90.f, 60.f)); // Shifted right for character icon
+    } else {
+        m_livesText.setPosition(sf::Vector2f(60.f, 60.f));
+    }
 
     // 6. Combo text: x2! (temporary, Center)
     if (m_curData.comboCount > 1) {
@@ -147,7 +155,7 @@ void Hud::sync(const HudData& data) {
 }
 
 void Hud::update(float dt) {
-    // Static fields are kept in sync via dynamic sync() calls from game loop
+    m_animTimer += dt;
 }
 
 void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
@@ -172,22 +180,55 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
     target.draw(labelText, state);
 
     // 3. Draw Coin Icon (Y=32, Right)
-    m_coinShape.setPosition(sf::Vector2f(1100.f, 32.f));
-    target.draw(m_coinShape, state);
+    bool coinSpriteDrawn = false;
+    if (m_itemSheet) {
+        int coinFrame = static_cast<int>(m_animTimer / 0.15f) % 4;
+        sf::Sprite coinSprite = m_itemSheet->getSprite("coin_" + std::to_string(coinFrame));
+        sf::FloatRect bounds = coinSprite.getLocalBounds();
+        if (bounds.size.x > 0 && bounds.size.y > 0) {
+            float targetHeight = 24.0f;
+            float scale = targetHeight / bounds.size.y;
+            coinSprite.setScale(sf::Vector2f(scale, scale));
+            coinSprite.setPosition(sf::Vector2f(1100.f, 28.f));
+            target.draw(coinSprite, state);
+            coinSpriteDrawn = true;
+        }
+    }
+    if (!coinSpriteDrawn) {
+        m_coinShape.setPosition(sf::Vector2f(1100.f, 32.f));
+        target.draw(m_coinShape, state);
+    }
 
     // 4. Draw Star Coins (Y=95, below Time Left)
     for (int i = 0; i < 3; ++i) {
-        m_starShape.setPosition(sf::Vector2f(820.f + i * 30.f + 10.f, 95.f + 10.f));
-        if (m_curData.starCoinsCollected[i]) {
-            m_starShape.setFillColor(sf::Color::Red);
-            m_starShape.setOutlineColor(sf::Color::Red);
-            m_starShape.setOutlineThickness(1.5f);
-        } else {
-            m_starShape.setFillColor(sf::Color::Transparent);
-            m_starShape.setOutlineColor(sf::Color::Red);
-            m_starShape.setOutlineThickness(1.5f);
+        bool starSpriteDrawn = false;
+        if (m_itemSheet) {
+            sf::Sprite starSprite = m_curData.starCoinsCollected[i]
+                ? m_itemSheet->getSprite("big_coin")
+                : m_itemSheet->getSprite("big_coin_outline");
+            sf::FloatRect bounds = starSprite.getLocalBounds();
+            if (bounds.size.x > 0 && bounds.size.y > 0) {
+                float scale = 22.0f / bounds.size.y;
+                starSprite.setScale(sf::Vector2f(scale, scale));
+                starSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
+                starSprite.setPosition(sf::Vector2f(820.f + i * 30.f + 10.f, 95.f + 10.f));
+                target.draw(starSprite, state);
+                starSpriteDrawn = true;
+            }
         }
-        target.draw(m_starShape, state);
+        if (!starSpriteDrawn) {
+            m_starShape.setPosition(sf::Vector2f(820.f + i * 30.f + 10.f, 95.f + 10.f));
+            if (m_curData.starCoinsCollected[i]) {
+                m_starShape.setFillColor(sf::Color::Red);
+                m_starShape.setOutlineColor(sf::Color::Red);
+                m_starShape.setOutlineThickness(1.5f);
+            } else {
+                m_starShape.setFillColor(sf::Color::Transparent);
+                m_starShape.setOutlineColor(sf::Color::Red);
+                m_starShape.setOutlineThickness(1.5f);
+            }
+            target.draw(m_starShape, state);
+        }
     }
 
     // 5. Draw Dynamic Text Indicators
@@ -195,6 +236,21 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
     target.draw(m_coinsText, state);
     target.draw(m_worldText, state);
     target.draw(m_timeLeftText, state);
+
+    if (m_playerSheet) {
+        std::string charName = m_curData.characterName;
+        std::transform(charName.begin(), charName.end(), charName.begin(), ::tolower);
+        std::string idleKey = charName + "_small_idle";
+        sf::Sprite playerSprite = m_playerSheet->getSprite(idleKey);
+        sf::FloatRect bounds = playerSprite.getLocalBounds();
+        if (bounds.size.x > 0 && bounds.size.y > 0) {
+            float scale = 24.0f / bounds.size.y;
+            playerSprite.setScale(sf::Vector2f(scale, scale));
+            playerSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
+            playerSprite.setPosition(sf::Vector2f(72.f, 72.f)); // Align vertically with Y=60 text
+            target.draw(playerSprite, state);
+        }
+    }
     target.draw(m_livesText, state);
 
     // 6. Draw Combo Counter (if active)

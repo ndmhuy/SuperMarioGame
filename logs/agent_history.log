@@ -1622,13 +1622,67 @@ Summary of Changes:
 - Pushed updated `dev` branch to remote repository (`origin/dev`).
 ---
 
+[2026-08-10 19:17:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Proceed to implement sprite sheet wiring to main game (PlayingState). Update implementation plan with newly changed core game and correct build path ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+Files Modified:
+- SuperMarioGame/src/Graphics/SpriteSheet.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- SpriteSheet.cpp: Extended loadFrameData() to support both standard TexturePacker "frames" format AND the custom "tiles" format used by tileset_blocks.json so all 5 atlases can be loaded uniformly.
+- PlayingState.hpp: Added 5 std::unique_ptr<SpriteSheet> members (m_playerSheet, m_enemySheet, m_itemSheet, m_scenerySheet, m_blocksSheet), m_showAABB bool toggle, m_tileAnimTimer float, and wireEntityAnimations(Entity*) helper declaration.
+- PlayingState.cpp enter(): Load all 5 atlas SpriteSheets using path-candidate fallback search (assets/spriteSheet/*, SuperMarioGame/assets/spriteSheet/*, ../assets/spriteSheet/*). Wire animations for procedurally generated entities.
+- PlayingState.cpp render(): Replaced raw sf::RectangleShape tile loop with atlas sprite rendering for Ground (grass top/dirt), Brick, Question (animated 4 frames), Pipe (top/body, left/right columns), Ice, Conveyor (animated 4 frames), Water (animated 4 frames), Coin (animated 4 frames). Falls back gracefully to debug color rect if atlas not loaded.
+- PlayingState.cpp render(): Added EntityDeathEffect::getInstance().render(target) for flying death trajectories.
+- PlayingState.cpp render(): Added m_showAABB AABB overlay (green/yellow for tiles, green/red/yellow/cyan for entity types) rendered in world space.
+- PlayingState.cpp update(): Advanced m_tileAnimTimer each dt for animated tiles.
+- PlayingState.cpp wireEntityAnimations(): Polymorphic dispatcher downcasts Entity* to Player/Enemy/Item/Block and calls setupAnimations() with the matching atlas pointer.
+- PlayingState.cpp setupTestScene(): Wire animations for all level-loaded entities after LevelLoader.
+- PlayingState.cpp spawnSelectedPlayer(): Wire animation and set player on Game after spawning.
+- PlayingState.cpp Serializer Load: Wire animations for loaded save slot player.
+- ImGui playground panel: Added "Show Physics AABB Overlays" checkbox.
+- Resolved merge conflicts in Flagpole.cpp (implemented missing Flagpole::update(float dt)) and Mario.cpp.
+- Build: SuperMarioGame target compiled successfully (exit code 0), producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
 
+[2026-08-10 20:08:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Fix tile sprites (switch from deprecated tileset_blocks to world_scenery_item atlas), remove HUD outline frame from StarCoin, fix Player sprite facing direction scale factor, and implement PSwitch squished frame animation on activation.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/StarCoin.cpp
+- SuperMarioGame/include/Entities/PSwitch.hpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Tilemap Sprites: Migrated tile rendering in PlayingState::render() from deprecated tileset_blocks to world_scenery_item (m_scenerySheet). Mapped Ground -> solid_block_brown/grey, Brick -> brick_brown_side, Question -> question_block_0/1/2, Pipe -> pipe_green_up/body, Ice -> solid_block_blue, Conveyor -> conveyor_belt_green, Water -> wave frames, Coin -> coin_0/1.
+- StarCoin Animation: Removed HUD-only big_coin_outline frame from StarCoin::setupAnimations(). Mapped to big_coin_0, big_coin_1, big_coin_2 frames from world_scenery_item and updated wireEntityAnimations() to route StarCoin to m_scenerySheet.
+- Player Sprite Facing & Animation: Fixed Player::render() scale factor (scaleX = facingRight ? scale : -scale) matching atlas default rightward sprite orientation.
+- PSwitch Pressed Frame: Added m_pressed state and m_pressedAnimation (p_switch_pressed, isLooping = false) to PSwitch.hpp/cpp, switching to squished sprite upon activate().
+- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
 
-
-
-
-
-
+[2026-08-10 20:34:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Fix water rendering to support 2 components (surface wave vs background depth), fix player movement animation switching (idle, walk, run, jump, crouch), and fix PSwitch collision resolution so squished sprite stays rendered on screen after activation.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/src/Entities/Toad.cpp
+- SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/include/Entities/PSwitch.hpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Water 2-Component Rendering: Updated TileType::Water rendering in PlayingState::render() to check tile above. If surface tile (y == 0 or tile above != Water), renders animated surface wave (water_light_blue_wave_long / water_dark_blue_wave_long); if depth tile below, renders background fill (water_dark_blue_bg).
+- Dynamic Player Movement Animations: Implemented setupCharacterAnimations(spriteSheet, prefix) in Player.hpp/cpp to build m_animIdle, m_animWalk, m_animRun, m_animJump, m_animCrouch. Updated Player::update(dt) to dynamically switch animations based on velocity.x, onGround, and crouched states. Updated Mario, Luigi, Toad, Peach setupAnimations to pass character prefixes (mario_small, luigi_small, toad_small, peach_small).
+- PSwitch Squished Collision: Added PSwitch::collect() override that sets collected = true while keeping active = true so the squished sprite remains rendered on screen. Added PSwitch collision resolution in CollisionResolver::resolvePlayerVsItem() to ground player on top of squished PSwitch upon activation.
+- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
 
 
 
@@ -1929,6 +1983,156 @@ Summary of Changes:
 - Task 4: Mushroom Scale Matching — Updated MiniMushroom constructor to use Item(pos, {32.0f, 32.0f}) and setTargetSize({32.0f, 32.0f}) matching Red Mushroom and Green 1Up Mushroom.
 - Task 5: Last Block (Conveyor Belt) Rendering — Updated verify_all_entities_visual.cpp to pass itemSheet to Conveyor Belt block.
 - Task 6: Successfully rebuilt verify_all_entities_visual target with CMake (exit code 0).
+---
+
+[2026-08-10 20:52:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Fix water surface wave animation to cycle matching dark blue wave frames (water_dark_blue_wave_long / short), and fix player sprite horizontal facing scale factor (facingRight ? -scale : scale).
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Water Wave Animation: Updated TileType::Water surface tile selection in PlayingState::render() to cycle between water_dark_blue_wave_long and water_dark_blue_wave_short. This eliminates the background color mismatch while animating surface ripples.
+- Player Sprite Facing Direction: Corrected scaleX calculation in Player::render() (scaleX = facingRight ? -scale : scale) so players face right when moving right and face left when moving left based on the atlas default left-facing orientation.
+- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
+
+[2026-08-10 21:19:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Implement sinusoidal position transformation for water surface wave animation (water_dark_blue_wave_long), and render/verify in test harness (verify_all_entities_visual) first.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Test Harness Upgrade: Added a 5th tab "Water Wave FX" in verify_all_entities_visual.cpp to render a 2-component water body (surface wave top row + depth fill background tiles below). Applied horizontal sinusoidal position transformation offset (std::sin(animTime * speed + x) * amp) to the top surface wave tiles. Added ImGui sliders to interactively adjust Wave Oscillation Speed and Wobble Amplitude.
+- Main Game Integration: Updated PlayingState::render() to apply the exact same horizontal sinusoidal position transformation to top surface water tiles (TileType::Water when tile above is non-water), rendering smooth, fluid wave motion in the main game world.
+- Build: Successfully compiled both verify_all_entities_visual.exe and SuperMarioGame.exe with zero errors (exit code 0).
+---
+
+[2026-08-10 21:29:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Update surface water wave tile frame from water_dark_blue_wave_long to water_dark_blue_wave_short in both test harness and main game.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Surface Water Wave Frame: Updated top surface water wave tile from water_dark_blue_wave_long to water_dark_blue_wave_short in both verify_all_entities_visual.cpp and PlayingState.cpp for clean wave transformation rendering.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 21:31:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Implement 2D orbital looping wave motion (horizontal drift + vertical bobbing up/down) for water_dark_blue_wave_short tiles in test harness and main game.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- 2D Orbital Looping Motion: Applied combined horizontal drift (std::sin(t * speed + c) * ampX) and vertical bobbing (std::cos(t * speed + c) * ampY) to surface water wave tiles (water_dark_blue_wave_short) in both verify_all_entities_visual.cpp (tab 4) and PlayingState.cpp. This creates a continuous, seamless looping 2D orbital wave motion.
+- Test Harness ImGui Controls: Added independent sliders for Horizontal Wave Drift Amplitude and Vertical Bobbing Amplitude in verify_all_entities_visual.cpp.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 21:37:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Update surface water wave motion to move the entire top layer in sync to the right (conveyor-style 0..32px modulo loop) with vertical bobbing.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Synchronized Rightward Conveyor Drift: Updated surface water wave rendering in both verify_all_entities_visual.cpp and PlayingState.cpp. The entire top layer shifts right in unison using a continuous modulo conveyor loop (std::fmod(t * speed, 32.0f)) combined with synchronized vertical bobbing (std::sin(t * bobSpeed) * ampY). Rendered tile bounds from c = -1 to ensure no edge gaps appear during rightward sliding.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 21:51:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Remove lateral/horizontal drift from surface water wave animation, keeping pure vertical bobbing up and down.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Pure Vertical Bobbing Wave: Removed horizontal drift from surface water tile rendering in both verify_all_entities_visual.cpp and PlayingState.cpp. Applied pure vertical bobbing offset (std::sin(t * bobSpeed) * waveAmpY) to water_dark_blue_wave_short tiles.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 21:52:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Add +5px base Y offset to surface water tiles so upward bobbing motion does not expose untextured gaps above the submerged background water.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- +5px Base Y Offset: Added +5.0f Y-offset (drawY = startY + 5.0f + bobY) to top surface water tiles (water_dark_blue_wave_short) in both verify_all_entities_visual.cpp and PlayingState.cpp.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 22:52:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Render the water surface wave tiles above the water background tiles.
+Files Modified:
+- SuperMarioGame/tests/verify_all_entities_visual.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Layer Draw Order Fix: Swapped drawing order in verify_all_entities_visual.cpp (tab 4) so that water depth tiles are drawn first, and top surface wave tiles are drawn second. Updated PlayingState::render() to loop y from bottom-to-top (m_tileMap.getHeight() - 1 down to 0) ensuring surface wave tiles draw on top of background/depth tiles when bobbing down.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 23:01:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Fix P-Switch disappearing in main game after being activated.
+Files Modified:
+- SuperMarioGame/src/Entities/Item.cpp
+Summary of Changes:
+- Item Render Fix: Removed the `collected` conditional early-return check from `Item::render()` so items that stay active with `active = true` (like P-Switch) can still render their sprite once collected/pressed.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-10 23:03:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Render squished/pressed sprite for P-Switch even if active is false or it is collected.
+Files Modified:
+- SuperMarioGame/include/Entities/Item.hpp
+- SuperMarioGame/src/Entities/Item.cpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+Summary of Changes:
+- PSwitch Render Fix: Stored the `SpriteSheet*` pointer inside `Item` base class upon animation setup. Overrode `PSwitch::render()` to directly fetch and render the `"p_switch_pressed"` frame sprite from the stored sheet if the switch is pressed, collected, or inactive, bypassing the standard early-exit conditions in `Item::render()`. Reverted the earlier change in `Item::render()` to keep regular item cleanup logic intact.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-11 11:06:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Update the HUD to use the new spritesheet, including animated coin, Star Coin (collected/outline), and active player's idle sprite for lives display.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/Mario.hpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/include/Entities/Luigi.hpp
+- SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/include/Entities/Toad.hpp
+- SuperMarioGame/src/Entities/Toad.cpp
+- SuperMarioGame/include/Entities/Peach.hpp
+- SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/include/Graphics/Hud.hpp
+- SuperMarioGame/src/Graphics/Hud.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- HUD Sprite Sheet Integration: Updated Hud.hpp/cpp to accept and store item and player spritesheet pointers.
+- Standard Coin: Rendered as an animated coin sprite (coin_0..3) from the item sheet next to the coin counter.
+- Star Coins: Mapped collected star coins to `big_coin` and missing/uncollected star coins to `big_coin_outline` from the item sheet.
+- Lives Indicator: Added virtual `getCharacterName()` to Player, overridden by Mario, Luigi, Toad, and Peach. Rendered the active character's small idle sprite (e.g. `mario_small_idle`) next to the lives text in Hud.cpp, automatically shifting the lives text.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+
+[2026-08-11 13:32:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Make collecting big coin update the HUD and ensure the coin sprite of the coin counter is not stretched (uniform scaling based on height).
+Files Modified:
+- SuperMarioGame/src/Graphics/Hud.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Star Coin HUD Sync: Added `m_starCoinsCollected` array to `PlayingState` and subscribed to `EventType::StarCoinCollected` to track and mark collected slots in `m_starCoinsCollected`. Updated HUD data sync in `update()` and save/load operations (manual and auto-checkpoint) to persist actual collected states.
+- Aspect Ratio Fix: Updated `Hud::draw` to use uniform scaling (keeping original aspect ratio) on the standard coin sprite based on a `24.0f` height target and adjusted its position to `Y = 28.f`.
+- Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
 
 

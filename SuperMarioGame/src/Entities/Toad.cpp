@@ -16,14 +16,7 @@ Toad::Toad(sf::Vector2f pos) : Player(pos) {
 }
 
 void Toad::setupAnimations(const SpriteSheet* spriteSheet) {
-    if (!spriteSheet) return;
-    m_animator = std::make_unique<Animator>(spriteSheet);
-    m_animation = Animation("toad_small_idle");
-    m_animation.frameList = {{"toad_small_idle", 0.15f}};
-    if (m_animator) {
-        m_animator->play(&m_animation);
-        m_hasAnimation = true;
-    }
+    Player::setupCharacterAnimations(spriteSheet, "toad_small");
 }
 
 void Toad::update(float dt) {
@@ -47,4 +40,8 @@ void Toad::render(sf::RenderTarget& target) {
         rect.setOutlineThickness(1.0f);
         target.draw(rect);
     }
+}
+
+std::string Toad::getCharacterName() const {
+    return "toad";
 }

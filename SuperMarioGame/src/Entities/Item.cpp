@@ -19,6 +19,7 @@ void Item::collect() {
 
 void Item::setupAnimations(const SpriteSheet* spriteSheet) {
     if (!spriteSheet) return;
+    m_spriteSheet = spriteSheet;
     m_animator = std::make_unique<Animator>(spriteSheet);
 }
 

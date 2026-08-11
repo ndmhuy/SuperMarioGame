@@ -136,18 +136,51 @@ void Player::changeState(std::unique_ptr<IPlayerState> state) {
 }
 
 void Player::setupAnimations(const SpriteSheet* spriteSheet) {
+    setupCharacterAnimations(spriteSheet, "mario_small");
+}
+
+void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix) {
     if (!spriteSheet) return;
     m_animator = std::make_unique<Animator>(spriteSheet);
-    m_animation = Animation("player_idle");
-    m_animation.frameList = {{"mario_small_idle", 0.15f}};
-    if (m_animator) {
-        m_animator->play(&m_animation);
-        m_hasAnimation = true;
-    }
+
+    m_animIdle = Animation(prefix + "_idle");
+    m_animIdle.frameList = {{prefix + "_idle", 0.15f}};
+
+    m_animWalk = Animation(prefix + "_walk");
+    m_animWalk.frameList = {{prefix + "_walk_0", 0.12f}, {prefix + "_walk_1", 0.12f}};
+
+    m_animRun = Animation(prefix + "_run");
+    m_animRun.frameList = {{prefix + "_run_0", 0.08f}, {prefix + "_run_1", 0.08f}};
+
+    m_animJump = Animation(prefix + "_jump");
+    m_animJump.frameList = {{prefix + "_walk_1", 0.15f}};
+
+    m_animCrouch = Animation(prefix + "_crouch");
+    m_animCrouch.frameList = {{prefix + "_crouch", 0.15f}};
+
+    m_animator->play(&m_animIdle);
+    m_currentAnimName = m_animIdle.name;
+    m_hasAnimation = true;
 }
 
 void Player::update(float dt) {
     if (m_animator && m_hasAnimation) {
+        Animation* targetAnim = &m_animIdle;
+        if (crouched) {
+            targetAnim = &m_animCrouch;
+        } else if (!onGround) {
+            targetAnim = &m_animJump;
+        } else if (std::abs(velocity.x) > Constants::WALK_SPEED * 1.1f) {
+            targetAnim = &m_animRun;
+        } else if (std::abs(velocity.x) > 10.0f) {
+            targetAnim = &m_animWalk;
+        }
+
+        if (m_currentAnimName != targetAnim->name) {
+            m_currentAnimName = targetAnim->name;
+            m_animator->play(targetAnim);
+        }
+
         m_animator->update(dt);
     }
 
@@ -240,7 +273,7 @@ void Player::render(sf::RenderTarget& target) {
             boundingBox.height = m_targetSize.y;
 
             sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            float scaleX = facingRight ? -scale : scale;
+            float scaleX = facingRight ? -scale : scale;  // sprite faces left by default in atlas
             sprite.setScale(sf::Vector2f(scaleX, scale));
             sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
 

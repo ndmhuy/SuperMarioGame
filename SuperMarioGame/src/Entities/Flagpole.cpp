@@ -11,6 +11,10 @@ Flagpole::Flagpole(sf::Vector2f position, float poleHeight)
     boundingBox = AABB{position.x, position.y, 24.0f, m_poleHeight};
 }
 
+void Flagpole::update(float dt) {
+    Block::update(dt);
+}
+
 void Flagpole::onHitFromBelow(Player& player) {
     // Flagpole is not hit from below
 }

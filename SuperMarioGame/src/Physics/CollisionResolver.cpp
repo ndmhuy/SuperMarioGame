@@ -5,6 +5,7 @@
 #include "Entities/Block.hpp"
 #include "Entities/Flagpole.hpp"
 #include "Entities/Trampoline.hpp"
+#include "Entities/PSwitch.hpp"
 #include "Entities/Fireball.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
@@ -154,6 +155,18 @@ void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const Co
                 if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
                 if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
             }
+            return;
+        }
+
+        if (auto pswitch = dynamic_cast<PSwitch*>(&item)) {
+            pswitch->activate(player);
+            pswitch->collect();
+            // Solid collision response so player lands on top of squished P-Switch
+            player.position.x += info.normal.x * (info.overlap.x + 0.01f);
+            player.position.y += info.normal.y * (info.overlap.y + 0.01f);
+            if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
+            if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
+            if (info.normal.y == -1.0f) player.onGround = true;
             return;
         }
 

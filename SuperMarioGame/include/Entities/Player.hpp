@@ -41,6 +41,7 @@ public:
     void incrementCombo();
 
     // Read-only getters for external consumers (HUD, UI, save)
+    virtual std::string getCharacterName() const = 0;
     int getLives() const { return lives; }
     int getCoins() const { return coins; }
     int getScore() const { return score; }
@@ -81,7 +82,15 @@ protected:
 
     std::unique_ptr<Animator> m_animator;
     Animation m_animation;
+    Animation m_animIdle;
+    Animation m_animWalk;
+    Animation m_animRun;
+    Animation m_animJump;
+    Animation m_animCrouch;
+    std::string m_currentAnimName;
     bool m_hasAnimation = false;
+
+    void setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix);
 };
 
 

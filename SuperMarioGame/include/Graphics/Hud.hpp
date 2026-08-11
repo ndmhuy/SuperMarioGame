@@ -29,9 +29,11 @@ struct HudData {
     int bossMaxHealth = 100;
 };
 
+class SpriteSheet;
+
 class Hud : public sf::Drawable {
 public:
-    Hud(sf::Vector2i windowSize);
+    Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet = nullptr, const SpriteSheet* playerSheet = nullptr);
     ~Hud();
 
     void sync(const HudData& data);
@@ -54,4 +56,8 @@ private:
     mutable sf::CircleShape m_coinShape;
     mutable sf::RectangleShape m_healthBarOuter;
     mutable sf::RectangleShape m_healthBarInner;
+
+    const SpriteSheet* m_itemSheet = nullptr;
+    const SpriteSheet* m_playerSheet = nullptr;
+    float m_animTimer = 0.0f;
 };

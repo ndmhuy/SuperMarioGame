@@ -225,6 +225,13 @@ int main() {
         if (ImGui::Button("Items (12)")) currentTab = 2;
         ImGui::SameLine();
         if (ImGui::Button("Blocks (9)")) currentTab = 3;
+        ImGui::SameLine();
+        if (ImGui::Button("Water Wave FX")) currentTab = 4;
+
+        static float bobSpeed = 3.0f;   // rad/s vertical
+        static float waveAmpY = 2.5f;    // vertical bobbing px
+        static float waterAnimTimer = 0.0f;
+        waterAnimTimer += dt;
 
         ImGui::Separator();
 
@@ -254,6 +261,10 @@ int main() {
                     b.second->onHitFromBelow(*players[0].second);
                 }
             }
+        } else if (currentTab == 4) {
+            ImGui::Text("Active Tab: Pure Vertical Bobbing Water Wave FX");
+            ImGui::SliderFloat("Vertical Bobbing Speed", &bobSpeed, 0.5f, 10.0f, "%.1f rad/s");
+            ImGui::SliderFloat("Vertical Bobbing Amp", &waveAmpY, 0.0f, 10.0f, "%.1f px");
         }
 
         ImGui::End();
@@ -307,6 +318,43 @@ int main() {
                     box.setOutlineColor(sf::Color::Cyan);
                     box.setOutlineThickness(1.0f);
                     window.draw(box);
+                }
+            }
+        } else if (currentTab == 4) {
+            // Render 2-component Water Body: Synchronized Vertical Bobbing Wave + Depth Fill
+            float startX = 100.0f;
+            float startY = 300.0f;
+            int numCols = 30;
+            int numRows = 4;
+
+            // Synchronized vertical bobbing up and down (no lateral movement)
+            float bobY = std::sin(waterAnimTimer * bobSpeed) * waveAmpY;
+
+            // 1. Depth rows (r = 1..numRows-1): water_dark_blue_bg first
+            sf::Sprite bgSprite = scenerySheet.getSprite("water_dark_blue_bg");
+            auto bgBounds = bgSprite.getLocalBounds();
+            if (bgBounds.size.x > 0 && bgBounds.size.y > 0) {
+                bgSprite.setScale(sf::Vector2f(Constants::TILE_SIZE / bgBounds.size.x, Constants::TILE_SIZE / bgBounds.size.y));
+                for (int r = 1; r < numRows; ++r) {
+                    for (int c = 0; c < numCols; ++c) {
+                        float x = startX + c * Constants::TILE_SIZE;
+                        float y = startY + r * Constants::TILE_SIZE;
+                        bgSprite.setPosition(sf::Vector2f(x, y));
+                        window.draw(bgSprite);
+                    }
+                }
+            }
+
+            // 2. Top surface row second (on top of depth rows)
+            sf::Sprite waveSprite = scenerySheet.getSprite("water_dark_blue_wave_short");
+            auto bounds = waveSprite.getLocalBounds();
+            if (bounds.size.x > 0 && bounds.size.y > 0) {
+                waveSprite.setScale(sf::Vector2f(Constants::TILE_SIZE / bounds.size.x, Constants::TILE_SIZE / bounds.size.y));
+                for (int c = 0; c < numCols; ++c) {
+                    float drawX = startX + c * Constants::TILE_SIZE;
+                    float drawY = startY + 5.0f + bobY;
+                    waveSprite.setPosition(sf::Vector2f(drawX, drawY));
+                    window.draw(waveSprite);
                 }
             }
         }
