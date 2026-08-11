@@ -29,6 +29,7 @@ protected:
     Animation m_animation;
     bool m_hasAnimation = false;
     float m_baseScale = 0.0f;
+    const SpriteSheet* m_spriteSheet = nullptr;
 };
 
 
