@@ -6,7 +6,7 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <cmath>
 
-Mario::Mario(sf::Vector2f pos) {
+Mario::Mario(sf::Vector2f pos) : Player(pos) {
     position = pos;
     speed = Constants::WALK_SPEED;
     jumpForce = std::sqrt(2.0f * Constants::GRAVITY * Constants::GRAVITY_SCALE * Constants::JUMP_HEIGHT);
@@ -17,37 +17,21 @@ Mario::Mario(sf::Vector2f pos) {
     changeState(std::make_unique<SmallState>());
 }
 
+void Mario::setupAnimations(const SpriteSheet* spriteSheet) {
+    Player::setupCharacterAnimations(spriteSheet, "mario_small");
+}
+
 void Mario::update(float dt) {
     Player::update(dt);
 }
 
 void Mario::render(sf::RenderTarget& target) {
     if (!active) return;
-
-    if (ResourceManager::getInstance().hasTexture("player")) {
-        const sf::Texture& texture = ResourceManager::getInstance().getTexture("player");
-        sf::Sprite sprite(texture);
-        
-        // Frame rect for mario_small_idle from player.json
-        sf::IntRect frameRect({1, 1}, {16, 26});
-        sprite.setTextureRect(frameRect);
-
-        float scaleX = boundingBox.width / 16.0f;
-        float scaleY = boundingBox.height / 26.0f;
-
-        if (facingRight) {
-            sprite.setOrigin(sf::Vector2f(0.0f, 0.0f));
-            sprite.setScale(sf::Vector2f(scaleX, scaleY));
-            sprite.setPosition(position);
-        } else {
-            sprite.setOrigin(sf::Vector2f(16.0f, 0.0f));
-            sprite.setScale(sf::Vector2f(-scaleX, scaleY));
-            sprite.setPosition(sf::Vector2f(position.x + boundingBox.width, position.y));
-        }
-        target.draw(sprite);
+    if (m_animator && m_hasAnimation) {
+        Player::render(target);
     } else {
         sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-        rect.setPosition(position);
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
         rect.setFillColor(sf::Color::Red);
         rect.setOutlineColor(sf::Color::White);
         rect.setOutlineThickness(1.0f);
@@ -57,4 +41,8 @@ void Mario::render(sf::RenderTarget& target) {
 
 void Mario::shootFireball() {
     Player::shootFireball();
+}
+
+std::string Mario::getCharacterName() const {
+    return "mario";
 }

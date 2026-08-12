@@ -16,8 +16,18 @@ void Boo::update(float dt) {
     boundingBox.y = position.y;
 }
 
+void Boo::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("boo_move");
+    m_animation.frameList = {{"boo_move_0", 0.15f}, {"boo_move_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Boo::render(sf::RenderTarget& target) {
-    // Visual rendering will be implemented in Phase 5
+    Enemy::render(target);
 }
 
 void Boo::onStomped() {

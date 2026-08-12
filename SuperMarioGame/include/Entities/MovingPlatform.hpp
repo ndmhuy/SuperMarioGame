@@ -10,6 +10,7 @@ public:
     void onHitFromBelow(Player& player) override;
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
 private:
     sf::Vector2f m_startPos;

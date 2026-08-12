@@ -4,7 +4,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
-Toad::Toad(sf::Vector2f pos) {
+Toad::Toad(sf::Vector2f pos) : Player(pos) {
     position = pos;
     speed = Constants::WALK_SPEED * 1.3f;
     float baseJumpForce = std::sqrt(2.0f * Constants::GRAVITY * Constants::GRAVITY_SCALE * Constants::JUMP_HEIGHT);
@@ -13,6 +13,10 @@ Toad::Toad(sf::Vector2f pos) {
     
     boundingBox = AABB{pos.x, pos.y, 32.0f, 32.0f};
     changeState(std::make_unique<SmallState>());
+}
+
+void Toad::setupAnimations(const SpriteSheet* spriteSheet) {
+    Player::setupCharacterAnimations(spriteSheet, "toad_small");
 }
 
 void Toad::update(float dt) {
@@ -26,10 +30,18 @@ void Toad::update(float dt) {
 
 void Toad::render(sf::RenderTarget& target) {
     if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(0, 150, 255)); // Light Blue
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    if (m_animator && m_hasAnimation) {
+        Player::render(target);
+    } else {
+        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
+        rect.setFillColor(sf::Color(0, 150, 255)); // Light Blue
+        rect.setOutlineColor(sf::Color::White);
+        rect.setOutlineThickness(1.0f);
+        target.draw(rect);
+    }
+}
+
+std::string Toad::getCharacterName() const {
+    return "toad";
 }

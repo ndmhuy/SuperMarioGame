@@ -37,11 +37,16 @@ void ConveyorBelt::update(float dt) {
     }
 }
 
+void ConveyorBelt::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("conveyor_belt");
+    m_animation.frameList = {{"platform_long", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void ConveyorBelt::render(sf::RenderTarget& target) {
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(100, 150, 100)); // Darker green-gray representing conveyor
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Block::render(target);
 }

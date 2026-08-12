@@ -9,17 +9,30 @@ POWBlock::POWBlock(sf::Vector2f pos) : Item(pos) {
 }
 
 void POWBlock::update(float dt) {
-    // Stationary interactive block
+    Item::update(dt);
+}
+
+void POWBlock::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("pow_block");
+    m_animation.frameList = {
+        {"pow_block_0", 0.15f},
+        {"pow_block_1", 0.15f},
+        {"pow_block_2", 0.15f},
+        {"pow_block_3", 0.15f},
+        {"pow_block_4", 0.15f},
+        {"pow_block_5", 0.15f},
+        {"pow_block_6", 0.15f},
+        {"pow_block_7", 0.15f}
+    };
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void POWBlock::render(sf::RenderTarget& target) {
-    if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(105, 105, 105)); // Dim Grey
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(2.0f);
-    target.draw(rect);
+    Item::render(target);
 }
 
 void POWBlock::activate(Player& player) {

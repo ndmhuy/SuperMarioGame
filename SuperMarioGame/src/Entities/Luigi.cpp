@@ -4,7 +4,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
-Luigi::Luigi(sf::Vector2f pos) {
+Luigi::Luigi(sf::Vector2f pos) : Player(pos) {
     position = pos;
     speed = Constants::WALK_SPEED * Constants::LUIGI_SPEED_MULT;
     float baseJumpForce = std::sqrt(2.0f * Constants::GRAVITY * Constants::GRAVITY_SCALE * Constants::JUMP_HEIGHT);
@@ -13,6 +13,10 @@ Luigi::Luigi(sf::Vector2f pos) {
     
     boundingBox = AABB{pos.x, pos.y, 32.0f, 32.0f};
     changeState(std::make_unique<SmallState>());
+}
+
+void Luigi::setupAnimations(const SpriteSheet* spriteSheet) {
+    Player::setupCharacterAnimations(spriteSheet, "luigi_small");
 }
 
 void Luigi::update(float dt) {
@@ -24,12 +28,16 @@ void Luigi::update(float dt) {
 
 void Luigi::render(sf::RenderTarget& target) {
     if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color::Green);
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    if (m_animator && m_hasAnimation) {
+        Player::render(target);
+    } else {
+        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
+        rect.setFillColor(sf::Color::Green);
+        rect.setOutlineColor(sf::Color::White);
+        rect.setOutlineThickness(1.0f);
+        target.draw(rect);
+    }
 }
 
 void Luigi::jump() {
@@ -48,4 +56,8 @@ void Luigi::doubleJump() {
 
 float Luigi::getGravityMultiplier() const {
     return Constants::LUIGI_GRAVITY_MULT;
+}
+
+std::string Luigi::getCharacterName() const {
+    return "luigi";
 }

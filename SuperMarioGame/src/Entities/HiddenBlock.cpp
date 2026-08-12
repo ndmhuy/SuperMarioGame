@@ -32,12 +32,19 @@ void HiddenBlock::update(float dt) {
     }
 }
 
+void HiddenBlock::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("hidden_block");
+    m_animation.frameList = {{"solid_block_brown", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void HiddenBlock::render(sf::RenderTarget& target) {
     if (m_isRevealed) {
-        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-        rect.setPosition(position);
-        rect.setFillColor(sf::Color(100, 100, 100)); // Revealed block is solid gray
-        target.draw(rect);
+        Block::render(target);
     }
 }
 

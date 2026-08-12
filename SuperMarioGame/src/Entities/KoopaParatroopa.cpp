@@ -17,6 +17,16 @@ KoopaParatroopa::KoopaParatroopa(sf::Vector2f position, bool isRed)
     }
 }
 
+void KoopaParatroopa::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("koopa_fly");
+    m_animation.frameList = {{"koopa_green_fly_left_0", 0.15f}, {"koopa_green_fly_left_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void KoopaParatroopa::update(float dt) {
     if (m_hasWings) {
         if (m_isFlipped) {

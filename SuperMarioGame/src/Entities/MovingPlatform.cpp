@@ -5,12 +5,9 @@
 #include <cmath>
 
 MovingPlatform::MovingPlatform(sf::Vector2f position, sf::Vector2f travelRange, float speed)
-    : Block(position), m_startPos(position), m_travelRange(travelRange), m_speed(speed),
+    : Block(position, {64.0f, 16.0f}), m_startPos(position), m_travelRange(travelRange), m_speed(speed),
       m_rangeLen(std::sqrt(m_travelRange.x * m_travelRange.x + m_travelRange.y * m_travelRange.y)) {
     m_breakable = false;
-    // Platforms are typically wider and thinner than normal block tiles
-    boundingBox.width = 64.0f;
-    boundingBox.height = 16.0f;
 }
 
 void MovingPlatform::onHitFromBelow(Player& player) {
@@ -69,11 +66,16 @@ void MovingPlatform::update(float dt) {
     }
 }
 
+void MovingPlatform::setupAnimations(const SpriteSheet* spriteSheet) {
+    Block::setupAnimations(spriteSheet);
+    m_animation = Animation("moving_platform");
+    m_animation.frameList = {{"platform_medium", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void MovingPlatform::render(sf::RenderTarget& target) {
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(180, 120, 50)); // Light brown platform color
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Block::render(target);
 }

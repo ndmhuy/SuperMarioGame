@@ -1,10 +1,17 @@
+#define NOMINMAX
 #include "Core/PlayingState.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
 #include "Graphics/ScreenTransitionManager.hpp"
+#include "Graphics/SpriteSheet.hpp"
+#include "Graphics/EntityDeathEffect.hpp"
 #include "Entities/Entity.hpp"
+#include "Entities/Enemy.hpp"
+#include "Entities/Item.hpp"
+#include "Entities/Block.hpp"
+#include "Entities/StarCoin.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
@@ -32,6 +39,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <filesystem>
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig)
     : m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
@@ -42,13 +50,45 @@ PlayingState::~PlayingState() {
 
 void PlayingState::enter() {
     std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
+
+    // --- Load all 5 Sprite Sheet Atlases ---
+    // Path candidates search: run from build/Debug or project root
+    auto tryLoadSheet = [](const std::string& folderName) -> std::unique_ptr<SpriteSheet> {
+        std::vector<std::string> candidates = {
+            "assets/spriteSheet/" + folderName,
+            "SuperMarioGame/assets/spriteSheet/" + folderName,
+            "../assets/spriteSheet/" + folderName
+        };
+        for (const auto& path : candidates) {
+            if (std::filesystem::exists(path)) {
+                try {
+                    return std::make_unique<SpriteSheet>(path);
+                } catch (...) {}
+            }
+        }
+        std::cerr << "[PlayingState] WARNING: Could not locate sprite sheet: " << folderName << std::endl;
+        return nullptr;
+    };
+
+    m_playerSheet  = tryLoadSheet("player");
+    m_enemySheet   = tryLoadSheet("enemy_projectile");
+    m_itemSheet    = tryLoadSheet("item");
+    m_scenerySheet = tryLoadSheet("world_scenery_item");
+    // Note: tileset_blocks is deprecated — tile sprites come from world_scenery_item (m_scenerySheet)
+
     // Initialize HUD and Level Timer
-    m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT));
+    m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT), m_itemSheet.get(), m_playerSheet.get());
     m_levelTimer = 300.0f;
+    m_tileAnimTimer = 0.0f;
 
     if (m_isProcedural) {
         cleanupTestScene();
         MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+
+        // Wire animations for all procedurally generated entities
+        for (auto& entity : m_entities) {
+            wireEntityAnimations(entity.get());
+        }
         
         m_player = nullptr;
         for (const auto& entity : m_entities) {
@@ -78,7 +118,7 @@ void PlayingState::enter() {
         int activeSlot = Game::getInstance().getActiveSlot();
         if (!m_entities.empty() && m_entities[0]) {
             if (auto* player = dynamic_cast<Player*>(m_entities[0].get())) {
-                bool success = Serializer::saveGame(activeSlot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, {true, false, false});
+                bool success = Serializer::saveGame(activeSlot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
                 if (success) {
                     std::cout << "[Auto-Save] Progress saved to Slot " << activeSlot << " at checkpoint!" << std::endl;
                 }
@@ -112,6 +152,16 @@ void PlayingState::enter() {
             SoundManager::getInstance().playSound("fireball");
         }
     });
+
+    m_starCoinsCollected = {false, false, false};
+    m_starCoinSubId = EventBus::getInstance().subscribe(EventType::StarCoinCollected, [this](const GameEvent& ev) {
+        for (int i = 0; i < 3; ++i) {
+            if (!m_starCoinsCollected[i]) {
+                m_starCoinsCollected[i] = true;
+                break;
+            }
+        }
+    });
 }
 
 void PlayingState::exit() {
@@ -125,6 +175,10 @@ void PlayingState::exit() {
     if (m_fireballSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_fireballSubId);
         m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_starCoinSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_starCoinSubId);
+        m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 
     // Unregister player and tilemap to prevent dangling pointer crashes on exit
@@ -186,6 +240,9 @@ void PlayingState::handleInput(const sf::Event& event) {
 }
 
 void PlayingState::update(float dt) {
+    // Advance tile animation timer
+    m_tileAnimTimer += dt;
+
     if (m_mapEditor.isActive()) {
         sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(m_camera.getView());
         m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt, &m_camera);
@@ -289,6 +346,7 @@ void PlayingState::update(float dt) {
 
     // 5. Sync HUD with player stats or fallback mock data
     if (m_hud) {
+        m_hud->update(dt);
         HudData hudData;
         hudData.timeLeft = static_cast<int>(m_levelTimer);
         
@@ -297,8 +355,8 @@ void PlayingState::update(float dt) {
             hudData.coins = player->getCoins();
             hudData.lives = player->getLives();
             hudData.comboCount = player->getComboCounter();
-            hudData.characterName = "MARIO";
-            hudData.starCoinsCollected = {false, false, false};
+            hudData.characterName = player->getCharacterName();
+            hudData.starCoinsCollected = m_starCoinsCollected;
         } else {
             // Mockup values matching the visual reference when running the test scene
             hudData.score = 102520;
@@ -345,72 +403,99 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Set view to camera view for scrolling world space rendering
     target.setView(m_camera.getView());
 
-    // 1. Draw the tilemap tiles
-    for (int y = 0; y < m_tileMap.getHeight(); ++y) {
+    // Compute animated tile frame indices from timer
+    int coinFrame     = static_cast<int>(m_tileAnimTimer / 0.15f) % 4;
+    int questionFrame = static_cast<int>(m_tileAnimTimer / 0.20f) % 4;
+    int conveyorFrame = static_cast<int>(m_tileAnimTimer / 0.10f) % 4;
+    int waterFrame    = static_cast<int>(m_tileAnimTimer / 0.18f) % 4;
+
+    // 1. Draw the tilemap tiles (bottom-to-top to ensure overlapping/bobbing top layers draw on top of background)
+    for (int y = m_tileMap.getHeight() - 1; y >= 0; --y) {
         for (int x = 0; x < m_tileMap.getWidth(); ++x) {
             TileType tileType = m_tileMap.getTileType(x, y);
             if (tileType == TileType::Empty) continue;
 
-            const TileInfo& info = TileMap::getInfo(tileType);
+            sf::Vector2f tilePos(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE);
+            bool spriteDrawn = false;
 
-            sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-            tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-            tileShape.setFillColor(info.debugColor);
-            tileShape.setOutlineColor(sf::Color(60, 40, 20));
-            tileShape.setOutlineThickness(0.5f);
-            target.draw(tileShape);
+            if (m_scenerySheet) {
+                std::string frameKey;
 
-            // Add a grass top layer to Ground tiles
-            if (tileType == TileType::Ground) {
-                sf::RectangleShape grassShape(sf::Vector2f(Constants::TILE_SIZE, 6.0f));
-                grassShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                grassShape.setFillColor(sf::Color(46, 139, 87)); // Sea Green grass
-                target.draw(grassShape);
-            } else if (tileType == TileType::Brick) {
+                switch (tileType) {
+                    case TileType::Ground: {
+                        // Use grass-top tile on exposed top row, dirt fill otherwise
+                        bool isTopExposed = (y == 0) || (m_tileMap.getTileType(x, y - 1) == TileType::Empty);
+                        frameKey = isTopExposed ? "solid_block_brown" : "solid_block_grey";
+                        break;
+                    }
+                    case TileType::Brick:
+                        frameKey = "brick_brown_side";
+                        break;
+                    case TileType::Question:
+                        frameKey = "question_block_" + std::to_string(questionFrame % 3);
+                        break;
+                    case TileType::Pipe: {
+                        bool isTopExposed = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Pipe);
+                        frameKey = isTopExposed ? "pipe_green_up" : "pipe_green_body";
+                        break;
+                    }
+                    case TileType::Ice:
+                        // No dedicated ice sprite in world_scenery — use solid_block_blue as fallback
+                        frameKey = "solid_block_blue";
+                        break;
+                    case TileType::Conveyor:
+                        frameKey = "conveyor_belt_green";
+                        break;
+                    case TileType::Water: {
+                        bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Water);
+                        frameKey = isSurface ? "water_dark_blue_wave_short" : "water_dark_blue_bg";
+                        break;
+                    }
+                    case TileType::Coin:
+                        frameKey = "coin_" + std::to_string(coinFrame % 2);
+                        break;
+                    default:
+                        break;
+                }
+
+                if (!frameKey.empty()) {
+                    sf::Sprite tileSprite = m_scenerySheet->getSprite(frameKey);
+                    auto bounds = tileSprite.getLocalBounds();
+                    if (bounds.size.x > 0 && bounds.size.y > 0) {
+                        tileSprite.setScale(sf::Vector2f(
+                            Constants::TILE_SIZE / bounds.size.x,
+                            Constants::TILE_SIZE / bounds.size.y
+                        ));
+                        sf::Vector2f drawPos = tilePos;
+                        if (tileType == TileType::Water && (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Water)) {
+                            // Pure vertical bobbing up and down (started 5px lower to prevent exposing top gap)
+                            float bobY = std::sin(m_tileAnimTimer * 3.0f) * 2.5f;
+                            drawPos.y += 5.0f + bobY;
+                        }
+                        tileSprite.setPosition(drawPos);
+                        target.draw(tileSprite);
+                        spriteDrawn = true;
+                    }
+                }
+            }
+
+            // Fallback to debug color rectangles if no atlas loaded or unknown tile
+            if (!spriteDrawn) {
+                const TileInfo& info = TileMap::getInfo(tileType);
                 sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(180, 50, 50)); // Reddish brown brick
-                tileShape.setOutlineColor(sf::Color(90, 25, 25));
-                tileShape.setOutlineThickness(1.0f);
+                tileShape.setPosition(tilePos);
+                tileShape.setFillColor(info.debugColor);
+                tileShape.setOutlineColor(sf::Color(60, 40, 20));
+                tileShape.setOutlineThickness(0.5f);
                 target.draw(tileShape);
-            } else if (tileType == TileType::Question) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(240, 180, 30)); // Yellow Question block
-                tileShape.setOutlineColor(sf::Color(120, 90, 15));
-                tileShape.setOutlineThickness(1.0f);
-                target.draw(tileShape);
-            } else if (tileType == TileType::Pipe) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(0, 150, 0)); // Green pipe
-                tileShape.setOutlineColor(sf::Color(0, 75, 0));
-                tileShape.setOutlineThickness(1.0f);
-                target.draw(tileShape);
-            } else if (tileType == TileType::Ice) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(150, 200, 250)); // Light blue Ice
-                target.draw(tileShape);
-            } else if (tileType == TileType::Conveyor) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(100, 100, 100)); // Dark grey conveyor
-                tileShape.setOutlineColor(sf::Color(50, 50, 50));
-                tileShape.setOutlineThickness(1.0f);
-                target.draw(tileShape);
-            } else if (tileType == TileType::Water) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(30, 80, 220, 150)); // Blue transparent water
-                target.draw(tileShape);
-            } else if (tileType == TileType::Coin) {
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
-                tileShape.setFillColor(sf::Color(255, 215, 0)); // Gold coin tile
-                tileShape.setOutlineColor(sf::Color(150, 120, 0));
-                tileShape.setOutlineThickness(1.0f);
-                target.draw(tileShape);
+
+                // Decoration on debug shapes
+                if (tileType == TileType::Ground) {
+                    sf::RectangleShape grassShape(sf::Vector2f(Constants::TILE_SIZE, 6.0f));
+                    grassShape.setPosition(tilePos);
+                    grassShape.setFillColor(sf::Color(46, 139, 87));
+                    target.draw(grassShape);
+                }
             }
         }
     }
@@ -419,6 +504,41 @@ void PlayingState::render(sf::RenderTarget& target) {
     for (auto& entity : m_entities) {
         if (entity && entity->isActive()) {
             entity->render(target);
+        }
+    }
+
+    // 3. Draw entity death effects (flying trajectories)
+    EntityDeathEffect::getInstance().render(target);
+
+    // 4. Draw AABB overlays (dev toggle)
+    if (m_showAABB) {
+        // Tile grid AABBs
+        for (int y = 0; y < m_tileMap.getHeight(); ++y) {
+            for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+                TileType tt = m_tileMap.getTileType(x, y);
+                if (tt == TileType::Empty) continue;
+                sf::RectangleShape dbg(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
+                dbg.setPosition(sf::Vector2f(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE));
+                dbg.setFillColor(sf::Color::Transparent);
+                dbg.setOutlineColor(tt == TileType::Ground ? sf::Color(0, 255, 0, 180) : sf::Color(255, 255, 0, 180));
+                dbg.setOutlineThickness(1.0f);
+                target.draw(dbg);
+            }
+        }
+        // Entity AABBs
+        for (auto& entity : m_entities) {
+            if (!entity || !entity->isActive()) continue;
+            AABB bb = entity->getBoundingBox();
+            sf::RectangleShape dbg(sf::Vector2f(bb.width, bb.height));
+            dbg.setPosition(sf::Vector2f(bb.x, bb.y));
+            dbg.setFillColor(sf::Color::Transparent);
+            sf::Color outlineColor = sf::Color(0, 255, 0, 220);   // Green = player/generic
+            if (dynamic_cast<Enemy*>(entity.get()))  outlineColor = sf::Color(255, 50, 50, 220);   // Red
+            else if (dynamic_cast<Item*>(entity.get()))  outlineColor = sf::Color(255, 220, 0, 220);   // Yellow
+            else if (dynamic_cast<Block*>(entity.get())) outlineColor = sf::Color(0, 220, 255, 220);  // Cyan
+            dbg.setOutlineColor(outlineColor);
+            dbg.setOutlineThickness(1.5f);
+            target.draw(dbg);
         }
     }
 
@@ -585,6 +705,10 @@ void PlayingState::render(sf::RenderTarget& target) {
 
         ImGui::Separator();
 
+        ImGui::Checkbox("Show Physics AABB Overlays", &m_showAABB);
+
+        ImGui::Separator();
+
         if (ImGui::Button("Reset Simulation")) {
             setupTestScene();
         }
@@ -648,7 +772,7 @@ void PlayingState::render(sf::RenderTarget& target) {
 
                 if (ImGui::Button("Save")) {
                     if (player) {
-                        Serializer::saveGame(slot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, {true, false, false});
+                        Serializer::saveGame(slot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
                     }
                 }
                 ImGui::SameLine();
@@ -660,6 +784,10 @@ void PlayingState::render(sf::RenderTarget& target) {
                     std::vector<bool> starCoins;
                     bool success = Serializer::loadGame(slot, loadedPlayer, lvlId, lvlName, timeRem, checkX, checkY, starCoins);
                     if (success && loadedPlayer) {
+                        if (starCoins.size() >= 3) {
+                            m_starCoinsCollected = {starCoins[0], starCoins[1], starCoins[2]};
+                        }
+                        wireEntityAnimations(loadedPlayer.get());
                         m_entities[0] = std::move(loadedPlayer);
                         Game::getInstance().setActiveSlot(slot);
                         std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
@@ -771,8 +899,9 @@ void PlayingState::setupTestScene() {
         // Spawn active player character at the spawnPoint loaded from JSON
         spawnSelectedPlayer(levelData.spawnPoint);
         
-        // Transfer all loaded items/entities to m_entities
+        // Transfer all loaded items/entities and wire their animations
         for (auto& entity : levelData.entities) {
+            wireEntityAnimations(entity.get());
             m_entities.push_back(std::move(entity));
         }
 
@@ -834,5 +963,31 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     m_entities.insert(m_entities.begin(), std::move(newPlayer));
 
     InputManager::getInstance().registerPlayer(m_player, 0);
+    wireEntityAnimations(m_player);
+    Game::getInstance().setPlayer(m_player);
+}
+
+void PlayingState::wireEntityAnimations(Entity* entity) {
+    if (!entity) return;
+
+    // Route entity to its matching sprite sheet atlas based on type hierarchy.
+    // setupAnimations() lives on Player, Enemy, Item, Block — not on Entity base.
+    if (auto* p = dynamic_cast<Player*>(entity)) {
+        if (m_playerSheet) p->setupAnimations(m_playerSheet.get());
+    } else if (auto* e = dynamic_cast<Enemy*>(entity)) {
+        if (m_enemySheet) e->setupAnimations(m_enemySheet.get());
+    } else if (dynamic_cast<StarCoin*>(entity)) {
+        // StarCoin's big_coin_0/1/2 frames live in world_scenery_item, not item atlas
+        if (auto* sc = dynamic_cast<Item*>(entity)) {
+            if (m_scenerySheet) sc->setupAnimations(m_scenerySheet.get());
+        }
+    } else if (auto* i = dynamic_cast<Item*>(entity)) {
+        if (m_itemSheet) i->setupAnimations(m_itemSheet.get());
+    } else if (auto* b = dynamic_cast<Block*>(entity)) {
+        if (m_scenerySheet) b->setupAnimations(m_scenerySheet.get());
+    } else {
+        // Fallback: unknown entity type — silently skip
+        std::cerr << "[wireEntityAnimations] Unknown entity type, skipping animation setup." << std::endl;
+    }
 }
 

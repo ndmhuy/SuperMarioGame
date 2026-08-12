@@ -10,6 +10,7 @@ Star::Star(sf::Vector2f pos) : Item(pos) {
 
 void Star::update(float dt) {
     if (!active) return;
+    Item::update(dt);
     
     // Check wall collision (velocity.x cancelled to 0)
     if (std::abs(velocity.x) < 0.01f) {
@@ -23,14 +24,22 @@ void Star::update(float dt) {
     }
 }
 
+void Star::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_animation = Animation("star");
+    m_animation.frameList = {
+        {"star_1", 0.15f},
+        {"star_2", 0.15f},
+        {"star_3", 0.15f}
+    };
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Star::render(sf::RenderTarget& target) {
-    if (!active) return;
-    sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-    rect.setPosition(position);
-    rect.setFillColor(sf::Color(255, 255, 0)); // Bright Yellow
-    rect.setOutlineColor(sf::Color::White);
-    rect.setOutlineThickness(1.0f);
-    target.draw(rect);
+    Item::render(target);
 }
 
 void Star::activate(Player& player) {

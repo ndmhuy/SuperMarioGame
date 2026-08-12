@@ -42,8 +42,18 @@ void KoopaTroopa::update(float dt) {
     }
 }
 
+void KoopaTroopa::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("koopa_move");
+    m_animation.frameList = {{"koopa_green_move_left_0", 0.15f}, {"koopa_green_move_left_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void KoopaTroopa::render(sf::RenderTarget& target) {
-    // Visual rendering will be implemented in Phase 5
+    Enemy::render(target);
 }
 
 void KoopaTroopa::onStomped() {

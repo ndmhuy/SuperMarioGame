@@ -36,21 +36,40 @@ SpriteSheet::SpriteSheet(const std::string& textureId, const std::string& dataFi
 bool SpriteSheet::loadFrameData(const std::string& dataFilepath) {
     try {
         json data = json::parse(std::ifstream(dataFilepath));
-        for (json::iterator it = data["frames"].begin(); it != data["frames"].end(); it++) {
-            sf::IntRect spriteRect(
-                sf::Vector2i(it.value()["frame"]["x"].get<int>(), it.value()["frame"]["y"].get<int>()),
-                sf::Vector2i(it.value()["frame"]["w"].get<int>(), it.value()["frame"]["h"].get<int>())
-            );
 
-            m_frames[it.key()] = spriteRect;
+        // Standard TexturePacker "frames" format (player, enemy, item, scenery atlases)
+        if (data.contains("frames")) {
+            for (json::iterator it = data["frames"].begin(); it != data["frames"].end(); it++) {
+                sf::IntRect spriteRect(
+                    sf::Vector2i(it.value()["frame"]["x"].get<int>(), it.value()["frame"]["y"].get<int>()),
+                    sf::Vector2i(it.value()["frame"]["w"].get<int>(), it.value()["frame"]["h"].get<int>())
+                );
+                m_frames[it.key()] = spriteRect;
+            }
+            return true;
         }
-        return true;
+
+        // Custom "tiles" format (tileset_blocks.json): { "tiles": { "name": { x, y, w, h } } }
+        if (data.contains("tiles")) {
+            for (json::iterator it = data["tiles"].begin(); it != data["tiles"].end(); it++) {
+                sf::IntRect spriteRect(
+                    sf::Vector2i(it.value()["x"].get<int>(), it.value()["y"].get<int>()),
+                    sf::Vector2i(it.value()["w"].get<int>(), it.value()["h"].get<int>())
+                );
+                m_frames[it.key()] = spriteRect;
+            }
+            return true;
+        }
+
+        std::cerr << "[SpriteSheet] Unknown JSON format in: " << dataFilepath << std::endl;
+        return false;
     }
     catch (std::exception &e) {
         std::cerr << "[SpriteSheet] Frame data load failed: " << e.what() << std::endl;
         return false;
     }
 }
+
 
 sf::Sprite SpriteSheet::getSprite(sf::IntRect frameRect) const {
     return sf::Sprite(*m_spriteSheet, frameRect);

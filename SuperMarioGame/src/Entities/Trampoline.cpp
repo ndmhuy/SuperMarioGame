@@ -12,65 +12,84 @@ Trampoline::Trampoline(sf::Vector2f pos) : Item(pos) {
 }
 
 void Trampoline::update(float dt) {
-    if (m_isCompressed) {
-        m_compressTimer -= dt;
-        if (m_compressTimer <= 0.0f) {
-            m_compressTimer = 0.0f;
-            m_isCompressed = false;
+    if (m_isBouncing) {
+        m_bounceTimer -= dt;
+        float elapsed = 0.3f - m_bounceTimer;
+        if (elapsed < 0.1f) {
+            if (m_animator) {
+                m_animator->play(&m_squishAnim);
+            }
+        } else if (elapsed < 0.25f) {
+            if (m_animator) {
+                m_animator->play(&m_extendAnim);
+            }
+        } else {
+            m_isBouncing = false;
+            m_bounceTimer = 0.0f;
+            if (m_animator) {
+                m_animator->play(&m_idleAnim);
+            }
         }
+    }
+    Item::update(dt);
+}
+
+void Trampoline::setupAnimations(const SpriteSheet* spriteSheet) {
+    Item::setupAnimations(spriteSheet);
+    m_idleAnim = Animation("trampoline");
+    m_idleAnim.frameList = {{"trampoline", 0.15f}};
+
+    m_squishAnim = Animation("trampoline_squished");
+    m_squishAnim.frameList = {{"trampoline_squished", 0.10f}};
+
+    m_extendAnim = Animation("trampoline_extended");
+    m_extendAnim.frameList = {{"trampoline_extended", 0.15f}};
+
+    if (m_animator) {
+        m_animator->play(&m_idleAnim);
+        m_hasAnimation = true;
     }
 }
 
 void Trampoline::render(sf::RenderTarget& target) {
-    if (!active) return;
+    if (!active || collected) return;
+    if (m_animator && m_hasAnimation) {
+        sf::Sprite sprite = m_animator->getSprite();
+        sf::FloatRect bounds = sprite.getLocalBounds();
+        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+            // Base boundingBox remains fixed at base size (32x32)
+            boundingBox.width = m_targetSize.x;
+            boundingBox.height = m_targetSize.y;
 
-    float renderHeight = m_isCompressed ? 16.0f : 32.0f;
-    float renderY = position.y + (32.0f - renderHeight);
+            float scale = m_targetSize.x / 16.0f;
 
-    // 1. Steel base foot plate
-    sf::RectangleShape basePlate({32.0f, 4.0f});
-    basePlate.setPosition({position.x, position.y + 28.0f});
-    basePlate.setFillColor(sf::Color(100, 100, 100));
-    basePlate.setOutlineColor(sf::Color::Black);
-    basePlate.setOutlineThickness(1.0f);
-    target.draw(basePlate);
+            // Sprite origin set to bottom-center and positioned at bottom-center of AABB
+            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
+            sprite.setScale(sf::Vector2f(scale, scale));
+            sprite.setPosition(sf::Vector2f(boundingBox.x + 16.0f, boundingBox.y + 32.0f));
 
-    // 2. Coiled metallic spring coils
-    int numCoils = m_isCompressed ? 2 : 4;
-    float coilStep = (renderHeight - 12.0f) / numCoils;
-
-    for (int i = 0; i < numCoils; ++i) {
-        sf::RectangleShape coil({24.0f, 3.0f});
-        float coilY = renderY + 8.0f + i * coilStep;
-        float offsetX = (i % 2 == 0) ? 2.0f : 6.0f;
-
-        coil.setPosition({position.x + offsetX, coilY});
-        coil.setFillColor(sf::Color(200, 200, 200));
-        coil.setOutlineColor(sf::Color(80, 80, 80));
-        coil.setOutlineThickness(1.0f);
-        target.draw(coil);
+            target.draw(sprite);
+        }
+    } else {
+        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
+        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
+        rect.setFillColor(sf::Color::Yellow);
+        rect.setOutlineColor(sf::Color::White);
+        rect.setOutlineThickness(1.0f);
+        target.draw(rect);
     }
-
-    // 3. Green padded top spring cushion
-    sf::RectangleShape topCushion({32.0f, 8.0f});
-    topCushion.setPosition({position.x, renderY});
-    topCushion.setFillColor(sf::Color(46, 204, 113)); // Vibrant Emerald Green Top Pad
-    topCushion.setOutlineColor(sf::Color(255, 235, 100)); // Golden yellow rim
-    topCushion.setOutlineThickness(1.0f);
-    target.draw(topCushion);
 }
 
 void Trampoline::activate(Player& player) {
-    // Compression spring trigger
-    m_isCompressed = true;
-    m_compressTimer = 0.25f;
+    m_isBouncing = true;
+    m_bounceTimer = 0.3f;
+    if (m_animator) {
+        m_animator->play(&m_squishAnim);
+    }
 
-    // Apply high-bounce impulse ~6 tiles height (-831.4 px/s)
     sf::Vector2f vel = player.getVelocity();
     vel.y = -831.4f;
     player.setVelocity(vel);
-
-    SoundManager::getInstance().playSound("powerup");
 }
 
 void Trampoline::collect() {

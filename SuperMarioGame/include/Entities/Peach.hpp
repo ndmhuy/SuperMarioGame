@@ -9,9 +9,11 @@ public:
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     void floatHover();
     float getGravityMultiplier() const override;
+    std::string getCharacterName() const override;
 
 private:
     float m_hoverTimer = 0.0f;

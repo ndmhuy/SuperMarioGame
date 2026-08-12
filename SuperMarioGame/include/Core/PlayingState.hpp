@@ -6,6 +6,7 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/MapEditor.hpp"
 #include "Graphics/Camera.hpp"
+#include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelLoader.hpp"
 #include "Graphics/Hud.hpp"
 #include "Core/TimeRewindManager.hpp"
@@ -54,7 +55,26 @@ private:
     bool m_isProcedural = false;
     MapGeneratorConfig m_genConfig;
 
+    // Sprite Sheet Atlases (owned by PlayingState)
+    std::unique_ptr<SpriteSheet> m_playerSheet;
+    std::unique_ptr<SpriteSheet> m_enemySheet;
+    std::unique_ptr<SpriteSheet> m_itemSheet;
+    std::unique_ptr<SpriteSheet> m_scenerySheet;
+    std::unique_ptr<SpriteSheet> m_blocksSheet;
+
+    // Debug / dev overlays
+    bool m_showAABB = false;
+
+    // Tilemap animation timer for animated tiles (coin, question, water, etc.)
+    float m_tileAnimTimer = 0.0f;
+
+    std::array<bool, 3> m_starCoinsCollected = {false, false, false};
+    EventBus::SubscriptionId m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
+
     void setupTestScene();
     void cleanupTestScene();
     void spawnSelectedPlayer(const sf::Vector2f& pos);
+
+    // Polymorphic animation dispatcher: routes entity to its matching sprite sheet
+    void wireEntityAnimations(Entity* entity);
 };

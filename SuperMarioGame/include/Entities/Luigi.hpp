@@ -9,10 +9,12 @@ public:
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     void jump() override;
     void doubleJump();
     float getGravityMultiplier() const override;
+    std::string getCharacterName() const override;
 
 private:
     bool m_hasDoubleJumped = false;

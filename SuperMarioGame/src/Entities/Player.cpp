@@ -2,6 +2,7 @@
 #include "Core/EventBus.hpp"
 #include "Core/GameSnapshot.hpp"
 #include "Utils/Constants.hpp"
+#include <algorithm>
 
 void Player::run() {
     m_runRequested = true;
@@ -128,14 +129,61 @@ void Player::changeState(std::unique_ptr<IPlayerState> state) {
         // Adjust position.y so player's feet stay grounded when growing/shrinking
         position.y -= heightDiff;
         
-        boundingBox.width = newSize.x;
-        boundingBox.height = newSize.y;
+        setTargetSize(newSize);
         boundingBox.x = position.x;
         boundingBox.y = position.y;
     }
 }
 
+void Player::setupAnimations(const SpriteSheet* spriteSheet) {
+    setupCharacterAnimations(spriteSheet, "mario_small");
+}
+
+void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix) {
+    if (!spriteSheet) return;
+    m_animator = std::make_unique<Animator>(spriteSheet);
+
+    m_animIdle = Animation(prefix + "_idle");
+    m_animIdle.frameList = {{prefix + "_idle", 0.15f}};
+
+    m_animWalk = Animation(prefix + "_walk");
+    m_animWalk.frameList = {{prefix + "_walk_0", 0.12f}, {prefix + "_walk_1", 0.12f}};
+
+    m_animRun = Animation(prefix + "_run");
+    m_animRun.frameList = {{prefix + "_run_0", 0.08f}, {prefix + "_run_1", 0.08f}};
+
+    m_animJump = Animation(prefix + "_jump");
+    m_animJump.frameList = {{prefix + "_walk_1", 0.15f}};
+
+    m_animCrouch = Animation(prefix + "_crouch");
+    m_animCrouch.frameList = {{prefix + "_crouch", 0.15f}};
+
+    m_animator->play(&m_animIdle);
+    m_currentAnimName = m_animIdle.name;
+    m_hasAnimation = true;
+}
+
 void Player::update(float dt) {
+    if (m_animator && m_hasAnimation) {
+        Animation* targetAnim = &m_animIdle;
+        if (crouched) {
+            targetAnim = &m_animCrouch;
+        } else if (!onGround) {
+            targetAnim = &m_animJump;
+        } else if (std::abs(velocity.x) > Constants::WALK_SPEED * 1.1f) {
+            targetAnim = &m_animRun;
+        } else if (std::abs(velocity.x) > 10.0f) {
+            targetAnim = &m_animWalk;
+        }
+
+        if (m_currentAnimName != targetAnim->name) {
+            m_currentAnimName = targetAnim->name;
+            m_animator->play(targetAnim);
+        }
+
+        m_animator->update(dt);
+    }
+
     // 1. Update invincibility frames timer
     if (invincibilityTimer > 0.0f) {
         invincibilityTimer -= dt;
@@ -170,7 +218,7 @@ void Player::update(float dt) {
             crouched = true;
             float crouchedHeight = boundingBox.height * 0.5f;
             position.y += crouchedHeight; // Grow downward from top (feet stay grounded)
-            boundingBox.height = crouchedHeight;
+            setTargetSize({boundingBox.width, crouchedHeight});
             boundingBox.y = position.y;
         }
     } else {
@@ -180,7 +228,7 @@ void Player::update(float dt) {
             float standingHeight = m_currentState->getSize().y;
             float heightDiff = standingHeight - boundingBox.height;
             position.y -= heightDiff; // Stand upward
-            boundingBox.height = standingHeight;
+            setTargetSize({m_currentState->getSize().x, standingHeight});
             boundingBox.y = position.y;
         }
     }
@@ -207,6 +255,30 @@ void Player::update(float dt) {
     // 5. Delegate frame update to the active state
     if (m_currentState) {
         m_currentState->update(*this, dt);
+    }
+}
+
+void Player::render(sf::RenderTarget& target) {
+    if (!active) return;
+    if (m_animator && m_hasAnimation) {
+        sf::Sprite sprite = m_animator->getSprite();
+        sf::FloatRect bounds = sprite.getLocalBounds();
+        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
+            float scaledW = bounds.size.x * scale;
+            float scaledH = bounds.size.y * scale;
+
+            // Base AABB remains locked to m_targetSize during all animation frames
+            boundingBox.width = m_targetSize.x;
+            boundingBox.height = m_targetSize.y;
+
+            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
+            float scaleX = facingRight ? -scale : scale;  // sprite faces left by default in atlas
+            sprite.setScale(sf::Vector2f(scaleX, scale));
+            sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
+
+            target.draw(sprite);
+        }
     }
 }
 

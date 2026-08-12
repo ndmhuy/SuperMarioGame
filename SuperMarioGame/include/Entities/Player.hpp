@@ -2,13 +2,15 @@
 
 #include "Entities/Character.hpp"
 #include "Entities/IPlayerState.hpp"
+#include "Graphics/Animator.hpp"
+#include "Graphics/SpriteSheet.hpp"
 #include <memory>
 
 struct PlayerSnapshot;
 
 class Player : public Character {
 public:
-    Player() = default;
+    explicit Player(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f}) : Character(pos, targetSize) {}
     ~Player() override = default;
 
     // Advanced movement controls
@@ -27,6 +29,8 @@ public:
     IPlayerState* getCurrentState() const;
     void changeState(std::unique_ptr<IPlayerState> state);
     void update(float dt) override;
+    void render(sf::RenderTarget& target) override;
+    virtual void setupAnimations(const SpriteSheet* spriteSheet);
 
     // Action methods (enforce game rules)
     void addCoins(int amount);
@@ -37,6 +41,7 @@ public:
     void incrementCombo();
 
     // Read-only getters for external consumers (HUD, UI, save)
+    virtual std::string getCharacterName() const = 0;
     int getLives() const { return lives; }
     int getCoins() const { return coins; }
     int getScore() const { return score; }
@@ -74,5 +79,18 @@ protected:
     bool m_crouchRequestedThisFrame = false;
     bool m_runRequested = false;
     float m_fireballCooldownTimer = 0.0f;
+
+    std::unique_ptr<Animator> m_animator;
+    Animation m_animation;
+    Animation m_animIdle;
+    Animation m_animWalk;
+    Animation m_animRun;
+    Animation m_animJump;
+    Animation m_animCrouch;
+    std::string m_currentAnimName;
+    bool m_hasAnimation = false;
+
+    void setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix);
 };
+
 

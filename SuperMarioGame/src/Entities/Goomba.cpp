@@ -33,8 +33,18 @@ void Goomba::update(float dt) {
     }
 }
 
+void Goomba::setupAnimations(const SpriteSheet* spriteSheet) {
+    Enemy::setupAnimations(spriteSheet);
+    m_animation = Animation("goomba_move");
+    m_animation.frameList = {{"goomba_brown_move_0", 0.15f}, {"goomba_brown_move_1", 0.15f}};
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
+}
+
 void Goomba::render(sf::RenderTarget& target) {
-    // Visual rendering will be implemented in Phase 5
+    Enemy::render(target);
 }
 
 void Goomba::onStomped() {
