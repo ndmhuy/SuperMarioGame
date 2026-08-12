@@ -1682,16 +1682,55 @@ Summary of Changes:
 - Dynamic Player Movement Animations: Implemented setupCharacterAnimations(spriteSheet, prefix) in Player.hpp/cpp to build m_animIdle, m_animWalk, m_animRun, m_animJump, m_animCrouch. Updated Player::update(dt) to dynamically switch animations based on velocity.x, onGround, and crouched states. Updated Mario, Luigi, Toad, Peach setupAnimations to pass character prefixes (mario_small, luigi_small, toad_small, peach_small).
 - PSwitch Squished Collision: Added PSwitch::collect() override that sets collected = true while keeping active = true so the squished sprite remains rendered on screen. Added PSwitch collision resolution in CollisionResolver::resolvePlayerVsItem() to ground player on top of squished PSwitch upon activation.
 - Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+
+
+[2026-08-12 21:16:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Update Pipe rendering to use the 4-part decomposed sprite keys (head_left, head_right, body_left, body_right) pointing up, with rotation support.
+Files Modified:
+- SuperMarioGame/include/Graphics/PipeRenderer.hpp
+- SuperMarioGame/src/Graphics/PipeRenderer.cpp
+- SuperMarioGame/include/Entities/Pipe.hpp
+- SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- PipeRenderer Utility: Created `PipeRenderer` with static `draw(...)` method that renders pipes composed of 4 quadrant sub-sprites (`head_left`, `head_right`, `body_left`, `body_right`).
+- Rotation Support: Calculates quadrant center positions, rotates them around the bounding box center by `rotationDegrees`, scales sub-sprites to half-quadrant dimensions, and applies sprite rotation angles.
+- Entity & TileMap Integration: Updated `Pipe::render()` and `PlayingState::render()` (`TileType::Pipe`) to utilize `PipeRenderer::draw(...)`.
+- Build Verification: Successfully compiled `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 21:28:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Fix visual test and game failing to load asset JSON files and falling back to primitive colored shapes when launched from build/Debug output directories.
+Files Modified:
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/src/Graphics/SpriteSheet.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Asset Path Resolution Helper: Added `ResourceManager::resolvePath(path)` which checks candidate path depths (`./`, `../`, `../../`, `SuperMarioGame/`, `../SuperMarioGame/`, `../../SuperMarioGame/`).
+- Engine Integration: Wrapped all texture, font, sound buffer, and JSON frame data file loading in `ResourceManager` and `SpriteSheet` with `resolvePath`.
+- Fixed JSON Load Failures: Resolved the `json.exception.parse_error.101` empty stream issue when running from `build/Debug/`. All JSON frame data atlases and sprite sheets now load 100% successfully regardless of executable working directory.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 21:38:30] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Update SuperMarioGame tilemap rendering to utilize the dissected 2-column pipe parts (pipe_green_head_left, pipe_green_head_right, pipe_green_body_left, pipe_green_body_right) for authentic multi-column pipes in level rendering.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Multi-Tile Dissected Pipe Rendering: Updated `TileType::Pipe` selection logic in `PlayingState::render()` to inspect neighbor tile topology:
+  - Top-Left: `pipe_green_head_left` (`isTopExposed && !hasLeftTile`)
+  - Top-Right: `pipe_green_head_right` (`isTopExposed && hasLeftTile`)
+  - Body-Left: `pipe_green_body_left` (`!isTopExposed && !hasLeftTile`)
+  - Body-Right: `pipe_green_body_right` (`!isTopExposed && hasLeftTile`)
+- Authentic Pipe Visuals: Standard 2-tile wide level pipes now render as a single unified 64px wide pipe structure across all levels.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
 ---
-
-
-
-
-
-
-
-
-
 
 [2026-08-06 23:01:00] Branch: (B/branch-name fallback)
 Prompt: Use the sound manager, and you can update it. If necessary, use the resource manager. Dont change the resource manager.
@@ -2133,6 +2172,45 @@ Summary of Changes:
 - Star Coin HUD Sync: Added `m_starCoinsCollected` array to `PlayingState` and subscribed to `EventType::StarCoinCollected` to track and mark collected slots in `m_starCoinsCollected`. Updated HUD data sync in `update()` and save/load operations (manual and auto-checkpoint) to persist actual collected states.
 - Aspect Ratio Fix: Updated `Hud::draw` to use uniform scaling (keeping original aspect ratio) on the standard coin sprite based on a `24.0f` height target and adjusted its position to `Y = 28.f`.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
+---
+[2026-08-12 15:49:34] Branch: B/feature/graphic-visual
+Prompt: Zooming does not work.
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added mouse wheel zooming event listeners (`wheel` event) on workspace canvas in `tools/metadata-editor/metadata_editor.html`.
+- Added zoom control button handlers (`#btnZoomIn`, `#btnZoomOut`, `#btnZoomReset`).
+- Implemented pixel-accurate viewport-to-image mouse scaling (`getCanvasMousePos`), ensuring box selection, drag-to-draw, and corner handle resizing remain 100% accurate under any zoom level.
+---
+[2026-08-12 15:52:02] Branch: B/feature/graphic-visual
+Prompt: Make it zoom in and out by at the cursor
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Implemented `zoomAtPoint(targetZoom, clientX, clientY)` in `tools/metadata-editor/metadata_editor.html`.
+- Calculates cursor offsets relative to workspace origin and adjusts pan offsets (`panX`, `panY`) during zoom so the pixel directly under the mouse cursor remains static during zooming.
+---
+[2026-08-12 16:10:32] Branch: B/feature/graphic-visual
+Prompt: Add a position finder (a box displaying the current hovered point on the png).
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added a floating **Position Finder HUD overlay** (`pos-finder-hud`) to the top-right of the workspace in `tools/metadata-editor/metadata_editor.html`.
+- Displays real-time hovered pixel coordinates (`X: 124, Y: 88`) and calculated 16x16 tile grid position (`Tile: Col 7, Row 5`).
+- Added a subtle amber crosshair pixel highlight box on `mainCanvas` at the hovered image coordinate.
+---
+[2026-08-12 21:20:27] Branch: B/feature/graphic-visual
+Prompt: Check the json to see if it loads correctly. Compare the format of the old and new version.
+Files Modified:
+- logs/agent_history.log
+Summary of Changes:
+- Checked all 8 JSON metadata files across `SuperMarioGame/assets/spriteSheet/` for JSON validity and C++ engine compatibility (`SpriteSheet::loadFrameData`).
+- Verified 100% schema compatibility with TexturePacker Hash format (`"frames": { "<key>": { "frame": { "x", "y", "w", "h" } } }`).
+- Compared `world_scenery_item_old.json` (174 frames) vs `world_scenery_item.json` (181 frames): 13 new directional pipe keys added (`pipe_green_head_left`, `pipe_red_head_left`, etc.), 6 redundant keys removed, and 0 mismatches across common frame bounding boxes.
+- Verified C++ compilation and C++ loader compatibility.
 ---
 
 

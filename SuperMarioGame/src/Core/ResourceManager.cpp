@@ -1,19 +1,32 @@
 #include "Core/ResourceManager.hpp"
 #include <iostream>
+#include <filesystem>
 
 ResourceManager &ResourceManager::getInstance() {
   static ResourceManager instance;
   return instance;
 }
 
+std::string ResourceManager::resolvePath(const std::string &relativePath) {
+  if (relativePath.empty()) return relativePath;
+  if (std::filesystem::exists(relativePath)) return relativePath;
+  if (std::filesystem::exists("../" + relativePath)) return "../" + relativePath;
+  if (std::filesystem::exists("../../" + relativePath)) return "../../" + relativePath;
+  if (std::filesystem::exists("SuperMarioGame/" + relativePath)) return "SuperMarioGame/" + relativePath;
+  if (std::filesystem::exists("../SuperMarioGame/" + relativePath)) return "../SuperMarioGame/" + relativePath;
+  if (std::filesystem::exists("../../SuperMarioGame/" + relativePath)) return "../../SuperMarioGame/" + relativePath;
+  return relativePath;
+}
+
 bool ResourceManager::loadTexture(const std::string &id,
                                   const std::string &path) {
+  std::string actualPath = resolvePath(path);
   sf::Texture texture;
-  if (texture.loadFromFile(path)) {
+  if (texture.loadFromFile(actualPath)) {
     m_textures[id] = std::move(texture);
     return true;
   }
-  std::cerr << "[ResourceManager] Failed to load texture: " << path
+  std::cerr << "[ResourceManager] Failed to load texture: " << actualPath
             << std::endl;
   return false;
 }
@@ -44,14 +57,15 @@ sf::Texture &ResourceManager::getTexture(const std::string &id) {
 }
 
 bool ResourceManager::loadFont(const std::string &id, const std::string &path) {
+  std::string actualPath = resolvePath(path);
   sf::Font font;
-  if (font.openFromFile(path)) {
+  if (font.openFromFile(actualPath)) {
     m_fonts[id] = std::move(font);
     return true;
   }
-  if (m_reportedMissing.find("font_path:" + path) == m_reportedMissing.end()) {
-    std::cerr << "[ResourceManager] Failed to load font: " << path << std::endl;
-    m_reportedMissing.insert("font_path:" + path);
+  if (m_reportedMissing.find("font_path:" + actualPath) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] Failed to load font: " << actualPath << std::endl;
+    m_reportedMissing.insert("font_path:" + actualPath);
   }
   return false;
 }
@@ -71,8 +85,9 @@ sf::Font &ResourceManager::getFont(const std::string &id) {
 
 bool ResourceManager::loadSoundBuffer(const std::string &id,
                                       const std::string &path) {
+  std::string actualPath = resolvePath(path);
   sf::SoundBuffer soundBuffer;
-  if (soundBuffer.loadFromFile(path)) {
+  if (soundBuffer.loadFromFile(actualPath)) {
     m_soundBuffers[id] = std::move(soundBuffer);
     return true;
   }
