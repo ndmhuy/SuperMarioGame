@@ -2145,3 +2145,15 @@ Summary of Changes:
 ---
 
 
+[2026-08-12 13:57:00] Branch: dev
+Git Fingerprint: ae00b66 (before) → f43b2d0 (after)
+Prompt: merge the graphic-visual branch
+Files Modified: logs/agent_history.log (conflict resolved + all files from B/feature/graphic-visual)
+Summary of Changes:
+- Committed pending log update before merge to avoid overwrite error.
+- Merged `origin/B/feature/graphic-visual` into `dev` via `--no-ff` merge commit.
+- Resolved a single merge conflict in `logs/agent_history.log` (both sides appended entries; kept all entries).
+- Merge commit: f43b2d0 — "merge: integrate Member B's latest graphic-visual sprite updates into dev"
+- Pushed merged `dev` to remote (ae00b66 → f43b2d0).
+- Key content from B/feature/graphic-visual merged in: entity sprite wiring, aspect ratio scaling, POW 8-frame animation, trampoline bottom-anchored bounce, coin AABB fix, water wave rendering, P-Switch pressed sprite, HUD spritesheet integration (animated coin, star coins, character lives icon).
+---
