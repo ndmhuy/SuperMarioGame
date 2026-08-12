@@ -2200,3 +2200,15 @@ Summary of Changes:
 - Created verify_sound_visual tool and registered it in CMakeLists.txt.
 - Successfully built verify_sound_visual.exe.
 ---
+[2026-08-12 15:38:34] Branch: B/feature/graphic-visual
+Prompt: Create a tool for modifying the json, which means adding a frame, deleting a sprite frame (not modifying the png), and modifying the frame (i.e. the name, the frame rectangle).
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (NEW)
+- SuperMarioGame/tools/metadata-editor/metadata_editor.html (NEW)
+- scripts/edit_sprite_metadata.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built the interactive Web-based Metadata Editor Studio in `tools/metadata-editor/metadata_editor.html` allowing drag-to-draw adding of new frames, single-click frame deletion (leaving PNG untouched), frame renaming, and rectangle position/size modifications ($x, y, w, h$) with step buttons and corner drag-handles.
+- Built `scripts/edit_sprite_metadata.py` CLI script providing `add`, `delete`, and `modify` commands for JSON metadata files.
+- Tested and verified execution with 0 errors.
+---
