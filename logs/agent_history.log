@@ -1682,6 +1682,58 @@ Summary of Changes:
 - Dynamic Player Movement Animations: Implemented setupCharacterAnimations(spriteSheet, prefix) in Player.hpp/cpp to build m_animIdle, m_animWalk, m_animRun, m_animJump, m_animCrouch. Updated Player::update(dt) to dynamically switch animations based on velocity.x, onGround, and crouched states. Updated Mario, Luigi, Toad, Peach setupAnimations to pass character prefixes (mario_small, luigi_small, toad_small, peach_small).
 - PSwitch Squished Collision: Added PSwitch::collect() override that sets collected = true while keeping active = true so the squished sprite remains rendered on screen. Added PSwitch collision resolution in CollisionResolver::resolvePlayerVsItem() to ground player on top of squished PSwitch upon activation.
 - Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
+[2026-08-05 16:39:53] Branch: B/feature/graphic-visual
+Prompt: The spritesheet merger leave an light blue rectangle when extract. Please clean this bug.
+Files Modified:
+- tools/spritesheet-merger/spritesheet_merger.html
+- SuperMarioGame/tools/spritesheet-merger/spritesheet_merger.html
+- logs/agent_history.log
+Summary of Changes:
+- Fixed PNG export bug by introducing a clean offscreen canvas renderer for `btnExportImage`. Stitched images are now drawn 100% pure without debug stroke outlines or light-blue bounding box overlays.
+- Added a `Show Frame Outlines in Preview` checkbox toggle in the UI so users can toggle debug bounding box rectangles on the workspace canvas during preview without affecting the exported PNG.
+---
+[2026-08-05 16:43:31] Branch: B/feature/graphic-visual
+Prompt: The item and enemy particle spritesheet have light blue rectangle. Clean it buy create a tool and restore any pixel affected by the boundary. Do not override the current version for safety.
+Files Modified:
+- scripts/clean_spritesheet_outlines.py (NEW)
+- tools/outline-cleaner/clean_outlines.html (NEW)
+- SuperMarioGame/tools/outline-cleaner/clean_outlines.html (NEW)
+- SuperMarioGame/assets/spriteSheet/item/item_cleaned.png (NEW)
+- SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile_cleaned.png (NEW)
+- SuperMarioGame/assets/spriteSheet/particles/particles_cleaned.png (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built `scripts/clean_spritesheet_outlines.py` CLI script and `tools/outline-cleaner/clean_outlines.html` web application tool to automatically detect and clean light-blue debug bounding box outlines (`rgba(56, 189, 248, 0.5)`).
+- Cleaned 1,818 boundary pixels from `item.png` and 7,125 boundary pixels from `enemy_projectile.png`.
+- Outputted cleaned versions safely as `item_cleaned.png`, `enemy_projectile_cleaned.png`, and `particles_cleaned.png` without overwriting the original files.
+---
+[2026-08-06 21:22:00] Branch: B/feature/graphic-visual
+Prompt: List out all sfx required for the game. Save it in a md file in the project.
+Files Modified:
+- docs/REQUIRED_SFX.md (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Parsed the codebase and SPEC v2.0 for all required sound effects.
+- Created `docs/REQUIRED_SFX.md` detailing Sound IDs, target filenames, description, and status of gameplay actions, surface footsteps, and BGM tracks.
+---
+[2026-08-06 21:53:30] Branch: B/feature/graphic-visual
+Prompt: Check the sfx again to find any missing.
+Files Modified:
+- docs/REQUIRED_SFX.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Re-scanned SPEC v2.0 and common platformer mechanics to identify missing sound effects.
+- Added 6 missing sound effects to `docs/REQUIRED_SFX.md` (menu_click, menu_confirm, cannon, fireball_hit, timer_warning, and spring).
+---
+[2026-08-06 21:58:40] Branch: B/feature/graphic-visual
+Prompt: I have some sfx. Check what left ?
+Files Modified:
+- docs/REQUIRED_SFX.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Checked `assets/sfx/` and identified 24 audio assets successfully imported into the project.
+- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound IDs and highlight missing SFX and BGM assets.
 
 
 [2026-08-12 21:16:00] Branch: B/feature/graphic-visual
