@@ -80,6 +80,8 @@ void Trampoline::render(sf::RenderTarget& target) {
     }
 }
 
+#include "Core/SoundManager.hpp"
+
 void Trampoline::activate(Player& player) {
     m_isBouncing = true;
     m_bounceTimer = 0.3f;
@@ -90,6 +92,8 @@ void Trampoline::activate(Player& player) {
     sf::Vector2f vel = player.getVelocity();
     vel.y = -831.4f;
     player.setVelocity(vel);
+
+    SoundManager::getInstance().playSound("boing");
 }
 
 void Trampoline::collect() {

@@ -4,6 +4,7 @@
 #include <vector>
 #include <SFML/Audio/Sound.hpp>
 #include <SFML/Audio/Music.hpp>
+#include <SFML/Audio/SoundBuffer.hpp>
 
 
 class SoundManager {
@@ -17,11 +18,20 @@ public:
     // Singleton Instance
     static SoundManager& getInstance();
 
+    // Load all SFX files into ResourceManager
+    void loadAllSounds();
+
+    // EventBus listener wiring
+    void setupEventSubscriptions();
+
     // Play a sound effect from the pool
     void playSound(const std::string& id);
 
     // Music methods
     void playMusic(const std::string& path);
+    void playLevelBGM(int levelIndex);
+    void playStarMusic();
+    void restoreLevelBGM();
     void stopMusic();
     void pauseMusic();
     void resumeMusic();
@@ -46,4 +56,9 @@ private:
     std::vector<sf::Sound> m_soundPool;
     sf::Music m_music;
     std::string m_musicPath;
+    std::string m_savedLevelMusicPath;
+    bool m_soundsLoaded = false;
+    bool m_eventsSubscribed = false;
+    
+    sf::SoundBuffer m_fallbackBuffer;
 };

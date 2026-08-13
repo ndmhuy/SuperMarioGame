@@ -1,12 +1,13 @@
 #include "Entities/Pipe.hpp"
 #include "Entities/Player.hpp"
+#include "Graphics/PipeRenderer.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/EventBus.hpp"
 #include <SFML/Window/Keyboard.hpp>
 #include <cmath>
 
-Pipe::Pipe(sf::Vector2f position, int pipeId, sf::Vector2f exitPosition, std::string targetLevel, bool isEntrance)
-    : Block(position, {64.0f, 64.0f}), m_pipeId(pipeId), m_exitPosition(exitPosition), m_targetLevel(targetLevel), m_isEntrance(isEntrance) {
+Pipe::Pipe(sf::Vector2f position, int pipeId, sf::Vector2f exitPosition, std::string targetLevel, bool isEntrance, float rotationDegrees)
+    : Block(position, {64.0f, 64.0f}), m_pipeId(pipeId), m_exitPosition(exitPosition), m_targetLevel(targetLevel), m_isEntrance(isEntrance), m_rotationDegrees(rotationDegrees) {
     m_breakable = false;
 }
 
@@ -48,14 +49,15 @@ bool Pipe::checkWarp(Player& player) const {
 
 void Pipe::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
-    m_animation = Animation("pipe");
-    m_animation.frameList = {{"pipe_green_up", 0.15f}};
-    if (m_animator) {
-        m_animator->play(&m_animation);
-        m_hasAnimation = true;
-    }
+    m_spriteSheet = spriteSheet;
+    m_hasAnimation = (spriteSheet != nullptr);
 }
 
 void Pipe::render(sf::RenderTarget& target) {
-    Block::render(target);
+    if (!active) return;
+    if (m_spriteSheet) {
+        PipeRenderer::draw(target, m_spriteSheet, sf::Vector2f(boundingBox.x, boundingBox.y), sf::Vector2f(boundingBox.width, boundingBox.height), m_rotationDegrees, true, "green");
+    } else {
+        Block::render(target);
+    }
 }

@@ -6,6 +6,7 @@
 #include "Graphics/Hud.hpp"
 #include "Graphics/ScreenTransitionManager.hpp"
 #include "Graphics/SpriteSheet.hpp"
+#include "Graphics/PipeRenderer.hpp"
 #include "Graphics/EntityDeathEffect.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Enemy.hpp"
@@ -50,6 +51,10 @@ PlayingState::~PlayingState() {
 
 void PlayingState::enter() {
     std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
+
+    // Load SFX & Start Level BGM
+    SoundManager::getInstance().loadAllSounds();
+    SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
 
     // --- Load all 5 Sprite Sheet Atlases ---
     // Path candidates search: run from build/Debug or project root
@@ -436,7 +441,12 @@ void PlayingState::render(sf::RenderTarget& target) {
                         break;
                     case TileType::Pipe: {
                         bool isTopExposed = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Pipe);
-                        frameKey = isTopExposed ? "pipe_green_up" : "pipe_green_body";
+                        bool hasLeftTile = (x > 0) && (m_tileMap.getTileType(x - 1, y) == TileType::Pipe);
+                        if (isTopExposed) {
+                            frameKey = hasLeftTile ? "pipe_green_head_right" : "pipe_green_head_left";
+                        } else {
+                            frameKey = hasLeftTile ? "pipe_green_body_right" : "pipe_green_body_left";
+                        }
                         break;
                     }
                     case TileType::Ice:

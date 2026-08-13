@@ -1683,6 +1683,221 @@ Summary of Changes:
 - PSwitch Squished Collision: Added PSwitch::collect() override that sets collected = true while keeping active = true so the squished sprite remains rendered on screen. Added PSwitch collision resolution in CollisionResolver::resolvePlayerVsItem() to ground player on top of squished PSwitch upon activation.
 - Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
 ---
+[2026-08-05 16:39:53] Branch: B/feature/graphic-visual
+Prompt: The spritesheet merger leave an light blue rectangle when extract. Please clean this bug.
+Files Modified:
+- tools/spritesheet-merger/spritesheet_merger.html
+- SuperMarioGame/tools/spritesheet-merger/spritesheet_merger.html
+- logs/agent_history.log
+Summary of Changes:
+- Fixed PNG export bug by introducing a clean offscreen canvas renderer for `btnExportImage`. Stitched images are now drawn 100% pure without debug stroke outlines or light-blue bounding box overlays.
+- Added a `Show Frame Outlines in Preview` checkbox toggle in the UI so users can toggle debug bounding box rectangles on the workspace canvas during preview without affecting the exported PNG.
+---
+[2026-08-05 16:43:31] Branch: B/feature/graphic-visual
+Prompt: The item and enemy particle spritesheet have light blue rectangle. Clean it buy create a tool and restore any pixel affected by the boundary. Do not override the current version for safety.
+Files Modified:
+- scripts/clean_spritesheet_outlines.py (NEW)
+- tools/outline-cleaner/clean_outlines.html (NEW)
+- SuperMarioGame/tools/outline-cleaner/clean_outlines.html (NEW)
+- SuperMarioGame/assets/spriteSheet/item/item_cleaned.png (NEW)
+- SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile_cleaned.png (NEW)
+- SuperMarioGame/assets/spriteSheet/particles/particles_cleaned.png (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built `scripts/clean_spritesheet_outlines.py` CLI script and `tools/outline-cleaner/clean_outlines.html` web application tool to automatically detect and clean light-blue debug bounding box outlines (`rgba(56, 189, 248, 0.5)`).
+- Cleaned 1,818 boundary pixels from `item.png` and 7,125 boundary pixels from `enemy_projectile.png`.
+- Outputted cleaned versions safely as `item_cleaned.png`, `enemy_projectile_cleaned.png`, and `particles_cleaned.png` without overwriting the original files.
+---
+[2026-08-06 21:22:00] Branch: B/feature/graphic-visual
+Prompt: List out all sfx required for the game. Save it in a md file in the project.
+Files Modified:
+- docs/REQUIRED_SFX.md (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Parsed the codebase and SPEC v2.0 for all required sound effects.
+- Created `docs/REQUIRED_SFX.md` detailing Sound IDs, target filenames, description, and status of gameplay actions, surface footsteps, and BGM tracks.
+---
+[2026-08-06 21:53:30] Branch: B/feature/graphic-visual
+Prompt: Check the sfx again to find any missing.
+Files Modified:
+- docs/REQUIRED_SFX.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Re-scanned SPEC v2.0 and common platformer mechanics to identify missing sound effects.
+- Added 6 missing sound effects to `docs/REQUIRED_SFX.md` (menu_click, menu_confirm, cannon, fireball_hit, timer_warning, and spring).
+---
+[2026-08-06 21:58:40] Branch: B/feature/graphic-visual
+Prompt: I have some sfx. Check what left ?
+Files Modified:
+- docs/REQUIRED_SFX.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Checked `assets/sfx/` and identified 24 audio assets successfully imported into the project.
+- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound IDs and highlight missing SFX and BGM assets.
+
+
+[2026-08-12 21:16:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Update Pipe rendering to use the 4-part decomposed sprite keys (head_left, head_right, body_left, body_right) pointing up, with rotation support.
+Files Modified:
+- SuperMarioGame/include/Graphics/PipeRenderer.hpp
+- SuperMarioGame/src/Graphics/PipeRenderer.cpp
+- SuperMarioGame/include/Entities/Pipe.hpp
+- SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- PipeRenderer Utility: Created `PipeRenderer` with static `draw(...)` method that renders pipes composed of 4 quadrant sub-sprites (`head_left`, `head_right`, `body_left`, `body_right`).
+- Rotation Support: Calculates quadrant center positions, rotates them around the bounding box center by `rotationDegrees`, scales sub-sprites to half-quadrant dimensions, and applies sprite rotation angles.
+- Entity & TileMap Integration: Updated `Pipe::render()` and `PlayingState::render()` (`TileType::Pipe`) to utilize `PipeRenderer::draw(...)`.
+- Build Verification: Successfully compiled `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 21:28:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Fix visual test and game failing to load asset JSON files and falling back to primitive colored shapes when launched from build/Debug output directories.
+Files Modified:
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/src/Graphics/SpriteSheet.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Asset Path Resolution Helper: Added `ResourceManager::resolvePath(path)` which checks candidate path depths (`./`, `../`, `../../`, `SuperMarioGame/`, `../SuperMarioGame/`, `../../SuperMarioGame/`).
+- Engine Integration: Wrapped all texture, font, sound buffer, and JSON frame data file loading in `ResourceManager` and `SpriteSheet` with `resolvePath`.
+- Fixed JSON Load Failures: Resolved the `json.exception.parse_error.101` empty stream issue when running from `build/Debug/`. All JSON frame data atlases and sprite sheets now load 100% successfully regardless of executable working directory.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 21:38:30] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Update SuperMarioGame tilemap rendering to utilize the dissected 2-column pipe parts (pipe_green_head_left, pipe_green_head_right, pipe_green_body_left, pipe_green_body_right) for authentic multi-column pipes in level rendering.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Multi-Tile Dissected Pipe Rendering: Updated `TileType::Pipe` selection logic in `PlayingState::render()` to inspect neighbor tile topology:
+  - Top-Left: `pipe_green_head_left` (`isTopExposed && !hasLeftTile`)
+  - Top-Right: `pipe_green_head_right` (`isTopExposed && hasLeftTile`)
+  - Body-Left: `pipe_green_body_left` (`!isTopExposed && !hasLeftTile`)
+  - Body-Right: `pipe_green_body_right` (`!isTopExposed && hasLeftTile`)
+- Authentic Pipe Visuals: Standard 2-tile wide level pipes now render as a single unified 64px wide pipe structure across all levels.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---
+[2026-08-05 16:39:53] Branch: B/feature/graphic-visual
+Prompt: The spritesheet merger leave an light blue rectangle when extract. Please clean this bug.
+Files Modified:
+- tools/spritesheet-merger/spritesheet_merger.html
+- SuperMarioGame/tools/spritesheet-merger/spritesheet_merger.html
+- logs/agent_history.log
+Summary of Changes:
+- Fixed PNG export bug by introducing a clean offscreen canvas renderer for `btnExportImage`. Stitched images are now drawn 100% pure without debug stroke outlines or light-blue bounding box overlays.
+- Added a `Show Frame Outlines in Preview` checkbox toggle in the UI so users can toggle debug bounding box rectangles on the workspace canvas during preview without affecting the exported PNG.
+---
+[2026-08-05 16:43:31] Branch: B/feature/graphic-visual
+Prompt: The item and enemy particle spritesheet have light blue rectangle. Clean it buy create a tool and restore any pixel affected by the boundary. Do not override the current version for safety.
+Files Modified:
+- scripts/clean_spritesheet_outlines.py (NEW)
+- tools/outline-cleaner/clean_outlines.html (NEW)
+- SuperMarioGame/tools/outline-cleaner/clean_outlines.html (NEW)
+- SuperMarioGame/assets/spriteSheet/item/item_cleaned.png (NEW)
+- SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile_cleaned.png (NEW)
+- SuperMarioGame/assets/spriteSheet/particles/particles_cleaned.png (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built `scripts/clean_spritesheet_outlines.py` CLI script and `tools/outline-cleaner/clean_outlines.html` web application tool to automatically detect and clean light-blue debug bounding box outlines (`rgba(56, 189, 248, 0.5)`).
+- Cleaned 1,818 boundary pixels from `item.png` and 7,125 boundary pixels from `enemy_projectile.png`.
+- Outputted cleaned versions safely as `item_cleaned.png`, `enemy_projectile_cleaned.png`, and `particles_cleaned.png` without overwriting the original files.
+---
+[2026-08-06 21:22:00] Branch: B/feature/graphic-visual
+Prompt: List out all sfx required for the game. Save it in a md file in the project.
+Files Modified:
+- docs/REQUIRED_SFX.md (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Parsed the codebase and SPEC v2.0 for all required sound effects.
+- Created `docs/REQUIRED_SFX.md` detailing Sound IDs, target filenames, description, and status of gameplay actions, surface footsteps, and BGM tracks.
+---
+[2026-08-06 21:53:30] Branch: B/feature/graphic-visual
+Prompt: Check the sfx again to find any missing.
+Files Modified:
+- docs/REQUIRED_SFX.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Re-scanned SPEC v2.0 and common platformer mechanics to identify missing sound effects.
+- Added 6 missing sound effects to `docs/REQUIRED_SFX.md` (menu_click, menu_confirm, cannon, fireball_hit, timer_warning, and spring).
+---
+[2026-08-06 21:58:40] Branch: B/feature/graphic-visual
+Prompt: I have some sfx. Check what left ?
+Files Modified:
+- docs/REQUIRED_SFX.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Checked `assets/sfx/` and identified 24 audio assets successfully imported into the project.
+- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound ID[2026-08-12 22:10:30] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Resolve all SFX and BGM wiring issues. Load all 29 SFX files into ResourceManager using exact file names as IDs with legacy alias mappings, subscribe SoundManager to EventBus events, and wire BGM playback across MenuState, PlayingState, and StarDecorator.
+Files Modified:
+- SuperMarioGame/include/Core/SoundManager.hpp
+- SuperMarioGame/src/Core/SoundManager.cpp
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/include/Graphics/PipeRenderer.hpp
+- SuperMarioGame/src/Graphics/PipeRenderer.cpp
+- SuperMarioGame/src/Core/MenuState.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/IPlayerState.cpp
+- SuperMarioGame/src/Entities/Character.cpp
+- logs/agent_history.log
+Summary of Changes:
+- SFX Loading & File-Name IDs: Implemented `SoundManager::loadAllSounds()` which automatically loads all 29 `.wav` files from `assets/sfx/` into `ResourceManager` using their exact filenames (`"break_brick_block"`, `"mushroom_fireflower_appears"`, `"jump_small"`, `"jump_super"`, `"power_up"`, etc.) as SFX IDs, with backward-compatible aliases for legacy calls.
+- EventBus SFX Wiring: Subscribed `SoundManager` to `EventBus` events (`CoinCollected`, `EnemyDefeated`, `PlayerDied`, `PowerUpCollected`, `LevelComplete`, `PlayerDamaged`, `BlockBroken`, `PlayerShotFireball`, `POWBlockHit`, `ThwompSlam`, `PauseToggled`).
+- BGM Level & State Management:
+  - `MenuState::enter()`: Plays `title_screen.mp3`.
+  - `PlayingState::enter()`: Automatically triggers `SoundManager::playLevelBGM(levelIndex)` (`overworld.mp3`, `underworld.mp3`, `underwater.mp3`, `athletic.mp3`).
+  - `StarDecorator`: Plays `invincible.mp3` when Star Power starts and restores level BGM upon expiration.
+  - `Character::jump()`: Plays `jump_small` SFX.
+- Build Verification: Rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 23:12:45] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Audit all 12 BGM audio files in assets/bgm/ against expected IDs and build an alias resolution map so playMusic accepts exact disk filenames as well as legacy/logical IDs.
+Files Modified:
+- SuperMarioGame/src/Core/SoundManager.cpp
+- implementation_plan.md
+- logs/agent_history.log
+Summary of Changes:
+- BGM Alias Map: Implemented `resolveBGMIdentifier` in `SoundManager.cpp` mapping:
+  - `main_menu.mp3` $\leftarrow$ `"main_menu"`, `"title_screen"`
+  - `overworld.mp3` $\leftarrow$ `"overworld"`, `"level_1"`
+  - `underworld.mp3` $\leftarrow$ `"underworld"`, `"level_2"`
+  - `underwater.mp3` $\leftarrow$ `"underwater"`, `"level_3"`
+  - `sub_space-bonus_room.mp3` $\leftarrow$ `"sub_space-bonus_room"`, `"athletic"`, `"bonus"`
+  - `castle.mp3` $\leftarrow$ `"castle"`, `"bowser_castle"`
+  - `bowser_boss_battle.mp3` $\leftarrow$ `"bowser_boss_battle"`, `"boss"`
+  - `starman.mp3` $\leftarrow$ `"starman"`, `"invincible"`
+  - `world_map.mp3` $\leftarrow$ `"world_map"`, `"map"`
+  - `level_complete.mp3` $\leftarrow$ `"level_complete"`, `"stage_clear"`
+  - `castle_complete.mp3` $\leftarrow$ `"castle_complete"`, `"world_clear"`
+  - `game_over.mp3` $\leftarrow$ `"game_over"`
+- Code Integration: Updated `playLevelBGM` and `playStarMusic` to resolve BGM paths dynamically through the alias map.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 23:14:45] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Wire GameOver, BossDefeated, and LevelComplete BGM triggers into SoundManager setupEventSubscriptions.
+Files Modified:
+- SuperMarioGame/src/Core/SoundManager.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Extended `SoundManager::setupEventSubscriptions()` to subscribe to:
+  - `EventType::LevelComplete`: Plays `level_complete.mp3` and `stage_clear.wav`.
+  - `EventType::BossDefeated`: Plays `castle_complete.mp3`.
+  - `EventType::GameOver`: Plays `game_over.mp3`.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---code 0).
+---
 
 
 
@@ -1693,6 +1908,7 @@ Summary of Changes:
 
 
 
+>>>>>>> Stashed changes
 [2026-08-06 23:01:00] Branch: (B/branch-name fallback)
 Prompt: Use the sound manager, and you can update it. If necessary, use the resource manager. Dont change the resource manager.
 Files Modified: include/Core/SoundManager.hpp, src/Core/SoundManager.cpp, CMakeLists.txt, tests/verify_sound_visual.cpp
@@ -2143,8 +2359,82 @@ Summary of Changes:
 - Aspect Ratio Fix: Updated `Hud::draw` to use uniform scaling (keeping original aspect ratio) on the standard coin sprite based on a `24.0f` height target and adjusted its position to `Y = 28.f`.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
+[2026-08-12 15:49:34] Branch: B/feature/graphic-visual
+Prompt: Zooming does not work.
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added mouse wheel zooming event listeners (`wheel` event) on workspace canvas in `tools/metadata-editor/metadata_editor.html`.
+- Added zoom control button handlers (`#btnZoomIn`, `#btnZoomOut`, `#btnZoomReset`).
+- Implemented pixel-accurate viewport-to-image mouse scaling (`getCanvasMousePos`), ensuring box selection, drag-to-draw, and corner handle resizing remain 100% accurate under any zoom level.
+---
+[2026-08-12 15:52:02] Branch: B/feature/graphic-visual
+Prompt: Make it zoom in and out by at the cursor
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Implemented `zoomAtPoint(targetZoom, clientX, clientY)` in `tools/metadata-editor/metadata_editor.html`.
+- Calculates cursor offsets relative to workspace origin and adjusts pan offsets (`panX`, `panY`) during zoom so the pixel directly under the mouse cursor remains static during zooming.
+---
+[2026-08-12 16:10:32] Branch: B/feature/graphic-visual
+Prompt: Add a position finder (a box displaying the current hovered point on the png).
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added a floating **Position Finder HUD overlay** (`pos-finder-hud`) to the top-right of the workspace in `tools/metadata-editor/metadata_editor.html`.
+- Displays real-time hovered pixel coordinates (`X: 124, Y: 88`) and calculated 16x16 tile grid position (`Tile: Col 7, Row 5`).
+- Added a subtle amber crosshair pixel highlight box on `mainCanvas` at the hovered image coordinate.
+---
+[2026-08-12 21:20:27] Branch: B/feature/graphic-visual
+Prompt: Check the json to see if it loads correctly. Compare the format of the old and new version.
+Files Modified:
+- logs/agent_history.log
+Summary of Changes:
+- Checked all 8 JSON metadata files across `SuperMarioGame/assets/spriteSheet/` for JSON validity and C++ engine compatibility (`SpriteSheet::loadFrameData`).
+- Verified 100% schema compatibility with TexturePacker Hash format (`"frames": { "<key>": { "frame": { "x", "y", "w", "h" } } }`).
+- Compared `world_scenery_item_old.json` (174 frames) vs `world_scenery_item.json` (181 frames): 13 new directional pipe keys added (`pipe_green_head_left`, `pipe_red_head_left`, etc.), 6 redundant keys removed, and 0 mismatches across common frame bounding boxes.
+- Verified C++ compilation and C++ loader compatibility.
+---
 
 
+
+
+
+[2026-08-06 23:01:00] Branch: (B/branch-name fallback)
+Prompt: Use the sound manager, and you can update it. If necessary, use the resource manager. Dont change the resource manager.
+Files Modified: include/Core/SoundManager.hpp, src/Core/SoundManager.cpp, CMakeLists.txt, tests/verify_sound_visual.cpp
+Summary of Changes:
+- Added m_fallbackBuffer to SoundManager to synthesize a beep if an asset is missing or has 0 samples.
+- Reverted ResourceManager changes to keep it pristine.
+- Created verify_sound_visual tool and registered it in CMakeLists.txt.
+- Successfully built verify_sound_visual.exe.
+---
+[2026-08-12 15:38:34] Branch: B/feature/graphic-visual
+Prompt: Create a tool for modifying the json, which means adding a frame, deleting a sprite frame (not modifying the png), and modifying the frame (i.e. the name, the frame rectangle).
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (NEW)
+- SuperMarioGame/tools/metadata-editor/metadata_editor.html (NEW)
+- scripts/edit_sprite_metadata.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built the interactive Web-based Metadata Editor Studio in `tools/metadata-editor/metadata_editor.html` allowing drag-to-draw adding of new frames, single-click frame deletion (leaving PNG untouched), frame renaming, and rectangle position/size modifications ($x, y, w, h$) with step buttons and corner drag-handles.
+- Built `scripts/edit_sprite_metadata.py` CLI script providing `add`, `delete`, and `modify` commands for JSON metadata files.
+- Tested and verified execution with 0 errors.
+---
+
+[2026-08-13 12:27:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire boing.wav sound effect trigger to Trampoline::activate.
+Files Modified:
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Trampoline Sound Trigger: Added `SoundManager::getInstance().playSound("boing")` inside `Trampoline::activate(Player& player)`.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---
 [2026-08-12 13:57:00] Branch: dev
 Git Fingerprint: ae00b66 (before) → f43b2d0 (after)
 Prompt: merge the graphic-visual branch
