@@ -52,6 +52,10 @@ PlayingState::~PlayingState() {
 void PlayingState::enter() {
     std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
 
+    // Load SFX & Start Level BGM
+    SoundManager::getInstance().loadAllSounds();
+    SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
+
     // --- Load all 5 Sprite Sheet Atlases ---
     // Path candidates search: run from build/Debug or project root
     auto tryLoadSheet = [](const std::string& folderName) -> std::unique_ptr<SpriteSheet> {

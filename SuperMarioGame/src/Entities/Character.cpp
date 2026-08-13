@@ -16,9 +16,12 @@ void Character::clearMovementRequests() {
     m_moveRightRequested = false;
 }
 
+#include "Core/SoundManager.hpp"
+
 void Character::jump() {
     if (onGround || onWall) {
         this->velocity.y = -this->jumpForce;
+        SoundManager::getInstance().playSound("jump_small");
     }
 }
 

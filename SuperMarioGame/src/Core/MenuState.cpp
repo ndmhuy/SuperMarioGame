@@ -1,6 +1,7 @@
 #include "Core/MenuState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/Game.hpp"
+#include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
 #include <SFML/Window/Event.hpp>
 #include <imgui.h>
@@ -8,6 +9,7 @@
 
 void MenuState::enter() {
     std::cout << "Entering MenuState" << std::endl;
+    SoundManager::getInstance().playMusic("assets/bgm/title_screen.mp3");
 }
 
 void MenuState::exit() {

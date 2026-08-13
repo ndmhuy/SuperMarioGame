@@ -1781,9 +1781,82 @@ Files Modified:
 - logs/agent_history.log
 Summary of Changes:
 - Checked `assets/sfx/` and identified 24 audio assets successfully imported into the project.
-- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound IDs and highlight missing SFX and BGM assets.
+- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound ID[2026-08-12 22:10:30] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Resolve all SFX and BGM wiring issues. Load all 29 SFX files into ResourceManager using exact file names as IDs with legacy alias mappings, subscribe SoundManager to EventBus events, and wire BGM playback across MenuState, PlayingState, and StarDecorator.
+Files Modified:
+- SuperMarioGame/include/Core/SoundManager.hpp
+- SuperMarioGame/src/Core/SoundManager.cpp
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/include/Graphics/PipeRenderer.hpp
+- SuperMarioGame/src/Graphics/PipeRenderer.cpp
+- SuperMarioGame/src/Core/MenuState.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/IPlayerState.cpp
+- SuperMarioGame/src/Entities/Character.cpp
+- logs/agent_history.log
+Summary of Changes:
+- SFX Loading & File-Name IDs: Implemented `SoundManager::loadAllSounds()` which automatically loads all 29 `.wav` files from `assets/sfx/` into `ResourceManager` using their exact filenames (`"break_brick_block"`, `"mushroom_fireflower_appears"`, `"jump_small"`, `"jump_super"`, `"power_up"`, etc.) as SFX IDs, with backward-compatible aliases for legacy calls.
+- EventBus SFX Wiring: Subscribed `SoundManager` to `EventBus` events (`CoinCollected`, `EnemyDefeated`, `PlayerDied`, `PowerUpCollected`, `LevelComplete`, `PlayerDamaged`, `BlockBroken`, `PlayerShotFireball`, `POWBlockHit`, `ThwompSlam`, `PauseToggled`).
+- BGM Level & State Management:
+  - `MenuState::enter()`: Plays `title_screen.mp3`.
+  - `PlayingState::enter()`: Automatically triggers `SoundManager::playLevelBGM(levelIndex)` (`overworld.mp3`, `underworld.mp3`, `underwater.mp3`, `athletic.mp3`).
+  - `StarDecorator`: Plays `invincible.mp3` when Star Power starts and restores level BGM upon expiration.
+  - `Character::jump()`: Plays `jump_small` SFX.
+- Build Verification: Rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 23:12:45] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Audit all 12 BGM audio files in assets/bgm/ against expected IDs and build an alias resolution map so playMusic accepts exact disk filenames as well as legacy/logical IDs.
+Files Modified:
+- SuperMarioGame/src/Core/SoundManager.cpp
+- implementation_plan.md
+- logs/agent_history.log
+Summary of Changes:
+- BGM Alias Map: Implemented `resolveBGMIdentifier` in `SoundManager.cpp` mapping:
+  - `main_menu.mp3` $\leftarrow$ `"main_menu"`, `"title_screen"`
+  - `overworld.mp3` $\leftarrow$ `"overworld"`, `"level_1"`
+  - `underworld.mp3` $\leftarrow$ `"underworld"`, `"level_2"`
+  - `underwater.mp3` $\leftarrow$ `"underwater"`, `"level_3"`
+  - `sub_space-bonus_room.mp3` $\leftarrow$ `"sub_space-bonus_room"`, `"athletic"`, `"bonus"`
+  - `castle.mp3` $\leftarrow$ `"castle"`, `"bowser_castle"`
+  - `bowser_boss_battle.mp3` $\leftarrow$ `"bowser_boss_battle"`, `"boss"`
+  - `starman.mp3` $\leftarrow$ `"starman"`, `"invincible"`
+  - `world_map.mp3` $\leftarrow$ `"world_map"`, `"map"`
+  - `level_complete.mp3` $\leftarrow$ `"level_complete"`, `"stage_clear"`
+  - `castle_complete.mp3` $\leftarrow$ `"castle_complete"`, `"world_clear"`
+  - `game_over.mp3` $\leftarrow$ `"game_over"`
+- Code Integration: Updated `playLevelBGM` and `playStarMusic` to resolve BGM paths dynamically through the alias map.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+
+
+[2026-08-12 23:14:45] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Wire GameOver, BossDefeated, and LevelComplete BGM triggers into SoundManager setupEventSubscriptions.
+Files Modified:
+- SuperMarioGame/src/Core/SoundManager.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Extended `SoundManager::setupEventSubscriptions()` to subscribe to:
+  - `EventType::LevelComplete`: Plays `level_complete.mp3` and `stage_clear.wav`.
+  - `EventType::BossDefeated`: Plays `castle_complete.mp3`.
+  - `EventType::GameOver`: Plays `game_over.mp3`.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---code 0).
 ---
 
+
+
+
+
+
+
+
+
+
+>>>>>>> Stashed changes
 [2026-08-06 23:01:00] Branch: (B/branch-name fallback)
 Prompt: Use the sound manager, and you can update it. If necessary, use the resource manager. Dont change the resource manager.
 Files Modified: include/Core/SoundManager.hpp, src/Core/SoundManager.cpp, CMakeLists.txt, tests/verify_sound_visual.cpp
@@ -2289,4 +2362,15 @@ Summary of Changes:
 - Built the interactive Web-based Metadata Editor Studio in `tools/metadata-editor/metadata_editor.html` allowing drag-to-draw adding of new frames, single-click frame deletion (leaving PNG untouched), frame renaming, and rectangle position/size modifications ($x, y, w, h$) with step buttons and corner drag-handles.
 - Built `scripts/edit_sprite_metadata.py` CLI script providing `add`, `delete`, and `modify` commands for JSON metadata files.
 - Tested and verified execution with 0 errors.
+---
+
+[2026-08-13 12:27:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire boing.wav sound effect trigger to Trampoline::activate.
+Files Modified:
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Trampoline Sound Trigger: Added `SoundManager::getInstance().playSound("boing")` inside `Trampoline::activate(Player& player)`.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
 ---

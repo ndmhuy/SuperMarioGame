@@ -91,10 +91,9 @@ bool ResourceManager::loadSoundBuffer(const std::string &id,
     m_soundBuffers[id] = std::move(soundBuffer);
     return true;
   }
-  if (m_reportedMissing.find("sound_path:" + path) == m_reportedMissing.end()) {
-    std::cerr << "[ResourceManager] Failed to load sound buffer: " << path
-              << std::endl;
-    m_reportedMissing.insert("sound_path:" + path);
+  if (m_reportedMissing.find("sfx_path:" + actualPath) == m_reportedMissing.end()) {
+    std::cerr << "[ResourceManager] Failed to load sound buffer: " << actualPath << std::endl;
+    m_reportedMissing.insert("sfx_path:" + actualPath);
   }
   return false;
 }
