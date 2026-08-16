@@ -21,10 +21,13 @@ public:
     float getSquishTimer() const { return m_squishTimer; }
 
     const AABB& getBoundingBox() const override;
+    bool isDeadOrDying() const override { return Enemy::isDeadOrDying() || m_isSquished; }
+    bool collidesWithTiles() const override { return !m_isSquished && Enemy::collidesWithTiles(); }
 
 private:
     bool m_isRed;
     bool m_isSquished = false;
     bool m_isFlipped = false;
     float m_squishTimer = 0.0f;
+    Animation m_squishAnim;
 };

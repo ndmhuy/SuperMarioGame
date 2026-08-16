@@ -13,4 +13,11 @@ public:
 
     void onStomped() override;
     void onHitByFireball() override;
+
+    float getGravityMultiplier() const override { return 0.0f; }
+    bool collidesWithTiles() const override { return false; }
+
+private:
+    Animation m_seenAnim;
+    Animation m_moveAnim;
 };

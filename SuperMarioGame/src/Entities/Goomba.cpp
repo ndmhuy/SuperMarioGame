@@ -17,14 +17,8 @@ void Goomba::update(float dt) {
         velocity = sf::Vector2f(0.0f, 0.0f);
         m_squishTimer -= dt;
         if (m_squishTimer <= 0.0f) {
-            destroy();
-        }
-    } else if (m_isFlipped) {
-        // Fall off screen: gravity in px/s^2 (GRAVITY = 0.5 px/frame^2 = 1800 px/s^2)
-        velocity.y += 1800.0f * dt;
-        position += velocity * dt;
-        if (position.y > Constants::WINDOW_HEIGHT + 100.0f) {
-            destroy();
+            m_isSquished = false;
+            triggerDownwardDeath(sf::Vector2f(0.0f, 150.0f)); // Move down out of world relatively fast, RIGHT-SIDE UP (not flipped)
         }
     } else {
         Enemy::update(dt);
@@ -37,6 +31,8 @@ void Goomba::setupAnimations(const SpriteSheet* spriteSheet) {
     Enemy::setupAnimations(spriteSheet);
     m_animation = Animation("goomba_move");
     m_animation.frameList = {{"goomba_brown_move_0", 0.15f}, {"goomba_brown_move_1", 0.15f}};
+    m_squishAnim = Animation("goomba_squished");
+    m_squishAnim.frameList = {{"goomba_brown_squished", 0.15f}};
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;
@@ -53,6 +49,9 @@ void Goomba::onStomped() {
     m_isSquished = true;
     m_squishTimer = Constants::GOOMBA_SQUISH_DURATION;
     velocity = sf::Vector2f(0.0f, 0.0f);
+    if (m_animator) {
+        m_animator->play(&m_squishAnim);
+    }
     
     // Publish EnemyDefeated event
     GameEvent event;
@@ -75,9 +74,5 @@ void Goomba::onHitByFireball() {
 }
 
 const AABB& Goomba::getBoundingBox() const {
-    if (m_isSquished || m_isFlipped) {
-        static const AABB emptyBox{ 0.0f, 0.0f, 0.0f, 0.0f };
-        return emptyBox;
-    }
     return boundingBox;
 }

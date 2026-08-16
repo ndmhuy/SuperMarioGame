@@ -2369,6 +2369,388 @@ Summary of Changes:
 - Added zoom control button handlers (`#btnZoomIn`, `#btnZoomOut`, `#btnZoomReset`).
 - Implemented pixel-accurate viewport-to-image mouse scaling (`getCanvasMousePos`), ensuring box selection, drag-to-draw, and corner handle resizing remain 100% accurate under any zoom level.
 ---
+
+[2026-08-13 14:44:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Create an interactive visual test environment with an invincible player avatar featuring right-click mouse teleportation and preset buttons to test all enemy edge cases and AI strategy reactions.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- SuperMarioGame/include/Entities/Character.hpp
+- logs/agent_history.log
+Summary of Changes:
+- Invincible Player Avatar: Added Mario player avatar surrounded by a glowing gold invincibility aura with WASD/arrow keys movement and line-of-sight raycast.
+- Right-Click & Preset Teleportation:
+  - Right-clicking anywhere in the visual window instantly teleports the player to mouse cursor position.
+  - ImGui preset buttons: `Under Thwomp`, `Facing Boo`, `Behind Boo`, `On Piranha Pipe`, `ChainChomp Radius`, `HammerBro Area`.
+- Edge Case Test Arena: Integrated terrain containing walls (wall bounce), elevated platforms (ledge awareness), Piranha pipe, Thwomp ceiling hover, and ChainChomp anchor post.
+- Debug Overlay Gizmos: Added velocity arrows, line-of-sight rays, and AABB bounding box overlays.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+
+[2026-08-13 20:11:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix position movement velocity integration and widen room wall spacing to at least 6+ blocks apart in verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Physics Integration: Integrated `pos += vel * dt` in the test room update loop so enemy AI strategies drive real-time position movement across the screen instead of animating in place.
+- Wide Wall Spacing: Expanded room boundaries to `x = 100.0f` to `x = 1180.0f` (1080px / 33.75 blocks wide, well over the 6-block requirement), providing wide corridors for Goomba, Koopa, Spiny, and BulletBill patrol.
+- Boundary Wall Rebound: Wired `onWall = true` trigger on boundary contact to execute AI strategy horizontal turnarounds.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+
+[2026-08-13 20:49:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Apply gravity acceleration for ground/hopping enemies, fix HammerBro's platform hop trajectory, and render Bill Blaster cannon shooter block in verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Real-Time Gravity Physics: Applied `vel.y += 1200.0f * dt` for non-flying ground enemies when airborne, pulling hopping/falling entities back down.
+- HammerBro Hopping & Platform Landing: Fixed HammerBro platform landing at `(980, 392)` on `hbPlatform` at `y = 440`. Applied gravity to convert hop impulses into smooth parabolic jump arcs.
+- Bill Blaster Cannon Shooter: Rendered a 64x64px Bill Blaster cannon block at `(100, 496)` with cannon nozzle at `x = 164` where Bullet Bill launches horizontally out of the cannon nozzle.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+
+[2026-08-13 22:13:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Use bullet_bill_body sprite for shooter cannon, add range attack reactions for enemies, and add a togglable visual attack radius overlay in verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Bill Blaster Cannon Shooter Sprite: Rendered authentic `bullet_bill_body` sprite from `enemySheet` at `(100, 496)` scaled to 64x64px for the shooter cannon block.
+- Proximity Range Attack Reactions: Added threat radius detection for Boo (250px), Thwomp (80px column), ChainChomp (180px), and HammerBro (300px).
+- Togglable Attack Radius Overlays: Added ImGui `Show Attack Range Radius` checkbox to toggle translucent range circles/boxes (Yellow = Idle, Red = Attack Triggered!).
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+
+[2026-08-13 23:00:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix Boo seen-to-attack animation reset, Thwomp active/dormant animation states, HammerBro hammer throw rendering, and BulletBill BlasterCombined sprite ratio.
+Files Modified:
+- SuperMarioGame/include/Entities/Boo.hpp
+- SuperMarioGame/src/Entities/Boo.cpp
+- SuperMarioGame/include/Entities/Thwomp.hpp
+- SuperMarioGame/src/Entities/Thwomp.cpp
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Boo Shy/Attack Animation Transition: Added separate `m_seenAnim` and `m_moveAnim` objects to allow the animator to cleanly switch address pointers. Boo now immediately covers face (`boo_seen_0`) when watched and reveals grin face (`boo_move_0`) when pursuing.
+- Thwomp Active Sprite Fix: Added separate `m_dormantAnim` and `m_activeAnim` objects. Set velocity.y to `0.1f` during Ramp Up to trigger the angry active sprite, and query position to play active sprite when dropped/resting.
+- HammerBro Projectile Rendering: Correctly integrated active parabolic hammer update and drawing loops.
+- Bill Blaster Combined Sprite: Rendered `bullet_bill_combined` at 2.0x scale (32x64px, 1:2 ratio) at `(100, 496)`. Spawn nozzle firing coordinate set to `x = 132`.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+
+[2026-08-14 21:54:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Align physical grid coordinates to 32px boundaries, render TileMap tiles directly, and add safe world change reset to eliminate crashes/freezes in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Physical Grid Alignment: Updated `mainGroundY` to `544.0f` (`gy = 17`) and aligned spawn/teleport coordinates to 32px cell boundaries (Player feet at `y = 544.0f`).
+- Direct TileMap Rendering: Replaced mock colored shape drawings with a direct `TileMap` cell loop, guaranteeing 100% synchronization between physics and visuals.
+- Safe World Change Reset: Wired `safeWorldChange` (`syncTileMap()` + `spawnActiveEnemy()`) to all terrain checkboxes to reset entities onto valid ground and eliminate crashes/freezes.
+- MSVC Compile Flag: Added `/FS` compile flag to `CMakeLists.txt` for MSVC to enable synchronous PDB writes.
+- Build Verification: `verify_enemies_behavior.exe` built cleanly with exit code 0.
+---
+
+[2026-08-16 22:47:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Add a 10% inaccuracy of velocity to the hammer bros' hammer.
+Files Modified:
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- 10% Velocity Inaccuracy: Applied random +/-10% variation (multiplier [0.90, 1.10]) to both horizontal (vx) and vertical (vy) launch velocities in HammerThrowStrategy.cpp and verify_enemies_behavior.cpp, providing authentic slight trajectory deviations so consecutive throws are not 100% identical.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 22:42:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix held item jiggling and overlap with player hitbox, remove throw sliders, and set throw speed to 550 px/s at 45 degree angle.
+Files Modified:
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Jiggle & Overlap Elimination: Updated PhysicsEngine.cpp to bypass gravity and velocity integration for dead or held enemies (isDeadOrDying()), eliminating frame-by-frame physics fighting, and aligned held shell cleanly on top of player's bounding box with zero hitbox overlap (empty box returned while held).
+- Fixed Throw Parameters: Updated KoopaTroopa::throwShell default parameters to 550.0 px/s speed and 45.0 degrees launch angle (vx = dir * 388.9 px/s, vy = -388.9 px/s) and removed dynamic sliders from verify_enemies_behavior.cpp ImGui controls.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 22:37:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Position held item on top of player's head, configure throw physics to 250 px/s speed at 10 deg angle above horizontal, and add dynamic ImGui sliders.
+Files Modified:
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- On-Top Item Carrying: Updated KoopaTroopa::update in ShellHeld state to position the held item directly on top of the player's head (aligned horizontally with center and vertically above head).
+- Parabolic Shell Throwing: Updated KoopaTroopa::throwShell(speed, angleDeg) to calculate horizontal vx = dir * speed * cos(rad) and upward vy = -speed * sin(rad).
+- Dynamic ImGui Controls: Added Throw Speed (50 - 800 px/s) and Throw Angle (0 - 80 deg) sliders in verify_enemies_behavior.cpp ImGui control panel, defaulted to 250 px/s and 10.0 deg.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 22:17:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Change current run sprites to hold/carrying sprites for each player, and make running animation use walking sprites played faster.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Running Animation Speedup: Updated m_animRun in Player::setupCharacterAnimations to use walkFrame0 and walkFrame1 at rapid 0.07s frame duration instead of the carrying sprites.
+- Dedicated Hold Animations: Reassigned atlas frames _run_0 and _run_1 as holding/carrying frames (m_animHoldIdle, m_animHoldWalk, and m_animHoldCrouch), playing hold walk while moving/jumping with an item and hold idle while standing.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 22:02:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix sideways Koopa collision to pick up shell without damaging player, and play authentic holding sprites when holding items.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Sideways Koopa Pickup: Updated CollisionResolver::resolvePlayerVsEnemy so touching any unflipped Koopa (walking or shell) from the side immediately picks it up and prevents damage, while top stomp still bounces player.
+- Player Holding Sprite: Added m_animHold using authentic atlas frame mario_small_crouch_hold (and character equivalents), played in Player::update whenever m_heldEntity != nullptr.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 21:38:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Make touching Koopa shell pick it up and throw it on pressing 'F', and preload audio buffers at startup so audio doesn't lag/load on first jump.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Koopa Shell Pick Up & Carry: Added ShellHeld state to KoopaTroopa; touching a ShellIdle Koopa shell calls pickUp(&player) and attaches it to player's hands in front of Mario.
+- Shell Throwing ('F' Key): Pressing 'F' triggers throwShell(), launching the shell forward at KOOPA_SHELL_KICK_SPEED with slight upward arch and kick sound effect.
+- Upfront Audio Preloading: Added SoundManager::getInstance().loadAllSounds() in verify_enemies_behavior.cpp startup so all audio buffers are resident in memory, eliminating the on-demand load stutter during the first jump.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 19:48:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix Koopa shell frame key in atlas and add 1.0s transformation invincibility to KoopaParatroopa when losing wings.
+Files Modified:
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/include/Entities/KoopaParatroopa.hpp
+- SuperMarioGame/src/Entities/KoopaParatroopa.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Koopa Shell Sprite Fix: Updated KoopaTroopa::setupAnimations to use authentic atlas frame key "koopa_green_shell" / "koopa_red_shell" (replacing invalid "koopa_green_shell_0"), allowing the shell sprite to render properly when stomped/kicked.
+- Paratroopa Transformation Invincibility: Added 1.0s transformation invincibility timer (m_transformInvincibilityTimer) with 15Hz alpha flickering when KoopaParatroopa is stomped and loses wings, preventing immediate consecutive stomps/insta-kills.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-16 19:40:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Make player pass through enemies and items during hurt invincibility, and add hitbox to Hammer Bro thrown hammers in verify_enemies_behavior.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Hurt Invincibility Pass-Through: Updated CollisionResolver::resolvePlayerVsEnemy and resolvePlayerVsItem to immediately return early when player.getInvincibilityTimer() > 0.0f, ensuring Mario completely passes through all enemies (no damage, no stomp) and items during hurt flickering.
+- Hammer Bro Projectile Hitbox: Added 16x16 px AABB intersection check for activeHammers against Mario in verify_enemies_behavior.cpp, applying knockback, damage, and 2.0s hurt flickering on hit, and added red AABB debug outline when showAABB is enabled.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-15 23:02:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Make player hurt-able but immortal in behavior test, disable hitboxes on dead/dying enemies, apply fast downward plunge gravity (3500 px/s²) on flipped enemy death, and make Goomba squish for 0.5s right-side up then plunge downward unflipped.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/Goomba.hpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Player Hurt & Test Immortality: Overrode Player::takeDamage to call powerDown(); added m_isImmortal flag so in behavior test Mario suffers damage, knockback, and 15Hz hurt flicker without dying/game over.
+- Hitbox Disabling: Enemy::getBoundingBox returns empty box AABB{0,0,0,0} when isDeadOrDying() is true; CollisionResolver returns early for dead/dying enemies.
+- Fast Death Physics & Unflipped Goomba: Base Enemy applies 3500.0f px/s² gravity on flipped/downward death; Goomba squishes right-side up for 0.5s then plunges down out of the world unflipped (right-side up).
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-15 22:19:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix Koopa Paratroopa stomp crash, Mario hurt animation playback, squishable enemy rules, Spiny ball frame keys, flipped enemy death physics, and exact Hammer Bro parabolic trajectory player intersection.
+Files Modified:
+- SuperMarioGame/include/Entities/KoopaParatroopa.hpp
+- SuperMarioGame/src/Entities/KoopaParatroopa.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/src/Entities/HammerBro.cpp
+- SuperMarioGame/src/Entities/BulletBill.cpp
+- SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Flying Koopa Stomp Crash Fix: KoopaParatroopa::setupAnimations calls KoopaTroopa::setupAnimations so m_shellAnim is initialized; stomp 1 switches to walking koopa_move, stomp 2 switches to shell without crashing.
+- Player Hurt Animation: Loaded mario_small_hurt as m_animHurt in Player::setupCharacterAnimations and played it in Player::update when invincibilityTimer > 1.7f.
+- Enemy Flipped Death Physics: Added triggerFlipDeath with vertical sprite flip (scaleY = -scaleY) to base Enemy; Goomba squishes for 0.5s before moving down out of world; HammerBro and BulletBill trigger flipped death on stomp.
+- Spiny Ball Frame Key Fix: Corrected frame key names from spiny_egg_0/1 to spiny_ball_0/1 in Spiny.cpp.
+- Hammer Bro Trajectory Intersection: Computed exact flight time T using quadratic equation for vertical displacement dy = y_player - y_hammer, calculating launch vx = dx / T (capped to [-400.0f, 400.0f]), ensuring hammers directly intersect and strike a stationary player.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-15 21:34:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Implement Player Hurt Invincibility & Alpha Flickering, Squished Enemy Sprites (Goomba & Koopa), Lakitu Spiny Egg Throwing & Hatching, and Hammer Bro Dynamic Parabolic Arc Throwing.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Goomba.hpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/include/Entities/Spiny.hpp
+- SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/include/Entities/HammerThrowStrategy.hpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Player Hurt Invincibility & Alpha Flickering: CollisionResolver ignores side/bottom hits while invincibilityTimer > 0.0f to prevent continuous damage; Player::render modulates sprite alpha between 100 and 255 (15Hz flicker).
+- Squished Enemy Sprites: Goomba plays goomba_brown_squished animation for 0.5s upon stomp while remaining anchored to ground tile; KoopaTroopa switches to koopa_green_shell_0 upon stomp.
+- Lakitu Spiny Egg Throwing & Hatching: Spiny supports isEgg state playing spiny_egg_0/1 while falling down and automatically hatches into walking spiny_move_left_0/1 upon ground collision.
+- Hammer Bro Dynamic Parabolic Arc Throwing: HammerThrowStrategy calculates dynamic launch velocity vx = dx / T_flight (T_flight ≈ 0.633s for vy = -380.0f) with speed cap (std::clamp(vx, -350.0f, 350.0f)) for accurate parabolic targeting based on player position.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+
+[2026-08-14 22:14:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Eliminate intra-frame dangling pointer crashes when switching worlds, enemies, or toggling terrains in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Replaced cached raw pointers (`playerPtr` and `enemyPtr`) that were sampled at the start of the while loop with dynamic lambda accessors `getPlayer()` and `getEnemy()`. When ImGui UI calls `safeWorldChange()` or `spawnActiveEnemy()` mid-frame, subsequent lines in the same frame (UI status, threat radius calculations, sight ray rendering) now query the live valid entities instead of dereferencing deleted heap memory.
+- Registered player with `Game::getInstance().setPlayer(...)` in `spawnActiveEnemy()` and cleared it before `entities.clear()` so AI strategies (ChaseStrategy, TetheredChaseStrategy, ProximityTriggerStrategy, etc.) always have a valid player reference without dangling pointer crashes.
+- Added singleton unbinding (`setPlayer(nullptr)`, `setTileMap(nullptr)`, `registerPlayer(nullptr, 0)`) in `main()` exit.
+- Fixed constructor argument for `Goomba`, `KoopaTroopa`, `KoopaParatroopa` to pass `false` instead of `"brown"`/`"green"`.
+- Build Verification: Rebuilt `verify_enemies_behavior.exe` with exit code 0.
+---
+
+[2026-08-14 22:05:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Diagnose crash in verify_enemies_behavior and fix all root causes.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- logs/agent_history.log
+Summary of Changes:
+- FIX 1 (InputManager dangling pointer): Unregister player from InputManager Singleton BEFORE entities.clear() in spawnActiveEnemy(), preventing use-after-free when Singleton tries to call update() on the old destroyed Mario.
+- FIX 2 (Game::getTileMap() null): Register the test's local TileMap with Game::getInstance().setTileMap(&tileMap) after initialization so Player::update() crouch ceiling check does not receive a null TileMap pointer.
+- FIX 3 (loseLife/GameOver event chain): Added public Player::setInvincible(float) method to Player.hpp; call player->setInvincible(99999.0f) in spawnActiveEnemy() so the player can never take damage and chain into EventBus::publish(GameOver) during testing.
+- FIX 4 (mainGroundY mismatch — primary crash): Corrected mainGroundY from 560.0f to 544.0f to match the actual physics TileMap floor at grid row gy=17. Old value caused Lakitu Spinies to hatch inside ground tiles, ejecting them at high velocity and corrupting the entity vector via index drift.
+- Added #include "Core/Game.hpp" to verify_enemies_behavior.cpp.
+- Build Verification: verify_enemies_behavior.exe built cleanly (exit code 0, no errors).
+---
+
+[2026-08-14 21:29:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Remove infinite spawnActiveEnemy call from the frame update loop in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Fixed Infinite Spawn Loop: Removed automatic `spawnActiveEnemy()` call from frame loop. Enemy respawning is now cleanly triggered only by user action (sidebar selection or "Reset Active Enemy" button).
+- Safe Terrain Syncing: `syncTileMap()` now modifies `TileMap` grid cells without clearing or recreating player/enemy entity pointers.
+- Room Clamping: Added room canvas bounds clamping for player coordinates (`x = 230` to `970`) to prevent void pit falling loops.
+- Build Verification: Clean compilation with exit code 0.
+---
+
+[2026-08-14 21:24:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Add enemy auto-respawn and active flag safety checks when enemies (e.g. Goomba) die or get squished in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Auto-Respawn Inactive Enemy: Added check `if (!enemyPtr || !enemyPtr->isActive()) { spawnActiveEnemy(); }` so whenever Goomba gets squished or an enemy dies, a fresh active enemy is automatically respawned.
+- Prune Inactive Sub-Entities: Added pruning for extra inactive sub-entities (e.g. hatched Spinies) so `entities` list doesn't accumulate destroyed pointers.
+- Safety Checks: Wrapped AI logic and ImGui status panel calls in `enemyPtr->isActive()` checks to eliminate crashes/errors when modifying terrain ("changing the world").
+- Build Verification: Clean compilation with exit code 0.
+---
+
+[2026-08-14 21:12:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire normal player physics (PhysicsEngine), inputs (InputManager), and grid terrain blocks (TileMap) to verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Standardized Physics Update: Replaced the manual coordinate movement for the player in the test harness with standard `PhysicsEngine` updates.
+- Normal Keyboard Input: Integrated `InputManager::getInstance()` for routing event handlers and key updates directly.
+- Dynamic TileMap Sync: Wired a 40x23 grid `TileMap` to dynamically synchronize structural blocks (Ground, Brick, Pipe) when checkboxes are toggled, allowing natural gravity and AABB resolution.
+- Build Verification: Clean compilation with exit code 0.
+---
+
+[2026-08-14 20:54:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire correct folder paths to SpriteSheet constructors in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- SpriteSheet Path Correction: Corrected `playerSheet` and `enemySheet` loading in `verify_enemies_behavior.cpp` to use folder paths (`assets/spriteSheet/player` and `assets/spriteSheet/enemy_projectile`) instead of JSON paths to ensure proper texture and frame loading via `ResourceManager`.
+- Build Verification: Rebuilt successfully with exit code 0.
+---
+
+[2026-08-14 20:45:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Create brand new standalone verify_enemies_behavior visual test suite with side-by-side dashboard UI layout, dynamic terrain toggles, debug gizmos, and one-by-one behavior testing for all 11 enemies.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Standalone Test Executable: Created `tests/verify_enemies_behavior.cpp` and registered target `verify_enemies_behavior` in `CMakeLists.txt`.
+- Side-by-Side Dashboard UI: Left sidebar for selecting all 11 enemy types, center visual render canvas, and right control panel for terrain toggles and gizmos.
+- Behavioral Function Verification: Verified Patrol, Chase/Sight-Tracking, Proximity Slam/Rise, Emergence, Tethered Lunge, Egg Spawning, Parabolic Hammer Throws, and Shooter mechanics for all 11 enemies.
+- Build Verification: Successfully built `verify_enemies_behavior.exe` with CMake (exit code 0).
+---
+
+[2026-08-13 22:31:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Implement Thwomp ramp up vibration & slow rise state machine, Boo sight-tracking watch vs chase animations, and HammerBro player facing & rotating parabolic hammer projectiles.
+Files Modified:
+- SuperMarioGame/include/Entities/Thwomp.hpp
+- SuperMarioGame/src/Entities/Thwomp.cpp
+- SuperMarioGame/src/Entities/Boo.cpp
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Thwomp AI State Machine: Motionless idle at home y=140. When Mario walks underneath, vibrates 0.2s gritting teeth, slams rapidly (700px/s) with angry face (`thwomper_active`), rests 0.5s at floor, and rises back up slowly (-80px/s) with dormant sprite face (`thwomper_dormant`).
+- Boo Sight-Tracking Watch & Pursuit: Freeze and cover face with hands (`boo_seen_0`) when Mario faces Boo; reveal grin face (`boo_move_0`) and pursue at 100px/s when Mario turns away.
+- HammerBro Facing & Parabolic Hammer Projectiles: Turn to face Mario (`facingRight = (playerPos.x > hammerBro.x)`) and throw rotating parabolic hammers (`hammer_black_0`) every 1.5s.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
 [2026-08-12 15:52:02] Branch: B/feature/graphic-visual
 Prompt: Make it zoom in and out by at the cursor
 Files Modified:
@@ -2447,3 +2829,15 @@ Summary of Changes:
 - Pushed merged `dev` to remote (ae00b66 → f43b2d0).
 - Key content from B/feature/graphic-visual merged in: entity sprite wiring, aspect ratio scaling, POW 8-frame animation, trampoline bottom-anchored bounce, coin AABB fix, water wave rendering, P-Switch pressed sprite, HUD spritesheet integration (animated coin, star coins, character lives icon).
 ---
+[2026-08-13 14:54:30] Branch: dev
+Prompt: Execute the approved implementation plan for isolated enemy test environments in tests/verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Structured 11 Isolated Room Environments for Goomba, KoopaTroopa, KoopaParatroopa, Boo, Thwomp, PiranhaPlant, ChainChomp, Lakitu, Spiny, HammerBro, and BulletBill selectable via an ImGui Combo dropdown and Tab bar.
+- Added an ImGui checkbox toggle button "Show Visual AABB Bounding Boxes" allowing the user to toggle visual green AABB outline overlays on/off whenever needed.
+- Cleaned up visual artifacts: removed yellow gold aura circle around Mario while maintaining the crisp Mario sprite rendering and magenta line-of-sight ray.
+- Eliminated clipping: applied exact ground clamping (y = groundY - boundingBox.height) and solid wall collision boundaries so all 11 enemies walk, fly, land, and bounce cleanly on terrain with ZERO visual or AABB clipping.
+- Retained right-click mouse teleportation to cursor for the invincible Mario avatar, and added room-tailored ImGui teleport preset buttons for each room (Under Thwomp, Facing Boo, Behind Boo, On Piranha Pipe, In Front of Wall, Inside ChainChomp Radius, HammerBro Platforms, Goomba Path, Koopa Platform, Lakitu Sky, BulletBill Corridor, Spiny Drop Zone).
+- Built verify_enemies_visual target with CMake with 0 compilation errors (exit code 0).

@@ -46,6 +46,11 @@ public:
     int getCoins() const { return coins; }
     int getScore() const { return score; }
     float getInvincibilityTimer() const { return invincibilityTimer; }
+    // Grant invincibility for the given duration (used by test harnesses and Star power)
+    void setInvincible(float duration) { invincibilityTimer = duration; }
+    bool isImmortal() const { return m_isImmortal; }
+    void setImmortal(bool immortal) { m_isImmortal = immortal; }
+    void takeDamage(int amount) override;
     int getCoyoteFramesLeft() const { return coyoteFramesLeft; }
     int getJumpBufferFramesLeft() const { return jumpBufferFramesLeft; }
     int getComboCounter() const { return comboCounter; }
@@ -53,6 +58,11 @@ public:
     bool isSliding() const { return sliding; }
     bool isRunRequested() const { return m_runRequested; }
     void clearMovementRequests() override;
+
+    // Held entity mechanics (e.g. carrying Koopa Shells)
+    Entity* getHeldEntity() const { return m_heldEntity; }
+    void holdEntity(Entity* entity) { m_heldEntity = entity; }
+    void releaseHeldEntity() { m_heldEntity = nullptr; }
 
     // Encapsulated Memento pattern methods
     PlayerSnapshot createSnapshot() const;
@@ -78,15 +88,22 @@ protected:
     bool sliding = false;
     bool m_crouchRequestedThisFrame = false;
     bool m_runRequested = false;
+    bool m_isImmortal = false;
     float m_fireballCooldownTimer = 0.0f;
+    Entity* m_heldEntity = nullptr;
 
     std::unique_ptr<Animator> m_animator;
+    const SpriteSheet* m_spriteSheet = nullptr;
     Animation m_animation;
     Animation m_animIdle;
     Animation m_animWalk;
     Animation m_animRun;
     Animation m_animJump;
     Animation m_animCrouch;
+    Animation m_animHurt;
+    Animation m_animHoldIdle;
+    Animation m_animHoldWalk;
+    Animation m_animHoldCrouch;
     std::string m_currentAnimName;
     bool m_hasAnimation = false;
 

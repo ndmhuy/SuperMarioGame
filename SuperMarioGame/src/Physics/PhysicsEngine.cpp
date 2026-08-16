@@ -143,6 +143,9 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 2. Apply gravity and environmental forces
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
+        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
+            if (enemy->isDeadOrDying()) continue;
+        }
 
         // Check if entity is in water (tile type 7)
         float cx = entity->position.x + entity->boundingBox.width / 2.0f;
@@ -162,9 +165,14 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 3. Integrate X and resolve X collisions with the tile map (only resolve max horizontal overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
+        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
+            if (enemy->isDeadOrDying()) continue;
+        }
 
         entity->position.x += entity->velocity.x * dt;
         entity->boundingBox.x = entity->position.x;
+
+        if (!entity->collidesWithTiles()) continue;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
         CollisionInfo maxCollision;
@@ -190,10 +198,15 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 4. Integrate Y and resolve Y collisions with the tile map (only resolve max vertical overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
+        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
+            if (enemy->isDeadOrDying()) continue;
+        }
 
         float preVelY = entity->velocity.y;
         entity->position.y += entity->velocity.y * dt;
         entity->boundingBox.y = entity->position.y;
+
+        if (!entity->collidesWithTiles()) continue;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
         CollisionInfo maxCollision;

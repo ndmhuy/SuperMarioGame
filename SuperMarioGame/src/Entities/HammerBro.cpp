@@ -22,11 +22,11 @@ void HammerBro::setupAnimations(const SpriteSheet* spriteSheet) {
 void HammerBro::onStomped() {
     SoundManager::getInstance().playSound("stomp");
     EventBus::getInstance().publish({EventType::EnemyDefeated, m_scoreValue});
-    this->active = false;
+    triggerFlipDeath({100.0f, -300.0f});
 }
 
 void HammerBro::onHitByFireball() {
     SoundManager::getInstance().playSound("kick");
     EventBus::getInstance().publish({EventType::EnemyDefeated, m_scoreValue});
-    this->active = false;
+    triggerFlipDeath({100.0f, -300.0f});
 }

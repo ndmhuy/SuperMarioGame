@@ -1,6 +1,8 @@
 #include "Entities/Player.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/GameSnapshot.hpp"
+#include "Core/Game.hpp"
+#include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
 
@@ -75,6 +77,12 @@ void Player::powerUp(int itemType) {
     EventBus::getInstance().publish({EventType::PowerUpCollected, itemType});
 }
 
+void Player::takeDamage(int amount) {
+    if (invincibilityTimer > 0.0f) return;
+    Character::takeDamage(amount);
+    powerDown();
+}
+
 void Player::powerDown() {
     // If temporarily or permanently invincible (Star/Mega), ignore damage
     if (invincibilityTimer > 0.0f) return;
@@ -132,6 +140,19 @@ void Player::changeState(std::unique_ptr<IPlayerState> state) {
         setTargetSize(newSize);
         boundingBox.x = position.x;
         boundingBox.y = position.y;
+
+        // Update character animations based on the new active state
+        if (m_spriteSheet) {
+            IPlayerState* baseState = m_currentState.get();
+            while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+                baseState = decorator->getWrappedState();
+            }
+            std::string stateSuffix = "small";
+            if (dynamic_cast<MiniState*>(baseState)) {
+                stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
+            }
+            setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
+        }
     }
 }
 
@@ -142,21 +163,68 @@ void Player::setupAnimations(const SpriteSheet* spriteSheet) {
 void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix) {
     if (!spriteSheet) return;
     m_animator = std::make_unique<Animator>(spriteSheet);
+    m_spriteSheet = spriteSheet;
+
+    std::string idleFrame = prefix + "_idle";
+    if (!spriteSheet->hasFrame(idleFrame)) {
+        idleFrame = prefix + "_walk_0";
+    }
+
+    std::string crouchFrame = prefix + "_crouch";
+    if (!spriteSheet->hasFrame(crouchFrame)) {
+        crouchFrame = idleFrame;
+    }
+
+    std::string hurtFrame = prefix + "_hurt";
+    if (!spriteSheet->hasFrame(hurtFrame)) {
+        hurtFrame = idleFrame;
+    }
+
+    std::string walkFrame0 = prefix + "_walk_0";
+    std::string walkFrame1 = prefix + "_walk_1";
+    if (!spriteSheet->hasFrame(walkFrame0)) walkFrame0 = idleFrame;
+    if (!spriteSheet->hasFrame(walkFrame1)) walkFrame1 = idleFrame;
+
+    // Hold/carry frames in atlas are named prefix + "_run_0" / "_run_1" and "_crouch_hold"
+    std::string holdFrame0 = prefix + "_run_0";
+    std::string holdFrame1 = prefix + "_run_1";
+    if (!spriteSheet->hasFrame(holdFrame0)) holdFrame0 = walkFrame0;
+    if (!spriteSheet->hasFrame(holdFrame1)) holdFrame1 = walkFrame1;
+
+    std::string holdCrouchFrame = prefix + "_crouch_hold";
+    if (!spriteSheet->hasFrame(holdCrouchFrame)) holdCrouchFrame = holdFrame0;
+
+    std::string jumpFrame = prefix + "_walk_1";
+    if (!spriteSheet->hasFrame(jumpFrame)) jumpFrame = walkFrame1;
 
     m_animIdle = Animation(prefix + "_idle");
-    m_animIdle.frameList = {{prefix + "_idle", 0.15f}};
+    m_animIdle.frameList = {{idleFrame, 0.15f}};
 
     m_animWalk = Animation(prefix + "_walk");
-    m_animWalk.frameList = {{prefix + "_walk_0", 0.12f}, {prefix + "_walk_1", 0.12f}};
+    m_animWalk.frameList = {{walkFrame0, 0.12f}, {walkFrame1, 0.12f}};
 
+    // Running animation uses the same sprites as walking, but faster
     m_animRun = Animation(prefix + "_run");
-    m_animRun.frameList = {{prefix + "_run_0", 0.08f}, {prefix + "_run_1", 0.08f}};
+    m_animRun.frameList = {{walkFrame0, 0.07f}, {walkFrame1, 0.07f}};
 
     m_animJump = Animation(prefix + "_jump");
-    m_animJump.frameList = {{prefix + "_walk_1", 0.15f}};
+    m_animJump.frameList = {{jumpFrame, 0.15f}};
 
     m_animCrouch = Animation(prefix + "_crouch");
-    m_animCrouch.frameList = {{prefix + "_crouch", 0.15f}};
+    m_animCrouch.frameList = {{crouchFrame, 0.15f}};
+
+    m_animHurt = Animation(prefix + "_hurt");
+    m_animHurt.frameList = {{hurtFrame, 0.15f}};
+
+    // Hold animations for carrying objects/shells
+    m_animHoldIdle = Animation(prefix + "_hold_idle");
+    m_animHoldIdle.frameList = {{holdFrame0, 0.15f}};
+
+    m_animHoldWalk = Animation(prefix + "_hold_walk");
+    m_animHoldWalk.frameList = {{holdFrame0, 0.10f}, {holdFrame1, 0.10f}};
+
+    m_animHoldCrouch = Animation(prefix + "_hold_crouch");
+    m_animHoldCrouch.frameList = {{holdCrouchFrame, 0.15f}};
 
     m_animator->play(&m_animIdle);
     m_currentAnimName = m_animIdle.name;
@@ -166,7 +234,17 @@ void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std:
 void Player::update(float dt) {
     if (m_animator && m_hasAnimation) {
         Animation* targetAnim = &m_animIdle;
-        if (crouched) {
+        if (invincibilityTimer > 1.7f && invincibilityTimer < 9000.0f) {
+            targetAnim = &m_animHurt;
+        } else if (m_heldEntity != nullptr) {
+            if (crouched) {
+                targetAnim = &m_animHoldCrouch;
+            } else if (std::abs(velocity.x) > 10.0f || !onGround) {
+                targetAnim = &m_animHoldWalk;
+            } else {
+                targetAnim = &m_animHoldIdle;
+            }
+        } else if (crouched) {
             targetAnim = &m_animCrouch;
         } else if (!onGround) {
             targetAnim = &m_animJump;
@@ -224,12 +302,50 @@ void Player::update(float dt) {
     } else {
         // Stand up if crouch key was released
         if (crouched && m_currentState) {
-            crouched = false;
             float standingHeight = m_currentState->getSize().y;
             float heightDiff = standingHeight - boundingBox.height;
-            position.y -= heightDiff; // Stand upward
-            setTargetSize({m_currentState->getSize().x, standingHeight});
-            boundingBox.y = position.y;
+
+            bool canStand = true;
+            TileMap* tileMap = Game::getInstance().getTileMap();
+            if (tileMap) {
+                AABB targetBox {
+                    boundingBox.x,
+                    boundingBox.y - heightDiff,
+                    boundingBox.width,
+                    standingHeight
+                };
+
+                int startX = static_cast<int>(std::floor(targetBox.x / Constants::TILE_SIZE));
+                int endX = static_cast<int>(std::floor((targetBox.x + targetBox.width) / Constants::TILE_SIZE));
+                int startY = static_cast<int>(std::floor(targetBox.y / Constants::TILE_SIZE));
+                int endY = static_cast<int>(std::floor((targetBox.y + targetBox.height) / Constants::TILE_SIZE));
+
+                for (int y = startY; y <= endY; ++y) {
+                    for (int x = startX; x <= endX; ++x) {
+                        TileType tile = tileMap->getTileType(x, y);
+                        if (TileMap::getInfo(tile).isSolid) {
+                            AABB tileBox {
+                                x * Constants::TILE_SIZE,
+                                y * Constants::TILE_SIZE,
+                                Constants::TILE_SIZE,
+                                Constants::TILE_SIZE
+                            };
+                            if (targetBox.intersects(tileBox)) {
+                                canStand = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (!canStand) break;
+                }
+            }
+
+            if (canStand) {
+                crouched = false;
+                position.y -= heightDiff; // Stand upward
+                setTargetSize({m_currentState->getSize().x, standingHeight});
+                boundingBox.y = position.y;
+            }
         }
     }
 
@@ -277,6 +393,13 @@ void Player::render(sf::RenderTarget& target) {
             sprite.setScale(sf::Vector2f(scaleX, scale));
             sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
 
+            // Hurt invincibility visual alpha flicker (15Hz modulation between 100 and 255 alpha)
+            if (invincibilityTimer > 0.0f && invincibilityTimer < 9000.0f) {
+                bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
+                std::uint8_t alpha = dim ? 100 : 255;
+                sprite.setColor(sf::Color(255, 255, 255, alpha));
+            }
+
             target.draw(sprite);
         }
     }
@@ -300,6 +423,11 @@ void Player::gainLife() {
 }
 
 void Player::loseLife() {
+    if (m_isImmortal) {
+        lives = 1;
+        changeState(std::make_unique<SmallState>());
+        return; // Prevent dying in behavior test
+    }
     if (lives > 0) {
         --lives;
     }

@@ -7,6 +7,7 @@
 #include "Entities/Trampoline.hpp"
 #include "Entities/PSwitch.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/KoopaTroopa.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -124,13 +125,33 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
 }
 
 void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info) {
+    if (!enemy.isActive() || enemy.isDeadOrDying()) return;
+    if (player.getInvincibilityTimer() > 0.0f) return; // Completely ignore all enemy collisions (damage & stomp) while hurt invincible
+
+    // Touching any unflipped Koopa picks it up and prevents damage
+    if (auto koopa = dynamic_cast<KoopaTroopa*>(&enemy)) {
+        if (!koopa->isFlipped() && koopa->getState() != KoopaState::ShellHeld) {
+            if (info.normal.y == -1.0f && koopa->getState() == KoopaState::Walking) {
+                // If stomping a walking Koopa from above, execute standard stomp bounce
+                player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
+                koopa->onStomped();
+                return;
+            } else {
+                // Touching sideway/below (or touching idle/kicked shell from any angle) picks it up
+                koopa->pickUp(&player);
+                player.holdEntity(koopa);
+                return;
+            }
+        }
+    }
+
     if (info.normal.y == -1.0f) {
         // Player stomped enemy from above
         player.velocity.y = -Constants::STOMP_BOUNCE_FORCE; // Stomp bounce force
         enemy.onStomped();
         // Reset player combo / handle combos (this will be handled by EventBus / player states in Phase 3)
     } else {
-        // Player hit from the side or below -> takes damage (unless invincible/mega)
+        // Player hit from the side or below -> takes damage
         // If player is hit, we apply knockback away from the enemy
         float dx = player.getBoundingBox().getCenter().x - enemy.getBoundingBox().getCenter().x;
         float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
@@ -143,6 +164,8 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
 }
 
 void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info) {
+    if (player.getInvincibilityTimer() > 0.0f) return; // Ignore item collisions / collection while hurt invincible
+
     if (!item.isCollected()) {
         if (auto trampoline = dynamic_cast<Trampoline*>(&item)) {
             // Trampoline only bounces player when landed on from above

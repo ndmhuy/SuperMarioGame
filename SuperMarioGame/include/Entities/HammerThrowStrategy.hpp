@@ -11,6 +11,7 @@ public:
 
     // Callback to allow spawning projectiles without circular dependencies
     void setThrowCallback(std::function<void(sf::Vector2f position, bool faceRight)> callback);
+    void setThrowCallbackVel(std::function<void(sf::Vector2f position, sf::Vector2f velocity)> callback);
 
 protected:
     void calculateTarget(Enemy& enemy, float dt) override;
@@ -23,4 +24,5 @@ private:
     float m_jumpCooldownMax;
 
     std::function<void(sf::Vector2f position, bool faceRight)> m_throwCallback;
+    std::function<void(sf::Vector2f position, sf::Vector2f velocity)> m_throwVelCallback;
 };

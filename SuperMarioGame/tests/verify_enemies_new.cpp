@@ -161,6 +161,14 @@ int main() {
         TEST_ASSERT(receivedPoints == 100);
 
         EventBus::getInstance().unsubscribe(subId);
+
+        // Verify gravity and tile collision exemption
+        {
+            PiranhaPlant testPlant(startPos);
+            TEST_ASSERT(testPlant.getGravityMultiplier() == 0.0f);
+            TEST_ASSERT(!testPlant.collidesWithTiles());
+        }
+
         std::cout << "[TEST] PiranhaPlant tests PASSED!" << std::endl;
     }
 

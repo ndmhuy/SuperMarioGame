@@ -76,6 +76,7 @@ public:
         boundingBox.height = 32.f; // Default Small Mario
         changeState(std::make_unique<SmallState>());
     }
+    std::string getCharacterName() const override { return "TestPlayer"; }
     void update(float dt) override {}
     void render(sf::RenderTarget& target) override {}
 };

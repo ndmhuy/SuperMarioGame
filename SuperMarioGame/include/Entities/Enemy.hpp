@@ -28,9 +28,19 @@ public:
     int getScoreValue() const;
     void setScoreValue(int value);
 
+    bool isFlipped() const { return m_isFlipped; }
+    bool isDyingDownward() const { return m_isDyingDownward; }
+    virtual bool isDeadOrDying() const { return !active || m_isFlipped || m_isDyingDownward; }
+    void triggerFlipDeath(sf::Vector2f launchVel = {80.0f, -250.0f});
+    void triggerDownwardDeath(sf::Vector2f launchVel = {0.0f, 150.0f});
+    const AABB& getBoundingBox() const override;
+    bool collidesWithTiles() const override { return !m_isFlipped && !m_isDyingDownward; }
+
 protected:
     std::unique_ptr<IMovementStrategy> m_aiStrategy;
     int m_scoreValue;
+    bool m_isFlipped = false;
+    bool m_isDyingDownward = false;
 
     std::unique_ptr<Animator> m_animator;
     Animation m_animation;
