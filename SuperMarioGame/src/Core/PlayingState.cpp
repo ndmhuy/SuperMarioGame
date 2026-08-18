@@ -171,6 +171,49 @@ void PlayingState::enter() {
             }
         }
     });
+
+    // --- Minimap: 200x40 screen-space overview, toggled with M ---
+    // Constructed after the level is loaded so initialize() sees the final tile grid.
+    m_minimap = std::make_unique<Minimap>(
+        sf::Vector2f(Constants::WINDOW_WIDTH - 220.0f, Constants::WINDOW_HEIGHT - 60.0f),
+        sf::Vector2f(200.0f, 40.0f));
+    m_minimap->initialize(m_tileMap);
+
+    // --- Particle bursts + death effects, driven from the EventBus ---
+    EventBus& bus = EventBus::getInstance();
+
+    m_enemyDefeatedSubId = bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent&) {
+        // The event only carries a score value, so locate the enemy that just went
+        // inactive to place the burst and the flip animation at its last position.
+        if (!m_enemySheet) return;
+        for (const auto& entity : m_entities) {
+            auto enemy = dynamic_cast<Enemy*>(entity.get());
+            if (!enemy || enemy->isActive()) continue;
+
+            const sf::Vector2f pos = enemy->getPosition();
+            m_particleEmitter.burst(pos + sf::Vector2f(16.0f, 16.0f), ParticleType::Stomp);
+            EntityDeathEffect::getInstance().spawnDeathEffect(
+                pos, m_enemySheet->getSprite("goomba_brown_move_0"), DeathEffectType::EnemyFlip);
+            break;
+        }
+    });
+
+    m_blockBrokenSubId = bus.subscribe(EventType::BlockBroken, [this](const GameEvent&) {
+        if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter() + sf::Vector2f(0.0f, -24.0f),
+                                              ParticleType::BrickBreak);
+    });
+
+    m_coinParticleSubId = bus.subscribe(EventType::CoinCollected, [this](const GameEvent&) {
+        if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::CoinSparkle);
+    });
+
+    m_playerDamagedSubId = bus.subscribe(EventType::PlayerDamaged, [this](const GameEvent&) {
+        if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::DeathPoof);
+    });
+
+    // --- Screen transition: fade the level in on entry ---
+    ScreenTransitionManager::getInstance().reset();
+    ScreenTransitionManager::getInstance().fadeIn(0.45f);
 }
 
 void PlayingState::exit() {
@@ -190,6 +233,20 @@ void PlayingState::exit() {
         m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 
+    // Particle / death-effect subscriptions. These capture `this`, so they must go
+    // before the state is destroyed or the next publish dereferences freed memory.
+    {
+        EventBus& bus = EventBus::getInstance();
+        const auto NONE = static_cast<EventBus::SubscriptionId>(-1);
+        for (auto* id : { &m_enemyDefeatedSubId, &m_blockBrokenSubId,
+                          &m_coinParticleSubId, &m_playerDamagedSubId }) {
+            if (*id != NONE) { bus.unsubscribe(*id); *id = NONE; }
+        }
+    }
+
+    m_minimap.reset();
+    EntityDeathEffect::getInstance().clear();
+
     // Unregister player and tilemap to prevent dangling pointer crashes on exit
     InputManager::getInstance().registerPlayer(nullptr, 0);
     Game::getInstance().setPlayer(nullptr);
@@ -206,6 +263,11 @@ void PlayingState::handleInput(const sf::Event& event) {
         if (!m_mapEditor.isActive()) {
             if (keyPressed->code == sf::Keyboard::Key::Backspace) {
                 Game::getInstance().changeState(std::make_unique<MenuState>());
+            }
+
+            // M toggles the minimap. Minimap subscribes to this event itself.
+            if (keyPressed->code == sf::Keyboard::Key::M) {
+                EventBus::getInstance().publish({EventType::MinimapToggled, 0});
             }
 
             EventBus& bus = EventBus::getInstance();
@@ -341,7 +403,10 @@ void PlayingState::update(float dt) {
         } else {
             m_player->loseLife();
             std::cout << "[PlayingState] Game Over! Out of lives." << std::endl;
-            Game::getInstance().changeState(std::make_unique<MenuState>());
+            // Fade to black before handing control back, rather than cutting instantly.
+            ScreenTransitionManager::getInstance().fadeOut(0.6f, []() {
+                Game::getInstance().changeState(std::make_unique<MenuState>());
+            });
             return;
         }
     }
@@ -370,6 +435,16 @@ void PlayingState::update(float dt) {
     }
     m_camera.update(dt);
     ScreenTransitionManager::getInstance().update(dt);
+
+    // 4b. Update the wired visual subsystems.
+    // Death effects need the camera's bottom edge so instances can despawn once
+    // they fall off-screen; particles and the minimap are camera-independent.
+    ParticleSystem::getInstance().update(dt);
+    AABB visible = m_camera.getVisibleBounds();
+    EntityDeathEffect::getInstance().update(dt, visible.y + visible.height);
+    if (m_minimap) {
+        m_minimap->update(dt, m_player, m_entities);
+    }
 
     // 5. Sync HUD with player stats or fallback mock data
     if (m_hud) {
@@ -539,8 +614,10 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
-    // 3. Draw entity death effects (flying trajectories)
+    // 3. Draw entity death effects (flying trajectories) and impact particles.
+    // Both are world-space, so they must be drawn while the camera view is still active.
     EntityDeathEffect::getInstance().render(target);
+    target.draw(ParticleSystem::getInstance());
 
     // 4. Draw AABB overlays (dev toggle)
     if (m_showAABB) {
@@ -579,6 +656,11 @@ void PlayingState::render(sf::RenderTarget& target) {
         sf::View oldView = target.getView();
         target.setView(target.getDefaultView());
         target.draw(*m_hud);
+
+        // Minimap is screen-space and manages its own visibility via MinimapToggled
+        if (m_minimap) {
+            target.draw(*m_minimap);
+        }
 
         if (m_rewindManager.isRewinding()) {
             // Full-screen cyan vignette scanline filter overlay

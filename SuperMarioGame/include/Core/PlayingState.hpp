@@ -9,6 +9,8 @@
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelLoader.hpp"
 #include "Graphics/Hud.hpp"
+#include "Graphics/Minimap.hpp"
+#include "Graphics/ParticleEmitter.hpp"
 #include "Core/TimeRewindManager.hpp"
 #include <vector>
 #include <memory>
@@ -50,6 +52,16 @@ private:
 
     std::unique_ptr<Hud> m_hud;
     float m_levelTimer = 300.0f;
+
+    // Minimap overlay (toggled with M via EventType::MinimapToggled)
+    std::unique_ptr<Minimap> m_minimap;
+
+    // Combat/impact particle bursts, driven from EventBus
+    ParticleEmitter m_particleEmitter;
+    EventBus::SubscriptionId m_enemyDefeatedSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_blockBrokenSubId   = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_coinParticleSubId  = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_playerDamagedSubId = static_cast<EventBus::SubscriptionId>(-1);
 
     bool m_startInEditor = false;
     bool m_isProcedural = false;
