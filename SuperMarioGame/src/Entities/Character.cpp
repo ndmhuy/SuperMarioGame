@@ -19,7 +19,10 @@ void Character::clearMovementRequests() {
 #include "Core/SoundManager.hpp"
 
 void Character::jump() {
-    if (onGround || onWall) {
+    // Grounded only. Accepting onWall here let a held jump key climb any wall
+    // indefinitely (audit A-4); wall jumps go through WallJumpCommand ->
+    // Player::wallJump(), which applies the horizontal push-off as well.
+    if (onGround) {
         this->velocity.y = -this->jumpForce;
         SoundManager::getInstance().playSound("jump_small");
     }

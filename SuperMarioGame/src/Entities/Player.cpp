@@ -1,10 +1,29 @@
 #include "Entities/Player.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/SoundManager.hpp"
 #include "Core/GameSnapshot.hpp"
 #include "Core/Game.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
+
+void Player::performJump() {
+    velocity.y = -jumpForce;
+    onGround = false;
+    coyoteFramesLeft = 0;      // one jump per grace window
+    jumpBufferFramesLeft = 0;  // request satisfied
+    SoundManager::getInstance().playSound("jump_small");
+}
+
+void Player::jump() {
+    if (onGround || coyoteFramesLeft > 0) {
+        performJump();
+    } else {
+        // Airborne: remember the request briefly. Player::update fires it the
+        // moment we touch down, so a press a few frames early is not swallowed.
+        jumpBufferFramesLeft = Constants::JUMP_BUFFER_FRAMES;
+    }
+}
 
 void Player::run() {
     m_runRequested = true;
@@ -47,21 +66,52 @@ void Player::shootFireball() {
     m_fireballCooldownTimer = 0.3f; // 0.3s cooldown between shots
 }
 
+IPlayerState* Player::getBaseState() const {
+    IPlayerState* baseState = m_currentState.get();
+    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+        baseState = decorator->getWrappedState();
+    }
+    return baseState;
+}
+
+void Player::setBaseState(std::unique_ptr<IPlayerState> newBase) {
+    if (!newBase) return;
+
+    // No decorators active: this is an ordinary state change.
+    auto* outermost = dynamic_cast<PlayerStateDecorator*>(m_currentState.get());
+    if (!outermost) {
+        changeState(std::move(newBase));
+        return;
+    }
+
+    // Walk to the innermost decorator and swap the base form underneath it, so an
+    // active Star or Mega survives collecting a Fire Flower (audit A-8).
+    PlayerStateDecorator* innermost = outermost;
+    while (auto* next = dynamic_cast<PlayerStateDecorator*>(innermost->getWrappedState())) {
+        innermost = next;
+    }
+
+    if (IPlayerState* oldBase = innermost->getWrappedState()) {
+        oldBase->exit(*this);
+    }
+    newBase->enter(*this);
+    innermost->setWrappedState(std::move(newBase));
+
+    applyStateSize();
+    refreshStateAnimations();
+}
+
 void Player::powerUp(int itemType) {
     if (itemType == 0) { // Mushroom: Small -> Super
-        IPlayerState* baseState = m_currentState.get();
-        while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
-            baseState = decorator->getWrappedState();
-        }
-        if (dynamic_cast<SmallState*>(baseState)) {
-            changeState(std::make_unique<SuperState>());
+        if (dynamic_cast<SmallState*>(getBaseState())) {
+            setBaseState(std::make_unique<SuperState>());
         }
     } else if (itemType == 1) { // FireFlower: -> Fire
-        changeState(std::make_unique<FireState>());
+        setBaseState(std::make_unique<FireState>());
     } else if (itemType == 2) { // CapeFeather: -> Cape
-        changeState(std::make_unique<CapeState>());
+        setBaseState(std::make_unique<CapeState>());
     } else if (itemType == 3) { // MiniMushroom: -> Mini
-        changeState(std::make_unique<MiniState>());
+        setBaseState(std::make_unique<MiniState>());
     } else if (itemType == 4) { // Star: Wrap current state with StarDecorator
         if (m_currentState) {
             auto starDecorator = std::make_unique<StarDecorator>(std::move(m_currentState));
@@ -100,6 +150,7 @@ void Player::powerDown() {
         state = decorator->getWrappedState();
     }
 
+
     if (isInvincible || isMega) return;
 
     // Apply temporary invincibility frames
@@ -107,10 +158,10 @@ void Player::powerDown() {
 
     // Powerdown transition: Fire/Cape/Mini -> Super -> Small -> Death
     if (dynamic_cast<FireState*>(state) || dynamic_cast<CapeState*>(state) || dynamic_cast<MiniState*>(state)) {
-        changeState(std::make_unique<SuperState>());
+        setBaseState(std::make_unique<SuperState>());
         EventBus::getInstance().publish({EventType::PlayerDamaged, this});
     } else if (dynamic_cast<SuperState*>(state)) {
-        changeState(std::make_unique<SmallState>());
+        setBaseState(std::make_unique<SmallState>());
         EventBus::getInstance().publish({EventType::PlayerDamaged, this});
     } else if (dynamic_cast<SmallState*>(state)) {
         loseLife();
@@ -306,16 +357,21 @@ void Player::update(float dt) {
         }
     }
 
-    // 2. Update coyote time and jump buffer counters
-    if (coyoteFramesLeft > 0) {
+    // 2. Coyote time and jump buffering.
+    if (onGround) {
+        // Refresh the grace window while grounded, and satisfy any jump that was
+        // pressed just before touchdown.
+        coyoteFramesLeft = Constants::COYOTE_FRAMES;
+        if (jumpBufferFramesLeft > 0) {
+            performJump();
+        }
+    } else if (coyoteFramesLeft > 0) {
+        // Airborne: burn down the post-ledge grace window.
         --coyoteFramesLeft;
     }
+
     if (jumpBufferFramesLeft > 0) {
         --jumpBufferFramesLeft;
-    }
-    
-    if (onGround) {
-        coyoteFramesLeft = Constants::COYOTE_FRAMES;
     }
 
     // 3. Handle Crouching transitions

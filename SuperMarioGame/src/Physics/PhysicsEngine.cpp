@@ -247,7 +247,13 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                 // Head-butt logic for Player hitting ceiling tiles from below
                 if (auto player = dynamic_cast<Player*>(entity.get())) {
                     for (const auto& col : collisions) {
-                        if (col.tileX != -1 && col.tileY != -1 && (col.normal.y == 1.0f || preVelY < 0.0f)) {
+                        // Only a ceiling contact counts as a head-butt. The old
+                        // condition also accepted `preVelY < 0.0f`, which is true for
+                        // *horizontal* collisions while rising — so jumping up a
+                        // 1-tile shaft destroyed the bricks either side of the player
+                        // along with the one overhead (audit A-6).
+                        const bool hitFromBelow = (col.normal.y == 1.0f) && (preVelY < 0.0f);
+                        if (col.tileX != -1 && col.tileY != -1 && hitFromBelow) {
                             TileType hitTile = tileMap.getTileType(col.tileX, col.tileY);
                             
                             if (hitTile == TileType::Brick) {

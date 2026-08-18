@@ -13,6 +13,11 @@ public:
     explicit Player(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f}) : Character(pos, targetSize) {}
     ~Player() override = default;
 
+    // Jump with coyote time and jump buffering. A press slightly after walking off
+    // a ledge still jumps; a press slightly before landing is queued and fires on
+    // touchdown. Both counters existed but were never read before (audit A-4).
+    void jump() override;
+
     // Advanced movement controls
     virtual void run();
     virtual void wallJump();
@@ -28,6 +33,13 @@ public:
     // Active state methods
     IPlayerState* getCurrentState() const;
     void changeState(std::unique_ptr<IPlayerState> state);
+
+    // Innermost base form, with any Star/Mega decorators unwrapped.
+    IPlayerState* getBaseState() const;
+    // Swap the base form while leaving active decorators in place. Base-form
+    // power-ups must use this; changeState() would discard an active Star or
+    // Mega (audit A-8).
+    void setBaseState(std::unique_ptr<IPlayerState> newBase);
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     virtual void setupAnimations(const SpriteSheet* spriteSheet);
@@ -113,6 +125,10 @@ protected:
     bool m_hasAnimation = false;
 
     void setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix);
+
+    // Unconditional jump impulse. Callers are responsible for deciding whether a
+    // jump is allowed; this just performs it and clears both jump counters.
+    void performJump();
 
     // Resize the bounding box to the active state, keeping the feet planted.
     void applyStateSize();

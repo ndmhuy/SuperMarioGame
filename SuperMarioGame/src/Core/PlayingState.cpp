@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <random>
+#include <unordered_map>
 
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig)
@@ -341,31 +342,29 @@ void PlayingState::update(float dt) {
             m_player->restoreMemento(snapshot.playerState);
         }
 
-        // Restore active entities states
-        for (std::size_t i = 0; i < m_entities.size() && i < snapshot.entityStates.size(); ++i) {
-            if (m_entities[i]) {
-                m_entities[i]->setPosition(snapshot.entityStates[i].position);
-                m_entities[i]->setVelocity(snapshot.entityStates[i].velocity);
-                m_entities[i]->active = snapshot.entityStates[i].active;
-            }
+        // Restore entities by id, not by index. Between record and restore the
+        // prune step removes inactive entities and the fireball listener appends
+        // new ones, so positions in m_entities do not correspond across frames.
+        std::unordered_map<std::uint32_t, const EntitySnapshot*> byId;
+        byId.reserve(snapshot.entityStates.size());
+        for (const auto& es : snapshot.entityStates) {
+            byId.emplace(es.id, &es);
+        }
+        for (const auto& entity : m_entities) {
+            if (!entity) continue;
+            auto it = byId.find(entity->getId());
+            if (it == byId.end()) continue;  // spawned after this snapshot — leave it alone
+            entity->setPosition(it->second->position);
+            entity->setVelocity(it->second->velocity);
+            entity->active = it->second->active;
         }
         return; // Skip forward physics integration while rewinding
-    } else {
-        m_rewindManager.setRewinding(false);
-        // Record Memento snapshot when not rewinding
-        if (m_player) {
-            GameSnapshot currentSnap;
-            currentSnap.playerState = m_player->createSnapshot();
-            currentSnap.levelTimer = m_levelTimer;
-            currentSnap.cameraCenter = m_camera.getView().getCenter();
-            for (const auto& entity : m_entities) {
-                if (entity) {
-                    currentSnap.entityStates.push_back({entity->getPosition(), entity->getVelocity(), entity->isActive()});
-                }
-            }
-            m_rewindManager.recordSnapshot(currentSnap);
-        }
     }
+
+    m_rewindManager.setRewinding(false);
+    // The snapshot for this frame is recorded at the end of update(), once
+    // physics has run. Recording here as well used to double the rate and halve
+    // the effective rewind window.
 
     // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run)
     if (m_player) {
@@ -472,24 +471,23 @@ void PlayingState::update(float dt) {
         m_hud->sync(hudData);
     }
 
-    // Record GameSnapshot Memento state at end of frame update
+    // Record the Memento snapshot for this frame — exactly once, here, after
+    // physics has run. This is the ONLY recording site; a second one at the top
+    // of update() used to double the rate and halve the rewind window.
     if (!m_rewindManager.isRewinding()) {
         GameSnapshot snapshot;
         snapshot.levelTimer = m_levelTimer;
         snapshot.cameraCenter = m_camera.getView().getCenter();
 
         if (m_player) {
-            snapshot.playerState.position = m_player->getPosition();
-            snapshot.playerState.velocity = m_player->getVelocity();
-            snapshot.playerState.score = m_player->getScore();
-            snapshot.playerState.coins = m_player->getCoins();
-            snapshot.playerState.lives = m_player->getLives();
-            snapshot.playerState.onGround = m_player->isOnGround();
+            snapshot.playerState = m_player->createSnapshot();
         }
 
+        snapshot.entityStates.reserve(m_entities.size());
         for (const auto& entity : m_entities) {
             if (entity) {
                 snapshot.entityStates.push_back({
+                    entity->getId(),
                     entity->getPosition(),
                     entity->getVelocity(),
                     entity->isActive()

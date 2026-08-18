@@ -14,11 +14,15 @@
 #include "Utils/Constants.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/IPlayerState.hpp"
+#include "Core/GameSnapshot.hpp"
 
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
+#include <unordered_map>
+#include <cstdint>
 
 namespace {
 
@@ -182,6 +186,121 @@ void testRestoreStatsIsSilent() {
     check(mario.getLives() != 7, "restoreStats did not trigger the 1-UP rule");
 }
 
+// ---------------------------------------------------------------------------
+// A-5 — rewind snapshots were paired to entities by vector index. Pruning an
+// entity between record and restore shifted every later index by one, so
+// rewinding silently teleported entities into each other's positions.
+// ---------------------------------------------------------------------------
+void testRewindRestoresByIdNotIndex() {
+    section("A-5  rewind survives an entity being pruned mid-sequence");
+
+    // Three entities with known, distinct positions.
+    std::vector<std::unique_ptr<Mario>> world;
+    world.push_back(std::make_unique<Mario>(sf::Vector2f{100.0f, 0.0f}));
+    world.push_back(std::make_unique<Mario>(sf::Vector2f{200.0f, 0.0f}));
+    world.push_back(std::make_unique<Mario>(sf::Vector2f{300.0f, 0.0f}));
+
+    check(world[0]->getId() != world[1]->getId() &&
+          world[1]->getId() != world[2]->getId(),
+          "entity ids are unique");
+
+    // Record.
+    GameSnapshot snap;
+    for (const auto& e : world) {
+        snap.entityStates.push_back({e->getId(), e->getPosition(), e->getVelocity(), e->isActive()});
+    }
+
+    // The middle entity is pruned and everything moves — exactly what happens
+    // between two frames of real gameplay.
+    world.erase(world.begin() + 1);
+    for (auto& e : world) e->setPosition({-999.0f, -999.0f});
+
+    // Restore by id.
+    std::unordered_map<std::uint32_t, const EntitySnapshot*> byId;
+    for (const auto& es : snap.entityStates) byId.emplace(es.id, &es);
+    for (const auto& e : world) {
+        auto it = byId.find(e->getId());
+        if (it != byId.end()) e->setPosition(it->second->position);
+    }
+
+    // Index-based restore would have given the survivor at index 1 the snapshot
+    // of the deleted entity — 200 instead of 300.
+    check(world[0]->getPosition().x == 100.0f, "first entity restored to 100");
+    check(world[1]->getPosition().x == 300.0f,
+          "surviving third entity restored to 300, not 200 (index drift would give 200)");
+}
+
+// ---------------------------------------------------------------------------
+// A-4 — coyote time and jump buffering were counted but never read by jump().
+// ---------------------------------------------------------------------------
+void testCoyoteTime() {
+    section("A-4  coyote time lets a jump land just after leaving a ledge");
+
+    Mario mario({0.0f, 0.0f});
+    mario.setGrounded(true);
+    mario.update(Constants::FIXED_TIMESTEP);          // charges the grace window
+    check(mario.getCoyoteFramesLeft() > 0, "grace window charged while grounded");
+
+    mario.setGrounded(false);                          // walked off the ledge
+    mario.update(Constants::FIXED_TIMESTEP);
+    check(mario.getCoyoteFramesLeft() > 0, "grace window still open one frame later");
+
+    mario.setVelocity({0.0f, 0.0f});
+    mario.jump();
+    check(mario.getVelocity().y < 0.0f, "jump fires during the coyote window");
+}
+
+void testCoyoteWindowExpires() {
+    section("A-4  coyote window does expire");
+
+    Mario mario({0.0f, 0.0f});
+    mario.setGrounded(true);
+    mario.update(Constants::FIXED_TIMESTEP);
+    mario.setGrounded(false);
+    for (int i = 0; i < Constants::COYOTE_FRAMES + 4; ++i) {
+        mario.update(Constants::FIXED_TIMESTEP);
+    }
+    check(mario.getCoyoteFramesLeft() == 0, "window closed after COYOTE_FRAMES");
+
+    mario.setVelocity({0.0f, 0.0f});
+    mario.jump();
+    check(mario.getVelocity().y == 0.0f, "a late jump does not fire mid-air");
+    check(mario.getJumpBufferFramesLeft() > 0, "it is buffered instead of dropped");
+}
+
+void testJumpBufferFiresOnLanding() {
+    section("A-4  a jump pressed just before landing fires on touchdown");
+
+    Mario mario({0.0f, 0.0f});
+    mario.setGrounded(false);
+    mario.jump();                                      // pressed in mid-air
+    check(mario.getJumpBufferFramesLeft() > 0, "request buffered");
+
+    mario.setVelocity({0.0f, 0.0f});
+    mario.setGrounded(true);                           // touchdown
+    mario.update(Constants::FIXED_TIMESTEP);
+
+    check(mario.getVelocity().y < 0.0f, "buffered jump fired on landing");
+    check(mario.getJumpBufferFramesLeft() == 0, "buffer consumed");
+}
+
+// ---------------------------------------------------------------------------
+// A-8 — base-form power-ups called changeState(), discarding an active Star.
+// ---------------------------------------------------------------------------
+void testPowerUpPreservesStar() {
+    section("A-8  collecting a Fire Flower does not cancel Star");
+
+    Mario mario({0.0f, 0.0f});
+    mario.powerUp(4); // Star
+    check(dynamic_cast<StarDecorator*>(mario.getCurrentState()) != nullptr, "Star active");
+
+    mario.powerUp(1); // Fire Flower
+    check(dynamic_cast<StarDecorator*>(mario.getCurrentState()) != nullptr,
+          "Star survived the power-up");
+    check(dynamic_cast<FireState*>(mario.getBaseState()) != nullptr,
+          "base form advanced to FireState underneath the decorator");
+}
+
 } // namespace
 
 int main() {
@@ -192,6 +311,11 @@ int main() {
     testStarDecoratorExpiry();
     testMegaDecoratorExpiry();
     testRestoreStatsIsSilent();
+    testRewindRestoresByIdNotIndex();
+    testCoyoteTime();
+    testCoyoteWindowExpires();
+    testJumpBufferFiresOnLanding();
+    testPowerUpPreservesStar();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

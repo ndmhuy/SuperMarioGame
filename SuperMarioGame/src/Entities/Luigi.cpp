@@ -41,11 +41,16 @@ void Luigi::render(sf::RenderTarget& target) {
 }
 
 void Luigi::jump() {
-    if (onGround || onWall) {
+    // Ground jump, or within the coyote grace window — Player::jump handles both.
+    if (onGround || getCoyoteFramesLeft() > 0) {
         Player::jump();
         m_hasDoubleJumped = false;
     } else if (!m_hasDoubleJumped) {
         doubleJump();
+    } else {
+        // Both jumps spent: fall through to Player::jump, which buffers the
+        // request so it fires on landing instead of being dropped.
+        Player::jump();
     }
 }
 
