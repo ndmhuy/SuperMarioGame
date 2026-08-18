@@ -82,9 +82,8 @@ void StarDecorator::exit(Player& player) {
 void StarDecorator::update(Player& player, float dt) {
     PlayerStateDecorator::update(player, dt);
     m_timeLeft -= dt;
-    if (m_timeLeft <= 0.0f) {
-        player.changeState(std::move(m_wrappedState));
-    }
+    // Deliberately does NOT call player.changeState() here — that would free this
+    // object mid-update. Player::update sees isExpired() and unwraps us instead.
 }
 
 // --- MegaDecorator ---
@@ -102,9 +101,7 @@ void MegaDecorator::exit(Player& player) {
 void MegaDecorator::update(Player& player, float dt) {
     PlayerStateDecorator::update(player, dt);
     m_timeLeft -= dt;
-    if (m_timeLeft <= 0.0f) {
-        player.changeState(std::move(m_wrappedState));
-    }
+    // See StarDecorator::update — expiry is reported, not acted on.
 }
 
 sf::Vector2f MegaDecorator::getSize() const {

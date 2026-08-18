@@ -48,6 +48,36 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(json)
 
 # ---------------------------------------------------------
+# 1b. Warnings & testing
+# ---------------------------------------------------------
+# Warnings are cheap here: a full -Wall -Wextra pass over the ten largest
+# translation units produced seven findings, two of which (m_powerUpSubId,
+# m_levelCompleteSubId) were direct evidence of an unwired feature.
+if (MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
+endif()
+
+enable_testing()
+
+# Registers a headless test executable and its ctest case in one step, instead
+# of repeating the add_executable / include / link block per target.
+function(add_verify_test name source)
+    add_executable(${name} "${source}" ${APP_SOURCES})
+    target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(${name} PRIVATE
+        SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
+        ImGui-SFML::ImGui-SFML
+        nlohmann_json::nlohmann_json)
+    add_test(NAME ${name} COMMAND ${name})
+    # Assets resolve relative to the source tree, not the build directory.
+    set_tests_properties(${name} PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        TIMEOUT 120)
+endfunction()
+
+# ---------------------------------------------------------
 # 2. Source Files configuration
 # ---------------------------------------------------------
 file(GLOB_RECURSE SOURCES 
@@ -516,3 +546,12 @@ target_link_libraries(generate_game_levels PRIVATE
 
 
 
+
+# ---------------------------------------------------------
+# 18. Audit Regression Suite (headless, runs under CTest)
+# ---------------------------------------------------------
+# The August 2026 audit found six subsystems shipped "complete" and inert, and
+# three critical defects, none of which any automated check would have caught.
+# This target is the guard against that recurring. Keep it headless so CI can
+# run it without a display.
+add_verify_test(verify_regressions "tests/verify_regressions.cpp")

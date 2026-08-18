@@ -122,6 +122,36 @@ IPlayerState* Player::getCurrentState() const {
     return m_currentState.get();
 }
 
+void Player::applyStateSize() {
+    if (!m_currentState) return;
+
+    // Resize the bounding box to the active state, keeping the feet planted so
+    // growing or shrinking never pushes the player through the floor.
+    const sf::Vector2f newSize = m_currentState->getSize();
+    const float heightDiff = newSize.y - boundingBox.height;
+    position.y -= heightDiff;
+
+    setTargetSize(newSize);
+    boundingBox.x = position.x;
+    boundingBox.y = position.y;
+}
+
+void Player::refreshStateAnimations() {
+    if (!m_spriteSheet || !m_currentState) return;
+
+    // Sprite prefix comes from the innermost base form; decorators do not have
+    // their own sprite sets.
+    IPlayerState* baseState = m_currentState.get();
+    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+        baseState = decorator->getWrappedState();
+    }
+    std::string stateSuffix = "small";
+    if (dynamic_cast<MiniState*>(baseState)) {
+        stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
+    }
+    setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
+}
+
 void Player::changeState(std::unique_ptr<IPlayerState> state) {
     if (m_currentState) {
         m_currentState->exit(*this);
@@ -129,30 +159,29 @@ void Player::changeState(std::unique_ptr<IPlayerState> state) {
     m_currentState = std::move(state);
     if (m_currentState) {
         m_currentState->enter(*this);
-        
-        // Dynamically adjust player bounding box size to match the new state
-        sf::Vector2f newSize = m_currentState->getSize();
-        float heightDiff = newSize.y - boundingBox.height;
-        
-        // Adjust position.y so player's feet stay grounded when growing/shrinking
-        position.y -= heightDiff;
-        
-        setTargetSize(newSize);
-        boundingBox.x = position.x;
-        boundingBox.y = position.y;
+        applyStateSize();
+        refreshStateAnimations();
+    }
+}
 
-        // Update character animations based on the new active state
-        if (m_spriteSheet) {
-            IPlayerState* baseState = m_currentState.get();
-            while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
-                baseState = decorator->getWrappedState();
-            }
-            std::string stateSuffix = "small";
-            if (dynamic_cast<MiniState*>(baseState)) {
-                stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
-            }
-            setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
-        }
+void Player::unwrapExpiredState() {
+    // Retire expired timed decorators. Called from update() *after* the state's own
+    // update() has returned, so destroying it here is safe. Loops because Star and
+    // Mega can be stacked and may lapse on the same frame.
+    while (m_currentState && m_currentState->isExpired()) {
+        auto* decorator = dynamic_cast<PlayerStateDecorator*>(m_currentState.get());
+        if (!decorator) break;   // nothing to fall back to
+
+        std::unique_ptr<IPlayerState> inner = decorator->releaseWrappedState();
+        if (!inner) break;
+
+        // Only the decorator's own teardown runs: its m_wrappedState is already
+        // null, so the inner state is not exited — it never left, and deliberately
+        // does not get enter() called on it again.
+        m_currentState->exit(*this);
+        m_currentState = std::move(inner);
+        applyStateSize();
+        refreshStateAnimations();
     }
 }
 
@@ -372,6 +401,10 @@ void Player::update(float dt) {
     if (m_currentState) {
         m_currentState->update(*this, dt);
     }
+
+    // 6. Retire any expired timed state, now that its update() has returned and
+    // destroying it is safe.
+    unwrapExpiredState();
 }
 
 void Player::render(sf::RenderTarget& target) {
@@ -434,6 +467,12 @@ void Player::loseLife() {
     if (lives <= 0) {
         EventBus::getInstance().publish({EventType::GameOver, 0});
     }
+}
+
+void Player::restoreStats(int newLives, int newCoins, int newScore) {
+    lives = newLives;
+    coins = newCoins;
+    score = newScore;
 }
 
 void Player::resetCombo() {

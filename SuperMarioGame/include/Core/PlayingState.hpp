@@ -86,6 +86,12 @@ private:
     void setupTestScene();
     void cleanupTestScene();
     void spawnSelectedPlayer(const sf::Vector2f& pos);
+
+    // Takes ownership of `player`, installs it at m_entities[0], and refreshes every
+    // observer that holds a raw Player* (m_player, InputManager, Game) plus its
+    // animations. Every path that replaces the active player MUST go through this —
+    // assigning m_entities[0] directly leaves m_player dangling (audit A-3).
+    void adoptPlayer(std::unique_ptr<Player> player);
     bool loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride = {0.0f, 0.0f});
 
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet

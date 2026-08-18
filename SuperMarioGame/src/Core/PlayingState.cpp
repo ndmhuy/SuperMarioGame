@@ -1027,8 +1027,9 @@ void PlayingState::render(sf::RenderTarget& target) {
                         if (starCoins.size() >= 3) {
                             m_starCoinsCollected = {starCoins[0], starCoins[1], starCoins[2]};
                         }
-                        wireEntityAnimations(loadedPlayer.get());
-                        m_entities[0] = std::move(loadedPlayer);
+                        // adoptPlayer refreshes m_player, InputManager and Game.
+                        // Assigning m_entities[0] directly here left m_player dangling.
+                        adoptPlayer(std::move(loadedPlayer));
                         Game::getInstance().setActiveSlot(slot);
                         std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
                     }
@@ -1191,7 +1192,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
         return false;
     }
 
-    int savedLives = 3;
+    int savedLives = Constants::INITIAL_LIVES;
     int savedCoins = 0;
     int savedScore = 0;
     if (m_player) {
@@ -1210,11 +1211,11 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     sf::Vector2f spawnPos = (spawnOverride.x != 0.0f || spawnOverride.y != 0.0f) ? spawnOverride : levelData.spawnPoint;
 
+    // cleanupTestScene() nulled m_player, so spawnSelectedPlayer cannot carry the
+    // stats itself — apply them here, through the same silent path.
     spawnSelectedPlayer(spawnPos);
     if (m_player) {
-        m_player->lives = savedLives;
-        m_player->coins = savedCoins;
-        m_player->score = savedScore;
+        m_player->restoreStats(savedLives, savedCoins, savedScore);
     }
 
     Game::getInstance().setTileMap(&m_tileMap);
@@ -1225,22 +1226,34 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 }
 
 
+void PlayingState::adoptPlayer(std::unique_ptr<Player> player) {
+    if (!player) return;
+
+    // Drop any previous player entity first so the vector never holds two.
+    auto it = std::find_if(m_entities.begin(), m_entities.end(),
+                           [this](const std::unique_ptr<Entity>& e) { return e.get() == m_player; });
+    if (it != m_entities.end()) {
+        m_entities.erase(it);
+    }
+
+    m_player = player.get();
+    m_entities.insert(m_entities.begin(), std::move(player));
+
+    // Refresh every observer holding a raw Player*. Skipping any one of these is
+    // what made the save-slot Load button a use-after-free.
+    InputManager::getInstance().registerPlayer(m_player, 0);
+    Game::getInstance().setPlayer(m_player);
+    wireEntityAnimations(m_player);
+}
+
 void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     int oldCoins = 0;
     int oldScore = 0;
-    int oldLives = 3;
+    int oldLives = Constants::INITIAL_LIVES;
     if (m_player) {
         oldCoins = m_player->getCoins();
         oldScore = m_player->getScore();
         oldLives = m_player->getLives();
-
-        auto it = std::find_if(m_entities.begin(), m_entities.end(), [this](const std::unique_ptr<Entity>& e) {
-            return e.get() == m_player;
-        });
-        if (it != m_entities.end()) {
-            m_entities.erase(it);
-        }
-        m_player = nullptr;
     }
 
     std::unique_ptr<Player> newPlayer;
@@ -1254,18 +1267,11 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
         newPlayer = std::make_unique<Peach>(pos);
     }
 
-    // Restore stats
-    if (oldCoins > 0) newPlayer->addCoins(oldCoins);
-    if (oldScore > 0) newPlayer->addScore(oldScore);
-    while (newPlayer->getLives() < oldLives) newPlayer->gainLife();
-    while (newPlayer->getLives() > oldLives) newPlayer->loseLife();
+    // Carry stats across the swap silently. addCoins()/loseLife() would publish
+    // CoinCollected and GameOver here, inflating statistics and achievements.
+    newPlayer->restoreStats(oldLives, oldCoins, oldScore);
 
-    m_player = newPlayer.get();
-    m_entities.insert(m_entities.begin(), std::move(newPlayer));
-
-    InputManager::getInstance().registerPlayer(m_player, 0);
-    wireEntityAnimations(m_player);
-    Game::getInstance().setPlayer(m_player);
+    adoptPlayer(std::move(newPlayer));
 }
 
 void PlayingState::wireEntityAnimations(Entity* entity) {

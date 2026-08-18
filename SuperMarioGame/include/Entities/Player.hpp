@@ -37,6 +37,11 @@ public:
     void addScore(int amount);
     void gainLife();
     void loseLife();
+
+    // Silently install carried-over stats when swapping the player instance
+    // (character select, level transition, save load). Unlike addCoins()/loseLife()
+    // this publishes no events, so statistics and achievements are not inflated.
+    void restoreStats(int newLives, int newCoins, int newScore);
     void resetCombo();
     void incrementCombo();
 
@@ -108,6 +113,15 @@ protected:
     bool m_hasAnimation = false;
 
     void setupCharacterAnimations(const SpriteSheet* spriteSheet, const std::string& prefix);
+
+    // Resize the bounding box to the active state, keeping the feet planted.
+    void applyStateSize();
+    // Re-point the animator at the innermost base form's sprite prefix.
+    void refreshStateAnimations();
+    // Unwrap any timed decorator that reported isExpired(). Must be called from
+    // update() after the state's own update() has returned — never from inside a
+    // state, which would free the object mid-call (audit A-7).
+    void unwrapExpiredState();
 };
 
 

@@ -37,29 +37,42 @@
 
 namespace SerializationUtils {
 
+// Canonical tile name <-> TileType mapping.
+//
+// These two functions are the ONLY place tile type strings are produced or
+// consumed. Do not re-implement either direction elsewhere: a duplicated
+// if-chain in LevelLoader once drifted from this table and silently dropped
+// every coin tile in all seven level files (audit A-1).
+//
+// getTileTypeName emits the canonical name; parseTileTypeName additionally
+// accepts historical aliases so older level JSON keeps loading.
+
 std::string getTileTypeName(TileType type) {
     switch (type) {
-        case TileType::Ground: return "ground";
-        case TileType::Brick: return "brick";
+        case TileType::Ground:   return "ground";
+        case TileType::Brick:    return "brick";
         case TileType::Question: return "question_block";
-        case TileType::Pipe: return "pipe";
-        case TileType::Ice: return "ice";
+        case TileType::Pipe:     return "pipe";
+        case TileType::Ice:      return "ice";
         case TileType::Conveyor: return "conveyor";
-        case TileType::Water: return "water";
-        case TileType::Coin: return "coin_tile";
-        default: return "empty";
+        case TileType::Water:    return "water";
+        case TileType::Coin:     return "coin_tile";
+        case TileType::Used:     return "used";
+        case TileType::Empty:    return "empty";
     }
+    return "empty";
 }
 
 TileType parseTileTypeName(const std::string& name) {
     if (name == "ground") return TileType::Ground;
     if (name == "brick") return TileType::Brick;
-    if (name == "question_block") return TileType::Question;
+    if (name == "question_block" || name == "question") return TileType::Question; // "question" = legacy alias
     if (name == "pipe") return TileType::Pipe;
     if (name == "ice") return TileType::Ice;
     if (name == "conveyor") return TileType::Conveyor;
     if (name == "water") return TileType::Water;
-    if (name == "coin_tile" || name == "coin") return TileType::Coin;
+    if (name == "coin_tile" || name == "coin") return TileType::Coin;              // "coin" = legacy alias
+    if (name == "used") return TileType::Used;
     return TileType::Empty;
 }
 

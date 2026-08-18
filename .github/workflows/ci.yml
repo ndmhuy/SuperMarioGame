@@ -1,0 +1,52 @@
+name: build-and-test
+
+# The August 2026 audit found three critical defects and six inert subsystems
+# that survived because nothing ran automatically. This workflow is the guard.
+
+on:
+  push:
+    branches: [main, dev, "A/**", "B/**"]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # SFML 3 builds from source via FetchContent and needs X11/udev/GL headers.
+      - name: Install SFML build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxrandr-dev libxcursor-dev libxi-dev libudev-dev \
+            libfreetype-dev libflac-dev libvorbis-dev libgl1-mesa-dev \
+            libegl1-mesa-dev libdrm-dev libgbm-dev
+
+      # FetchContent pulls SFML, ImGui, ImGui-SFML and nlohmann/json every run
+      # otherwise, which dominates the build time.
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: SuperMarioGame/build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('SuperMarioGame/CMakeLists.txt') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Configure
+        working-directory: SuperMarioGame
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build game
+        working-directory: SuperMarioGame
+        run: cmake --build build --target SuperMarioGame -j$(nproc)
+
+      - name: Build regression suite
+        working-directory: SuperMarioGame
+        run: cmake --build build --target verify_regressions -j$(nproc)
+
+      - name: Run tests
+        working-directory: SuperMarioGame
+        run: ctest --test-dir build --output-on-failure
