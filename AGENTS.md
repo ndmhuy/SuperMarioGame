@@ -145,8 +145,10 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 >      - Member A: `A/branch-name` (e.g., `A/core-engine`, `A/physics`).
 >      - Member B: `B/branch-name` (e.g., `B/input-sound`, `B/enemies`).
 >    - **Syncing with Other Members**: At the start of every working session, pull the upstream `dev` branch (`git pull origin dev`) to your local `dev` branch to fetch the other member's merged work. Then, rebase your task branch against the updated local `dev` branch to minimize conflicts.
->    - **No Auto-Merges**: Agents must **NOT** automatically merge task branches back into the `dev` branch. The agent's job is only to implement the task on their branch, verify compilation, and push the branch to origin. The user will handle code reviews and final merges into `dev`.
->    - Push your commits to the remote repository regularly.
+>    - **No Auto-Merges**: Agents must **NOT** merge task branches into `dev` **on their own initiative**. The agent's default job is to implement the task on its branch, verify compilation, and push the branch to origin. The user handles code reviews and merges.
+>      - **Exception — user-directed merges**: if the user explicitly asks for a merge, perform it, but: record the `Git Fingerprint` before and after; resolve every conflict by **combining** both sides where both carry real logic, never by blanket `--ours`/`--theirs`; state in the log which files conflicted and how each was resolved; and rebuild plus run the game afterwards.
+>    - **Never push without being asked.** Committing locally is the default; pushing publishes to the other member and is the user's call.
+>    - Keep `main` current at milestones. As of August 2026 `main` sat 153 commits behind `dev` with "Initial commit" at its tip — meaning the default branch represented nothing. Fast-forward and tag at each milestone.
 >
 > 2. **Commit Policy**:
 >    - Commit after completing each subtask/task.
@@ -155,7 +157,9 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 > 3. **Automatic Task & Prompt Logging**:
 >    - Agents must automatically append a summary of each user prompt and the corresponding output/results to the local log file: [agent_history.log](logs/agent_history.log).
 >    - Do not skip this step; ensure the log is updated at the end of every interaction.
->    - Every log entry **MUST** include a `Git Fingerprint` field recording the commit hash before and after the session's work (see log format below).
+>    - Every log entry **MUST** contain **all** fields in the log format template below — `Git Fingerprint`, `Fetched Remotes`, `Reachable From Main` and `Verified By` included. A field you cannot answer is written `n/a` **with a reason**, never omitted.
+>    - **Report honestly.** If a feature compiles but nothing calls it, say so. If you did not run the game, write `build only`. The log is the project's audit trail; an optimistic entry is worse than no entry because it stops anyone from looking again.
+>    - **Log conflicts are resolved by union, never by choosing a side.** `agent_history.log` is append-only history shared across branches. When it conflicts during a merge, keep **every** entry from both sides sorted by timestamp. Discarding one side destroys sessions permanently — an August 2026 three-way fork orphaned 8 entries this way.
 >
 > 4. **Plan Deviations**:
 >    - If you plan to deviate from the approved implementation plan or do what is not in the plan, you **MUST** inform the user and discuss/obtain confirmation first.
@@ -178,7 +182,24 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 >      2. Record the resulting `HEAD` commit hash **after** the operation in the log.
 >      3. Before running destructive git commands (`git reset --hard`, `git clean -fd`, `git checkout -- .`), **check for uncommitted/untracked work** via `git status` and **explicitly warn the user** if any files would be lost. **Do NOT proceed without user confirmation.**
 >      4. Cross-reference the `Git Fingerprint` fields in `agent_history.log` to verify that the codebase is at the expected state before making changes.
->    - **Rationale**: A previous agent session ran `git reset --hard && git clean -fd` and permanently destroyed untracked files including the Week 8 progress report (`docs/Group52_08/`). This rule prevents such data loss.
+>      5. **Never discard uncommitted work to unblock a git operation.** If a merge, pull or checkout is blocked by local changes, the default is to **commit them first** — committing is reversible, discarding is not. Only `git checkout -- <file>` a file that is machine-generated (e.g. `imgui.ini`), and back it up outside the repo first.
+>    - **Rationale**: A previous agent session ran `git reset --hard && git clean -fd` and permanently destroyed untracked files including the Week 8 progress report (`docs/Group52_08/`). A later session found ~3,100 lines of uncommitted Member A work (three sub-level maps, `tools/`, the Week 10 report) sitting in the working tree with no commit — one careless `git clean` from being lost. This rule prevents both.
+>
+> 8. **Fetch Before You Read the Repository**:
+>    - Before **any** task whose output describes repository state — weekly reports, audits, code review, progress summaries, branch analysis, "what is the status of X" — you **MUST** run `git fetch --all` first, and record `Fetched Remotes: yes` in the log entry.
+>    - A local branch is **not** evidence of project state. Check `git rev-list --left-right --count dev...origin/dev` before drawing any conclusion from what you read on disk.
+>    - When reporting on a feature, check whether the relevant work exists on an **unmerged branch** before declaring it missing.
+>    - **Rationale**: An August 2026 audit was written against a local `dev` that was 9 commits stale. It declared the entire audio system missing and Phase 6 falsely marked complete. The audio system was fully implemented and merged on `origin/dev`. The finding had to be publicly retracted on issue #11.
+>
+> 9. **"Complete" Means Reachable and Observed**:
+>    - Do **NOT** tick a checkbox in [TASKS.md](TASKS.md) or [TASK_DIVISION.md](TASK_DIVISION.md) on the basis that a file exists and compiles.
+>    - A task is complete only when: (a) the code is called from a path reachable from `main()`, **not** solely from a `verify_*` harness; and (b) you have observed it working — a `ctest` case or an actual run of the game.
+>    - If you implement something but do not wire it, say so explicitly in the log (`Reachable From Main: no — harness only`) and leave the checkbox unticked.
+>    - **Rationale**: `verify_*` harnesses prove a class works in isolation. They do not prove the game ever constructs it. Six subsystems shipped "complete" and inert on this basis.
+>
+> 10. **Run the Game**:
+>    - Building is not verifying. Before reporting gameplay work complete, launch the executable and confirm the change, then record `Verified By: ran the game`.
+>    - Across 208 logged sessions this project wrote 86 test harnesses and recorded 4 playtests. A six-second run after the August 2026 integration immediately surfaced a broken menu-music path that had been silently failing at startup.
 
 ---
 
@@ -326,17 +347,35 @@ public:
 
 > [!NOTE]
 > **AUTOMATIC LOG ENTRY FORMAT**
-> Every time you finish a task, append to `logs/agent_history.log` in this format:
+> Every time you finish a task, append to `logs/agent_history.log` in this format.
+> **Every field is required.** Write `n/a` with a reason rather than omitting a line.
 > ```text
 > [YYYY-MM-DD HH:MM:SS] Branch: <branch_name>
 > Git Fingerprint: <short_hash> (before) → <short_hash> (after)
+> Fetched Remotes: <yes, HH:MM | no — reason>
 > Prompt: <brief prompt summary>
 > Files Modified: <list of files>
+> Reachable From Main: <yes | no — harness only | n/a — not runtime code>
+> Verified By: <ctest <case> | ran the game | build only | not verified>
 > Summary of Changes: <brief bulleted list>
 > ---
 > ```
-> The `Git Fingerprint` field records the HEAD commit hash at the start and end of the session.
-> This enables agents to cross-reference the codebase state and detect unexpected rewinding or data loss.
+>
+> **Field semantics — read these, they are not decorative:**
+>
+> | Field | Meaning |
+> | :--- | :--- |
+> | `Git Fingerprint` | HEAD at session start and end. Lets any later agent detect unexpected rewinding or data loss. If you were told not to commit, write `<hash> (after, no new commits per user directive)`. |
+> | `Fetched Remotes` | Whether you ran `git fetch --all` **before** reading or reporting on repository state. See Directive 8. |
+> | `Reachable From Main` | Whether the code you touched is actually called from a path starting at `main()`. A `verify_*` harness constructing a class does **NOT** count — answer `no — harness only`. |
+> | `Verified By` | How you know it works. `build only` is an honest and acceptable answer; claiming more than you did is not. |
+>
+> **Why `Reachable From Main` exists**: an August 2026 audit found six completed
+> subsystems (Minimap, ParticleSystem, AnimationManager, SpriteColorFilter,
+> SpriteTransformAnim, EntityDeathEffect) that compiled, passed their harnesses,
+> and were marked complete in `TASK_DIVISION.md` — while never being constructed
+> by the running game. This field makes that failure visible at the time it happens
+> instead of two months later.
 
 ---
 

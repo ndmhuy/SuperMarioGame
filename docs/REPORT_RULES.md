@@ -18,11 +18,36 @@ These guidelines define the structure, process, and standards for producing week
 ## 2. Scheduling & Synchronization
 
 * **Deadline**: Weekly reports must be compiled and pushed every Saturday by **23:59** of the current week.
+
+### 2.1 Pre-flight checklist — run these first, paste the output into the log
+
+No report may be written until all four have been run. This is a checklist, not
+advice: a W10-era audit was written from a 9-commit-stale local `dev` and
+reached a conclusion that had to be publicly retracted.
+
+```bash
+git fetch --all                                              # 1. never skip
+git rev-list --left-right --count dev...origin/dev           # 2. am I stale?
+for b in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin); do
+  echo "$b $(git rev-list --left-right --count origin/dev...$b)"
+done                                                          # 3. unmerged work?
+git log --oneline --since='7 days ago' --all                  # 4. the actual week
+```
+
+- [ ] `git fetch --all` completed
+- [ ] Local `dev` is **not** behind `origin/dev` (or the report says which ref it describes)
+- [ ] Every branch with commits ahead of `origin/dev` is named in the report
+- [ ] Claims are checked against the code, not against `TASK_DIVISION.md` checkboxes
+
 * **Branching & Merging Policy**:
   - The report must be drafted and committed on the `dev` branch.
-  - Before writing the report, the reporter must fetch all remote branches (`git fetch --all`) to capture the progress made on task branches (e.g. `A/...` and `B/...`).
   - Do **NOT** perform any auto-merges of feature branches to `dev` to write the report. Read the status of files and git history from the branches directly.
   - Compile summaries from the git log and local `logs/agent_history.log`.
+
+* **Accuracy Policy**:
+  - Report what **runs**, not what was written. Before crediting a feature, confirm it is called from a path reachable from `main()` — a `verify_*` harness constructing a class does not count.
+  - Work that exists only on an unmerged branch must be labelled **"unmerged — on `<branch>`"**, not reported as delivered.
+  - If a previous report's claim turns out to be wrong, correct it explicitly in the next report's *Issues & Resolutions* section rather than quietly restating it.
 
 ---
 

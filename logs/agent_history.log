@@ -2797,3 +2797,34 @@ Summary of Changes:
 - Documented 5 technical issues & resolutions, AI usage declarations, and next week's planned roadmap.
 - Compiled `docs/Group52_10/52.pdf` using WeasyPrint via `generate_pdf.py` and packaged `docs/Group52_10.zip`.
 ---
+[2026-08-18 15:02:00] Branch: dev
+Git Fingerprint: 161169f (before) → 4d0fa31 (after, pushed to origin/dev)
+Fetched Remotes: yes, 14:12
+Prompt: Review the project as Member A, then review Member B and the whole project; export artifacts and raise a GitHub issue; review progress through the agent log; merge or wire everything; plan Member A's fixes; push and update the agent rules for transparency.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/MenuState.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md
+- docs/REPORT_RULES.md
+- docs/issues/code_audit_2026-08-18.md (NEW)
+- docs/issues/member_a_fix_plan.md (NEW)
+- logs/agent_history.log
+Reachable From Main: yes — Minimap, ParticleSystem, EntityDeathEffect and ScreenTransitionManager are now constructed, updated and drawn from PlayingState; verified in the linked binary (104/86/14 symbols).
+Verified By: ran the game (two 6s smoke runs, clean startup, no crash) + build only for the merge resolution
+Summary of Changes:
+- AUDIT: full review of both domains, 37 findings (7 critical). Published as docs/issues/code_audit_2026-08-18.md and GitHub issue #11.
+- CORRECTION: revision 1 of the audit was written against a 9-commit-stale local dev and wrongly declared the audio system absent. Retracted publicly on issue #11. This is the incident that motivates new Directive 8.
+- RESCUE: ~3,100 lines of uncommitted Member A W10 work (3 sub-level maps, tools/, W10 report, MapGenerator/PlayingState/SerializationUtils edits) were sitting in the working tree with no commit. Committed as 498f810 before any merge.
+- MERGE: origin/dev (clean) and origin/B/feature-fix/enemies-behavior (4 conflicts). CollisionResolver: combined B's dead/dying + i-frame guards and Koopa pickup with A's isStomp heuristic and combo scoring, upgraded to enemy.getScoreValue() * combo (closes B-15). PhysicsEngine: kept both gravity skips. CMakeLists: both members had added a target #15, kept all three. agent_history.log: union-merged by timestamp, recovering 8 entries orphaned by a three-way fork.
+- Merge closed audit findings A-2 (damage/power-down) and B-4 (gravity on flying enemies). B-6 did NOT close: setThrowCallback still has zero callers.
+- WIRING (closes B-9): Minimap, ParticleSystem, EntityDeathEffect and ScreenTransitionManager wired into PlayingState. Particle bursts driven from EventBus; M key publishes MinimapToggled; level fades in; game over fades out. All four new subscriptions capture this and unsubscribe in exit().
+- FIX: MenuState passed a raw path to playMusic instead of the registered key, so menu music silently failed at startup. Found by running the game, not by any harness.
+- RULES: AGENTS.md gains Directives 8 (fetch before reading repo state), 9 (complete = reachable and observed), 10 (run the game); Directive 1 now covers user-directed merges and never pushing unasked; Directive 3 requires union-merging this log; Directive 7 forbids discarding uncommitted work to unblock git. Log template gains Fetched Remotes, Reachable From Main and Verified By fields.
+- DISCOVERY: added CLAUDE.md, .cursorrules and .github/copilot-instructions.md as thin pointers to AGENTS.md, so tools looking for other filenames stop loading nothing.
+- REPORT_RULES.md gains a runnable pre-flight checklist and an accuracy policy.
+- Pushed 77b6d48..4d0fa31 to origin/dev at user request.
+---
