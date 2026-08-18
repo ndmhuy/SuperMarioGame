@@ -24,5 +24,7 @@ public:
     void resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info);
     void resolvePlayerVsPlayer(Player& p1, Player& p2, const CollisionInfo& info);
     void resolveCharacterVsBlock(Character& character, Block& block, const CollisionInfo& info);
+    void resolveItemVsBlock(Item& item, Block& block, const CollisionInfo& info);
     void resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy, const CollisionInfo& info);
 };
+

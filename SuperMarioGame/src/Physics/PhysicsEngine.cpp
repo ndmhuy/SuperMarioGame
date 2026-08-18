@@ -7,6 +7,7 @@
 #include "Entities/Toad.hpp"
 #include "Entities/Peach.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Item.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include "Core/SoundManager.hpp"
@@ -25,12 +26,18 @@ void PhysicsEngine::applyGravity(Entity& entity, float dt) {
             return;
         }
     }
+    if (auto item = dynamic_cast<Item*>(&entity)) {
+        if (item->isOnGround()) {
+            return;
+        }
+    }
     // Acceleration: 0.5 px/frame^2 at 60 FPS is 1800 px/s^2
     entity.velocity.y += Constants::GRAVITY * Constants::GRAVITY_SCALE * entity.getGravityMultiplier() * dt;
     if (entity.velocity.y > Constants::TERMINAL_VELOCITY) {
         entity.velocity.y = Constants::TERMINAL_VELOCITY;
     }
 }
+
 
 void PhysicsEngine::integrateVelocity(Entity& entity, float dt) {
     entity.position += entity.velocity * dt;
@@ -137,12 +144,16 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             // Reset ground/wall flags for the new collision detection pass
             character->onGround = false;
             character->onWall = false;
+        } else if (auto item = dynamic_cast<Item*>(entity.get())) {
+            item->setOnGround(false);
         }
     }
 
+
     // 2. Apply gravity and environmental forces
     for (const auto& entity : entities) {
-        if (!entity || !entity->isActive()) continue;
+        if (!entity || !entity->isActive() || entity->getGravityMultiplier() <= 0.0f) continue;
+
 
         // Check if entity is in water (tile type 7)
         float cx = entity->position.x + entity->boundingBox.width / 2.0f;

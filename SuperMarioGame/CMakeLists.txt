@@ -499,6 +499,52 @@ target_link_libraries(verify_all_entities_visual PRIVATE
     nlohmann_json::nlohmann_json
 )
 
+# ---------------------------------------------------------
+# 15. Verification Test Target (verify_map_generator)
+# ---------------------------------------------------------
+add_executable(verify_map_generator
+    "tests/verify_map_generator.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_map_generator PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_map_generator PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 16. Level Generation Utility Target (generate_game_levels)
+# ---------------------------------------------------------
+add_executable(generate_game_levels
+    "tools/generate_game_levels.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(generate_game_levels PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(generate_game_levels PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+
+
 
 
 

@@ -21,6 +21,8 @@
 #include "Entities/PSwitch.hpp"
 #include "Entities/POWBlock.hpp"
 #include "Entities/Trampoline.hpp"
+#include "Entities/Pipe.hpp"
+
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <filesystem>
@@ -29,23 +31,33 @@
 #include <algorithm>
 
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
-    std::ifstream file(jsonPath);
-    if (!file.is_open()) {
-        std::vector<std::string> fallbacks = {
-            "SuperMarioGame/" + jsonPath,
-            "../" + jsonPath,
-            "SuperMarioGame/assets/levels/" + std::filesystem::path(jsonPath).filename().string(),
-            "assets/levels/" + std::filesystem::path(jsonPath).filename().string()
-        };
-        for (const auto& altPath : fallbacks) {
-            file.open(altPath);
-            if (file.is_open()) break;
-        }
+    std::string filename = std::filesystem::path(jsonPath).filename().string();
+    std::vector<std::string> fallbacks = {
+        jsonPath,
+        "SuperMarioGame/" + jsonPath,
+        "../" + jsonPath,
+        "build/" + jsonPath,
+        "../build/" + jsonPath,
+        "assets/levels/" + filename,
+        "../assets/levels/" + filename,
+        "SuperMarioGame/assets/levels/" + filename,
+        "build/assets/levels/" + filename,
+        "../build/assets/levels/" + filename,
+        "SuperMarioGame/build/assets/levels/" + filename
+    };
+
+    std::ifstream file;
+    for (const auto& altPath : fallbacks) {
+        file.clear();
+        file.open(altPath);
+        if (file.is_open()) break;
     }
+
     if (!file.is_open()) {
         std::cerr << "[LevelLoader] Failed to open level JSON file: " << jsonPath << std::endl;
         return false;
     }
+
 
     nlohmann::json j;
     try {
@@ -111,33 +123,16 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
             sf::Vector2f position(tx * Constants::TILE_SIZE, ty * Constants::TILE_SIZE);
             std::unique_ptr<Entity> entity = nullptr;
 
-            if (typeStr == "mushroom") {
-                entity = std::make_unique<Mushroom>(position);
-            } else if (typeStr == "fire_flower") {
-                entity = std::make_unique<FireFlower>(position);
-            } else if (typeStr == "coin") {
-                entity = std::make_unique<Coin>(position);
-            } else if (typeStr == "star") {
-                entity = std::make_unique<Star>(position);
-            } else if (typeStr == "oneup" || typeStr == "oneup_mushroom") {
-                entity = std::make_unique<OneUpMushroom>(position);
-            } else if (typeStr == "cape_feather") {
-                entity = std::make_unique<CapeFeather>(position);
-            } else if (typeStr == "mega_mushroom") {
-                entity = std::make_unique<MegaMushroom>(position);
-            } else if (typeStr == "mini_mushroom") {
-                entity = std::make_unique<MiniMushroom>(position);
-            } else if (typeStr == "pow_block") {
-                entity = std::make_unique<POWBlock>(position);
-            } else if (typeStr == "pswitch") {
-                entity = std::make_unique<PSwitch>(position);
-            } else if (typeStr == "trampoline") {
-                entity = std::make_unique<Trampoline>(position);
-            } else if (typeStr == "star_coin") {
-                entity = std::make_unique<StarCoin>(position);
+            if (typeStr == "pipe") {
+                int pipeId = entityJson.value("pipeId", 0);
+                bool isEntrance = entityJson.value("isEntrance", false);
+                std::string targetLevel = entityJson.value("targetLevel", "");
+                float exitX = entityJson.value("exitX", tx + 2.0f);
+                float exitY = entityJson.value("exitY", ty);
+                entity = std::make_unique<Pipe>(position, pipeId, sf::Vector2f(exitX * Constants::TILE_SIZE, exitY * Constants::TILE_SIZE), targetLevel, isEntrance);
             } else {
-                std::cout << "[LevelLoader] Warning: Enemy / Block / Unhandled entity type '" << typeStr
-                          << "' at grid (" << tx << ", " << ty << ") skipped. EntityFactory integration pending." << std::endl;
+                EntityType eType = SerializationUtils::parseEntityTypeName(typeStr);
+                entity = EntityFactory::create(eType, position);
             }
 
             if (entity) {
@@ -205,7 +200,6 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
             if (!entity) continue;
             std::string typeStr = SerializationUtils::getEntityTypeName(*entity);
             if (typeStr == "unknown" || typeStr == "mario" || typeStr == "luigi" || typeStr == "toad" || typeStr == "peach") {
-                // Skip player characters from standard entity save list if they represent spawn point
                 if (typeStr == "mario" || typeStr == "luigi" || typeStr == "toad" || typeStr == "peach") {
                     j["spawnPoint"]["x"] = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
                     j["spawnPoint"]["y"] = static_cast<int>(entity->getPosition().y / Constants::TILE_SIZE);
@@ -216,8 +210,18 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
             entObj["type"] = typeStr;
             entObj["x"] = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
             entObj["y"] = static_cast<int>(entity->getPosition().y / Constants::TILE_SIZE);
+
+            if (auto pipe = dynamic_cast<const Pipe*>(entity.get())) {
+                entObj["pipeId"] = pipe->getPipeId();
+                entObj["isEntrance"] = pipe->isEntrance();
+                entObj["targetLevel"] = pipe->getTargetLevel();
+                entObj["exitX"] = static_cast<int>(pipe->getExitPosition().x / Constants::TILE_SIZE);
+                entObj["exitY"] = static_cast<int>(pipe->getExitPosition().y / Constants::TILE_SIZE);
+            }
+
             j["entities"].push_back(entObj);
         }
+
 
         std::ofstream file(jsonPath);
         if (!file.is_open()) return false;

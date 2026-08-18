@@ -12,6 +12,8 @@
 #include "Entities/Item.hpp"
 #include "Entities/Block.hpp"
 #include "Entities/StarCoin.hpp"
+#include "Entities/Pipe.hpp"
+
 #include "Core/EventBus.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
@@ -40,6 +42,8 @@
 #include <cmath>
 #include <algorithm>
 #include <filesystem>
+#include <random>
+
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig)
     : m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
@@ -337,6 +341,24 @@ void PlayingState::update(float dt) {
         }
     }
 
+    // 3d. Warp Pipe check for sub-level transitions or teleportation
+    for (const auto& entity : m_entities) {
+        if (auto pipe = dynamic_cast<Pipe*>(entity.get())) {
+            if (m_player && pipe->checkWarp(*m_player)) {
+                std::string target = pipe->getTargetLevel();
+                sf::Vector2f exitPos = pipe->getExitPosition();
+                if (!target.empty()) {
+                    loadLevelByPath(target, exitPos);
+                } else if (exitPos.x != 0.0f || exitPos.y != 0.0f) {
+                    m_player->setPosition(exitPos);
+                    m_player->setVelocity({0.0f, 0.0f});
+                }
+                break;
+            }
+        }
+    }
+
+
     // 4. Update Camera & Screen Transitions
     if (m_player) {
         m_camera.follow(m_player->getPosition(), dt);
@@ -586,15 +608,131 @@ void PlayingState::render(sf::RenderTarget& target) {
         ImGui::Text("No active player.");
     }
     ImGui::Separator();
+    ImGui::Text("Select Campaign Level:");
+    const char* campaignLevels[] = {
+        "World 1-1: Grassland Overworld",
+        "World 1-1 Sub: Underground Vault",
+        "World 1-2: Ice Cavern Path",
+        "World 1-2 Sub: Sky Platform Canopy",
+        "World 1-3: Bowser's Castle Fortress",
+        "World 1-3 Sub: Secret Castle Vault",
+        "Bonus Stage 1: Coin Paradise"
+    };
+    int oldNavLevel = m_selectedLevelIndex;
+    if (ImGui::Combo("Select Level", &m_selectedLevelIndex, campaignLevels, 7)) {
+        if (m_selectedLevelIndex != oldNavLevel || m_isProcedural) {
+            m_isProcedural = false;
+            setupTestScene();
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Active Level Tube / Warp Pipe Destinations:");
+
+    std::vector<Pipe*> activePipes;
+    std::vector<std::string> pipeLabels;
+    for (const auto& entity : m_entities) {
+        if (auto pipe = dynamic_cast<Pipe*>(entity.get())) {
+            activePipes.push_back(pipe);
+            std::string label = "Tube @" + std::to_string(static_cast<int>(pipe->getPosition().x / Constants::TILE_SIZE)) +
+                                " -> " + (pipe->getTargetLevel().empty() ? "Same Level Teleport" : pipe->getTargetLevel());
+            pipeLabels.push_back(label);
+        }
+    }
+
+    static int selectedPipeIndex = 0;
+    if (activePipes.empty()) {
+        ImGui::TextDisabled("No active warp tubes in current level.");
+    } else {
+        if (selectedPipeIndex >= static_cast<int>(activePipes.size())) selectedPipeIndex = 0;
+        
+        std::vector<const char*> pipeItems;
+        for (const auto& l : pipeLabels) pipeItems.push_back(l.c_str());
+
+        ImGui::Combo("Tube Dropdown", &selectedPipeIndex, pipeItems.data(), static_cast<int>(pipeItems.size()));
+        ImGui::SameLine();
+        if (ImGui::Button("🌀 Enter Tube")) {
+            Pipe* targetPipe = activePipes[selectedPipeIndex];
+            if (m_player) {
+                SoundManager::getInstance().playSound("pipe");
+                std::string targetLevel = targetPipe->getTargetLevel();
+                sf::Vector2f exitPos = targetPipe->getExitPosition();
+                if (!targetLevel.empty()) {
+                    loadLevelByPath(targetLevel, exitPos);
+                } else if (exitPos.x != 0.0f || exitPos.y != 0.0f) {
+                    m_player->setPosition(exitPos);
+                    m_player->setVelocity({0.0f, 0.0f});
+                }
+            }
+        }
+    }
+
+    ImGui::Separator();
     if (ImGui::Button("🏠 Return to Main Menu")) {
         Game::getInstance().changeState(std::make_unique<MenuState>());
     }
+
     ImGui::SameLine();
     if (ImGui::Button("🛠️ Toggle Map Editor (F1)")) {
         m_mapEditor.toggleActive();
     }
     ImGui::End();
+
+
+    if (m_isProcedural) {
+        ImGui::Begin("Procedural Level Generator Tuning");
+        ImGui::Text("Live tuning parameters:");
+
+        int themeIdx = static_cast<int>(m_genConfig.theme);
+        const char* themes[] = { "Overworld", "Underground", "Castle", "Ice" };
+        if (ImGui::Combo("Theme", &themeIdx, themes, 4)) {
+            m_genConfig.theme = static_cast<MapTheme>(themeIdx);
+        }
+
+        int diffIdx = static_cast<int>(m_genConfig.difficulty);
+        const char* diffs[] = { "Easy", "Medium", "Hard" };
+        if (ImGui::Combo("Difficulty", &diffIdx, diffs, 3)) {
+            m_genConfig.difficulty = static_cast<MapDifficulty>(diffIdx);
+        }
+
+        ImGui::SliderFloat("Roughness", &m_genConfig.roughness, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("Pit Ratio", &m_genConfig.pitProbability, 0.0f, 0.35f, "%.2f");
+        ImGui::SliderFloat("Enemy Rate", &m_genConfig.enemySpawnRate, 0.0f, 0.40f, "%.2f");
+        ImGui::Checkbox("Castle Lava Hazards", &m_genConfig.enableLava);
+        ImGui::Checkbox("Moving Platforms", &m_genConfig.enableMovingPlatforms);
+
+        int seedVal = static_cast<int>(m_genConfig.seed);
+        if (ImGui::InputInt("Seed (0=Random)", &seedVal)) {
+            m_genConfig.seed = (seedVal < 0) ? 0 : static_cast<unsigned int>(seedVal);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("🎲 New Seed")) {
+            m_genConfig.seed = std::random_device{}();
+        }
+
+        if (ImGui::Button("🔄 Regenerate Level")) {
+            MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+            for (auto& entity : m_entities) {
+                wireEntityAnimations(entity.get());
+            }
+            m_player = nullptr;
+            for (const auto& entity : m_entities) {
+                if (auto p = dynamic_cast<Player*>(entity.get())) {
+                    m_player = p;
+                    break;
+                }
+            }
+            if (m_player) {
+                InputManager::getInstance().registerPlayer(m_player, 0);
+                Game::getInstance().setPlayer(m_player);
+            }
+            m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+        }
+        ImGui::End();
+    }
+
     // Draw Map Editor overlays if active
+
     if (m_mapEditor.isActive()) {
         m_mapEditor.render(target, m_tileMap, m_entities, &m_camera);
         m_mapEditor.renderImGui(m_tileMap, m_entities);
@@ -617,13 +755,23 @@ void PlayingState::render(sf::RenderTarget& target) {
 
         // Level Selection
         ImGui::Text("Select Active Level:");
-        const char* levels[] = { "Level 1 (Grassland)", "Level 2 (Cave)", "Level 3 (Castle)", "Bonus 1 (Sky)" };
+        const char* levels[] = {
+            "World 1-1: Grassland Overworld",
+            "World 1-1 Sub: Underground Vault",
+            "World 1-2: Ice Cavern Path",
+            "World 1-2 Sub: Sky Platform Canopy",
+            "World 1-3: Bowser's Castle Fortress",
+            "World 1-3 Sub: Secret Castle Vault",
+            "Bonus Stage 1: Coin Paradise"
+        };
         int oldLevelSelected = m_selectedLevelIndex;
-        if (ImGui::Combo("Level", &m_selectedLevelIndex, levels, 4)) {
-            if (m_selectedLevelIndex != oldLevelSelected) {
+        if (ImGui::Combo("Level", &m_selectedLevelIndex, levels, 7)) {
+            if (m_selectedLevelIndex != oldLevelSelected || m_isProcedural) {
+                m_isProcedural = false;
                 setupTestScene();
             }
         }
+
 
         ImGui::Separator();
 
@@ -878,9 +1026,14 @@ void PlayingState::setupTestScene() {
     LevelLoader loader;
     LevelData levelData;
     std::string levelPath = "assets/levels/level_1.json";
-    if (m_selectedLevelIndex == 1) levelPath = "assets/levels/level_2.json";
-    else if (m_selectedLevelIndex == 2) levelPath = "assets/levels/level_3.json";
-    else if (m_selectedLevelIndex == 3) levelPath = "assets/levels/bonus_1.json";
+    if (m_selectedLevelIndex == 0) levelPath = "assets/levels/level_1.json";
+    else if (m_selectedLevelIndex == 1) levelPath = "assets/levels/level_1_sub.json";
+    else if (m_selectedLevelIndex == 2) levelPath = "assets/levels/level_2.json";
+    else if (m_selectedLevelIndex == 3) levelPath = "assets/levels/level_2_sub.json";
+    else if (m_selectedLevelIndex == 4) levelPath = "assets/levels/level_3.json";
+    else if (m_selectedLevelIndex == 5) levelPath = "assets/levels/level_3_sub.json";
+    else if (m_selectedLevelIndex == 6) levelPath = "assets/levels/bonus_1.json";
+
 
     std::vector<std::string> pathCandidates = {
         levelPath,
@@ -923,6 +1076,62 @@ void PlayingState::cleanupTestScene() {
     m_entities.clear();
     m_player = nullptr;
 }
+
+bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride) {
+    LevelLoader loader;
+    LevelData levelData;
+
+    std::vector<std::string> pathCandidates = {
+        jsonPath,
+        "SuperMarioGame/" + jsonPath,
+        "../" + jsonPath
+    };
+    std::string chosenPath = jsonPath;
+    for (const auto& candidate : pathCandidates) {
+        if (std::filesystem::exists(candidate)) {
+            chosenPath = candidate;
+            break;
+        }
+    }
+
+    if (!loader.loadLevel(chosenPath, m_tileMap, levelData)) {
+        std::cerr << "[PlayingState] Failed to load level: " << jsonPath << std::endl;
+        return false;
+    }
+
+    int savedLives = 3;
+    int savedCoins = 0;
+    int savedScore = 0;
+    if (m_player) {
+        savedLives = m_player->getLives();
+        savedCoins = m_player->getCoins();
+        savedScore = m_player->getScore();
+    }
+
+    cleanupTestScene();
+
+    m_entities = std::move(levelData.entities);
+
+    for (auto& entity : m_entities) {
+        wireEntityAnimations(entity.get());
+    }
+
+    sf::Vector2f spawnPos = (spawnOverride.x != 0.0f || spawnOverride.y != 0.0f) ? spawnOverride : levelData.spawnPoint;
+
+    spawnSelectedPlayer(spawnPos);
+    if (m_player) {
+        m_player->lives = savedLives;
+        m_player->coins = savedCoins;
+        m_player->score = savedScore;
+    }
+
+    Game::getInstance().setTileMap(&m_tileMap);
+    m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+
+    std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;
+    return true;
+}
+
 
 void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     int oldCoins = 0;

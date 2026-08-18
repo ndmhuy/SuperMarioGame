@@ -2157,3 +2157,129 @@ Summary of Changes:
 - Pushed merged `dev` to remote (ae00b66 → f43b2d0).
 - Key content from B/feature/graphic-visual merged in: entity sprite wiring, aspect ratio scaling, POW 8-frame animation, trampoline bottom-anchored bounce, coin AABB fix, water wave rendering, P-Switch pressed sprite, HUD spritesheet integration (animated coin, star coins, character lives icon).
 ---
+[2026-08-12 14:00:00] Branch: dev
+Git Fingerprint: f43b2d0 (before) → 161169f (after)
+Prompt: incorporate into the latest build to test
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Ran incremental build: `make SuperMarioGame -j<ncpu>` inside `SuperMarioGame/build/`.
+- All source files recompiled cleanly: 100% build — `[100%] Built target SuperMarioGame`.
+- Only pre-existing harmless linker warning (duplicate SFML static libs) — no new errors.
+- Launched `SuperMarioGame` executable for manual testing of merged graphic-visual features.
+---
+[2026-08-12 14:22:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: Refine procedural level generation in MapGenerator (multi-tier elevation, chunk patterns, packaged item blocks, dynamic platforms, 3 star coins, castle lava hazards, ImGui tuning panel)
+Files Modified:
+- SuperMarioGame/include/Utils/MapGenerator.hpp
+- SuperMarioGame/src/Utils/MapGenerator.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/tests/verify_map_generator.cpp
+- SuperMarioGame/CMakeLists.txt
+- logs/agent_history.log
+Summary of Changes:
+- Multi-tier Elevation Profiles: Added rolling ground height generator functions to replace flat ground.
+- Theme Ceilings & Hazards: Added overhead cavern ceilings for Castle/Underground themes and Lava pit hazards for Castle theme.
+- Dynamic Platforms & Solvability: Spawned MovingPlatform and FallingPlatform entities over pits >= 3 tiles wide with jump reachability guardrails.
+- Packaged Item Blocks: Items (Mushroom, Fire Flower, Feather) are now packaged inside QuestionBlock entities rather than floating in air.
+- 3 Star Coins & Pacing: Guaranteed 3 Star Coins per level at scaled elevation tiers and added enemy threat level pacing gradient.
+- ImGui Tuning Panel: Added live controls for Theme, Difficulty, Roughness, Pit Ratio, Lava, Platforms, Seed, and instant Level Regeneration in PlayingState.
+- Automated Testing: Updated CMakeLists.txt and verify_map_generator test suite (100% PASS).
+---
+[2026-08-12 14:30:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: Create 3 level game with sub-levels (Super Mario style) using MapGenerator and replace default levels.
+Files Modified:
+- SuperMarioGame/include/Utils/SerializationUtils.hpp
+- SuperMarioGame/src/Utils/SerializationUtils.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/include/Utils/MapGenerator.hpp
+- SuperMarioGame/src/Utils/MapGenerator.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/tools/generate_game_levels.cpp (NEW)
+- SuperMarioGame/assets/levels/level_1.json (UPDATED)
+- SuperMarioGame/assets/levels/level_1_sub.json (NEW)
+- SuperMarioGame/assets/levels/level_2.json (UPDATED)
+- SuperMarioGame/assets/levels/level_2_sub.json (NEW)
+- SuperMarioGame/assets/levels/level_3.json (UPDATED)
+- SuperMarioGame/assets/levels/level_3_sub.json (NEW)
+- SuperMarioGame/assets/levels/bonus_1.json (UPDATED)
+- SuperMarioGame/CMakeLists.txt
+- logs/agent_history.log
+Summary of Changes:
+- 3-World Campaign Generated: Generated World 1-1 (Grassland + Underground Sub-Vault), World 1-2 (Ice Cavern + Sky Canopy Sub-Vault), World 1-3 (Castle Fortress + Secret Lava Vault + Bowser Boss Fight), and Bonus Stage 1.
+- Seamless Sub-Level Warp Pipes: Configured entrance warp pipes in main levels leading to sub-level JSON maps and exit pipes returning to main levels. Updated PlayingState::loadLevelByPath to switch levels seamlessly while retaining player lives, coins, score, and power-up state.
+- JSON Serialization: Extended SerializationUtils and LevelLoader to serialize/deserialize all entity types and Pipe warp properties (pipeId, isEntrance, targetLevel, exitX, exitY).
+- Level Generation Utility: Created generate_game_levels tool and CMake target to replace default level JSON files in assets/levels/.
+- Verification: 100% build pass for SuperMarioGame and 100% test pass for verify_map_generator and generate_game_levels.
+---
+[2026-08-12 14:37:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: Fix ImGui level dropdown to list all campaign maps and sub-levels.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Extended ImGui Level Combos: Updated level selection dropdowns in both "Gameplay Controls & Navigation" and "Physics & Input Test Playground" ImGui windows to list all 7 campaign levels and sub-levels (World 1-1, World 1-1 Sub, World 1-2, World 1-2 Sub, World 1-3, World 1-3 Sub, Bonus Stage 1).
+- Updated setupTestScene Mapping: Mapped m_selectedLevelIndex (0..6) to load their respective JSON level files from assets/levels/.
+- Verification: 100% build pass for SuperMarioGame and 100% test pass for verify_map_generator.
+---
+[2026-08-12 14:56:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: Fix QuestionBlock falling into void bug and implement Tube Dropdown selector.
+Files Modified:
+- SuperMarioGame/include/Entities/Block.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- QuestionBlock Gravity Fix: Overrode `getGravityMultiplier() const override { return 0.0f; }` in `Block.hpp` and updated `PhysicsEngine::update()` to skip gravity for zero-gravity entities, preventing QuestionBlock, BrickBlock, and static blocks from accelerating downward into the void.
+- ImGui Tube Dropdown Selector: Implemented "Active Level Tube / Warp Pipe Destinations" dropdown and "Enter Tube" button in Gameplay Controls ImGui window in `PlayingState.cpp`, allowing player to select and warp through any active tube in the current level.
+- Verification: 100% build pass for SuperMarioGame and 100% test pass for verify_map_generator.
+---
+[2026-08-12 15:00:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: Fix Mushroom item falling into void, player hitbox size preventing 1-block gap jumps, and enemy head stomp vs touch collision handling.
+Files Modified:
+- SuperMarioGame/include/Entities/Item.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/IPlayerState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Mushroom Item Ground & Gravity Fix: Added `m_onGround` state to `Item` header. Updated `CollisionResolver::resolveEntityVsTile` and implemented `resolveItemVsBlock` to set `onGround = true` and resolve item vs block collisions. Bypassed downward gravity in `PhysicsEngine::applyGravity` when items are resting on tiles/blocks.
+- Player Hitbox Optimization: Reduced player bounding box width in `IPlayerState.cpp` from 32px to 24px (`24x30` small, `24x60` super/fire/cape, `14x14` mini). Enables player to smoothly fall into 1-block (32px) holes and jump across 1-block gaps without clipping block edges.
+- Head Stomp & Enemy Touch Collision Handling: Refined `CollisionResolver::resolvePlayerVsEnemy` to accurately distinguish head stomps from side touch hits. Stomp applies upward bounce force, plays stomp SFX, and increments combo counter. Side touch applies knockback and triggers player power-down damage and 2.0s invincibility frames.
+- Verification: 100% build pass for SuperMarioGame and 100% test pass for verify_map_generator.
+---
+[2026-08-12 16:02:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: Fix LevelLoader failed to open level JSON file (assets/levels/level_1_sub.json).
+Files Modified:
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/tools/generate_game_levels.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Fixed std::ifstream failbit bug: Added `file.clear()` before attempting each fallback path in `LevelLoader::loadLevel()`. Previously, if the initial `file.open()` failed, `failbit` was set, causing subsequent `file.open()` calls to be silently ignored.
+- Expanded Candidate Fallback Paths: Expanded path candidates in `LevelLoader::loadLevel()` to include `build/assets/levels/`, `../build/assets/levels/`, `../assets/levels/`, and `assets/levels/` so JSON level files load cleanly regardless of executable working directory.
+- Level File Synchronization: Synchronized generated level files across both `assets/levels/` and `build/assets/levels/` (`level_1.json`, `level_1_sub.json`, `level_2.json`, `level_2_sub.json`, `level_3.json`, `level_3_sub.json`, `bonus_1.json`).
+- Verification: 100% build pass for SuperMarioGame, 100% level generation pass, and 0 file open errors.
+---
+[2026-08-17 00:02:00] Branch: dev
+Git Fingerprint: 161169f (before) → 161169f (after)
+Prompt: fetch all updates, write this week report
+Files Modified:
+- docs/Group52_10/52.md (NEW)
+- docs/Group52_10/52.pdf (NEW)
+- docs/Group52_10.zip (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Fetched all remote branches (`git fetch --all`) and reviewed commit histories across Member A (`dev`, `A/...`) and Member B (`B/feature/graphic-visual`, `B/feature/sfx-music`, `B/feature-fix/enemies-behavior`).
+- Authored Week 10 progress report (`docs/Group52_10/52.md`) covering date range 2026-08-09 – 2026-08-15 following REPORT_RULES.md specifications.
+- Documented Member A tasks: MapGenerator procedural generation refinements, 3-world campaign and sub-level warp pipe integration, ImGui campaign level & warp tube selectors, static block/item zero-gravity normalization, player AABB hitbox optimization (24px width for 1-block gap traversal), LevelLoader multi-path search and failbit stream reset, and Game shutdown SFContext crash fix.
+- Documented Member B tasks: Complete entity sprite wiring & aspect ratio scaling, interactive Web Metadata Editor Studio (`metadata_editor.html`), HUD animated sprites & Star Coin sync, directional PipeRenderer, game-wide SFX/BGM audio stream integration, advanced enemy AI state machines & tuning (Thwomp, Boo, HammerBro, Koopa), and isolated room verification test suite (`verify_enemies_behavior.cpp`, `verify_enemies_visual.cpp`).
+- Documented 5 technical issues & resolutions, AI usage declarations, and next week's planned roadmap.
+- Compiled `docs/Group52_10/52.pdf` using WeasyPrint via `generate_pdf.py` and packaged `docs/Group52_10.zip`.
+---

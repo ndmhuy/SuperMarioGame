@@ -74,7 +74,9 @@ private:
     void setupTestScene();
     void cleanupTestScene();
     void spawnSelectedPlayer(const sf::Vector2f& pos);
+    bool loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride = {0.0f, 0.0f});
 
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet
     void wireEntityAnimations(Entity* entity);
 };
+

@@ -28,10 +28,17 @@ struct MapGeneratorConfig {
     float pipeFrequency = 0.08f;
     float enemySpawnRate = 0.15f;
     float coinClusterRate = 0.2f;
-    unsigned int seed = 0; // 0 = random seed
+    float roughness = 0.3f;             // Elevation profile noise/roughness
+    bool enableLava = true;             // Castle theme pit hazards
+    bool enableMovingPlatforms = true;  // Dynamic platforms across pits
+    int starCoinCount = 3;              // Standard 3 Star Coins per level
+    unsigned int seed = 0;              // 0 = random seed
 };
 
 class MapGenerator {
 public:
     static void generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, const MapGeneratorConfig& config = MapGeneratorConfig());
+    static void generateSubLevel(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, MapTheme theme, MapDifficulty difficulty, const std::string& returnLevelPath, sf::Vector2f returnPosition, unsigned int seed = 0);
 };
+
+

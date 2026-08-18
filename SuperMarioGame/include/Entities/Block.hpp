@@ -15,12 +15,14 @@ public:
     // Triggered when hit from below by a player
     virtual void onHitFromBelow(Player& player) = 0;
 
-    // Overrides Entity lifecycle
+    // Overrides Entity lifecycle & physics
+    float getGravityMultiplier() const override { return 0.0f; }
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     virtual void setupAnimations(const SpriteSheet* spriteSheet);
 
     bool isBreakable() const { return m_breakable; }
+
 
 protected:
     bool m_breakable = false;

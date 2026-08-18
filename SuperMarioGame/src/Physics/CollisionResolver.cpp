@@ -42,8 +42,12 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
     }
     if (info.normal.y != 0.0f) {
         entity.velocity.y = 0.0f;
-        if (info.normal.y == -1.0f && character) {
-            character->onGround = true;
+        if (info.normal.y == -1.0f) {
+            if (character) {
+                character->onGround = true;
+            } else if (auto item = dynamic_cast<Item*>(&entity)) {
+                item->setOnGround(true);
+            }
         }
     }
 }
@@ -90,7 +94,7 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
         return;
     }
 
-    // 4. Character vs Block
+    // 4. Character / Item vs Block
     auto char1 = dynamic_cast<Character*>(&e1);
     auto char2 = dynamic_cast<Character*>(&e2);
     auto block1 = dynamic_cast<Block*>(&e1);
@@ -104,6 +108,16 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
         CollisionInfo flippedInfo = info;
         flippedInfo.normal = -info.normal;
         resolveCharacterVsBlock(*char2, *block1, flippedInfo);
+        return;
+    }
+    if (item1 && block2) {
+        resolveItemVsBlock(*item1, *block2, info);
+        return;
+    }
+    if (block1 && item2) {
+        CollisionInfo flippedInfo = info;
+        flippedInfo.normal = -info.normal;
+        resolveItemVsBlock(*item2, *block1, flippedInfo);
         return;
     }
 
@@ -124,14 +138,22 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
 }
 
 void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info) {
-    if (info.normal.y == -1.0f) {
+    if (!enemy.isActive()) return;
+
+    float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
+    float enemyTopY = enemy.getBoundingBox().y + 10.0f;
+
+    bool isStomp = (player.getVelocity().y > -50.0f && playerFeetY <= enemyTopY) ||
+                   (info.normal.y == -1.0f && player.getVelocity().y >= 0.0f);
+
+    if (isStomp) {
         // Player stomped enemy from above
-        player.velocity.y = -Constants::STOMP_BOUNCE_FORCE; // Stomp bounce force
+        player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
         enemy.onStomped();
-        // Reset player combo / handle combos (this will be handled by EventBus / player states in Phase 3)
-    } else {
-        // Player hit from the side or below -> takes damage (unless invincible/mega)
-        // If player is hit, we apply knockback away from the enemy
+        player.incrementCombo();
+        player.addScore(100 * player.getComboCounter());
+    } else if (player.getInvincibilityTimer() <= 0.0f) {
+        // Player hit from the side or below -> takes damage & knockback
         float dx = player.getBoundingBox().getCenter().x - enemy.getBoundingBox().getCenter().x;
         float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
         
@@ -141,6 +163,7 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
         player.takeDamage(1);
     }
 }
+
 
 void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info) {
     if (!item.isCollected()) {
@@ -246,3 +269,23 @@ void CollisionResolver::resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy,
         fireball.destroy();
     }
 }
+
+void CollisionResolver::resolveItemVsBlock(Item& item, Block& block, const CollisionInfo& info) {
+    if (!info.collided || !block.isActive()) return;
+
+    item.position.x += info.normal.x * info.overlap.x;
+    item.position.y += info.normal.y * info.overlap.y;
+    item.boundingBox.x = item.position.x;
+    item.boundingBox.y = item.position.y;
+
+    if (info.normal.x != 0.0f) {
+        item.velocity.x = -item.velocity.x;
+    }
+    if (info.normal.y != 0.0f) {
+        item.velocity.y = 0.0f;
+        if (info.normal.y == -1.0f) {
+            item.setOnGround(true);
+        }
+    }
+}
+

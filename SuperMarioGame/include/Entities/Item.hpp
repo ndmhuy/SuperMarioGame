@@ -20,11 +20,15 @@ public:
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
 
-    // Read-only getter
+    // Ground status & read-only getter
     bool isCollected() const { return collected; }
+    bool isOnGround() const { return m_onGround; }
+    void setOnGround(bool grounded) { m_onGround = grounded; }
 
 protected:
     bool collected = false;
+    bool m_onGround = false;
+
     std::unique_ptr<Animator> m_animator;
     Animation m_animation;
     bool m_hasAnimation = false;
