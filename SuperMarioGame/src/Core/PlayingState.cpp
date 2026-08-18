@@ -506,12 +506,21 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Compute animated tile frame indices from timer
     int coinFrame     = static_cast<int>(m_tileAnimTimer / 0.15f) % 4;
     int questionFrame = static_cast<int>(m_tileAnimTimer / 0.20f) % 4;
-    int conveyorFrame = static_cast<int>(m_tileAnimTimer / 0.10f) % 4;
-    int waterFrame    = static_cast<int>(m_tileAnimTimer / 0.18f) % 4;
+
+    // Only iterate tiles the camera can actually see. Sweeping the whole grid was
+    // roughly 4,400 sprite draws per frame on a 200-wide level (audit A-14).
+    // One tile of margin keeps partially-visible edges and the water bob covered.
+    const AABB view = m_camera.getVisibleBounds();
+    const int firstX = std::max(0, static_cast<int>(std::floor(view.x / Constants::TILE_SIZE)) - 1);
+    const int lastX  = std::min(m_tileMap.getWidth() - 1,
+                                static_cast<int>(std::floor((view.x + view.width) / Constants::TILE_SIZE)) + 1);
+    const int firstY = std::max(0, static_cast<int>(std::floor(view.y / Constants::TILE_SIZE)) - 1);
+    const int lastY  = std::min(m_tileMap.getHeight() - 1,
+                                static_cast<int>(std::floor((view.y + view.height) / Constants::TILE_SIZE)) + 1);
 
     // 1. Draw the tilemap tiles (bottom-to-top to ensure overlapping/bobbing top layers draw on top of background)
-    for (int y = m_tileMap.getHeight() - 1; y >= 0; --y) {
-        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+    for (int y = lastY; y >= firstY; --y) {
+        for (int x = firstX; x <= lastX; ++x) {
             TileType tileType = m_tileMap.getTileType(x, y);
             if (tileType == TileType::Empty) continue;
 
@@ -619,9 +628,9 @@ void PlayingState::render(sf::RenderTarget& target) {
 
     // 4. Draw AABB overlays (dev toggle)
     if (m_showAABB) {
-        // Tile grid AABBs
-        for (int y = 0; y < m_tileMap.getHeight(); ++y) {
-            for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+        // Tile grid AABBs — culled to the same visible window as the tile pass.
+        for (int y = firstY; y <= lastY; ++y) {
+            for (int x = firstX; x <= lastX; ++x) {
                 TileType tt = m_tileMap.getTileType(x, y);
                 if (tt == TileType::Empty) continue;
                 sf::RectangleShape dbg(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
