@@ -9,7 +9,9 @@
 
 void MenuState::enter() {
     std::cout << "Entering MenuState" << std::endl;
-    SoundManager::getInstance().playMusic("assets/bgm/title_screen.mp3");
+    // Pass the registered track key, not a raw path — SoundManager maps
+    // "title_screen" to assets/bgm/main_menu.mp3 and resolves it per platform.
+    SoundManager::getInstance().playMusic("title_screen");
 }
 
 void MenuState::exit() {
