@@ -2828,3 +2828,37 @@ Summary of Changes:
 - REPORT_RULES.md gains a runnable pre-flight checklist and an accuracy policy.
 - Pushed 77b6d48..4d0fa31 to origin/dev at user request.
 ---
+[2026-08-18 16:20:00] Branch: A/fix/audit-remediation
+Git Fingerprint: 71fb98c (before) → 3072e43 (after, 3 commits, not pushed)
+Fetched Remotes: yes, 15:41
+Prompt: Start implementing according to the Member A fix plan.
+Files Modified:
+- SuperMarioGame/src/Utils/SerializationUtils.cpp, src/Utils/LevelLoader.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp, include/Core/PlayingState.hpp
+- SuperMarioGame/src/Entities/Player.cpp, include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/IPlayerState.cpp, include/Entities/IPlayerState.hpp
+- SuperMarioGame/src/Entities/Character.cpp, include/Entities/Character.hpp
+- SuperMarioGame/src/Entities/Entity.cpp, include/Entities/Entity.hpp
+- SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/include/Core/GameSnapshot.hpp
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_regressions.cpp (NEW)
+- .github/workflows/ci.yml (NEW)
+- logs/agent_history.log
+Reachable From Main: yes — every change is on the live gameplay path (LevelLoader, PlayingState, Player, PhysicsEngine). The new verify_regressions target is a harness by design and is registered with CTest.
+Verified By: ctest verify_regressions (47/47 checks) + ran the game (7s smoke run, clean startup, no crash)
+Summary of Changes:
+- WP1 / A-1: LevelLoader now calls SerializationUtils::parseTileTypeName instead of a duplicated if-chain. getTileTypeName/parseTileTypeName made the canonical total mapping (added Used, Empty, and the "coin"/"question" legacy aliases); unknown tile types warn rather than vanish. Restores 9/12/15/12/11/11/11 coin tiles across the 7 level files.
+- WP2 / A-3: extracted PlayingState::adoptPlayer(); all three player-swap sites route through it, fixing the use-after-free on save-slot load. Added Player::restoreStats() so carrying stats no longer publishes spurious CoinCollected/GameOver events.
+- WP3 / A-7: IPlayerState::isExpired() + Player::unwrapExpiredState() replace decorators calling changeState() from inside their own update(). Also fixes the wrapped state's exit() being skipped and enter() running twice. changeState split into applyStateSize()/refreshStateAnimations().
+- WP4 / X-3: enable_testing(), add_verify_test() helper, tests/verify_regressions.cpp, GitHub Actions workflow, and -Wall -Wextra project-wide. Validated the suite has teeth by reintroducing the A-1 drift: 8 failures, 0 coin tiles in all 7 levels.
+- WP5 / A-5: removed the duplicate per-frame snapshot; added Entity::getId() and keyed EntitySnapshot on it so rewind restores by identity rather than vector index.
+- WP6 / A-6: head-butt now requires a ceiling normal AND upward motion; jumping in a 1-tile shaft no longer destroys the side bricks.
+- WP7 / A-4: Player::jump() honours coyote frames and buffers early presses; update() consumes the buffer on landing. Removed onWall from Character::jump() (infinite wall climb). Luigi's double jump rebuilt on the same rules.
+- WP8 / A-8: Player::getBaseState()/setBaseState() swap the base form under an active decorator, so a Fire Flower no longer cancels Star. powerDown routed through it too.
+- WP9 / A-14: tile pass and AABB overlay culled to the camera's visible window. VertexArray batching deliberately deferred.
+- Removed 5 dead PlayingState fields surfaced by -Wall. Game target builds warning-clean.
+- Work is on A/fix/audit-remediation per AGENTS.md Directive 1; NOT merged to dev and not pushed.
+- Still open for Member A: WP10 (render() mutates state), WP11 (AABB in render), WP12 (dispatch + friend sprawl).
+---
