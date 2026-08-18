@@ -7,6 +7,7 @@
 #include "Entities/Trampoline.hpp"
 #include "Entities/PSwitch.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/KoopaTroopa.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -138,22 +139,44 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
 }
 
 void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const CollisionInfo& info) {
-    if (!enemy.isActive()) return;
+    if (!enemy.isActive() || enemy.isDeadOrDying()) return;
+    if (player.getInvincibilityTimer() > 0.0f) return; // Ignore all enemy contact (damage & stomp) during hurt i-frames
 
+    // A stomp is any contact where the player is descending onto the enemy's upper band.
+    // The feet-vs-top test is more forgiving than the raw collision normal at high speed.
     float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
     float enemyTopY = enemy.getBoundingBox().y + 10.0f;
-
     bool isStomp = (player.getVelocity().y > -50.0f && playerFeetY <= enemyTopY) ||
                    (info.normal.y == -1.0f && player.getVelocity().y >= 0.0f);
+
+    // Touching any unflipped Koopa picks it up and prevents damage
+    if (auto koopa = dynamic_cast<KoopaTroopa*>(&enemy)) {
+        if (!koopa->isFlipped() && koopa->getState() != KoopaState::ShellHeld) {
+            if (isStomp && koopa->getState() == KoopaState::Walking) {
+                // Stomping a walking Koopa from above executes the standard stomp bounce
+                player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
+                koopa->onStomped();
+                player.incrementCombo();
+                player.addScore(enemy.getScoreValue() * player.getComboCounter());
+                return;
+            } else {
+                // Touching sideways/below (or touching an idle/kicked shell from any angle) picks it up
+                koopa->pickUp(&player);
+                player.holdEntity(koopa);
+                return;
+            }
+        }
+    }
 
     if (isStomp) {
         // Player stomped enemy from above
         player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
         enemy.onStomped();
         player.incrementCombo();
-        player.addScore(100 * player.getComboCounter());
-    } else if (player.getInvincibilityTimer() <= 0.0f) {
-        // Player hit from the side or below -> takes damage & knockback
+        player.addScore(enemy.getScoreValue() * player.getComboCounter());
+    } else {
+        // Player hit from the side or below -> damage + knockback away from the enemy.
+        // The i-frame guard at the top of this function already gated this path.
         float dx = player.getBoundingBox().getCenter().x - enemy.getBoundingBox().getCenter().x;
         float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
         
@@ -166,6 +189,8 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
 
 
 void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info) {
+    if (player.getInvincibilityTimer() > 0.0f) return; // Ignore item collisions / collection while hurt invincible
+
     if (!item.isCollected()) {
         if (auto trampoline = dynamic_cast<Trampoline*>(&item)) {
             // Trampoline only bounces player when landed on from above

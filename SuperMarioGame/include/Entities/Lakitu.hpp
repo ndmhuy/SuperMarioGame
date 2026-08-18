@@ -12,6 +12,9 @@ public:
     void update(float dt) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
+    float getGravityMultiplier() const override { return 0.0f; }
+    bool collidesWithTiles() const override { return false; }
+
     float getEggTimer() const { return m_eggTimer; }
     int getSpawnCount() const { return m_spawnCount; }
 

@@ -152,7 +152,13 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
 
     // 2. Apply gravity and environmental forces
     for (const auto& entity : entities) {
-        if (!entity || !entity->isActive() || entity->getGravityMultiplier() <= 0.0f) continue;
+        if (!entity || !entity->isActive()) continue;
+        // Zero-gravity entities (blocks, flying/scripted enemies) opt out entirely.
+        if (entity->getGravityMultiplier() <= 0.0f) continue;
+        // Dead or held enemies are driven by their own death/carry animation, not physics.
+        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
+            if (enemy->isDeadOrDying()) continue;
+        }
 
 
         // Check if entity is in water (tile type 7)
@@ -173,9 +179,14 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 3. Integrate X and resolve X collisions with the tile map (only resolve max horizontal overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
+        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
+            if (enemy->isDeadOrDying()) continue;
+        }
 
         entity->position.x += entity->velocity.x * dt;
         entity->boundingBox.x = entity->position.x;
+
+        if (!entity->collidesWithTiles()) continue;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
         CollisionInfo maxCollision;
@@ -201,10 +212,15 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 4. Integrate Y and resolve Y collisions with the tile map (only resolve max vertical overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
+        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
+            if (enemy->isDeadOrDying()) continue;
+        }
 
         float preVelY = entity->velocity.y;
         entity->position.y += entity->velocity.y * dt;
         entity->boundingBox.y = entity->position.y;
+
+        if (!entity->collidesWithTiles()) continue;
 
         auto collisions = m_detector.checkEntityVsTileMap(*entity, tileMap);
         CollisionInfo maxCollision;

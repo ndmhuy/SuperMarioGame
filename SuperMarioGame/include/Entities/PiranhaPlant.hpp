@@ -10,4 +10,7 @@ public:
     void setupAnimations(const SpriteSheet* spriteSheet) override;
     void onStomped() override;
     void onHitByFireball() override;
+
+    float getGravityMultiplier() const override { return 0.0f; }
+    bool collidesWithTiles() const override { return false; }
 };

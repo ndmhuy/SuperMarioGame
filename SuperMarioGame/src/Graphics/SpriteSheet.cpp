@@ -106,3 +106,7 @@ std::vector<std::string> SpriteSheet::getFrameNames() const {
     std::sort(names.begin(), names.end());
     return names;
 }
+
+bool SpriteSheet::hasFrame(const std::string& frameName) const {
+    return m_frames.find(frameName) != m_frames.end();
+}

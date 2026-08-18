@@ -2,6 +2,8 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <algorithm>
 
+#include "Utils/Constants.hpp"
+
 Enemy::Enemy(sf::Vector2f position, int scoreValue, sf::Vector2f targetSize)
     : Character(position, targetSize), m_scoreValue(scoreValue) {
 }
@@ -11,12 +13,32 @@ void Enemy::setupAnimations(const SpriteSheet* spriteSheet) {
     m_animator = std::make_unique<Animator>(spriteSheet);
 }
 
+void Enemy::triggerFlipDeath(sf::Vector2f launchVel) {
+    if (m_isFlipped || m_isDyingDownward) return;
+    m_isFlipped = true;
+    velocity = launchVel;
+}
+
+void Enemy::triggerDownwardDeath(sf::Vector2f launchVel) {
+    if (m_isFlipped || m_isDyingDownward) return;
+    m_isDyingDownward = true;
+    velocity = launchVel;
+}
+
 void Enemy::update(float dt) {
-    if (m_aiStrategy) {
-        m_aiStrategy->execute(*this, dt);
-    }
-    if (m_animator && m_hasAnimation) {
-        m_animator->update(dt);
+    if (m_isFlipped || m_isDyingDownward) {
+        velocity.y += 3500.0f * dt; // Plunge down out of the world relatively fast
+        position += velocity * dt;
+        if (position.y > Constants::WINDOW_HEIGHT + 100.0f) {
+            destroy();
+        }
+    } else {
+        if (m_aiStrategy) {
+            m_aiStrategy->execute(*this, dt);
+        }
+        if (m_animator && m_hasAnimation) {
+            m_animator->update(dt);
+        }
     }
 }
 
@@ -37,7 +59,8 @@ void Enemy::render(sf::RenderTarget& target) {
             // Set origin and position
             sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
             float scaleX = facingRight ? -scale : scale; // horizontal flip if facing left/right
-            sprite.setScale(sf::Vector2f(scaleX, scale));
+            float scaleY = m_isFlipped ? -scale : scale; // vertical flip if defeated/flipped
+            sprite.setScale(sf::Vector2f(scaleX, scaleY));
             sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
 
             target.draw(sprite);
@@ -67,4 +90,12 @@ int Enemy::getScoreValue() const {
 
 void Enemy::setScoreValue(int value) {
     m_scoreValue = value;
+}
+
+const AABB& Enemy::getBoundingBox() const {
+    if (isDeadOrDying()) {
+        static const AABB emptyBox{0.0f, 0.0f, 0.0f, 0.0f};
+        return emptyBox;
+    }
+    return boundingBox;
 }

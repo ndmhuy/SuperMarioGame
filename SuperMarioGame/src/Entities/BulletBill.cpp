@@ -25,7 +25,7 @@ void BulletBill::setupAnimations(const SpriteSheet* spriteSheet) {
 void BulletBill::onStomped() {
     SoundManager::getInstance().playSound("stomp");
     EventBus::getInstance().publish({EventType::EnemyDefeated, m_scoreValue});
-    this->active = false;
+    triggerFlipDeath({100.0f, -300.0f});
 }
 
 void BulletBill::onHitByFireball() {

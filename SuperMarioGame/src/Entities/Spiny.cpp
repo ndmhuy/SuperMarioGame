@@ -6,8 +6,8 @@
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 
-Spiny::Spiny(sf::Vector2f position)
-    : Enemy(position, 200) {
+Spiny::Spiny(sf::Vector2f position, bool isEgg)
+    : Enemy(position, 200), m_isEgg(isEgg) {
     speed = Constants::ENEMY_SPINY_SPEED;
     boundingBox = AABB{ position.x, position.y, Constants::TILE_SIZE, Constants::TILE_SIZE };
 
@@ -19,8 +19,10 @@ void Spiny::setupAnimations(const SpriteSheet* spriteSheet) {
     Enemy::setupAnimations(spriteSheet);
     m_animation = Animation("spiny");
     m_animation.frameList = {{"spiny_move_left_0", 0.15f}, {"spiny_move_left_1", 0.15f}};
+    m_eggAnim = Animation("spiny_egg");
+    m_eggAnim.frameList = {{"spiny_ball_0", 0.15f}, {"spiny_ball_1", 0.15f}};
     if (m_animator) {
-        m_animator->play(&m_animation);
+        m_animator->play(m_isEgg ? &m_eggAnim : &m_animation);
         m_hasAnimation = true;
     }
 }
@@ -34,6 +36,16 @@ void Spiny::update(float dt) {
             destroy();
         }
     } else {
+        if (m_isEgg) {
+            if (onGround) {
+                m_isEgg = false; // Hatch upon landing!
+                if (m_animator) {
+                    m_animator->play(&m_animation);
+                }
+            } else if (m_animator) {
+                m_animator->play(&m_eggAnim);
+            }
+        }
         Enemy::update(dt);
         boundingBox.x = position.x;
         boundingBox.y = position.y;

@@ -213,52 +213,6 @@ Summary of Changes:
 - Implemented magnitude, normalize, and distance functions in MathUtils.cpp.
 - Verified compilation and successfully committed to branch feature/core-engine.
 ---
-[2026-08-08 21:03:35] Branch: A/flagpole-trampoline
-Prompt: Implement Flagpole level goal victory visuals, sliding flag animation, score scaling, level complete screen, and Trampoline spring compression visuals with directional bouncing.
-Files Modified:
-- SuperMarioGame/include/Entities/Flagpole.hpp
-- SuperMarioGame/src/Entities/Flagpole.cpp
-- SuperMarioGame/include/Entities/Trampoline.hpp
-- SuperMarioGame/src/Entities/Trampoline.cpp
-- SuperMarioGame/src/Physics/CollisionResolver.cpp
-- SuperMarioGame/include/Core/PlayingState.hpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-- SuperMarioGame/src/Utils/LevelLoader.cpp
-- SuperMarioGame/CMakeLists.txt
-- SuperMarioGame/tests/verify_flagpole_trampoline.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Enhanced `Flagpole`: metallic silver pole shaft, golden top orb cap, sienna base block, and red Mario victory flag with waving animation.
-- Implemented Flagpole sliding flag animation smoothly moving downward upon collision, calculating catch height score percentage (5000, 2000, 800, 400, 100 pts), playing victory SFX, and publishing `LevelComplete` event.
-- Enhanced `Trampoline`: spring coil rendering, emerald green top cushion, spring compression animation (collapsing to 16px under impact), and directional landing check in `CollisionResolver`.
-- Added "COURSE CLEAR!" victory overlay in `PlayingState` displaying flagpole bonus and total score.
-- Added candidate fallback path resolution in `LevelLoader` and `PlayingState` so assets and fonts load cleanly regardless of CWD.
-- Added `verify_flagpole_trampoline` test target verifying 4 test cases for flagpole scoring, flag slide, trampoline compression, and top landing.
----
-[2026-08-08 21:10:50] Branch: A/flagpole-trampoline
-Prompt: Restored Fireball entity, glowing SFML graphics, ground bouncing physics, tile collision, enemy hit mechanics, and verify_fireball integration tests after git reset.
-Files Modified:
-- SuperMarioGame/include/Entities/Fireball.hpp
-- SuperMarioGame/src/Entities/Fireball.cpp
-- SuperMarioGame/include/Entities/EntityFactory.hpp
-- SuperMarioGame/src/Entities/EntityFactory.cpp
-- SuperMarioGame/include/Physics/CollisionResolver.hpp
-- SuperMarioGame/src/Physics/CollisionResolver.cpp
-- SuperMarioGame/src/Physics/PhysicsEngine.cpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-- SuperMarioGame/CMakeLists.txt
-- SuperMarioGame/tests/verify_fireball.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Restored `Fireball` class with multi-layered glowing SFML visuals (orange-red flame glow, golden yellow outline, bright yellow inner core, spinning spark particles).
-- Restored ground bouncing mechanics (`velocity.y = -240.0f`), horizontal movement (`350 px/s`), 3.0s lifetime expiration, and wall tile destruction.
-- Registered `EntityFactory::createFireball` and `CollisionResolver::resolveFireballVsEnemy`.
-- Restored `verify_fireball` test runner verifying 4 unit test cases (4/4 passed).
-- Re-verified `verify_flagpole_trampoline` (4/4 passed) and `verify_memento_rewind` (4/4 passed).
-- Built main `SuperMarioGame` binary target cleanly (100%).
----
-
-
 [2026-06-12 20:30:00] Branch: dev
 Prompt: Generate the concrete command classes from the Interface in task 1.5.
 Files Modified:
@@ -350,68 +304,6 @@ Summary of Changes:
 - Added resumeMusic() to SoundManager to allow resuming playback of paused music without specifying path.
 - Updated playMusic() to resume when paused and do nothing when already playing, preventing current music from restarting.
 - Recompiled and verified successful builds.
-[2026-06-21 20:31:00] Branch: dev
-Prompt: Read the project and setup a planning and a implementing agents.
-Files Modified: logs/agent_history.log
-Summary of Changes:
-- Read codebase structure, task division, and workflow guidelines.
-- Defined subagent 'planning_agent' for research, design patterns, and implementation plan generation.
-- Defined subagent 'implementing_agent' for executing code edits, CMake building, and manual/automated verification.
-- Created agent_setup.md artifact to document agent roles, responsibilities, and step-by-step collaboration loops.
-[2026-06-21 22:02:00] Branch: dev
-Prompt: Adapt the agent to the member B tasks.
-Files Modified: .member_profile.json (NEW), logs/agent_history.log
-Summary of Changes:
-- Created the gitignored .member_profile.json configuration file at the workspace root, designating Member B (Partner) as the active developer.
-- Configured Member B private tasks focusing on the Phase 3 Entity Hierarchy (Entity, Character, Player bases, and AI strategies).
-- Set up custom agent instructions to prioritize gameplay/entities, enforce B/ branch prefixes, and verify interfaces with Member A's engine code.
-[2026-06-21 22:13:30] Branch: dev
-Prompt: Create a teaching agent for answering questions about the plans and implementation details.
-Files Modified: logs/agent_history.log
-Summary of Changes:
-- Defined subagent 'teaching_agent' focused on explaining architectural design, design patterns, specification sheets, and C++ source code details.
-- Configured 'teaching_agent' as a read-only agent (write tools disabled) to isolate it from the regular development and implementation flow.
----
-[2026-06-23 20:40:00] Branch: B/movement-strategies
-Prompt: Implement abstract Enemy class, IMovementStrategy interface, and 8 concrete AI movement strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger). Write verify_strategies.cpp scratch test, update task.md and TASKS.md checklists, and log changes.
-Files Modified:
-- SuperMarioGame/include/Core/Game.hpp
-- SuperMarioGame/src/Core/Game.cpp
-- SuperMarioGame/include/Entities/IMovementStrategy.hpp
-- SuperMarioGame/include/Entities/Enemy.hpp
-- SuperMarioGame/src/Entities/Enemy.cpp
-- SuperMarioGame/include/Entities/PatrolStrategy.hpp
-- SuperMarioGame/src/Entities/PatrolStrategy.cpp
-- SuperMarioGame/include/Entities/ChaseStrategy.hpp
-- SuperMarioGame/src/Entities/ChaseStrategy.cpp
-- SuperMarioGame/include/Entities/FlyStrategy.hpp
-- SuperMarioGame/src/Entities/FlyStrategy.cpp
-- SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp
-- SuperMarioGame/src/Entities/TimerEmergenceStrategy.cpp
-- SuperMarioGame/include/Entities/LinearStrategy.hpp
-- SuperMarioGame/src/Entities/LinearStrategy.cpp
-- SuperMarioGame/include/Entities/HammerThrowStrategy.hpp
-- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
-- SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp
-- SuperMarioGame/src/Entities/TetheredChaseStrategy.cpp
-- SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp
-- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
-- TASKS.md
-Summary of Changes:
-- Modified Game singleton with player and tilemap registry setters/getters.
-- Created IMovementStrategy.hpp outlining the AI Template Method movement sequence.
-- Implemented abstract base class Enemy inheriting from Character, delegating updates to its active strategy.
-- Created PatrolStrategy supporting wall rebound and ledge-awareness with TileMap.
-- Created ChaseStrategy tracking player coordinates when their back is turned.
-- Created FlyStrategy with sinusoidal, vertical-only bounce, and player follow modes.
-- Created TimerEmergenceStrategy pipe animation state machine.
-- Created LinearStrategy for constant horizontal speed (Bullet Bill).
-- Created HammerThrowStrategy for jumping and callback-based projectile throwing.
-- Created TetheredChaseStrategy with anchor post, wandering, and tether clamping limits.
-- Created ProximityTriggerStrategy ceiling slam state machine (Thwomp).
-- Wrote verify_strategies.cpp scratch test verifying all 8 strategy lifecycles.
-- Checked off completed tasks in TASKS.md.
----
 [2026-06-16 17:07:00] Branch: A/feature/physics
 Prompt: Move on Phase 2, create the boilerplate, leave empty implementation for human do by hand.
 Files Modified: SuperMarioGame/include/Utils/TileMap.hpp, SuperMarioGame/src/Utils/TileMap.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp, logs/agent_history.log
@@ -527,6 +419,28 @@ Files Modified: SuperMarioGame_ClassDiagram.pdf, SuperMarioGame_ClassDiagram_Hor
 Summary of Changes:
 - Tracked, committed, and pushed all class diagram PDF, SVG, and HTML test assets to origin.
 ---
+[2026-06-21 20:31:00] Branch: dev
+Prompt: Read the project and setup a planning and a implementing agents.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Read codebase structure, task division, and workflow guidelines.
+- Defined subagent 'planning_agent' for research, design patterns, and implementation plan generation.
+- Defined subagent 'implementing_agent' for executing code edits, CMake building, and manual/automated verification.
+- Created agent_setup.md artifact to document agent roles, responsibilities, and step-by-step collaboration loops.
+[2026-06-21 22:02:00] Branch: dev
+Prompt: Adapt the agent to the member B tasks.
+Files Modified: .member_profile.json (NEW), logs/agent_history.log
+Summary of Changes:
+- Created the gitignored .member_profile.json configuration file at the workspace root, designating Member B (Partner) as the active developer.
+- Configured Member B private tasks focusing on the Phase 3 Entity Hierarchy (Entity, Character, Player bases, and AI strategies).
+- Set up custom agent instructions to prioritize gameplay/entities, enforce B/ branch prefixes, and verify interfaces with Member A's engine code.
+[2026-06-21 22:13:30] Branch: dev
+Prompt: Create a teaching agent for answering questions about the plans and implementation details.
+Files Modified: logs/agent_history.log
+Summary of Changes:
+- Defined subagent 'teaching_agent' focused on explaining architectural design, design patterns, specification sheets, and C++ source code details.
+- Configured 'teaching_agent' as a read-only agent (write tools disabled) to isolate it from the regular development and implementation flow.
+---
 [2026-06-22 08:35:00] Branch: A/feature/physics
 Prompt: Evaluate and fix issues reported by Copilot review.
 Files Modified:
@@ -546,6 +460,75 @@ Summary of Changes:
 - Implemented collision pair de-duplication cache using std::unordered_set with order-independent keys to guarantee each colliding pair is resolved exactly once per frame.
 - Excluded imgui.ini from git tracking and added it to .gitignore to prevent developer-specific UI conflict diffs.
 - Verified successful CMake compilation and executable builds.
+---
+[2026-06-23 20:40:00] Branch: B/movement-strategies
+Prompt: Implement abstract Enemy class, IMovementStrategy interface, and 8 concrete AI movement strategies (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger). Write verify_strategies.cpp scratch test, update task.md and TASKS.md checklists, and log changes.
+Files Modified:
+- SuperMarioGame/include/Core/Game.hpp
+- SuperMarioGame/src/Core/Game.cpp
+- SuperMarioGame/include/Entities/IMovementStrategy.hpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/PatrolStrategy.hpp
+- SuperMarioGame/src/Entities/PatrolStrategy.cpp
+- SuperMarioGame/include/Entities/ChaseStrategy.hpp
+- SuperMarioGame/src/Entities/ChaseStrategy.cpp
+- SuperMarioGame/include/Entities/FlyStrategy.hpp
+- SuperMarioGame/src/Entities/FlyStrategy.cpp
+- SuperMarioGame/include/Entities/TimerEmergenceStrategy.hpp
+- SuperMarioGame/src/Entities/TimerEmergenceStrategy.cpp
+- SuperMarioGame/include/Entities/LinearStrategy.hpp
+- SuperMarioGame/src/Entities/LinearStrategy.cpp
+- SuperMarioGame/include/Entities/HammerThrowStrategy.hpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp
+- SuperMarioGame/src/Entities/TetheredChaseStrategy.cpp
+- SuperMarioGame/include/Entities/ProximityTriggerStrategy.hpp
+- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
+- TASKS.md
+Summary of Changes:
+- Modified Game singleton with player and tilemap registry setters/getters.
+- Created IMovementStrategy.hpp outlining the AI Template Method movement sequence.
+- Implemented abstract base class Enemy inheriting from Character, delegating updates to its active strategy.
+- Created PatrolStrategy supporting wall rebound and ledge-awareness with TileMap.
+- Created ChaseStrategy tracking player coordinates when their back is turned.
+- Created FlyStrategy with sinusoidal, vertical-only bounce, and player follow modes.
+- Created TimerEmergenceStrategy pipe animation state machine.
+- Created LinearStrategy for constant horizontal speed (Bullet Bill).
+- Created HammerThrowStrategy for jumping and callback-based projectile throwing.
+- Created TetheredChaseStrategy with anchor post, wandering, and tether clamping limits.
+- Created ProximityTriggerStrategy ceiling slam state machine (Thwomp).
+- Wrote verify_strategies.cpp scratch test verifying all 8 strategy lifecycles.
+- Checked off completed tasks in TASKS.md.
+---
+[2026-06-24 10:32:30] Branch: A/feature/entities
+Prompt: check my manual implementation and update constants, replacing hardcoded values in the codebase.
+Files Modified:
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Character.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Checked user's manual implementations in Character.cpp and Player.cpp, identifying critical physics and logic bugs (such as perpendicular velocity overrides, jump height scaling issues, incorrect wall-jump push direction, and ground-pound condition).
+- Expanded Constants.hpp with comprehensive physics scale constants (GRAVITY_SCALE, TERMINAL_VELOCITY, GROUND_CHECK_OFFSET), environmental surface properties (CONVEYOR_SPEED, WATER_GRAVITY_MULT, WATER_TERMINAL_VELOCITY), and collision resolution impulse forces.
+- Refactored PhysicsEngine.cpp and CollisionResolver.cpp to eliminate all hardcoded physics velocities, offsets, and forces, replacing them with the new constants.
+- Refactored Character.cpp and Player.cpp to correct movement and jump logic, ensuring horizontal/vertical momentum is preserved, facing direction updates correctly, jumpForce member is utilized, wall-jump pushes away from walls, and ground-pound only triggers while airborne.
+- Successfully compiled the entire project with zero errors.
+---
+[2026-06-24 11:07:35] Branch: A/feature/entities
+Prompt: help me implement the rest of Player.cpp.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/IPlayerState.hpp
+- SuperMarioGame/include/Core/EventBus.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Added crouched and sliding state tracking getters and members, along with update(float dt) override, to Player.hpp.
+- Implemented getWrappedState() getter in PlayerStateDecorator to allow unwrapping temporary decorators recursively.
+- Added PlayerShotFireball to EventType in EventBus.hpp to decouple fireball shooting from concrete projectile spawning systems.
+- Fully implemented player crouch/slide toggles, slide friction deceleration, fireball shooting with decorator unwrapping, full power-up/down state transitions, and frame updates (invincibility, coyote time, and jump buffers) in Player.cpp.
+- Successfully verified compilation of the entire codebase.
 ---
 [2026-06-26 18:25:00] Branch: B/feature/entities
 Prompt: Proceed with the plan to implement Phase 3.12: Blocks (Original).
@@ -661,86 +644,6 @@ Summary of Changes:
 - Implemented isDone() and updated getSprite() to preserve the final frame when non-looping animations complete.
 - Verified compilation and naming conventions (passed check_conventions.py).
 ---
-[2026-07-05 14:26:00] Branch: B/feature/entities
-Prompt: Generate a test for sprite sheet and animation with the test spritesheet in the asset folder.
-Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graphics.cpp (NEW)
-Summary of Changes:
-- Created standalone console test verify_graphics.cpp to load test.png and test.json.
-- Wrote assertions verifying SpriteSheet loads correct texture rectangles.
-- Verified Animator loop and non-loop keyframe state transitions.
-- Configured verify_graphics executable target in CMakeLists.txt and built/ran successfully.
----
-[2026-07-05 16:50:00] Branch: B/feature/entities
-Prompt: Create a visual, interactive test for sprite sheet and animation using SFML and ImGui.
-Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graphics_visual.cpp (NEW)
-Summary of Changes:
-- Terminated implementing_agent and other active subagents to clean them up.
-- Created verify_graphics_visual.cpp opening an 800x600 SFML window with ImGui animation/frame playback controls.
-- Built and ran verify_graphics_visual successfully.
----
-[2026-07-18 13:53:00] Branch: B/feature/entities
-Prompt: Implement the HUD similar to the provided reference image (displaying strictly elements from HudData).
-Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp
-Summary of Changes:
-- Added mutable star and coin shapes and m_starCoinsCountText to Hud.hpp.
-- Implemented HUD.cpp using constructor initializer list to instantiate sf::Text objects with the PressStart2P font from ResourceManager.
-- Designed absolute coordinate layouts for name, lives, coins, world, time, star coins, combo counter, and P-Switch alert.
-- Added font loading and fallback mechanisms (consola.ttf/arial.ttf) in PlayingState.cpp.
-- Instantiated, updated, and rendered m_hud in screen space inside PlayingState.
-- Compiled and successfully executed all targets.
----
-[2026-07-18 15:20:00] Branch: B/feature/entities
-Prompt: Increase the size of the filled star to match the empty star.
-Files Modified: SuperMarioGame/src/Graphics/HUD.cpp
-Summary of Changes:
-- Modified HUD.cpp to apply identical outline thickness and color configuration to both filled and empty stars.
-- Rebuilt and verified size matches.
----
-[2026-07-18 15:28:00] Branch: B/feature/entities
-Prompt: Remove star coins count text since it is not in HudData.
-Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp
-Summary of Changes:
-- Removed m_starCoinsCountText from Hud.hpp and HUD.cpp.
-- Removed the X=260 star counter icon and text drawing from HUD.cpp.
-- Verified compilation and executed the clean target.
----
-[2026-07-18 20:43:00] Branch: B/feature/entities
-Prompt: Implement Boss HUD elements (name, health bar) in HUD and create a new visual test target verify_hud_boss.
-Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/tests/verify_hud_boss.cpp (NEW), SuperMarioGame/CMakeLists.txt
-Summary of Changes:
-- Extended HudData with bossActive, bossName, bossHealth, bossMaxHealth fields.
-- Implemented boss name text centering and health bar background/fill resizing in HUD.cpp.
-- Created verify_hud_boss.cpp as a comprehensive visual HUD editor running on a 1280x720 SFML window with ImGui controls.
-- Registered verify_hud_boss target in CMakeLists.txt and built target successfully.
-[2026-06-24 10:32:30] Branch: A/feature/entities
-Prompt: check my manual implementation and update constants, replacing hardcoded values in the codebase.
-Files Modified:
-- SuperMarioGame/include/Utils/Constants.hpp
-- SuperMarioGame/src/Physics/PhysicsEngine.cpp
-- SuperMarioGame/src/Physics/CollisionResolver.cpp
-- SuperMarioGame/src/Entities/Character.cpp
-- SuperMarioGame/src/Entities/Player.cpp
-Summary of Changes:
-- Checked user's manual implementations in Character.cpp and Player.cpp, identifying critical physics and logic bugs (such as perpendicular velocity overrides, jump height scaling issues, incorrect wall-jump push direction, and ground-pound condition).
-- Expanded Constants.hpp with comprehensive physics scale constants (GRAVITY_SCALE, TERMINAL_VELOCITY, GROUND_CHECK_OFFSET), environmental surface properties (CONVEYOR_SPEED, WATER_GRAVITY_MULT, WATER_TERMINAL_VELOCITY), and collision resolution impulse forces.
-- Refactored PhysicsEngine.cpp and CollisionResolver.cpp to eliminate all hardcoded physics velocities, offsets, and forces, replacing them with the new constants.
-- Refactored Character.cpp and Player.cpp to correct movement and jump logic, ensuring horizontal/vertical momentum is preserved, facing direction updates correctly, jumpForce member is utilized, wall-jump pushes away from walls, and ground-pound only triggers while airborne.
-- Successfully compiled the entire project with zero errors.
----
-[2026-06-24 11:07:35] Branch: A/feature/entities
-Prompt: help me implement the rest of Player.cpp.
-Files Modified:
-- SuperMarioGame/include/Entities/Player.hpp
-- SuperMarioGame/include/Entities/IPlayerState.hpp
-- SuperMarioGame/include/Core/EventBus.hpp
-- SuperMarioGame/src/Entities/Player.cpp
-Summary of Changes:
-- Added crouched and sliding state tracking getters and members, along with update(float dt) override, to Player.hpp.
-- Implemented getWrappedState() getter in PlayerStateDecorator to allow unwrapping temporary decorators recursively.
-- Added PlayerShotFireball to EventType in EventBus.hpp to decouple fireball shooting from concrete projectile spawning systems.
-- Fully implemented player crouch/slide toggles, slide friction deceleration, fireball shooting with decorator unwrapping, full power-up/down state transitions, and frame updates (invincibility, coyote time, and jump buffers) in Player.cpp.
-- Successfully verified compilation of the entire codebase.
----
 [2026-07-04 22:15:00] Branch: dev
 Prompt: complete member A phase 3, merge, pull from dev, and write weekly report for week 04
 Files Modified:
@@ -793,77 +696,6 @@ Summary of Changes:
 - Implemented the base Item class and all 12 item subclasses, adding customized movement, wall bounce, ground bouncing, and EventBus notification wiring.
 - Added a public setVelocity() method to Entity and getPlayer() to InputManager for clean, safe access to player and velocity settings.
 - Merged the completed feature branch back into the dev branch, resolved dependencies, verified clean compilations, and drafted, compiled (via cupsfilter), and pushed the Week 04 weekly progress report (both MD and PDF versions).
----
-[2026-07-11 21:30:00] Branch: dev
-Prompt: Write the weekly report for week 5 (based on the previous template) on branch dev. Write the rules for writing report.
-Files Modified: docs/Group52_05/52.md, docs/Group52_05/52.pdf, docs/REPORT_RULES.md, AGENTS.md, 25125083.md, logs/agent_history.log
-Summary of Changes:
-- Switch to branch dev.
-- Fetched and gathered completed tasks from all branches (including A/physics-input-test and B/feature/entities).
-- Drafted the Week 5 progress report (docs/Group52_05/52.md) detailing Member A's physics, camera, and level loading features, and Member B's AI strategies, enemies, blocks, and animations.
-- Compiled docs/Group52_05/52.md to docs/Group52_05/52.pdf using cupsfilter.
-- Formulated clear report writing rules in docs/REPORT_RULES.md, establishing standards for timing, structure, content, and quality.
-- Appended weekly report rules to AGENTS.md and regenerated 25125083.md to synchronize the consolidated document.
-- Staged, committed, and pushed dev changes to origin.
----
-[2026-07-11 21:32:00] Branch: dev
-Prompt: Generate PDF for week 4 as well.
-Files Modified: docs/Group52_04/52.pdf, logs/agent_history.log
-Summary of Changes:
-- Regenerated the Week 4 progress report PDF (docs/Group52_04/52.pdf) using the new Python-based WeasyPrint generation utility docs/generate_pdf.py to apply uniform premium styling.
-- Committed and ---
-[2026-07-18 22:30:00] Branch: dev
-Prompt: Write weekly report from the 12/07 to today. Follow the report rules in the docs folder.
-Files Modified: docs/Group52_06/52.md, docs/Group52_06/52.pdf, logs/agent_history.log
-Summary of Changes:
-- Fetched task status and logs from all remote branches (including A/feature/level-editor, A/feature/save-load, A/spritesheet-studio, and B/feature/entities).
-- Consolidated Member A's completed tasks for save/load slot serialization, gameplay statistics tracker, achievement manager HUD, pause and settings panel ImGui, map editor framework, Undo/Redo editor commands, and interactive spritesheet arrange utility.
-- Consolidated Member B's completed tasks for the graphical HUD overlay, boss health indicators, PressStart2P font asset loading with fallbacks, and the comprehensive HUD visual test target.
-- Compiled the Week 6 progress report into docs/Group52_06/52.md on the dev branch and retrieved the compiled docs/Group52_06/52.pdf.
----
-[2026-07-18 11:23:45] Branch: A/feature/level-editor
-Prompt: Implement in-game Map Editor (Mario Maker) with Undo/Redo commands and Level JSON serialization.
-Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/include/Core/Game.hpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/include/Utils/LevelLoader.hpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Core/PlayingState.cpp, SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/include/Utils/EditorCommands.hpp, SuperMarioGame/include/Utils/MapEditor.hpp, SuperMarioGame/src/Utils/EditorCommands.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/tests/verify_map_editor.cpp
-Summary of Changes:
-- Created EditorCommands hierarchy wrapping cell placement and deletions under Command Pattern for Undo/Redo.
-- Created MapEditor controller handling brush palettes combos, grid viewport translations, and file loader calls.
-- Encapsulated sf::RenderWindow coordinates mapping safely in Game::getMouseWorldPosition.
-- Wired F1 shortcut in PlayingState to toggle the editor on and bypass normal update/physics pipelines.
-- Implemented loadLevel and saveLevel JSON parsing inside LevelLoader.
-- Configured verify_map_editor target in CMakeLists.txt and verified 100% test assertions pass.
-[2026-07-18 11:37:00] Branch: A/feature/level-editor
-Prompt: Centralize duplicate string name helpers, check off completed global tasks, and compile Week 6 progress report with PDF.
-Files Modified: SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/include/Utils/SerializationUtils.hpp, SuperMarioGame/src/Utils/SerializationUtils.cpp, TASKS.md, docs/Group52_06/52.md, docs/Group52_06/52.pdf
-Summary of Changes:
-- Created SerializationUtils utility file to house centralized tile and entity string mapping functions.
-- Removed duplicate local helpers from LevelLoader.cpp and MapEditor.cpp.
-- Checked off Phase 8 and Bonus A items in the global TASKS.md file.
-- Drafted the Week 6 progress report and compiled it into a beautiful PDF using WeasyPrint generator script.
-[2026-07-18 11:42:00] Branch: A/feature/level-editor
-Prompt: Tick all earlier completed tasks in TASKS.md and TASK_DIVISION.md and regenerate PDFs.
-Files Modified: TASKS.md, TASKS.pdf, TASK_DIVISION.md, TASK_DIVISION.pdf
-Summary of Changes:
-- Checked off all earlier completed tasks across Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, and Phase 6 in both documents.
-- Rerendered TASKS.pdf and TASK_DIVISION.pdf.
----
-[2026-07-18 17:28:00] Branch: A/feature/level-editor
-Prompt: Design proposal and specification of 2-player multiplayer screen layouts and AI difficulty/archetype mechanisms, including Shadow Mario.
-Files Modified: docs/two_player_ai_plan.md (NEW)
-Summary of Changes:
-- Created comprehensive spec covering Shared-Screen (midpoint camera tracking, hard bounding splat, head-stomps, projectile damage) and Split-Screen (left/right vertical viewport split, isolated vs interconnected dimension configuration).
-- Detailed AI difficulty layers (easy, normal, hard adjustments for vision grid, reaction delays, action noise, and control bounds).
-- Defined AI behavior personalities (Speedrunner, Hunter, Collector).
-- Detailed the Shadow Mario (Dark Mario) input recording buffer (struct PlayerFramePacket deque) and delayed command replay system with positional lerp synchronization.
-- Outlined the C++ class hierarchy integration using Strategy and Command patterns.
-- Saved design spec to docs/two_player_ai_plan.md in the project workspace.
----
-[2026-07-18 08:53:30] Branch: A/feature/save-load
-Prompt: Setup nlohmann json library for Phase 8 Save/Load and Persistence tasks.
-Files Modified: SuperMarioGame/CMakeLists.txt, logs/agent_history.log
-Summary of Changes:
-- Modified CMakeLists.txt to declare the nlohmann/json GIT_REPOSITORY and GIT_TAG using FetchContent.
-- Linked nlohmann_json::nlohmann_json target dependency to the main SuperMarioGame target.
-- Successfully verified CMake configuration and build of the project.
 ---
 [2026-07-05 10:12:00] Branch: A/physics-input-test
 Prompt: Link input manager to game to test physics, connect all existing systems, and provide a simulation prototype.
@@ -953,6 +785,111 @@ Summary of Changes:
 - Designed 4 levels (Grassland, Cave, Castle, and Sky) matching SPEC §9.6.
 - Added m_selectedLevelIndex and ImGui Level Selection dropdown to PlayingState, letting players load and test levels in real-time.
 ---
+[2026-07-05 14:26:00] Branch: B/feature/entities
+Prompt: Generate a test for sprite sheet and animation with the test spritesheet in the asset folder.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graphics.cpp (NEW)
+Summary of Changes:
+- Created standalone console test verify_graphics.cpp to load test.png and test.json.
+- Wrote assertions verifying SpriteSheet loads correct texture rectangles.
+- Verified Animator loop and non-loop keyframe state transitions.
+- Configured verify_graphics executable target in CMakeLists.txt and built/ran successfully.
+---
+[2026-07-05 16:50:00] Branch: B/feature/entities
+Prompt: Create a visual, interactive test for sprite sheet and animation using SFML and ImGui.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/tests/verify_graphics_visual.cpp (NEW)
+Summary of Changes:
+- Terminated implementing_agent and other active subagents to clean them up.
+- Created verify_graphics_visual.cpp opening an 800x600 SFML window with ImGui animation/frame playback controls.
+- Built and ran verify_graphics_visual successfully.
+---
+[2026-07-11 21:30:00] Branch: dev
+Prompt: Write the weekly report for week 5 (based on the previous template) on branch dev. Write the rules for writing report.
+Files Modified: docs/Group52_05/52.md, docs/Group52_05/52.pdf, docs/REPORT_RULES.md, AGENTS.md, 25125083.md, logs/agent_history.log
+Summary of Changes:
+- Switch to branch dev.
+- Fetched and gathered completed tasks from all branches (including A/physics-input-test and B/feature/entities).
+- Drafted the Week 5 progress report (docs/Group52_05/52.md) detailing Member A's physics, camera, and level loading features, and Member B's AI strategies, enemies, blocks, and animations.
+- Compiled docs/Group52_05/52.md to docs/Group52_05/52.pdf using cupsfilter.
+- Formulated clear report writing rules in docs/REPORT_RULES.md, establishing standards for timing, structure, content, and quality.
+- Appended weekly report rules to AGENTS.md and regenerated 25125083.md to synchronize the consolidated document.
+- Staged, committed, and pushed dev changes to origin.
+---
+[2026-07-11 21:32:00] Branch: dev
+Prompt: Generate PDF for week 4 as well.
+Files Modified: docs/Group52_04/52.pdf, logs/agent_history.log
+Summary of Changes:
+- Regenerated the Week 4 progress report PDF (docs/Group52_04/52.pdf) using the new Python-based WeasyPrint generation utility docs/generate_pdf.py to apply uniform premium styling.
+- Committed and ---
+[2026-07-18 08:53:30] Branch: A/feature/save-load
+Prompt: Setup nlohmann json library for Phase 8 Save/Load and Persistence tasks.
+Files Modified: SuperMarioGame/CMakeLists.txt, logs/agent_history.log
+Summary of Changes:
+- Modified CMakeLists.txt to declare the nlohmann/json GIT_REPOSITORY and GIT_TAG using FetchContent.
+- Linked nlohmann_json::nlohmann_json target dependency to the main SuperMarioGame target.
+- Successfully verified CMake configuration and build of the project.
+---
+[2026-07-18 11:23:45] Branch: A/feature/level-editor
+Prompt: Implement in-game Map Editor (Mario Maker) with Undo/Redo commands and Level JSON serialization.
+Files Modified: SuperMarioGame/CMakeLists.txt, SuperMarioGame/include/Core/Game.hpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/include/Utils/LevelLoader.hpp, SuperMarioGame/src/Core/Game.cpp, SuperMarioGame/src/Core/PlayingState.cpp, SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/include/Utils/EditorCommands.hpp, SuperMarioGame/include/Utils/MapEditor.hpp, SuperMarioGame/src/Utils/EditorCommands.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/tests/verify_map_editor.cpp
+Summary of Changes:
+- Created EditorCommands hierarchy wrapping cell placement and deletions under Command Pattern for Undo/Redo.
+- Created MapEditor controller handling brush palettes combos, grid viewport translations, and file loader calls.
+- Encapsulated sf::RenderWindow coordinates mapping safely in Game::getMouseWorldPosition.
+- Wired F1 shortcut in PlayingState to toggle the editor on and bypass normal update/physics pipelines.
+- Implemented loadLevel and saveLevel JSON parsing inside LevelLoader.
+- Configured verify_map_editor target in CMakeLists.txt and verified 100% test assertions pass.
+[2026-07-18 11:37:00] Branch: A/feature/level-editor
+Prompt: Centralize duplicate string name helpers, check off completed global tasks, and compile Week 6 progress report with PDF.
+Files Modified: SuperMarioGame/src/Utils/LevelLoader.cpp, SuperMarioGame/src/Utils/MapEditor.cpp, SuperMarioGame/include/Utils/SerializationUtils.hpp, SuperMarioGame/src/Utils/SerializationUtils.cpp, TASKS.md, docs/Group52_06/52.md, docs/Group52_06/52.pdf
+Summary of Changes:
+- Created SerializationUtils utility file to house centralized tile and entity string mapping functions.
+- Removed duplicate local helpers from LevelLoader.cpp and MapEditor.cpp.
+- Checked off Phase 8 and Bonus A items in the global TASKS.md file.
+- Drafted the Week 6 progress report and compiled it into a beautiful PDF using WeasyPrint generator script.
+[2026-07-18 11:42:00] Branch: A/feature/level-editor
+Prompt: Tick all earlier completed tasks in TASKS.md and TASK_DIVISION.md and regenerate PDFs.
+Files Modified: TASKS.md, TASKS.pdf, TASK_DIVISION.md, TASK_DIVISION.pdf
+Summary of Changes:
+- Checked off all earlier completed tasks across Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, and Phase 6 in both documents.
+- Rerendered TASKS.pdf and TASK_DIVISION.pdf.
+---
+[2026-07-18 13:53:00] Branch: B/feature/entities
+Prompt: Implement the HUD similar to the provided reference image (displaying strictly elements from HudData).
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- Added mutable star and coin shapes and m_starCoinsCountText to Hud.hpp.
+- Implemented HUD.cpp using constructor initializer list to instantiate sf::Text objects with the PressStart2P font from ResourceManager.
+- Designed absolute coordinate layouts for name, lives, coins, world, time, star coins, combo counter, and P-Switch alert.
+- Added font loading and fallback mechanisms (consola.ttf/arial.ttf) in PlayingState.cpp.
+- Instantiated, updated, and rendered m_hud in screen space inside PlayingState.
+- Compiled and successfully executed all targets.
+---
+[2026-07-18 15:20:00] Branch: B/feature/entities
+Prompt: Increase the size of the filled star to match the empty star.
+Files Modified: SuperMarioGame/src/Graphics/HUD.cpp
+Summary of Changes:
+- Modified HUD.cpp to apply identical outline thickness and color configuration to both filled and empty stars.
+- Rebuilt and verified size matches.
+---
+[2026-07-18 15:28:00] Branch: B/feature/entities
+Prompt: Remove star coins count text since it is not in HudData.
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp
+Summary of Changes:
+- Removed m_starCoinsCountText from Hud.hpp and HUD.cpp.
+- Removed the X=260 star counter icon and text drawing from HUD.cpp.
+- Verified compilation and executed the clean target.
+---
+[2026-07-18 17:28:00] Branch: A/feature/level-editor
+Prompt: Design proposal and specification of 2-player multiplayer screen layouts and AI difficulty/archetype mechanisms, including Shadow Mario.
+Files Modified: docs/two_player_ai_plan.md (NEW)
+Summary of Changes:
+- Created comprehensive spec covering Shared-Screen (midpoint camera tracking, hard bounding splat, head-stomps, projectile damage) and Split-Screen (left/right vertical viewport split, isolated vs interconnected dimension configuration).
+- Detailed AI difficulty layers (easy, normal, hard adjustments for vision grid, reaction delays, action noise, and control bounds).
+- Defined AI behavior personalities (Speedrunner, Hunter, Collector).
+- Detailed the Shadow Mario (Dark Mario) input recording buffer (struct PlayerFramePacket deque) and delayed command replay system with positional lerp synchronization.
+- Outlined the C++ class hierarchy integration using Strategy and Command patterns.
+- Saved design spec to docs/two_player_ai_plan.md in the project workspace.
+---
 [2026-07-18 18:22:00] Branch: A/feature/level-editor
 Prompt: Address code reviews on save-load PR #5 and level-editor PR #6, resolve all merge conflicts, verify compile, run all verification tests, and push branches.
 Files Modified:
@@ -983,6 +920,36 @@ Summary of Changes:
 - Fixed out-of-bounds coordinates risk in saveLevel by clamping spawnPoint and flagpole coordinates to map boundaries.
 - Converted absolute local paths in Week 6 progress report links to repository-relative links and rebuilt the report PDF.
 - Verified that both verify_save_load and verify_map_editor tests compile and pass successfully.
+[2026-07-18 20:43:00] Branch: B/feature/entities
+Prompt: Implement Boss HUD elements (name, health bar) in HUD and create a new visual test target verify_hud_boss.
+Files Modified: SuperMarioGame/include/Graphics/Hud.hpp, SuperMarioGame/src/Graphics/HUD.cpp, SuperMarioGame/tests/verify_hud_boss.cpp (NEW), SuperMarioGame/CMakeLists.txt
+Summary of Changes:
+- Extended HudData with bossActive, bossName, bossHealth, bossMaxHealth fields.
+- Implemented boss name text centering and health bar background/fill resizing in HUD.cpp.
+- Created verify_hud_boss.cpp as a comprehensive visual HUD editor running on a 1280x720 SFML window with ImGui controls.
+- Registered verify_hud_boss target in CMakeLists.txt and built target successfully.
+[2026-07-18 22:30:00] Branch: dev
+Prompt: Write weekly report from the 12/07 to today. Follow the report rules in the docs folder.
+Files Modified: docs/Group52_06/52.md, docs/Group52_06/52.pdf, logs/agent_history.log
+Summary of Changes:
+- Fetched task status and logs from all remote branches (including A/feature/level-editor, A/feature/save-load, A/spritesheet-studio, and B/feature/entities).
+- Consolidated Member A's completed tasks for save/load slot serialization, gameplay statistics tracker, achievement manager HUD, pause and settings panel ImGui, map editor framework, Undo/Redo editor commands, and interactive spritesheet arrange utility.
+- Consolidated Member B's completed tasks for the graphical HUD overlay, boss health indicators, PressStart2P font asset loading with fallbacks, and the comprehensive HUD visual test target.
+- Compiled the Week 6 progress report into docs/Group52_06/52.md on the dev branch and retrieved the compiled docs/Group52_06/52.pdf.
+---
+[2026-07-23 09:09:00] Branch: dev
+Prompt: Compress every test in one and run the demo.
+Files Modified:
+- SuperMarioGame/tests/verify_all.cpp (NEW)
+- SuperMarioGame/CMakeLists.txt
+- logs/agent_history.log
+Summary of Changes:
+- Created consolidated test suite `tests/verify_all.cpp` combining Map Editor commands/serialization tests and Save/Load persistence/statistics/achievement tests into a unified runner (6 test functions total).
+- Updated `CMakeLists.txt` to include the `verify_all` build target.
+- Compiled `verify_all` and `SuperMarioGame` binaries using CMake.
+- Executed `verify_all` to verify all 6 unit tests pass 100% (6/6).
+- Executed the `SuperMarioGame` binary to launch the demo application window.
+---
 [2026-07-25 13:25:00] Branch: B/feature/graphic-visual
 Prompt: Reconfig the cmake to correct the error and resolve compile issues on branch B/feature/graphic-visual.
 Files Modified:
@@ -1003,19 +970,6 @@ Summary of Changes:
 - Resolved duplicate CONVEYOR_SPEED constant compilation error by removing the duplicate definition in Constants.hpp.
 - Resolved ambiguous setVelocity function calls by removing the duplicate const sf::Vector2f& overload in Entity.hpp.
 - Verified that all targets compile cleanly.
-[2026-07-23 09:09:00] Branch: dev
-Prompt: Compress every test in one and run the demo.
-Files Modified:
-- SuperMarioGame/tests/verify_all.cpp (NEW)
-- SuperMarioGame/CMakeLists.txt
-- logs/agent_history.log
-Summary of Changes:
-- Created consolidated test suite `tests/verify_all.cpp` combining Map Editor commands/serialization tests and Save/Load persistence/statistics/achievement tests into a unified runner (6 test functions total).
-- Updated `CMakeLists.txt` to include the `verify_all` build target.
-- Compiled `verify_all` and `SuperMarioGame` binaries using CMake.
-- Executed `verify_all` to verify all 6 unit tests pass 100% (6/6).
-- Executed the `SuperMarioGame` binary to launch the demo application window.
----
 [2026-07-25 22:05:00] Branch: dev
 Prompt: Write weekly report for this week (W07: 2026-07-19 to 2026-07-25).
 Files Modified:
@@ -1027,17 +981,6 @@ Summary of Changes:
 - Compiled Week 7 progress report in docs/Group52_07/52.md following REPORT_RULES.md.
 - Generated docs/Group52_07/52.pdf using Python WeasyPrint utility docs/generate_pdf.py.
 - Recorded issues resolved (EventBus handle sentinel invalidation, stale toast rendering on achievement reset, and save slot coordinate clamping).
-[2026-07-25 22:39:00] Branch: dev
-Prompt: Check all branches and update Week 7 report with Member B's completed tasks.
-Files Modified:
-- docs/Group52_07/52.md
-- docs/Group52_07/52.pdf
-- logs/agent_history.log
-Summary of Changes:
-- Fetched all remote branches (`git fetch --all`) capturing updates on `B/feature/entities` (PR #8 merge into dev) and `B/feature/graphic-visual`.
-- Updated Week 7 report (`docs/Group52_07/52.md`) incorporating Member B's completed tasks: EntityFactory (25+ types), 11 Enemy classes, 8 AI Strategies, 9 Block/Platform classes, HUD overlay with Boss health indicators, retro font assets, SpriteSheet/Animator, and Minimap overlay component.
-- Re-generated `docs/Group52_07/52.pdf` using WeasyPrint generator script `docs/generate_pdf.py`.
----
 [2026-07-25 22:15:00] Branch: B/feature/entities
 Prompt: Check the implementation of Minimap.cpp and identify/fix any compilation warnings or logic bugs.
 Files Modified:
@@ -1057,6 +1000,17 @@ Files Modified:
 Summary of Changes:
 - Created a new visual verification test suite in tests/verify_minimap_visual.cpp using a mock level, Mario player, Goomba enemy, and Mushroom item with adjustable sliders and M-key event handling.
 - Registered verify_minimap_visual target in CMakeLists.txt using filtered APP_SOURCES (excluding main.cpp) to avoid duplicate main definitions and linker errors.
+---
+[2026-07-25 22:39:00] Branch: dev
+Prompt: Check all branches and update Week 7 report with Member B's completed tasks.
+Files Modified:
+- docs/Group52_07/52.md
+- docs/Group52_07/52.pdf
+- logs/agent_history.log
+Summary of Changes:
+- Fetched all remote branches (`git fetch --all`) capturing updates on `B/feature/entities` (PR #8 merge into dev) and `B/feature/graphic-visual`.
+- Updated Week 7 report (`docs/Group52_07/52.md`) incorporating Member B's completed tasks: EntityFactory (25+ types), 11 Enemy classes, 8 AI Strategies, 9 Block/Platform classes, HUD overlay with Boss health indicators, retro font assets, SpriteSheet/Animator, and Minimap overlay component.
+- Re-generated `docs/Group52_07/52.pdf` using WeasyPrint generator script `docs/generate_pdf.py`.
 ---
 [2026-07-28 08:40:00] Branch: B/feature/graphic-visual
 Prompt: Implement particle system and particle emitter according to spec and header files.
@@ -1496,293 +1450,6 @@ Summary of Changes:
 - Implemented `verify_enemies_visual.cpp` enabling visual testing of Goombas, Koopas, Paratroopas, Buzzy Beetles, Boos, Thwomps, Chain Chomps, Piranha Plants, Lakitus, Spinies, Cheep Cheeps, Bloopers, Bowser, and custom projectiles (Fireballs, Black/Grey Hammers, Lava Fireballs, Bullet Bills/Blasters).
 - Created ImGui controls for scale adjustment, horizontal flipping, state selection, and bounding box rendering.
 - Recompiled and executed visual test successfully with 0 errors.
-[2026-08-08 13:00:00] Branch: feature/graphics
-Prompt: Implement Task 5.7 (Screen Shake & Screen Transitions) following the approved implementation plan.
-Files Modified:
-- SuperMarioGame/include/Core/EventBus.hpp
-- SuperMarioGame/include/Graphics/Camera.hpp
-- SuperMarioGame/src/Graphics/Camera.cpp
-- SuperMarioGame/include/Graphics/ScreenTransitionManager.hpp (NEW)
-- SuperMarioGame/src/Graphics/ScreenTransitionManager.cpp (NEW)
-- SuperMarioGame/src/Entities/POWBlock.cpp
-- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-- SuperMarioGame/tests/verify_graphics_visual.cpp
-- SuperMarioGame/CMakeLists.txt
-- TASKS.md
-- logs/agent_history.log
-Summary of Changes:
-- Added POWBlockHit, ThwompSlam, GroundPoundSlam, and ScreenShakeTriggered to EventBus EventType enum.
-- Enhanced Camera system with ShakePreset enum (Light, Medium, Heavy, Custom), ShakeParams struct (intensity, duration, direction, useDecay, frequency), decay modulation, and EventBus listener logic.
-- Implemented ScreenTransitionManager singleton featuring Fade-In/Out, Circle Iris Wipe, and Mario Pipe Transition effects with cubic easing curves and midpoint/completion callbacks using direct hardware-accelerated vertex geometry.
-- Wired events in POWBlock.cpp (POWBlockHit), ProximityTriggerStrategy.cpp (ThwompSlam on ground impact), and integrated Camera and ScreenTransitionManager in PlayingState.cpp.
-- Upgraded verify_graphics_visual visual test harness with ImGui tabs for animation, screen shake presets, directional vector controls, transition effect picking, callback logs, and post-transition engine stability checks.
-- Updated CMakeLists.txt to link verify_graphics_visual target with all engine sources.
----
-[2026-08-05 16:39:53] Branch: B/feature/graphic-visual
-Prompt: The spritesheet merger leave an light blue rectangle when extract. Please clean this bug.
-Files Modified:
-- tools/spritesheet-merger/spritesheet_merger.html
-- SuperMarioGame/tools/spritesheet-merger/spritesheet_merger.html
-- logs/agent_history.log
-Summary of Changes:
-- Fixed PNG export bug by introducing a clean offscreen canvas renderer for `btnExportImage`. Stitched images are now drawn 100% pure without debug stroke outlines or light-blue bounding box overlays.
-- Added a `Show Frame Outlines in Preview` checkbox toggle in the UI so users can toggle debug bounding box rectangles on the workspace canvas during preview without affecting the exported PNG.
----
-[2026-08-05 16:43:31] Branch: B/feature/graphic-visual
-Prompt: The item and enemy particle spritesheet have light blue rectangle. Clean it buy create a tool and restore any pixel affected by the boundary. Do not override the current version for safety.
-Files Modified:
-- scripts/clean_spritesheet_outlines.py (NEW)
-- tools/outline-cleaner/clean_outlines.html (NEW)
-- SuperMarioGame/tools/outline-cleaner/clean_outlines.html (NEW)
-- SuperMarioGame/assets/spriteSheet/item/item_cleaned.png (NEW)
-- SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile_cleaned.png (NEW)
-- SuperMarioGame/assets/spriteSheet/particles/particles_cleaned.png (NEW)
-- logs/agent_history.log
-Summary of Changes:
-- Built `scripts/clean_spritesheet_outlines.py` CLI script and `tools/outline-cleaner/clean_outlines.html` web application tool to automatically detect and clean light-blue debug bounding box outlines (`rgba(56, 189, 248, 0.5)`).
-- Cleaned 1,818 boundary pixels from `item.png` and 7,125 boundary pixels from `enemy_projectile.png`.
-- Outputted cleaned versions safely as `item_cleaned.png`, `enemy_projectile_cleaned.png`, and `particles_cleaned.png` without overwriting the original files.
----
-[2026-08-06 21:22:00] Branch: B/feature/graphic-visual
-Prompt: List out all sfx required for the game. Save it in a md file in the project.
-Files Modified:
-- docs/REQUIRED_SFX.md (NEW)
-- logs/agent_history.log
-Summary of Changes:
-- Parsed the codebase and SPEC v2.0 for all required sound effects.
-- Created `docs/REQUIRED_SFX.md` detailing Sound IDs, target filenames, description, and status of gameplay actions, surface footsteps, and BGM tracks.
----
-[2026-08-06 21:53:30] Branch: B/feature/graphic-visual
-Prompt: Check the sfx again to find any missing.
-Files Modified:
-- docs/REQUIRED_SFX.md (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Re-scanned SPEC v2.0 and common platformer mechanics to identify missing sound effects.
-- Added 6 missing sound effects to `docs/REQUIRED_SFX.md` (menu_click, menu_confirm, cannon, fireball_hit, timer_warning, and spring).
----
-[2026-08-06 21:58:40] Branch: B/feature/graphic-visual
-Prompt: I have some sfx. Check what left ?
-Files Modified:
-- docs/REQUIRED_SFX.md (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Checked `assets/sfx/` and identified 24 audio assets successfully imported into the project.
-- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound IDs and highlight missing SFX and BGM assets.
----
-[2026-08-08 16:02:19] Branch: B/feature/graphic-visual
-Prompt: Update the sprite naming convention acording to the current spritesheet and its json.
-Files Modified:
-- docs/SPRITE_NAMING_CONVENTIONS.md (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Parsed all 5 active sprite sheet JSON files (`player.json` - 92 frames, `item.json` - 49 frames, `enemy_projectile.json` - 153 frames, `world_scenery_item.json` - 174 frames, `particles.json` - 8 frames).
-- Fully updated `docs/SPRITE_NAMING_CONVENTIONS.md` to reflect the complete frame inventories, PascalCase particle effect standards, lower snake_case game object conventions, zero-based animation indexing rules, and character/enemy prefix mappings.
----
-[2026-08-08 16:36:32] Branch: B/feature/graphic-visual
-Prompt: The animation suffix should not be bound. The title should not include the path to the json nor the spritesheet.
-Files Modified:
-- docs/SPRITE_NAMING_CONVENTIONS.md (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Removed JSON and image file paths from section titles in `docs/SPRITE_NAMING_CONVENTIONS.md`.
-- Unbound animation suffix definitions (switching from fixed ranges like `_0..3` to open zero-indexed sequence conventions `_0`, `_1`, ..., `_N`).
----
-[2026-08-08 17:48:30] Branch: feature/graphics
-Prompt: Implement Tasks 5.8 & 5.9 (Transformation & Color Filter Animations) following the updated implementation plan in implementation_plan.md.
-Files Modified:
-- SuperMarioGame/include/Graphics/SpriteColorFilter.hpp (NEW)
-- SuperMarioGame/src/Graphics/SpriteColorFilter.cpp (NEW)
-- SuperMarioGame/include/Graphics/SpriteTransformAnim.hpp (NEW)
-- SuperMarioGame/src/Graphics/SpriteTransformAnim.cpp (NEW)
-- SuperMarioGame/include/Graphics/EntityDeathEffect.hpp (NEW)
-- SuperMarioGame/src/Graphics/EntityDeathEffect.cpp (NEW)
-- SuperMarioGame/tests/verify_graphics_visual.cpp (UPDATED)
-- TASKS.md (UPDATED)
-- logs/agent_history.log (UPDATED)
-Summary of Changes:
-- Created `SpriteColorFilter` header and source (HSL-to-RGB conversion, 12Hz Star Power rainbow hue cycling, 15Hz hurt flicker alpha modulation, initial red hit flash tinting).
-- Created `SpriteTransformAnim` header and source (Easing scale lerps with floor origin anchoring at feet bottom-center, continuous 720 deg/s spin rotation, rapid 12Hz sprite form flickering during Mega/Mini transformations).
-- Created `EntityDeathEffect` singleton manager (EnemyFlip 180° Y-flip launch physics, StarKillSpin 720° spin launch with CoinSparkle burst, PlayerDeathHop freeze-hop-fall physics).
-- Upgraded `verify_graphics_visual` with a dedicated "Transform & Color Filter FX" ImGui tab featuring interactive trigger buttons and sliders for all death launch trajectories, star power rainbow cycling, hurt flicker, and transformation scale lerping.
-- Verified C++17 SFML 3.0.2 source code architecture.
----
-[2026-08-09 07:20:00] Branch: dev
-Prompt: Merged origin/B/feature/graphic-visual into dev, resolved font and history conflicts, added non-solid tile coin pickup handling in PhysicsEngine, and pushed dev to remote origin.
-Files Modified:
-- SuperMarioGame/src/Physics/PhysicsEngine.cpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Fetched all remote branches (`git fetch --all`) and merged `origin/B/feature/graphic-visual` into local `dev` branch.
-- Resolved merge conflicts in `PlayingState.cpp` and `logs/agent_history.log`.
-- Fixed tile-based coin collection bug in `PhysicsEngine::update()`: added non-solid tile detection for `TileType::Coin` so player walking into coin grid tiles picks up coins, adds score, plays `coin.wav` SFX, and clears tile to `TileType::Empty`.
-- Verified all test runners (`verify_fireball`, `verify_flagpole_trampoline`, `verify_memento_rewind`, `verify_all`) with 100% pass rates.
-- Pushed updated `dev` branch to remote repository (`origin/dev`).
----
-
-[2026-08-10 19:17:00] Branch: B/feature/graphic-visual
-Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
-Prompt: Proceed to implement sprite sheet wiring to main game (PlayingState). Update implementation plan with newly changed core game and correct build path ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
-Files Modified:
-- SuperMarioGame/src/Graphics/SpriteSheet.cpp
-- SuperMarioGame/include/Core/PlayingState.hpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-Summary of Changes:
-- SpriteSheet.cpp: Extended loadFrameData() to support both standard TexturePacker "frames" format AND the custom "tiles" format used by tileset_blocks.json so all 5 atlases can be loaded uniformly.
-- PlayingState.hpp: Added 5 std::unique_ptr<SpriteSheet> members (m_playerSheet, m_enemySheet, m_itemSheet, m_scenerySheet, m_blocksSheet), m_showAABB bool toggle, m_tileAnimTimer float, and wireEntityAnimations(Entity*) helper declaration.
-- PlayingState.cpp enter(): Load all 5 atlas SpriteSheets using path-candidate fallback search (assets/spriteSheet/*, SuperMarioGame/assets/spriteSheet/*, ../assets/spriteSheet/*). Wire animations for procedurally generated entities.
-- PlayingState.cpp render(): Replaced raw sf::RectangleShape tile loop with atlas sprite rendering for Ground (grass top/dirt), Brick, Question (animated 4 frames), Pipe (top/body, left/right columns), Ice, Conveyor (animated 4 frames), Water (animated 4 frames), Coin (animated 4 frames). Falls back gracefully to debug color rect if atlas not loaded.
-- PlayingState.cpp render(): Added EntityDeathEffect::getInstance().render(target) for flying death trajectories.
-- PlayingState.cpp render(): Added m_showAABB AABB overlay (green/yellow for tiles, green/red/yellow/cyan for entity types) rendered in world space.
-- PlayingState.cpp update(): Advanced m_tileAnimTimer each dt for animated tiles.
-- PlayingState.cpp wireEntityAnimations(): Polymorphic dispatcher downcasts Entity* to Player/Enemy/Item/Block and calls setupAnimations() with the matching atlas pointer.
-- PlayingState.cpp setupTestScene(): Wire animations for all level-loaded entities after LevelLoader.
-- PlayingState.cpp spawnSelectedPlayer(): Wire animation and set player on Game after spawning.
-- PlayingState.cpp Serializer Load: Wire animations for loaded save slot player.
-- ImGui playground panel: Added "Show Physics AABB Overlays" checkbox.
-- Resolved merge conflicts in Flagpole.cpp (implemented missing Flagpole::update(float dt)) and Mario.cpp.
-- Build: SuperMarioGame target compiled successfully (exit code 0), producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
----
-
-[2026-08-10 20:08:00] Branch: B/feature/graphic-visual
-Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
-Prompt: Fix tile sprites (switch from deprecated tileset_blocks to world_scenery_item atlas), remove HUD outline frame from StarCoin, fix Player sprite facing direction scale factor, and implement PSwitch squished frame animation on activation.
-Files Modified:
-- SuperMarioGame/src/Core/PlayingState.cpp
-- SuperMarioGame/src/Entities/StarCoin.cpp
-- SuperMarioGame/include/Entities/PSwitch.hpp
-- SuperMarioGame/src/Entities/PSwitch.cpp
-- SuperMarioGame/src/Entities/Player.cpp
-Summary of Changes:
-- Tilemap Sprites: Migrated tile rendering in PlayingState::render() from deprecated tileset_blocks to world_scenery_item (m_scenerySheet). Mapped Ground -> solid_block_brown/grey, Brick -> brick_brown_side, Question -> question_block_0/1/2, Pipe -> pipe_green_up/body, Ice -> solid_block_blue, Conveyor -> conveyor_belt_green, Water -> wave frames, Coin -> coin_0/1.
-- StarCoin Animation: Removed HUD-only big_coin_outline frame from StarCoin::setupAnimations(). Mapped to big_coin_0, big_coin_1, big_coin_2 frames from world_scenery_item and updated wireEntityAnimations() to route StarCoin to m_scenerySheet.
-- Player Sprite Facing & Animation: Fixed Player::render() scale factor (scaleX = facingRight ? scale : -scale) matching atlas default rightward sprite orientation.
-- PSwitch Pressed Frame: Added m_pressed state and m_pressedAnimation (p_switch_pressed, isLooping = false) to PSwitch.hpp/cpp, switching to squished sprite upon activate().
-- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
----
-
-[2026-08-10 20:34:00] Branch: B/feature/graphic-visual
-Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
-Prompt: Fix water rendering to support 2 components (surface wave vs background depth), fix player movement animation switching (idle, walk, run, jump, crouch), and fix PSwitch collision resolution so squished sprite stays rendered on screen after activation.
-Files Modified:
-- SuperMarioGame/src/Core/PlayingState.cpp
-- SuperMarioGame/include/Entities/Player.hpp
-- SuperMarioGame/src/Entities/Player.cpp
-- SuperMarioGame/src/Entities/Mario.cpp
-- SuperMarioGame/src/Entities/Luigi.cpp
-- SuperMarioGame/src/Entities/Toad.cpp
-- SuperMarioGame/src/Entities/Peach.cpp
-- SuperMarioGame/include/Entities/PSwitch.hpp
-- SuperMarioGame/src/Entities/PSwitch.cpp
-- SuperMarioGame/src/Physics/CollisionResolver.cpp
-Summary of Changes:
-- Water 2-Component Rendering: Updated TileType::Water rendering in PlayingState::render() to check tile above. If surface tile (y == 0 or tile above != Water), renders animated surface wave (water_light_blue_wave_long / water_dark_blue_wave_long); if depth tile below, renders background fill (water_dark_blue_bg).
-- Dynamic Player Movement Animations: Implemented setupCharacterAnimations(spriteSheet, prefix) in Player.hpp/cpp to build m_animIdle, m_animWalk, m_animRun, m_animJump, m_animCrouch. Updated Player::update(dt) to dynamically switch animations based on velocity.x, onGround, and crouched states. Updated Mario, Luigi, Toad, Peach setupAnimations to pass character prefixes (mario_small, luigi_small, toad_small, peach_small).
-- PSwitch Squished Collision: Added PSwitch::collect() override that sets collected = true while keeping active = true so the squished sprite remains rendered on screen. Added PSwitch collision resolution in CollisionResolver::resolvePlayerVsItem() to ground player on top of squished PSwitch upon activation.
-- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
----
-[2026-08-05 16:39:53] Branch: B/feature/graphic-visual
-Prompt: The spritesheet merger leave an light blue rectangle when extract. Please clean this bug.
-Files Modified:
-- tools/spritesheet-merger/spritesheet_merger.html
-- SuperMarioGame/tools/spritesheet-merger/spritesheet_merger.html
-- logs/agent_history.log
-Summary of Changes:
-- Fixed PNG export bug by introducing a clean offscreen canvas renderer for `btnExportImage`. Stitched images are now drawn 100% pure without debug stroke outlines or light-blue bounding box overlays.
-- Added a `Show Frame Outlines in Preview` checkbox toggle in the UI so users can toggle debug bounding box rectangles on the workspace canvas during preview without affecting the exported PNG.
----
-[2026-08-05 16:43:31] Branch: B/feature/graphic-visual
-Prompt: The item and enemy particle spritesheet have light blue rectangle. Clean it buy create a tool and restore any pixel affected by the boundary. Do not override the current version for safety.
-Files Modified:
-- scripts/clean_spritesheet_outlines.py (NEW)
-- tools/outline-cleaner/clean_outlines.html (NEW)
-- SuperMarioGame/tools/outline-cleaner/clean_outlines.html (NEW)
-- SuperMarioGame/assets/spriteSheet/item/item_cleaned.png (NEW)
-- SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile_cleaned.png (NEW)
-- SuperMarioGame/assets/spriteSheet/particles/particles_cleaned.png (NEW)
-- logs/agent_history.log
-Summary of Changes:
-- Built `scripts/clean_spritesheet_outlines.py` CLI script and `tools/outline-cleaner/clean_outlines.html` web application tool to automatically detect and clean light-blue debug bounding box outlines (`rgba(56, 189, 248, 0.5)`).
-- Cleaned 1,818 boundary pixels from `item.png` and 7,125 boundary pixels from `enemy_projectile.png`.
-- Outputted cleaned versions safely as `item_cleaned.png`, `enemy_projectile_cleaned.png`, and `particles_cleaned.png` without overwriting the original files.
----
-[2026-08-06 21:22:00] Branch: B/feature/graphic-visual
-Prompt: List out all sfx required for the game. Save it in a md file in the project.
-Files Modified:
-- docs/REQUIRED_SFX.md (NEW)
-- logs/agent_history.log
-Summary of Changes:
-- Parsed the codebase and SPEC v2.0 for all required sound effects.
-- Created `docs/REQUIRED_SFX.md` detailing Sound IDs, target filenames, description, and status of gameplay actions, surface footsteps, and BGM tracks.
----
-[2026-08-06 21:53:30] Branch: B/feature/graphic-visual
-Prompt: Check the sfx again to find any missing.
-Files Modified:
-- docs/REQUIRED_SFX.md (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Re-scanned SPEC v2.0 and common platformer mechanics to identify missing sound effects.
-- Added 6 missing sound effects to `docs/REQUIRED_SFX.md` (menu_click, menu_confirm, cannon, fireball_hit, timer_warning, and spring).
----
-[2026-08-06 21:58:40] Branch: B/feature/graphic-visual
-Prompt: I have some sfx. Check what left ?
-Files Modified:
-- docs/REQUIRED_SFX.md (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Checked `assets/sfx/` and identified 24 audio assets successfully imported into the project.
-- Updated `docs/REQUIRED_SFX.md` to map present files to specification Sound IDs and highlight missing SFX and BGM assets.
-
-
-[2026-08-12 21:16:00] Branch: B/feature/graphic-visual
-Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
-Prompt: Update Pipe rendering to use the 4-part decomposed sprite keys (head_left, head_right, body_left, body_right) pointing up, with rotation support.
-Files Modified:
-- SuperMarioGame/include/Graphics/PipeRenderer.hpp
-- SuperMarioGame/src/Graphics/PipeRenderer.cpp
-- SuperMarioGame/include/Entities/Pipe.hpp
-- SuperMarioGame/src/Entities/Pipe.cpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-- logs/agent_history.log
-Summary of Changes:
-- PipeRenderer Utility: Created `PipeRenderer` with static `draw(...)` method that renders pipes composed of 4 quadrant sub-sprites (`head_left`, `head_right`, `body_left`, `body_right`).
-- Rotation Support: Calculates quadrant center positions, rotates them around the bounding box center by `rotationDegrees`, scales sub-sprites to half-quadrant dimensions, and applies sprite rotation angles.
-- Entity & TileMap Integration: Updated `Pipe::render()` and `PlayingState::render()` (`TileType::Pipe`) to utilize `PipeRenderer::draw(...)`.
-- Build Verification: Successfully compiled `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
-
-
-[2026-08-12 21:28:00] Branch: B/feature/graphic-visual
-Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
-Prompt: Fix visual test and game failing to load asset JSON files and falling back to primitive colored shapes when launched from build/Debug output directories.
-Files Modified:
-- SuperMarioGame/include/Core/ResourceManager.hpp
-- SuperMarioGame/src/Core/ResourceManager.cpp
-- SuperMarioGame/src/Graphics/SpriteSheet.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Asset Path Resolution Helper: Added `ResourceManager::resolvePath(path)` which checks candidate path depths (`./`, `../`, `../../`, `SuperMarioGame/`, `../SuperMarioGame/`, `../../SuperMarioGame/`).
-- Engine Integration: Wrapped all texture, font, sound buffer, and JSON frame data file loading in `ResourceManager` and `SpriteSheet` with `resolvePath`.
-- Fixed JSON Load Failures: Resolved the `json.exception.parse_error.101` empty stream issue when running from `build/Debug/`. All JSON frame data atlases and sprite sheets now load 100% successfully regardless of executable working directory.
-- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
-
-
-[2026-08-12 21:38:30] Branch: B/feature/graphic-visual
-Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
-Prompt: Update SuperMarioGame tilemap rendering to utilize the dissected 2-column pipe parts (pipe_green_head_left, pipe_green_head_right, pipe_green_body_left, pipe_green_body_right) for authentic multi-column pipes in level rendering.
-Files Modified:
-- SuperMarioGame/src/Core/PlayingState.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Multi-Tile Dissected Pipe Rendering: Updated `TileType::Pipe` selection logic in `PlayingState::render()` to inspect neighbor tile topology:
-  - Top-Left: `pipe_green_head_left` (`isTopExposed && !hasLeftTile`)
-  - Top-Right: `pipe_green_head_right` (`isTopExposed && hasLeftTile`)
-  - Body-Left: `pipe_green_body_left` (`!isTopExposed && !hasLeftTile`)
-  - Body-Right: `pipe_green_body_right` (`!isTopExposed && hasLeftTile`)
-- Authentic Pipe Visuals: Standard 2-tile wide level pipes now render as a single unified 64px wide pipe structure across all levels.
-- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
----
 [2026-08-05 16:39:53] Branch: B/feature/graphic-visual
 Prompt: The spritesheet merger leave an light blue rectangle when extract. Please clean this bug.
 Files Modified:
@@ -1857,58 +1524,6 @@ Summary of Changes:
   - `StarDecorator`: Plays `invincible.mp3` when Star Power starts and restores level BGM upon expiration.
   - `Character::jump()`: Plays `jump_small` SFX.
 - Build Verification: Rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
-
-
-[2026-08-12 23:12:45] Branch: B/feature/graphic-visual
-Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
-Prompt: Audit all 12 BGM audio files in assets/bgm/ against expected IDs and build an alias resolution map so playMusic accepts exact disk filenames as well as legacy/logical IDs.
-Files Modified:
-- SuperMarioGame/src/Core/SoundManager.cpp
-- implementation_plan.md
-- logs/agent_history.log
-Summary of Changes:
-- BGM Alias Map: Implemented `resolveBGMIdentifier` in `SoundManager.cpp` mapping:
-  - `main_menu.mp3` $\leftarrow$ `"main_menu"`, `"title_screen"`
-  - `overworld.mp3` $\leftarrow$ `"overworld"`, `"level_1"`
-  - `underworld.mp3` $\leftarrow$ `"underworld"`, `"level_2"`
-  - `underwater.mp3` $\leftarrow$ `"underwater"`, `"level_3"`
-  - `sub_space-bonus_room.mp3` $\leftarrow$ `"sub_space-bonus_room"`, `"athletic"`, `"bonus"`
-  - `castle.mp3` $\leftarrow$ `"castle"`, `"bowser_castle"`
-  - `bowser_boss_battle.mp3` $\leftarrow$ `"bowser_boss_battle"`, `"boss"`
-  - `starman.mp3` $\leftarrow$ `"starman"`, `"invincible"`
-  - `world_map.mp3` $\leftarrow$ `"world_map"`, `"map"`
-  - `level_complete.mp3` $\leftarrow$ `"level_complete"`, `"stage_clear"`
-  - `castle_complete.mp3` $\leftarrow$ `"castle_complete"`, `"world_clear"`
-  - `game_over.mp3` $\leftarrow$ `"game_over"`
-- Code Integration: Updated `playLevelBGM` and `playStarMusic` to resolve BGM paths dynamically through the alias map.
-- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
-
-
-[2026-08-12 23:14:45] Branch: B/feature/graphic-visual
-Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
-Prompt: Wire GameOver, BossDefeated, and LevelComplete BGM triggers into SoundManager setupEventSubscriptions.
-Files Modified:
-- SuperMarioGame/src/Core/SoundManager.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Extended `SoundManager::setupEventSubscriptions()` to subscribe to:
-  - `EventType::LevelComplete`: Plays `level_complete.mp3` and `stage_clear.wav`.
-  - `EventType::BossDefeated`: Plays `castle_complete.mp3`.
-  - `EventType::GameOver`: Plays `game_over.mp3`.
-- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
----code 0).
----
-
-
-
-
-
-
-
-
-
-
->>>>>>> Stashed changes
 [2026-08-06 23:01:00] Branch: (B/branch-name fallback)
 Prompt: Use the sound manager, and you can update it. If necessary, use the resource manager. Dont change the resource manager.
 Files Modified: include/Core/SoundManager.hpp, src/Core/SoundManager.cpp, CMakeLists.txt, tests/verify_sound_visual.cpp
@@ -1917,6 +1532,123 @@ Summary of Changes:
 - Reverted ResourceManager changes to keep it pristine.
 - Created verify_sound_visual tool and registered it in CMakeLists.txt.
 - Successfully built verify_sound_visual.exe.
+---
+[2026-08-08 13:00:00] Branch: feature/graphics
+Prompt: Implement Task 5.7 (Screen Shake & Screen Transitions) following the approved implementation plan.
+Files Modified:
+- SuperMarioGame/include/Core/EventBus.hpp
+- SuperMarioGame/include/Graphics/Camera.hpp
+- SuperMarioGame/src/Graphics/Camera.cpp
+- SuperMarioGame/include/Graphics/ScreenTransitionManager.hpp (NEW)
+- SuperMarioGame/src/Graphics/ScreenTransitionManager.cpp (NEW)
+- SuperMarioGame/src/Entities/POWBlock.cpp
+- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/tests/verify_graphics_visual.cpp
+- SuperMarioGame/CMakeLists.txt
+- TASKS.md
+- logs/agent_history.log
+Summary of Changes:
+- Added POWBlockHit, ThwompSlam, GroundPoundSlam, and ScreenShakeTriggered to EventBus EventType enum.
+- Enhanced Camera system with ShakePreset enum (Light, Medium, Heavy, Custom), ShakeParams struct (intensity, duration, direction, useDecay, frequency), decay modulation, and EventBus listener logic.
+- Implemented ScreenTransitionManager singleton featuring Fade-In/Out, Circle Iris Wipe, and Mario Pipe Transition effects with cubic easing curves and midpoint/completion callbacks using direct hardware-accelerated vertex geometry.
+- Wired events in POWBlock.cpp (POWBlockHit), ProximityTriggerStrategy.cpp (ThwompSlam on ground impact), and integrated Camera and ScreenTransitionManager in PlayingState.cpp.
+- Upgraded verify_graphics_visual visual test harness with ImGui tabs for animation, screen shake presets, directional vector controls, transition effect picking, callback logs, and post-transition engine stability checks.
+- Updated CMakeLists.txt to link verify_graphics_visual target with all engine sources.
+---
+[2026-08-08 16:02:19] Branch: B/feature/graphic-visual
+Prompt: Update the sprite naming convention acording to the current spritesheet and its json.
+Files Modified:
+- docs/SPRITE_NAMING_CONVENTIONS.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Parsed all 5 active sprite sheet JSON files (`player.json` - 92 frames, `item.json` - 49 frames, `enemy_projectile.json` - 153 frames, `world_scenery_item.json` - 174 frames, `particles.json` - 8 frames).
+- Fully updated `docs/SPRITE_NAMING_CONVENTIONS.md` to reflect the complete frame inventories, PascalCase particle effect standards, lower snake_case game object conventions, zero-based animation indexing rules, and character/enemy prefix mappings.
+---
+[2026-08-08 16:36:32] Branch: B/feature/graphic-visual
+Prompt: The animation suffix should not be bound. The title should not include the path to the json nor the spritesheet.
+Files Modified:
+- docs/SPRITE_NAMING_CONVENTIONS.md (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Removed JSON and image file paths from section titles in `docs/SPRITE_NAMING_CONVENTIONS.md`.
+- Unbound animation suffix definitions (switching from fixed ranges like `_0..3` to open zero-indexed sequence conventions `_0`, `_1`, ..., `_N`).
+---
+[2026-08-08 17:48:30] Branch: feature/graphics
+Prompt: Implement Tasks 5.8 & 5.9 (Transformation & Color Filter Animations) following the updated implementation plan in implementation_plan.md.
+Files Modified:
+- SuperMarioGame/include/Graphics/SpriteColorFilter.hpp (NEW)
+- SuperMarioGame/src/Graphics/SpriteColorFilter.cpp (NEW)
+- SuperMarioGame/include/Graphics/SpriteTransformAnim.hpp (NEW)
+- SuperMarioGame/src/Graphics/SpriteTransformAnim.cpp (NEW)
+- SuperMarioGame/include/Graphics/EntityDeathEffect.hpp (NEW)
+- SuperMarioGame/src/Graphics/EntityDeathEffect.cpp (NEW)
+- SuperMarioGame/tests/verify_graphics_visual.cpp (UPDATED)
+- TASKS.md (UPDATED)
+- logs/agent_history.log (UPDATED)
+Summary of Changes:
+- Created `SpriteColorFilter` header and source (HSL-to-RGB conversion, 12Hz Star Power rainbow hue cycling, 15Hz hurt flicker alpha modulation, initial red hit flash tinting).
+- Created `SpriteTransformAnim` header and source (Easing scale lerps with floor origin anchoring at feet bottom-center, continuous 720 deg/s spin rotation, rapid 12Hz sprite form flickering during Mega/Mini transformations).
+- Created `EntityDeathEffect` singleton manager (EnemyFlip 180° Y-flip launch physics, StarKillSpin 720° spin launch with CoinSparkle burst, PlayerDeathHop freeze-hop-fall physics).
+- Upgraded `verify_graphics_visual` with a dedicated "Transform & Color Filter FX" ImGui tab featuring interactive trigger buttons and sliders for all death launch trajectories, star power rainbow cycling, hurt flicker, and transformation scale lerping.
+- Verified C++17 SFML 3.0.2 source code architecture.
+---
+[2026-08-08 21:03:35] Branch: A/flagpole-trampoline
+Prompt: Implement Flagpole level goal victory visuals, sliding flag animation, score scaling, level complete screen, and Trampoline spring compression visuals with directional bouncing.
+Files Modified:
+- SuperMarioGame/include/Entities/Flagpole.hpp
+- SuperMarioGame/src/Entities/Flagpole.cpp
+- SuperMarioGame/include/Entities/Trampoline.hpp
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_flagpole_trampoline.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Enhanced `Flagpole`: metallic silver pole shaft, golden top orb cap, sienna base block, and red Mario victory flag with waving animation.
+- Implemented Flagpole sliding flag animation smoothly moving downward upon collision, calculating catch height score percentage (5000, 2000, 800, 400, 100 pts), playing victory SFX, and publishing `LevelComplete` event.
+- Enhanced `Trampoline`: spring coil rendering, emerald green top cushion, spring compression animation (collapsing to 16px under impact), and directional landing check in `CollisionResolver`.
+- Added "COURSE CLEAR!" victory overlay in `PlayingState` displaying flagpole bonus and total score.
+- Added candidate fallback path resolution in `LevelLoader` and `PlayingState` so assets and fonts load cleanly regardless of CWD.
+- Added `verify_flagpole_trampoline` test target verifying 4 test cases for flagpole scoring, flag slide, trampoline compression, and top landing.
+---
+[2026-08-08 21:10:50] Branch: A/flagpole-trampoline
+Prompt: Restored Fireball entity, glowing SFML graphics, ground bouncing physics, tile collision, enemy hit mechanics, and verify_fireball integration tests after git reset.
+Files Modified:
+- SuperMarioGame/include/Entities/Fireball.hpp
+- SuperMarioGame/src/Entities/Fireball.cpp
+- SuperMarioGame/include/Entities/EntityFactory.hpp
+- SuperMarioGame/src/Entities/EntityFactory.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_fireball.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Restored `Fireball` class with multi-layered glowing SFML visuals (orange-red flame glow, golden yellow outline, bright yellow inner core, spinning spark particles).
+- Restored ground bouncing mechanics (`velocity.y = -240.0f`), horizontal movement (`350 px/s`), 3.0s lifetime expiration, and wall tile destruction.
+- Registered `EntityFactory::createFireball` and `CollisionResolver::resolveFireballVsEnemy`.
+- Restored `verify_fireball` test runner verifying 4 unit test cases (4/4 passed).
+- Re-verified `verify_flagpole_trampoline` (4/4 passed) and `verify_memento_rewind` (4/4 passed).
+- Built main `SuperMarioGame` binary target cleanly (100%).
+---
+[2026-08-09 07:20:00] Branch: dev
+Prompt: Merged origin/B/feature/graphic-visual into dev, resolved font and history conflicts, added non-solid tile coin pickup handling in PhysicsEngine, and pushed dev to remote origin.
+Files Modified:
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Fetched all remote branches (`git fetch --all`) and merged `origin/B/feature/graphic-visual` into local `dev` branch.
+- Resolved merge conflicts in `PlayingState.cpp` and `logs/agent_history.log`.
+- Fixed tile-based coin collection bug in `PhysicsEngine::update()`: added non-solid tile detection for `TileType::Coin` so player walking into coin grid tiles picks up coins, adds score, plays `coin.wav` SFX, and clears tile to `TileType::Empty`.
+- Verified all test runners (`verify_fireball`, `verify_flagpole_trampoline`, `verify_memento_rewind`, `verify_all`) with 100% pass rates.
+- Pushed updated `dev` branch to remote repository (`origin/dev`).
 ---
 [2026-08-09 07:30:00] Branch: dev
 Git Fingerprint: d12e763 (before) → 8ee84fc (after)
@@ -1996,6 +1728,25 @@ Summary of Changes:
 - Overhead Player Spawn Drop-off: Fixed player spawn location at top-left overhead position `(96.0f, 64.0f)`. Player drops down under gravity physics onto the floor on level start.
 - Verified 100% clean C++ build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
 ---
+[2026-08-09 08:32:35] Branch: dev
+Git Fingerprint: 8cbaf62 (before) → 8cbaf62 (working tree)
+Prompt: Audit Memento encapsulation with friend declaration and encapsulated createSnapshot()/restoreMemento() methods, trigger rewind on R or Shift keys, reimplement void fall damage & revive when having lives, add Return to Main Menu button in Play Mode, and wire sprite texture rendering.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Encapsulation Audit & Memento Methods: Implemented `Player::createSnapshot()` and `Player::restoreMemento(const PlayerSnapshot& snapshot)` in `Player.hpp/.cpp`, and declared `friend class TimeRewindManager;`. Eliminates raw public setter mutation when recording or restoring Memento state.
+- Rewind Trigger Keys: Updated `PlayingState.cpp` to trigger Memento time rewind when holding either **R** or **LShift / RShift** keys.
+- Fall Damage & Void Fall Revive Mechanics: In `PlayingState.cpp`, when player falls into bottom void pit (`position.y > mapHeight * TILE_SIZE + 32`), if `lives > 1`, player loses 1 life (`loseLife()`), plays `pipe` SFX, and revives at overhead spawn `(96.0f, 64.0f)`. If `lives <= 1`, triggers Game Over state transition to `MenuState`.
+- Play Mode Navigation Button: Added prominent **"🏠 Return to Main Menu"** and **"🛠️ Toggle Map Editor (F1)"** buttons to `PlayingState` ImGui control panel.
+- Sprite Texture Wiring: Updated `Mario::render(target)` to render sprite texture `player` from `ResourceManager` when available, falling back gracefully to shape rendering when textures are absent.
+- Verified 100% clean C++ build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
+---
 [2026-08-09 08:43:50] Branch: dev
 Git Fingerprint: e97bd38 (before) → e97bd38 (working tree)
 Prompt: Fix uncaught exception / mutex lock crash on state exit, fix Map Editor free camera movement, enforce physical level map boundaries for player and entities, and fix player sprite texture rendering.
@@ -2042,34 +1793,6 @@ Summary of Changes:
   1. Root Cause: In macOS / SFML 3, when exiting via `exit()` or returning from `main()`, static destruction of `Game` singleton ran `sf::RenderWindow::~RenderWindow()` -> `sf::GlResource` -> `sf::priv::SFContext::~SFContext()` after macOS Cocoa / OpenGL windowing resources were already torn down by OS static teardown, causing `__abort_message` and `SIGABRT` (Abort trap 6).
   2. Resolution: Updated `Game::shutdown()` in `Game.cpp` to explicitly invoke `m_window.close()` during normal runtime shutdown, ensuring OpenGL contexts and window handles are destroyed cleanly while the windowing system is fully active. Updated `Game::quit()` to signal `m_isRunning = false` so control loops exit cleanly into `shutdown()`.
 - Verified 100% clean build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
----
-[2026-08-09 08:32:35] Branch: dev
-Git Fingerprint: 8cbaf62 (before) → 8cbaf62 (working tree)
-Prompt: Audit Memento encapsulation with friend declaration and encapsulated createSnapshot()/restoreMemento() methods, trigger rewind on R or Shift keys, reimplement void fall damage & revive when having lives, add Return to Main Menu button in Play Mode, and wire sprite texture rendering.
-Files Modified:
-- SuperMarioGame/include/Entities/Player.hpp
-- SuperMarioGame/src/Entities/Player.cpp
-- SuperMarioGame/include/Core/ResourceManager.hpp
-- SuperMarioGame/src/Core/ResourceManager.cpp
-- SuperMarioGame/src/Core/PlayingState.cpp
-- SuperMarioGame/src/Entities/Mario.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Encapsulation Audit & Memento Methods: Implemented `Player::createSnapshot()` and `Player::restoreMemento(const PlayerSnapshot& snapshot)` in `Player.hpp/.cpp`, and declared `friend class TimeRewindManager;`. Eliminates raw public setter mutation when recording or restoring Memento state.
-- Rewind Trigger Keys: Updated `PlayingState.cpp` to trigger Memento time rewind when holding either **R** or **LShift / RShift** keys.
-- Fall Damage & Void Fall Revive Mechanics: In `PlayingState.cpp`, when player falls into bottom void pit (`position.y > mapHeight * TILE_SIZE + 32`), if `lives > 1`, player loses 1 life (`loseLife()`), plays `pipe` SFX, and revives at overhead spawn `(96.0f, 64.0f)`. If `lives <= 1`, triggers Game Over state transition to `MenuState`.
-- Play Mode Navigation Button: Added prominent **"🏠 Return to Main Menu"** and **"🛠️ Toggle Map Editor (F1)"** buttons to `PlayingState` ImGui control panel.
-- Sprite Texture Wiring: Updated `Mario::render(target)` to render sprite texture `player` from `ResourceManager` when available, falling back gracefully to shape rendering when textures are absent.
-- Verified 100% clean C++ build and 100% test pass rate across `verify_all`, `verify_map_generator`, and `verify_fireball`.
----
-[2026-08-12 13:56:00] Branch: dev
-Git Fingerprint: ae00b66 (before) → ae00b66 (after)
-Prompt: fetch all new update and check if having merge B sprite branch or not
-Files Modified: logs/agent_history.log
-Summary of Changes:
-- Ran `git fetch --all --prune` to retrieve all latest updates from remote repository `origin`.
-- Discovered updated remote branch `origin/B/feature/graphic-visual` (6 new commits) and new remote branch `origin/B/feature/sfx-music`.
-- Checked merge status: Member B's sprite/graphic-visual updates (and new sfx-music branch) have **NOT** been merged into `dev` yet.
 ---
 [2026-08-09 17:30:00] Branch: B/feature/graphic-visual
 Prompt: Execute implementation_plan.md to wire sprites and animations for all Items, Enemies, and Blocks, and fix AABB vs sprite location matching anchored at bottom-center.
@@ -2209,7 +1932,65 @@ Summary of Changes:
 - Task 5: Last Block (Conveyor Belt) Rendering — Updated verify_all_entities_visual.cpp to pass itemSheet to Conveyor Belt block.
 - Task 6: Successfully rebuilt verify_all_entities_visual target with CMake (exit code 0).
 ---
-
+[2026-08-10 19:17:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Proceed to implement sprite sheet wiring to main game (PlayingState). Update implementation plan with newly changed core game and correct build path ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+Files Modified:
+- SuperMarioGame/src/Graphics/SpriteSheet.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+Summary of Changes:
+- SpriteSheet.cpp: Extended loadFrameData() to support both standard TexturePacker "frames" format AND the custom "tiles" format used by tileset_blocks.json so all 5 atlases can be loaded uniformly.
+- PlayingState.hpp: Added 5 std::unique_ptr<SpriteSheet> members (m_playerSheet, m_enemySheet, m_itemSheet, m_scenerySheet, m_blocksSheet), m_showAABB bool toggle, m_tileAnimTimer float, and wireEntityAnimations(Entity*) helper declaration.
+- PlayingState.cpp enter(): Load all 5 atlas SpriteSheets using path-candidate fallback search (assets/spriteSheet/*, SuperMarioGame/assets/spriteSheet/*, ../assets/spriteSheet/*). Wire animations for procedurally generated entities.
+- PlayingState.cpp render(): Replaced raw sf::RectangleShape tile loop with atlas sprite rendering for Ground (grass top/dirt), Brick, Question (animated 4 frames), Pipe (top/body, left/right columns), Ice, Conveyor (animated 4 frames), Water (animated 4 frames), Coin (animated 4 frames). Falls back gracefully to debug color rect if atlas not loaded.
+- PlayingState.cpp render(): Added EntityDeathEffect::getInstance().render(target) for flying death trajectories.
+- PlayingState.cpp render(): Added m_showAABB AABB overlay (green/yellow for tiles, green/red/yellow/cyan for entity types) rendered in world space.
+- PlayingState.cpp update(): Advanced m_tileAnimTimer each dt for animated tiles.
+- PlayingState.cpp wireEntityAnimations(): Polymorphic dispatcher downcasts Entity* to Player/Enemy/Item/Block and calls setupAnimations() with the matching atlas pointer.
+- PlayingState.cpp setupTestScene(): Wire animations for all level-loaded entities after LevelLoader.
+- PlayingState.cpp spawnSelectedPlayer(): Wire animation and set player on Game after spawning.
+- PlayingState.cpp Serializer Load: Wire animations for loaded save slot player.
+- ImGui playground panel: Added "Show Physics AABB Overlays" checkbox.
+- Resolved merge conflicts in Flagpole.cpp (implemented missing Flagpole::update(float dt)) and Mario.cpp.
+- Build: SuperMarioGame target compiled successfully (exit code 0), producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
+[2026-08-10 20:08:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Fix tile sprites (switch from deprecated tileset_blocks to world_scenery_item atlas), remove HUD outline frame from StarCoin, fix Player sprite facing direction scale factor, and implement PSwitch squished frame animation on activation.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/StarCoin.cpp
+- SuperMarioGame/include/Entities/PSwitch.hpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+Summary of Changes:
+- Tilemap Sprites: Migrated tile rendering in PlayingState::render() from deprecated tileset_blocks to world_scenery_item (m_scenerySheet). Mapped Ground -> solid_block_brown/grey, Brick -> brick_brown_side, Question -> question_block_0/1/2, Pipe -> pipe_green_up/body, Ice -> solid_block_blue, Conveyor -> conveyor_belt_green, Water -> wave frames, Coin -> coin_0/1.
+- StarCoin Animation: Removed HUD-only big_coin_outline frame from StarCoin::setupAnimations(). Mapped to big_coin_0, big_coin_1, big_coin_2 frames from world_scenery_item and updated wireEntityAnimations() to route StarCoin to m_scenerySheet.
+- Player Sprite Facing & Animation: Fixed Player::render() scale factor (scaleX = facingRight ? scale : -scale) matching atlas default rightward sprite orientation.
+- PSwitch Pressed Frame: Added m_pressed state and m_pressedAnimation (p_switch_pressed, isLooping = false) to PSwitch.hpp/cpp, switching to squished sprite upon activate().
+- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
+[2026-08-10 20:34:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
+Prompt: Fix water rendering to support 2 components (surface wave vs background depth), fix player movement animation switching (idle, walk, run, jump, crouch), and fix PSwitch collision resolution so squished sprite stays rendered on screen after activation.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Entities/Mario.cpp
+- SuperMarioGame/src/Entities/Luigi.cpp
+- SuperMarioGame/src/Entities/Toad.cpp
+- SuperMarioGame/src/Entities/Peach.cpp
+- SuperMarioGame/include/Entities/PSwitch.hpp
+- SuperMarioGame/src/Entities/PSwitch.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+Summary of Changes:
+- Water 2-Component Rendering: Updated TileType::Water rendering in PlayingState::render() to check tile above. If surface tile (y == 0 or tile above != Water), renders animated surface wave (water_light_blue_wave_long / water_dark_blue_wave_long); if depth tile below, renders background fill (water_dark_blue_bg).
+- Dynamic Player Movement Animations: Implemented setupCharacterAnimations(spriteSheet, prefix) in Player.hpp/cpp to build m_animIdle, m_animWalk, m_animRun, m_animJump, m_animCrouch. Updated Player::update(dt) to dynamically switch animations based on velocity.x, onGround, and crouched states. Updated Mario, Luigi, Toad, Peach setupAnimations to pass character prefixes (mario_small, luigi_small, toad_small, peach_small).
+- PSwitch Squished Collision: Added PSwitch::collect() override that sets collected = true while keeping active = true so the squished sprite remains rendered on screen. Added PSwitch collision resolution in CollisionResolver::resolvePlayerVsItem() to ground player on top of squished PSwitch upon activation.
+- Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
+---
 [2026-08-10 20:52:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Fix water surface wave animation to cycle matching dark blue wave frames (water_dark_blue_wave_long / short), and fix player sprite horizontal facing scale factor (facingRight ? -scale : scale).
@@ -2221,7 +2002,6 @@ Summary of Changes:
 - Player Sprite Facing Direction: Corrected scaleX calculation in Player::render() (scaleX = facingRight ? -scale : scale) so players face right when moving right and face left when moving left based on the atlas default left-facing orientation.
 - Build: Rebuilt SuperMarioGame target successfully (exit code 0) producing ./SuperMarioGame/build/Debug/SuperMarioGame.exe.
 ---
-
 [2026-08-10 21:19:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Implement sinusoidal position transformation for water surface wave animation (water_dark_blue_wave_long), and render/verify in test harness (verify_all_entities_visual) first.
@@ -2233,7 +2013,6 @@ Summary of Changes:
 - Main Game Integration: Updated PlayingState::render() to apply the exact same horizontal sinusoidal position transformation to top surface water tiles (TileType::Water when tile above is non-water), rendering smooth, fluid wave motion in the main game world.
 - Build: Successfully compiled both verify_all_entities_visual.exe and SuperMarioGame.exe with zero errors (exit code 0).
 ---
-
 [2026-08-10 21:29:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Update surface water wave tile frame from water_dark_blue_wave_long to water_dark_blue_wave_short in both test harness and main game.
@@ -2244,7 +2023,6 @@ Summary of Changes:
 - Surface Water Wave Frame: Updated top surface water wave tile from water_dark_blue_wave_long to water_dark_blue_wave_short in both verify_all_entities_visual.cpp and PlayingState.cpp for clean wave transformation rendering.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 21:31:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Implement 2D orbital looping wave motion (horizontal drift + vertical bobbing up/down) for water_dark_blue_wave_short tiles in test harness and main game.
@@ -2256,7 +2034,6 @@ Summary of Changes:
 - Test Harness ImGui Controls: Added independent sliders for Horizontal Wave Drift Amplitude and Vertical Bobbing Amplitude in verify_all_entities_visual.cpp.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 21:37:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Update surface water wave motion to move the entire top layer in sync to the right (conveyor-style 0..32px modulo loop) with vertical bobbing.
@@ -2267,7 +2044,6 @@ Summary of Changes:
 - Synchronized Rightward Conveyor Drift: Updated surface water wave rendering in both verify_all_entities_visual.cpp and PlayingState.cpp. The entire top layer shifts right in unison using a continuous modulo conveyor loop (std::fmod(t * speed, 32.0f)) combined with synchronized vertical bobbing (std::sin(t * bobSpeed) * ampY). Rendered tile bounds from c = -1 to ensure no edge gaps appear during rightward sliding.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 21:51:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Remove lateral/horizontal drift from surface water wave animation, keeping pure vertical bobbing up and down.
@@ -2278,7 +2054,6 @@ Summary of Changes:
 - Pure Vertical Bobbing Wave: Removed horizontal drift from surface water tile rendering in both verify_all_entities_visual.cpp and PlayingState.cpp. Applied pure vertical bobbing offset (std::sin(t * bobSpeed) * waveAmpY) to water_dark_blue_wave_short tiles.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 21:52:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Add +5px base Y offset to surface water tiles so upward bobbing motion does not expose untextured gaps above the submerged background water.
@@ -2289,7 +2064,6 @@ Summary of Changes:
 - +5px Base Y Offset: Added +5.0f Y-offset (drawY = startY + 5.0f + bobY) to top surface water tiles (water_dark_blue_wave_short) in both verify_all_entities_visual.cpp and PlayingState.cpp.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 22:52:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Render the water surface wave tiles above the water background tiles.
@@ -2300,7 +2074,6 @@ Summary of Changes:
 - Layer Draw Order Fix: Swapped drawing order in verify_all_entities_visual.cpp (tab 4) so that water depth tiles are drawn first, and top surface wave tiles are drawn second. Updated PlayingState::render() to loop y from bottom-to-top (m_tileMap.getHeight() - 1 down to 0) ensuring surface wave tiles draw on top of background/depth tiles when bobbing down.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 23:01:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Fix P-Switch disappearing in main game after being activated.
@@ -2310,7 +2083,6 @@ Summary of Changes:
 - Item Render Fix: Removed the `collected` conditional early-return check from `Item::render()` so items that stay active with `active = true` (like P-Switch) can still render their sprite once collected/pressed.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-10 23:03:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Render squished/pressed sprite for P-Switch even if active is false or it is collected.
@@ -2322,7 +2094,6 @@ Summary of Changes:
 - PSwitch Render Fix: Stored the `SpriteSheet*` pointer inside `Item` base class upon animation setup. Overrode `PSwitch::render()` to directly fetch and render the `"p_switch_pressed"` frame sprite from the stored sheet if the switch is pressed, collected, or inactive, bypassing the standard early-exit conditions in `Item::render()`. Reverted the earlier change in `Item::render()` to keep regular item cleanup logic intact.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-11 11:06:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Update the HUD to use the new spritesheet, including animated coin, Star Coin (collected/outline), and active player's idle sprite for lives display.
@@ -2346,7 +2117,6 @@ Summary of Changes:
 - Lives Indicator: Added virtual `getCharacterName()` to Player, overridden by Mario, Luigi, Toad, and Peach. Rendered the active character's small idle sprite (e.g. `mario_small_idle`) next to the lives text in Hud.cpp, automatically shifting the lives text.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-
 [2026-08-11 13:32:00] Branch: B/feature/graphic-visual
 Git Fingerprint: 83660b5 (before) → 83660b5 (after, no new commits per user directive)
 Prompt: Make collecting big coin update the HUD and ensure the coin sprite of the coin counter is not stretched (uniform scaling based on height).
@@ -2359,81 +2129,14 @@ Summary of Changes:
 - Aspect Ratio Fix: Updated `Hud::draw` to use uniform scaling (keeping original aspect ratio) on the standard coin sprite based on a `24.0f` height target and adjusted its position to `Y = 28.f`.
 - Build: Rebuilt both verify_all_entities_visual.exe and SuperMarioGame.exe cleanly with zero errors (exit code 0).
 ---
-[2026-08-12 15:49:34] Branch: B/feature/graphic-visual
-Prompt: Zooming does not work.
-Files Modified:
-- tools/metadata-editor/metadata_editor.html (UPDATED)
-- logs/agent_history.log
+[2026-08-12 13:56:00] Branch: dev
+Git Fingerprint: ae00b66 (before) → ae00b66 (after)
+Prompt: fetch all new update and check if having merge B sprite branch or not
+Files Modified: logs/agent_history.log
 Summary of Changes:
-- Added mouse wheel zooming event listeners (`wheel` event) on workspace canvas in `tools/metadata-editor/metadata_editor.html`.
-- Added zoom control button handlers (`#btnZoomIn`, `#btnZoomOut`, `#btnZoomReset`).
-- Implemented pixel-accurate viewport-to-image mouse scaling (`getCanvasMousePos`), ensuring box selection, drag-to-draw, and corner handle resizing remain 100% accurate under any zoom level.
----
-[2026-08-12 15:52:02] Branch: B/feature/graphic-visual
-Prompt: Make it zoom in and out by at the cursor
-Files Modified:
-- tools/metadata-editor/metadata_editor.html (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Implemented `zoomAtPoint(targetZoom, clientX, clientY)` in `tools/metadata-editor/metadata_editor.html`.
-- Calculates cursor offsets relative to workspace origin and adjusts pan offsets (`panX`, `panY`) during zoom so the pixel directly under the mouse cursor remains static during zooming.
----
-[2026-08-12 16:10:32] Branch: B/feature/graphic-visual
-Prompt: Add a position finder (a box displaying the current hovered point on the png).
-Files Modified:
-- tools/metadata-editor/metadata_editor.html (UPDATED)
-- logs/agent_history.log
-Summary of Changes:
-- Added a floating **Position Finder HUD overlay** (`pos-finder-hud`) to the top-right of the workspace in `tools/metadata-editor/metadata_editor.html`.
-- Displays real-time hovered pixel coordinates (`X: 124, Y: 88`) and calculated 16x16 tile grid position (`Tile: Col 7, Row 5`).
-- Added a subtle amber crosshair pixel highlight box on `mainCanvas` at the hovered image coordinate.
----
-[2026-08-12 21:20:27] Branch: B/feature/graphic-visual
-Prompt: Check the json to see if it loads correctly. Compare the format of the old and new version.
-Files Modified:
-- logs/agent_history.log
-Summary of Changes:
-- Checked all 8 JSON metadata files across `SuperMarioGame/assets/spriteSheet/` for JSON validity and C++ engine compatibility (`SpriteSheet::loadFrameData`).
-- Verified 100% schema compatibility with TexturePacker Hash format (`"frames": { "<key>": { "frame": { "x", "y", "w", "h" } } }`).
-- Compared `world_scenery_item_old.json` (174 frames) vs `world_scenery_item.json` (181 frames): 13 new directional pipe keys added (`pipe_green_head_left`, `pipe_red_head_left`, etc.), 6 redundant keys removed, and 0 mismatches across common frame bounding boxes.
-- Verified C++ compilation and C++ loader compatibility.
----
-
-
-
-
-
-[2026-08-06 23:01:00] Branch: (B/branch-name fallback)
-Prompt: Use the sound manager, and you can update it. If necessary, use the resource manager. Dont change the resource manager.
-Files Modified: include/Core/SoundManager.hpp, src/Core/SoundManager.cpp, CMakeLists.txt, tests/verify_sound_visual.cpp
-Summary of Changes:
-- Added m_fallbackBuffer to SoundManager to synthesize a beep if an asset is missing or has 0 samples.
-- Reverted ResourceManager changes to keep it pristine.
-- Created verify_sound_visual tool and registered it in CMakeLists.txt.
-- Successfully built verify_sound_visual.exe.
----
-[2026-08-12 15:38:34] Branch: B/feature/graphic-visual
-Prompt: Create a tool for modifying the json, which means adding a frame, deleting a sprite frame (not modifying the png), and modifying the frame (i.e. the name, the frame rectangle).
-Files Modified:
-- tools/metadata-editor/metadata_editor.html (NEW)
-- SuperMarioGame/tools/metadata-editor/metadata_editor.html (NEW)
-- scripts/edit_sprite_metadata.py (NEW)
-- logs/agent_history.log
-Summary of Changes:
-- Built the interactive Web-based Metadata Editor Studio in `tools/metadata-editor/metadata_editor.html` allowing drag-to-draw adding of new frames, single-click frame deletion (leaving PNG untouched), frame renaming, and rectangle position/size modifications ($x, y, w, h$) with step buttons and corner drag-handles.
-- Built `scripts/edit_sprite_metadata.py` CLI script providing `add`, `delete`, and `modify` commands for JSON metadata files.
-- Tested and verified execution with 0 errors.
----
-
-[2026-08-13 12:27:00] Branch: B/feature/sfx-music
-Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
-Prompt: Wire boing.wav sound effect trigger to Trampoline::activate.
-Files Modified:
-- SuperMarioGame/src/Entities/Trampoline.cpp
-- logs/agent_history.log
-Summary of Changes:
-- Trampoline Sound Trigger: Added `SoundManager::getInstance().playSound("boing")` inside `Trampoline::activate(Player& player)`.
-- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+- Ran `git fetch --all --prune` to retrieve all latest updates from remote repository `origin`.
+- Discovered updated remote branch `origin/B/feature/graphic-visual` (6 new commits) and new remote branch `origin/B/feature/sfx-music`.
+- Checked merge status: Member B's sprite/graphic-visual updates (and new sfx-music branch) have **NOT** been merged into `dev` yet.
 ---
 [2026-08-12 13:57:00] Branch: dev
 Git Fingerprint: ae00b66 (before) → f43b2d0 (after)
@@ -2544,6 +2247,37 @@ Summary of Changes:
 - Head Stomp & Enemy Touch Collision Handling: Refined `CollisionResolver::resolvePlayerVsEnemy` to accurately distinguish head stomps from side touch hits. Stomp applies upward bounce force, plays stomp SFX, and increments combo counter. Side touch applies knockback and triggers player power-down damage and 2.0s invincibility frames.
 - Verification: 100% build pass for SuperMarioGame and 100% test pass for verify_map_generator.
 ---
+[2026-08-12 15:38:34] Branch: B/feature/graphic-visual
+Prompt: Create a tool for modifying the json, which means adding a frame, deleting a sprite frame (not modifying the png), and modifying the frame (i.e. the name, the frame rectangle).
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (NEW)
+- SuperMarioGame/tools/metadata-editor/metadata_editor.html (NEW)
+- scripts/edit_sprite_metadata.py (NEW)
+- logs/agent_history.log
+Summary of Changes:
+- Built the interactive Web-based Metadata Editor Studio in `tools/metadata-editor/metadata_editor.html` allowing drag-to-draw adding of new frames, single-click frame deletion (leaving PNG untouched), frame renaming, and rectangle position/size modifications ($x, y, w, h$) with step buttons and corner drag-handles.
+- Built `scripts/edit_sprite_metadata.py` CLI script providing `add`, `delete`, and `modify` commands for JSON metadata files.
+- Tested and verified execution with 0 errors.
+---
+[2026-08-12 15:49:34] Branch: B/feature/graphic-visual
+Prompt: Zooming does not work.
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added mouse wheel zooming event listeners (`wheel` event) on workspace canvas in `tools/metadata-editor/metadata_editor.html`.
+- Added zoom control button handlers (`#btnZoomIn`, `#btnZoomOut`, `#btnZoomReset`).
+- Implemented pixel-accurate viewport-to-image mouse scaling (`getCanvasMousePos`), ensuring box selection, drag-to-draw, and corner handle resizing remain 100% accurate under any zoom level.
+---
+[2026-08-12 15:52:02] Branch: B/feature/graphic-visual
+Prompt: Make it zoom in and out by at the cursor
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Implemented `zoomAtPoint(targetZoom, clientX, clientY)` in `tools/metadata-editor/metadata_editor.html`.
+- Calculates cursor offsets relative to workspace origin and adjusts pan offsets (`panX`, `panY`) during zoom so the pixel directly under the mouse cursor remains static during zooming.
+---
 [2026-08-12 16:02:00] Branch: dev
 Git Fingerprint: 161169f (before) → 161169f (after)
 Prompt: Fix LevelLoader failed to open level JSON file (assets/levels/level_1_sub.json).
@@ -2556,6 +2290,496 @@ Summary of Changes:
 - Expanded Candidate Fallback Paths: Expanded path candidates in `LevelLoader::loadLevel()` to include `build/assets/levels/`, `../build/assets/levels/`, `../assets/levels/`, and `assets/levels/` so JSON level files load cleanly regardless of executable working directory.
 - Level File Synchronization: Synchronized generated level files across both `assets/levels/` and `build/assets/levels/` (`level_1.json`, `level_1_sub.json`, `level_2.json`, `level_2_sub.json`, `level_3.json`, `level_3_sub.json`, `bonus_1.json`).
 - Verification: 100% build pass for SuperMarioGame, 100% level generation pass, and 0 file open errors.
+---
+[2026-08-12 16:10:32] Branch: B/feature/graphic-visual
+Prompt: Add a position finder (a box displaying the current hovered point on the png).
+Files Modified:
+- tools/metadata-editor/metadata_editor.html (UPDATED)
+- logs/agent_history.log
+Summary of Changes:
+- Added a floating **Position Finder HUD overlay** (`pos-finder-hud`) to the top-right of the workspace in `tools/metadata-editor/metadata_editor.html`.
+- Displays real-time hovered pixel coordinates (`X: 124, Y: 88`) and calculated 16x16 tile grid position (`Tile: Col 7, Row 5`).
+- Added a subtle amber crosshair pixel highlight box on `mainCanvas` at the hovered image coordinate.
+---
+[2026-08-12 21:16:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Update Pipe rendering to use the 4-part decomposed sprite keys (head_left, head_right, body_left, body_right) pointing up, with rotation support.
+Files Modified:
+- SuperMarioGame/include/Graphics/PipeRenderer.hpp
+- SuperMarioGame/src/Graphics/PipeRenderer.cpp
+- SuperMarioGame/include/Entities/Pipe.hpp
+- SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- PipeRenderer Utility: Created `PipeRenderer` with static `draw(...)` method that renders pipes composed of 4 quadrant sub-sprites (`head_left`, `head_right`, `body_left`, `body_right`).
+- Rotation Support: Calculates quadrant center positions, rotates them around the bounding box center by `rotationDegrees`, scales sub-sprites to half-quadrant dimensions, and applies sprite rotation angles.
+- Entity & TileMap Integration: Updated `Pipe::render()` and `PlayingState::render()` (`TileType::Pipe`) to utilize `PipeRenderer::draw(...)`.
+- Build Verification: Successfully compiled `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+[2026-08-12 21:20:27] Branch: B/feature/graphic-visual
+Prompt: Check the json to see if it loads correctly. Compare the format of the old and new version.
+Files Modified:
+- logs/agent_history.log
+Summary of Changes:
+- Checked all 8 JSON metadata files across `SuperMarioGame/assets/spriteSheet/` for JSON validity and C++ engine compatibility (`SpriteSheet::loadFrameData`).
+- Verified 100% schema compatibility with TexturePacker Hash format (`"frames": { "<key>": { "frame": { "x", "y", "w", "h" } } }`).
+- Compared `world_scenery_item_old.json` (174 frames) vs `world_scenery_item.json` (181 frames): 13 new directional pipe keys added (`pipe_green_head_left`, `pipe_red_head_left`, etc.), 6 redundant keys removed, and 0 mismatches across common frame bounding boxes.
+- Verified C++ compilation and C++ loader compatibility.
+---
+[2026-08-12 21:28:00] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Fix visual test and game failing to load asset JSON files and falling back to primitive colored shapes when launched from build/Debug output directories.
+Files Modified:
+- SuperMarioGame/include/Core/ResourceManager.hpp
+- SuperMarioGame/src/Core/ResourceManager.cpp
+- SuperMarioGame/src/Graphics/SpriteSheet.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Asset Path Resolution Helper: Added `ResourceManager::resolvePath(path)` which checks candidate path depths (`./`, `../`, `../../`, `SuperMarioGame/`, `../SuperMarioGame/`, `../../SuperMarioGame/`).
+- Engine Integration: Wrapped all texture, font, sound buffer, and JSON frame data file loading in `ResourceManager` and `SpriteSheet` with `resolvePath`.
+- Fixed JSON Load Failures: Resolved the `json.exception.parse_error.101` empty stream issue when running from `build/Debug/`. All JSON frame data atlases and sprite sheets now load 100% successfully regardless of executable working directory.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+[2026-08-12 21:38:30] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Update SuperMarioGame tilemap rendering to utilize the dissected 2-column pipe parts (pipe_green_head_left, pipe_green_head_right, pipe_green_body_left, pipe_green_body_right) for authentic multi-column pipes in level rendering.
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Multi-Tile Dissected Pipe Rendering: Updated `TileType::Pipe` selection logic in `PlayingState::render()` to inspect neighbor tile topology:
+  - Top-Left: `pipe_green_head_left` (`isTopExposed && !hasLeftTile`)
+  - Top-Right: `pipe_green_head_right` (`isTopExposed && hasLeftTile`)
+  - Body-Left: `pipe_green_body_left` (`!isTopExposed && !hasLeftTile`)
+  - Body-Right: `pipe_green_body_right` (`!isTopExposed && hasLeftTile`)
+- Authentic Pipe Visuals: Standard 2-tile wide level pipes now render as a single unified 64px wide pipe structure across all levels.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---
+[2026-08-12 23:12:45] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Audit all 12 BGM audio files in assets/bgm/ against expected IDs and build an alias resolution map so playMusic accepts exact disk filenames as well as legacy/logical IDs.
+Files Modified:
+- SuperMarioGame/src/Core/SoundManager.cpp
+- implementation_plan.md
+- logs/agent_history.log
+Summary of Changes:
+- BGM Alias Map: Implemented `resolveBGMIdentifier` in `SoundManager.cpp` mapping:
+  - `main_menu.mp3` $\leftarrow$ `"main_menu"`, `"title_screen"`
+  - `overworld.mp3` $\leftarrow$ `"overworld"`, `"level_1"`
+  - `underworld.mp3` $\leftarrow$ `"underworld"`, `"level_2"`
+  - `underwater.mp3` $\leftarrow$ `"underwater"`, `"level_3"`
+  - `sub_space-bonus_room.mp3` $\leftarrow$ `"sub_space-bonus_room"`, `"athletic"`, `"bonus"`
+  - `castle.mp3` $\leftarrow$ `"castle"`, `"bowser_castle"`
+  - `bowser_boss_battle.mp3` $\leftarrow$ `"bowser_boss_battle"`, `"boss"`
+  - `starman.mp3` $\leftarrow$ `"starman"`, `"invincible"`
+  - `world_map.mp3` $\leftarrow$ `"world_map"`, `"map"`
+  - `level_complete.mp3` $\leftarrow$ `"level_complete"`, `"stage_clear"`
+  - `castle_complete.mp3` $\leftarrow$ `"castle_complete"`, `"world_clear"`
+  - `game_over.mp3` $\leftarrow$ `"game_over"`
+- Code Integration: Updated `playLevelBGM` and `playStarMusic` to resolve BGM paths dynamically through the alias map.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+[2026-08-12 23:14:45] Branch: B/feature/graphic-visual
+Git Fingerprint: 61e30bc (before) → 61e30bc (after, no new commits per user directive)
+Prompt: Wire GameOver, BossDefeated, and LevelComplete BGM triggers into SoundManager setupEventSubscriptions.
+Files Modified:
+- SuperMarioGame/src/Core/SoundManager.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Extended `SoundManager::setupEventSubscriptions()` to subscribe to:
+  - `EventType::LevelComplete`: Plays `level_complete.mp3` and `stage_clear.wav`.
+  - `EventType::BossDefeated`: Plays `castle_complete.mp3`.
+  - `EventType::GameOver`: Plays `game_over.mp3`.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---code 0).
+---
+
+
+
+
+
+
+
+
+
+
+>>>>>>> Stashed changes
+[2026-08-13 12:27:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire boing.wav sound effect trigger to Trampoline::activate.
+Files Modified:
+- SuperMarioGame/src/Entities/Trampoline.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Trampoline Sound Trigger: Added `SoundManager::getInstance().playSound("boing")` inside `Trampoline::activate(Player& player)`.
+- Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
+---
+[2026-08-13 14:44:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Create an interactive visual test environment with an invincible player avatar featuring right-click mouse teleportation and preset buttons to test all enemy edge cases and AI strategy reactions.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- SuperMarioGame/include/Entities/Character.hpp
+- logs/agent_history.log
+Summary of Changes:
+- Invincible Player Avatar: Added Mario player avatar surrounded by a glowing gold invincibility aura with WASD/arrow keys movement and line-of-sight raycast.
+- Right-Click & Preset Teleportation:
+  - Right-clicking anywhere in the visual window instantly teleports the player to mouse cursor position.
+  - ImGui preset buttons: `Under Thwomp`, `Facing Boo`, `Behind Boo`, `On Piranha Pipe`, `ChainChomp Radius`, `HammerBro Area`.
+- Edge Case Test Arena: Integrated terrain containing walls (wall bounce), elevated platforms (ledge awareness), Piranha pipe, Thwomp ceiling hover, and ChainChomp anchor post.
+- Debug Overlay Gizmos: Added velocity arrows, line-of-sight rays, and AABB bounding box overlays.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+[2026-08-13 14:54:30] Branch: dev
+Prompt: Execute the approved implementation plan for isolated enemy test environments in tests/verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Structured 11 Isolated Room Environments for Goomba, KoopaTroopa, KoopaParatroopa, Boo, Thwomp, PiranhaPlant, ChainChomp, Lakitu, Spiny, HammerBro, and BulletBill selectable via an ImGui Combo dropdown and Tab bar.
+- Added an ImGui checkbox toggle button "Show Visual AABB Bounding Boxes" allowing the user to toggle visual green AABB outline overlays on/off whenever needed.
+- Cleaned up visual artifacts: removed yellow gold aura circle around Mario while maintaining the crisp Mario sprite rendering and magenta line-of-sight ray.
+- Eliminated clipping: applied exact ground clamping (y = groundY - boundingBox.height) and solid wall collision boundaries so all 11 enemies walk, fly, land, and bounce cleanly on terrain with ZERO visual or AABB clipping.
+- Retained right-click mouse teleportation to cursor for the invincible Mario avatar, and added room-tailored ImGui teleport preset buttons for each room (Under Thwomp, Facing Boo, Behind Boo, On Piranha Pipe, In Front of Wall, Inside ChainChomp Radius, HammerBro Platforms, Goomba Path, Koopa Platform, Lakitu Sky, BulletBill Corridor, Spiny Drop Zone).
+- Built verify_enemies_visual target with CMake with 0 compilation errors (exit code 0).
+[2026-08-13 20:11:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix position movement velocity integration and widen room wall spacing to at least 6+ blocks apart in verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Physics Integration: Integrated `pos += vel * dt` in the test room update loop so enemy AI strategies drive real-time position movement across the screen instead of animating in place.
+- Wide Wall Spacing: Expanded room boundaries to `x = 100.0f` to `x = 1180.0f` (1080px / 33.75 blocks wide, well over the 6-block requirement), providing wide corridors for Goomba, Koopa, Spiny, and BulletBill patrol.
+- Boundary Wall Rebound: Wired `onWall = true` trigger on boundary contact to execute AI strategy horizontal turnarounds.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+[2026-08-13 20:49:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Apply gravity acceleration for ground/hopping enemies, fix HammerBro's platform hop trajectory, and render Bill Blaster cannon shooter block in verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Real-Time Gravity Physics: Applied `vel.y += 1200.0f * dt` for non-flying ground enemies when airborne, pulling hopping/falling entities back down.
+- HammerBro Hopping & Platform Landing: Fixed HammerBro platform landing at `(980, 392)` on `hbPlatform` at `y = 440`. Applied gravity to convert hop impulses into smooth parabolic jump arcs.
+- Bill Blaster Cannon Shooter: Rendered a 64x64px Bill Blaster cannon block at `(100, 496)` with cannon nozzle at `x = 164` where Bullet Bill launches horizontally out of the cannon nozzle.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+[2026-08-13 22:13:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Use bullet_bill_body sprite for shooter cannon, add range attack reactions for enemies, and add a togglable visual attack radius overlay in verify_enemies_visual.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Bill Blaster Cannon Shooter Sprite: Rendered authentic `bullet_bill_body` sprite from `enemySheet` at `(100, 496)` scaled to 64x64px for the shooter cannon block.
+- Proximity Range Attack Reactions: Added threat radius detection for Boo (250px), Thwomp (80px column), ChainChomp (180px), and HammerBro (300px).
+- Togglable Attack Radius Overlays: Added ImGui `Show Attack Range Radius` checkbox to toggle translucent range circles/boxes (Yellow = Idle, Red = Attack Triggered!).
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+[2026-08-13 22:31:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Implement Thwomp ramp up vibration & slow rise state machine, Boo sight-tracking watch vs chase animations, and HammerBro player facing & rotating parabolic hammer projectiles.
+Files Modified:
+- SuperMarioGame/include/Entities/Thwomp.hpp
+- SuperMarioGame/src/Entities/Thwomp.cpp
+- SuperMarioGame/src/Entities/Boo.cpp
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Thwomp AI State Machine: Motionless idle at home y=140. When Mario walks underneath, vibrates 0.2s gritting teeth, slams rapidly (700px/s) with angry face (`thwomper_active`), rests 0.5s at floor, and rises back up slowly (-80px/s) with dormant sprite face (`thwomper_dormant`).
+- Boo Sight-Tracking Watch & Pursuit: Freeze and cover face with hands (`boo_seen_0`) when Mario faces Boo; reveal grin face (`boo_move_0`) and pursue at 100px/s when Mario turns away.
+- HammerBro Facing & Parabolic Hammer Projectiles: Turn to face Mario (`facingRight = (playerPos.x > hammerBro.x)`) and throw rotating parabolic hammers (`hammer_black_0`) every 1.5s.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+[2026-08-13 23:00:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix Boo seen-to-attack animation reset, Thwomp active/dormant animation states, HammerBro hammer throw rendering, and BulletBill BlasterCombined sprite ratio.
+Files Modified:
+- SuperMarioGame/include/Entities/Boo.hpp
+- SuperMarioGame/src/Entities/Boo.cpp
+- SuperMarioGame/include/Entities/Thwomp.hpp
+- SuperMarioGame/src/Entities/Thwomp.cpp
+- SuperMarioGame/tests/verify_enemies_visual.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Boo Shy/Attack Animation Transition: Added separate `m_seenAnim` and `m_moveAnim` objects to allow the animator to cleanly switch address pointers. Boo now immediately covers face (`boo_seen_0`) when watched and reveals grin face (`boo_move_0`) when pursuing.
+- Thwomp Active Sprite Fix: Added separate `m_dormantAnim` and `m_activeAnim` objects. Set velocity.y to `0.1f` during Ramp Up to trigger the angry active sprite, and query position to play active sprite when dropped/resting.
+- HammerBro Projectile Rendering: Correctly integrated active parabolic hammer update and drawing loops.
+- Bill Blaster Combined Sprite: Rendered `bullet_bill_combined` at 2.0x scale (32x64px, 1:2 ratio) at `(100, 496)`. Spawn nozzle firing coordinate set to `x = 132`.
+- Build Verification: Successfully rebuilt `verify_enemies_visual.exe` with CMake (exit code 0).
+---
+[2026-08-14 20:45:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Create brand new standalone verify_enemies_behavior visual test suite with side-by-side dashboard UI layout, dynamic terrain toggles, debug gizmos, and one-by-one behavior testing for all 11 enemies.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Standalone Test Executable: Created `tests/verify_enemies_behavior.cpp` and registered target `verify_enemies_behavior` in `CMakeLists.txt`.
+- Side-by-Side Dashboard UI: Left sidebar for selecting all 11 enemy types, center visual render canvas, and right control panel for terrain toggles and gizmos.
+- Behavioral Function Verification: Verified Patrol, Chase/Sight-Tracking, Proximity Slam/Rise, Emergence, Tethered Lunge, Egg Spawning, Parabolic Hammer Throws, and Shooter mechanics for all 11 enemies.
+- Build Verification: Successfully built `verify_enemies_behavior.exe` with CMake (exit code 0).
+---
+[2026-08-14 20:54:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire correct folder paths to SpriteSheet constructors in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- SpriteSheet Path Correction: Corrected `playerSheet` and `enemySheet` loading in `verify_enemies_behavior.cpp` to use folder paths (`assets/spriteSheet/player` and `assets/spriteSheet/enemy_projectile`) instead of JSON paths to ensure proper texture and frame loading via `ResourceManager`.
+- Build Verification: Rebuilt successfully with exit code 0.
+---
+[2026-08-14 21:12:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Wire normal player physics (PhysicsEngine), inputs (InputManager), and grid terrain blocks (TileMap) to verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Standardized Physics Update: Replaced the manual coordinate movement for the player in the test harness with standard `PhysicsEngine` updates.
+- Normal Keyboard Input: Integrated `InputManager::getInstance()` for routing event handlers and key updates directly.
+- Dynamic TileMap Sync: Wired a 40x23 grid `TileMap` to dynamically synchronize structural blocks (Ground, Brick, Pipe) when checkboxes are toggled, allowing natural gravity and AABB resolution.
+- Build Verification: Clean compilation with exit code 0.
+---
+[2026-08-14 21:24:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Add enemy auto-respawn and active flag safety checks when enemies (e.g. Goomba) die or get squished in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Auto-Respawn Inactive Enemy: Added check `if (!enemyPtr || !enemyPtr->isActive()) { spawnActiveEnemy(); }` so whenever Goomba gets squished or an enemy dies, a fresh active enemy is automatically respawned.
+- Prune Inactive Sub-Entities: Added pruning for extra inactive sub-entities (e.g. hatched Spinies) so `entities` list doesn't accumulate destroyed pointers.
+- Safety Checks: Wrapped AI logic and ImGui status panel calls in `enemyPtr->isActive()` checks to eliminate crashes/errors when modifying terrain ("changing the world").
+- Build Verification: Clean compilation with exit code 0.
+---
+[2026-08-14 21:29:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Remove infinite spawnActiveEnemy call from the frame update loop in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Fixed Infinite Spawn Loop: Removed automatic `spawnActiveEnemy()` call from frame loop. Enemy respawning is now cleanly triggered only by user action (sidebar selection or "Reset Active Enemy" button).
+- Safe Terrain Syncing: `syncTileMap()` now modifies `TileMap` grid cells without clearing or recreating player/enemy entity pointers.
+- Room Clamping: Added room canvas bounds clamping for player coordinates (`x = 230` to `970`) to prevent void pit falling loops.
+- Build Verification: Clean compilation with exit code 0.
+---
+[2026-08-14 21:54:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Align physical grid coordinates to 32px boundaries, render TileMap tiles directly, and add safe world change reset to eliminate crashes/freezes in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/CMakeLists.txt
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Physical Grid Alignment: Updated `mainGroundY` to `544.0f` (`gy = 17`) and aligned spawn/teleport coordinates to 32px cell boundaries (Player feet at `y = 544.0f`).
+- Direct TileMap Rendering: Replaced mock colored shape drawings with a direct `TileMap` cell loop, guaranteeing 100% synchronization between physics and visuals.
+- Safe World Change Reset: Wired `safeWorldChange` (`syncTileMap()` + `spawnActiveEnemy()`) to all terrain checkboxes to reset entities onto valid ground and eliminate crashes/freezes.
+- MSVC Compile Flag: Added `/FS` compile flag to `CMakeLists.txt` for MSVC to enable synchronous PDB writes.
+- Build Verification: `verify_enemies_behavior.exe` built cleanly with exit code 0.
+---
+[2026-08-14 22:05:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Diagnose crash in verify_enemies_behavior and fix all root causes.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- logs/agent_history.log
+Summary of Changes:
+- FIX 1 (InputManager dangling pointer): Unregister player from InputManager Singleton BEFORE entities.clear() in spawnActiveEnemy(), preventing use-after-free when Singleton tries to call update() on the old destroyed Mario.
+- FIX 2 (Game::getTileMap() null): Register the test's local TileMap with Game::getInstance().setTileMap(&tileMap) after initialization so Player::update() crouch ceiling check does not receive a null TileMap pointer.
+- FIX 3 (loseLife/GameOver event chain): Added public Player::setInvincible(float) method to Player.hpp; call player->setInvincible(99999.0f) in spawnActiveEnemy() so the player can never take damage and chain into EventBus::publish(GameOver) during testing.
+- FIX 4 (mainGroundY mismatch — primary crash): Corrected mainGroundY from 560.0f to 544.0f to match the actual physics TileMap floor at grid row gy=17. Old value caused Lakitu Spinies to hatch inside ground tiles, ejecting them at high velocity and corrupting the entity vector via index drift.
+- Added #include "Core/Game.hpp" to verify_enemies_behavior.cpp.
+- Build Verification: verify_enemies_behavior.exe built cleanly (exit code 0, no errors).
+---
+[2026-08-14 22:14:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Eliminate intra-frame dangling pointer crashes when switching worlds, enemies, or toggling terrains in verify_enemies_behavior.cpp.
+Files Modified:
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Replaced cached raw pointers (`playerPtr` and `enemyPtr`) that were sampled at the start of the while loop with dynamic lambda accessors `getPlayer()` and `getEnemy()`. When ImGui UI calls `safeWorldChange()` or `spawnActiveEnemy()` mid-frame, subsequent lines in the same frame (UI status, threat radius calculations, sight ray rendering) now query the live valid entities instead of dereferencing deleted heap memory.
+- Registered player with `Game::getInstance().setPlayer(...)` in `spawnActiveEnemy()` and cleared it before `entities.clear()` so AI strategies (ChaseStrategy, TetheredChaseStrategy, ProximityTriggerStrategy, etc.) always have a valid player reference without dangling pointer crashes.
+- Added singleton unbinding (`setPlayer(nullptr)`, `setTileMap(nullptr)`, `registerPlayer(nullptr, 0)`) in `main()` exit.
+- Fixed constructor argument for `Goomba`, `KoopaTroopa`, `KoopaParatroopa` to pass `false` instead of `"brown"`/`"green"`.
+- Build Verification: Rebuilt `verify_enemies_behavior.exe` with exit code 0.
+---
+[2026-08-15 21:34:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Implement Player Hurt Invincibility & Alpha Flickering, Squished Enemy Sprites (Goomba & Koopa), Lakitu Spiny Egg Throwing & Hatching, and Hammer Bro Dynamic Parabolic Arc Throwing.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Goomba.hpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/include/Entities/Spiny.hpp
+- SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/include/Entities/HammerThrowStrategy.hpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Player Hurt Invincibility & Alpha Flickering: CollisionResolver ignores side/bottom hits while invincibilityTimer > 0.0f to prevent continuous damage; Player::render modulates sprite alpha between 100 and 255 (15Hz flicker).
+- Squished Enemy Sprites: Goomba plays goomba_brown_squished animation for 0.5s upon stomp while remaining anchored to ground tile; KoopaTroopa switches to koopa_green_shell_0 upon stomp.
+- Lakitu Spiny Egg Throwing & Hatching: Spiny supports isEgg state playing spiny_egg_0/1 while falling down and automatically hatches into walking spiny_move_left_0/1 upon ground collision.
+- Hammer Bro Dynamic Parabolic Arc Throwing: HammerThrowStrategy calculates dynamic launch velocity vx = dx / T_flight (T_flight ≈ 0.633s for vy = -380.0f) with speed cap (std::clamp(vx, -350.0f, 350.0f)) for accurate parabolic targeting based on player position.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-15 22:19:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix Koopa Paratroopa stomp crash, Mario hurt animation playback, squishable enemy rules, Spiny ball frame keys, flipped enemy death physics, and exact Hammer Bro parabolic trajectory player intersection.
+Files Modified:
+- SuperMarioGame/include/Entities/KoopaParatroopa.hpp
+- SuperMarioGame/src/Entities/KoopaParatroopa.cpp
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/src/Entities/HammerBro.cpp
+- SuperMarioGame/src/Entities/BulletBill.cpp
+- SuperMarioGame/src/Entities/Spiny.cpp
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Flying Koopa Stomp Crash Fix: KoopaParatroopa::setupAnimations calls KoopaTroopa::setupAnimations so m_shellAnim is initialized; stomp 1 switches to walking koopa_move, stomp 2 switches to shell without crashing.
+- Player Hurt Animation: Loaded mario_small_hurt as m_animHurt in Player::setupCharacterAnimations and played it in Player::update when invincibilityTimer > 1.7f.
+- Enemy Flipped Death Physics: Added triggerFlipDeath with vertical sprite flip (scaleY = -scaleY) to base Enemy; Goomba squishes for 0.5s before moving down out of world; HammerBro and BulletBill trigger flipped death on stomp.
+- Spiny Ball Frame Key Fix: Corrected frame key names from spiny_egg_0/1 to spiny_ball_0/1 in Spiny.cpp.
+- Hammer Bro Trajectory Intersection: Computed exact flight time T using quadratic equation for vertical displacement dy = y_player - y_hammer, calculating launch vx = dx / T (capped to [-400.0f, 400.0f]), ensuring hammers directly intersect and strike a stationary player.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-15 23:02:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Make player hurt-able but immortal in behavior test, disable hitboxes on dead/dying enemies, apply fast downward plunge gravity (3500 px/s²) on flipped enemy death, and make Goomba squish for 0.5s right-side up then plunge downward unflipped.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/include/Entities/Enemy.hpp
+- SuperMarioGame/src/Entities/Enemy.cpp
+- SuperMarioGame/include/Entities/Goomba.hpp
+- SuperMarioGame/src/Entities/Goomba.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Player Hurt & Test Immortality: Overrode Player::takeDamage to call powerDown(); added m_isImmortal flag so in behavior test Mario suffers damage, knockback, and 15Hz hurt flicker without dying/game over.
+- Hitbox Disabling: Enemy::getBoundingBox returns empty box AABB{0,0,0,0} when isDeadOrDying() is true; CollisionResolver returns early for dead/dying enemies.
+- Fast Death Physics & Unflipped Goomba: Base Enemy applies 3500.0f px/s² gravity on flipped/downward death; Goomba squishes right-side up for 0.5s then plunges down out of the world unflipped (right-side up).
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 19:40:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Make player pass through enemies and items during hurt invincibility, and add hitbox to Hammer Bro thrown hammers in verify_enemies_behavior.
+Files Modified:
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Hurt Invincibility Pass-Through: Updated CollisionResolver::resolvePlayerVsEnemy and resolvePlayerVsItem to immediately return early when player.getInvincibilityTimer() > 0.0f, ensuring Mario completely passes through all enemies (no damage, no stomp) and items during hurt flickering.
+- Hammer Bro Projectile Hitbox: Added 16x16 px AABB intersection check for activeHammers against Mario in verify_enemies_behavior.cpp, applying knockback, damage, and 2.0s hurt flickering on hit, and added red AABB debug outline when showAABB is enabled.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 19:48:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix Koopa shell frame key in atlas and add 1.0s transformation invincibility to KoopaParatroopa when losing wings.
+Files Modified:
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/include/Entities/KoopaParatroopa.hpp
+- SuperMarioGame/src/Entities/KoopaParatroopa.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Koopa Shell Sprite Fix: Updated KoopaTroopa::setupAnimations to use authentic atlas frame key "koopa_green_shell" / "koopa_red_shell" (replacing invalid "koopa_green_shell_0"), allowing the shell sprite to render properly when stomped/kicked.
+- Paratroopa Transformation Invincibility: Added 1.0s transformation invincibility timer (m_transformInvincibilityTimer) with 15Hz alpha flickering when KoopaParatroopa is stomped and loses wings, preventing immediate consecutive stomps/insta-kills.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 21:38:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Make touching Koopa shell pick it up and throw it on pressing 'F', and preload audio buffers at startup so audio doesn't lag/load on first jump.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Koopa Shell Pick Up & Carry: Added ShellHeld state to KoopaTroopa; touching a ShellIdle Koopa shell calls pickUp(&player) and attaches it to player's hands in front of Mario.
+- Shell Throwing ('F' Key): Pressing 'F' triggers throwShell(), launching the shell forward at KOOPA_SHELL_KICK_SPEED with slight upward arch and kick sound effect.
+- Upfront Audio Preloading: Added SoundManager::getInstance().loadAllSounds() in verify_enemies_behavior.cpp startup so all audio buffers are resident in memory, eliminating the on-demand load stutter during the first jump.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 22:02:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix sideways Koopa collision to pick up shell without damaging player, and play authentic holding sprites when holding items.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Sideways Koopa Pickup: Updated CollisionResolver::resolvePlayerVsEnemy so touching any unflipped Koopa (walking or shell) from the side immediately picks it up and prevents damage, while top stomp still bounces player.
+- Player Holding Sprite: Added m_animHold using authentic atlas frame mario_small_crouch_hold (and character equivalents), played in Player::update whenever m_heldEntity != nullptr.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 22:17:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Change current run sprites to hold/carrying sprites for each player, and make running animation use walking sprites played faster.
+Files Modified:
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/src/Entities/Player.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Running Animation Speedup: Updated m_animRun in Player::setupCharacterAnimations to use walkFrame0 and walkFrame1 at rapid 0.07s frame duration instead of the carrying sprites.
+- Dedicated Hold Animations: Reassigned atlas frames _run_0 and _run_1 as holding/carrying frames (m_animHoldIdle, m_animHoldWalk, and m_animHoldCrouch), playing hold walk while moving/jumping with an item and hold idle while standing.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 22:37:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Position held item on top of player's head, configure throw physics to 250 px/s speed at 10 deg angle above horizontal, and add dynamic ImGui sliders.
+Files Modified:
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- On-Top Item Carrying: Updated KoopaTroopa::update in ShellHeld state to position the held item directly on top of the player's head (aligned horizontally with center and vertically above head).
+- Parabolic Shell Throwing: Updated KoopaTroopa::throwShell(speed, angleDeg) to calculate horizontal vx = dir * speed * cos(rad) and upward vy = -speed * sin(rad).
+- Dynamic ImGui Controls: Added Throw Speed (50 - 800 px/s) and Throw Angle (0 - 80 deg) sliders in verify_enemies_behavior.cpp ImGui control panel, defaulted to 250 px/s and 10.0 deg.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 22:42:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Fix held item jiggling and overlap with player hitbox, remove throw sliders, and set throw speed to 550 px/s at 45 degree angle.
+Files Modified:
+- SuperMarioGame/include/Entities/KoopaTroopa.hpp
+- SuperMarioGame/src/Entities/KoopaTroopa.cpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- Jiggle & Overlap Elimination: Updated PhysicsEngine.cpp to bypass gravity and velocity integration for dead or held enemies (isDeadOrDying()), eliminating frame-by-frame physics fighting, and aligned held shell cleanly on top of player's bounding box with zero hitbox overlap (empty box returned while held).
+- Fixed Throw Parameters: Updated KoopaTroopa::throwShell default parameters to 550.0 px/s speed and 45.0 degrees launch angle (vx = dir * 388.9 px/s, vy = -388.9 px/s) and removed dynamic sliders from verify_enemies_behavior.cpp ImGui controls.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
+---
+[2026-08-16 22:47:00] Branch: B/feature/sfx-music
+Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
+Prompt: Add a 10% inaccuracy of velocity to the hammer bros' hammer.
+Files Modified:
+- SuperMarioGame/src/Entities/HammerThrowStrategy.cpp
+- SuperMarioGame/tests/verify_enemies_behavior.cpp
+- logs/agent_history.log
+Summary of Changes:
+- 10% Velocity Inaccuracy: Applied random +/-10% variation (multiplier [0.90, 1.10]) to both horizontal (vx) and vertical (vy) launch velocities in HammerThrowStrategy.cpp and verify_enemies_behavior.cpp, providing authentic slight trajectory deviations so consecutive throws are not 100% identical.
+- Build Verification: verify_enemies_behavior.exe built cleanly with exit code 0.
 ---
 [2026-08-17 00:02:00] Branch: dev
 Git Fingerprint: 161169f (before) → 161169f (after)

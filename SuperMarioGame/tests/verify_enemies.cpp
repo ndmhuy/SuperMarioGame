@@ -221,6 +221,10 @@ int main() {
         assert(boo.isActive());
         assert(boo.getBoundingBox().width > 0.0f); // Bounding box remains active/solid
 
+        // Verify gravity and tile collision exemption
+        assert(boo.getGravityMultiplier() == 0.0f);
+        assert(!boo.collidesWithTiles());
+
         std::cout << "[TEST] Boo tests PASSED!" << std::endl;
     }
 

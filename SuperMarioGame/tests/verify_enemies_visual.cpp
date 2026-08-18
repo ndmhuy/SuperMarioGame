@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
@@ -15,17 +16,65 @@
 #include "Graphics/Animator.hpp"
 #include "Utils/Constants.hpp"
 
-// We define a simple visualizer category structure
-struct EnemyCategory {
-    std::string name;
-    std::vector<std::string> subTypes;
-    std::vector<std::pair<std::string, std::string>> actions; // {label, animKeySuffix}
+// Entities & AI Strategies
+#include "Entities/Enemy.hpp"
+#include "Entities/Goomba.hpp"
+#include "Entities/KoopaTroopa.hpp"
+#include "Entities/KoopaParatroopa.hpp"
+#include "Entities/Boo.hpp"
+#include "Entities/PiranhaPlant.hpp"
+#include "Entities/BulletBill.hpp"
+#include "Entities/HammerBro.hpp"
+#include "Entities/Thwomp.hpp"
+#include "Entities/ChainChomp.hpp"
+#include "Entities/Lakitu.hpp"
+#include "Entities/Spiny.hpp"
+#include "Entities/Mario.hpp"
+
+#include "Entities/PatrolStrategy.hpp"
+#include "Entities/ChaseStrategy.hpp"
+#include "Entities/FlyStrategy.hpp"
+#include "Entities/TimerEmergenceStrategy.hpp"
+#include "Entities/LinearStrategy.hpp"
+#include "Entities/HammerThrowStrategy.hpp"
+#include "Entities/TetheredChaseStrategy.hpp"
+#include "Entities/ProximityTriggerStrategy.hpp"
+
+enum RoomType {
+    ROOM_ALL = 0,
+    ROOM_GOOMBA,
+    ROOM_KOOPA_TROOPA,
+    ROOM_KOOPA_PARATROOPA,
+    ROOM_BOO,
+    ROOM_THWOMP,
+    ROOM_PIRANHA_PLANT,
+    ROOM_CHAIN_CHOMP,
+    ROOM_LAKITU,
+    ROOM_SPINY,
+    ROOM_HAMMER_BRO,
+    ROOM_BULLET_BILL,
+    ROOM_COUNT
+};
+
+const char* ROOM_NAMES[ROOM_COUNT] = {
+    "0: All Rooms (Overview)",
+    "1: Goomba Room (Wall & Ledge Patrol)",
+    "2: KoopaTroopa Room (Platform Patrol)",
+    "3: KoopaParatroopa Room (Flying & Landing)",
+    "4: Boo Room (Line-of-Sight & Chase)",
+    "5: Thwomp Room (Ceiling & Proximity Slam)",
+    "6: PiranhaPlant Room (Pipe Emergence)",
+    "7: ChainChomp Room (Post & Tethered Chase)",
+    "8: Lakitu Room (Sky Patrol & Egg Drop)",
+    "9: Spiny Room (Egg Fall & Ground Patrol)",
+    "10: HammerBro Room (Multi-Level Platforms)",
+    "11: BulletBill Room (Corridor Blaster)"
 };
 
 int main() {
-    std::cout << "[VISUAL TEST] Launching Enemy & Projectile Animation Visualizer..." << std::endl;
+    std::cout << "[VISUAL TEST] Launching Enemy AI & Strategy Edge-Case Test Environment..." << std::endl;
 
-    sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "Enemy & Projectile Animation Visualizer");
+    sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "Enemy AI & Strategy Interactive Test Environment");
     window.setFramerateLimit(60);
 
     if (!ImGui::SFML::Init(window)) {
@@ -35,447 +84,562 @@ int main() {
 
     // Resolve resource paths
     ResourceManager& rm = ResourceManager::getInstance();
-    std::string pngPath = "assets/spriteSheet/enemy_projectile/enemy_projectile.png";
-    std::string jsonPath = "assets/spriteSheet/enemy_projectile/enemy_projectile.json";
-    
-    if (!std::filesystem::exists(pngPath)) pngPath = "../assets/spriteSheet/enemy_projectile/enemy_projectile.png";
-    if (!std::filesystem::exists(pngPath)) pngPath = "../../assets/spriteSheet/enemy_projectile/enemy_projectile.png";
-    if (!std::filesystem::exists(pngPath)) pngPath = "SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile.png";
+    std::string sfxPath = ResourceManager::resolvePath("assets/spriteSheet/enemy_projectile/enemy_projectile.png");
+    std::string jsonPath = ResourceManager::resolvePath("assets/spriteSheet/enemy_projectile/enemy_projectile.json");
+    std::string playerPng = ResourceManager::resolvePath("assets/spriteSheet/player/player.png");
+    std::string playerJson = ResourceManager::resolvePath("assets/spriteSheet/player/player.json");
 
-    if (!std::filesystem::exists(jsonPath)) jsonPath = "../assets/spriteSheet/enemy_projectile/enemy_projectile.json";
-    if (!std::filesystem::exists(jsonPath)) jsonPath = "../../assets/spriteSheet/enemy_projectile/enemy_projectile.json";
-    if (!std::filesystem::exists(jsonPath)) jsonPath = "SuperMarioGame/assets/spriteSheet/enemy_projectile/enemy_projectile.json";
-
-    if (!rm.loadTexture("enemyTexture", pngPath)) {
-        std::cerr << "[VISUAL TEST] Failed to load enemy texture from " << pngPath << std::endl;
-        return 1;
-    }
+    rm.loadTexture("enemyTexture", sfxPath);
+    rm.loadTexture("playerTexture", playerPng);
 
     SpriteSheet enemySheet("enemyTexture", jsonPath);
-    Animator animator(&enemySheet);
+    SpriteSheet playerSheet("playerTexture", playerJson);
 
-    // Build Animations Dictionary
-    std::unordered_map<std::string, Animation> anims;
+    // --- Environment State & Invincible Player Avatar ---
+    sf::Vector2f playerPos(640.0f, 500.0f);
+    sf::Vector2f playerVel(0.0f, 0.0f);
+    bool playerFacingRight = true;
+    bool showGizmos = true;
+    bool showAABB = true;
+    bool showAttackRadius = true;
+    float timeScale = 1.0f;
+    int currentRoom = ROOM_ALL;
 
-    // 1. Goombas
-    for (std::string color : {"brown", "blue", "grey"}) {
-        anims["goomba_" + color + "_move"] = Animation("goomba_" + color + "_move");
-        anims["goomba_" + color + "_move"].frameList = {
-            {"goomba_" + color + "_move_0", 0.15f},
-            {"goomba_" + color + "_move_1", 0.15f}
-        };
-        anims["goomba_" + color + "_squished"] = Animation("goomba_" + color + "_squished");
-        anims["goomba_" + color + "_squished"].frameList = {
-            {"goomba_" + color + "_squished", 0.15f}
-        };
-    }
+    // Create Invincible Mock Player
+    Mario playerObj(playerPos);
+    playerObj.setupAnimations(&playerSheet);
 
-    // 2. Koopas & Paratroopas
-    for (std::string color : {"green", "red", "blue"}) {
-        for (std::string dir : {"left", "right"}) {
-            anims["koopa_" + color + "_move_" + dir] = Animation("koopa_" + color + "_move_" + dir);
-            anims["koopa_" + color + "_move_" + dir].frameList = {
-                {"koopa_" + color + "_move_" + dir + "_0", 0.15f},
-                {"koopa_" + color + "_move_" + dir + "_1", 0.15f}
-            };
-            anims["koopa_" + color + "_fly_" + dir] = Animation("koopa_" + color + "_fly_" + dir);
-            anims["koopa_" + color + "_fly_" + dir].frameList = {
-                {"koopa_" + color + "_fly_" + dir + "_0", 0.15f},
-                {"koopa_" + color + "_fly_" + dir + "_1", 0.15f}
-            };
-        }
-        anims["koopa_" + color + "_shell"] = Animation("koopa_" + color + "_shell");
-        anims["koopa_" + color + "_shell"].frameList = {
-            {"koopa_" + color + "_shell", 0.15f}
-        };
-        anims["koopa_" + color + "_shell_leg_popout"] = Animation("koopa_" + color + "_shell_leg_popout");
-        anims["koopa_" + color + "_shell_leg_popout"].frameList = {
-            {"koopa_" + color + "_shell_leg_popout", 0.15f}
-        };
-    }
+    // Create 11 Test Enemies
+    std::vector<std::unique_ptr<Enemy>> enemies;
+    auto spawnEnemies = [&]() {
+        enemies.clear();
+        
+        // 1. Goomba (Patrol wall & ledge test)
+        auto goomba = std::make_unique<Goomba>(sf::Vector2f(200.0f, 528.0f), "brown");
+        goomba->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(goomba));
 
-    // 3. Beetles
-    for (std::string color : {"black", "blue", "grey"}) {
-        for (std::string dir : {"left", "right"}) {
-            anims["beetle_" + color + "_move_" + dir] = Animation("beetle_" + color + "_move_" + dir);
-            anims["beetle_" + color + "_move_" + dir].frameList = {
-                {"beetle_" + color + "_move_" + dir + "_0", 0.15f},
-                {"beetle_" + color + "_move_" + dir + "_1", 0.15f}
-            };
-        }
-        std::string shellKey = (color == "black") ? "beetle_black_hide" : "beetle_" + color + "_shell";
-        anims["beetle_" + color + "_shell"] = Animation("beetle_" + color + "_shell");
-        anims["beetle_" + color + "_shell"].frameList = {
-            {shellKey, 0.15f}
-        };
-    }
+        // 2. KoopaTroopa (Patrol)
+        auto koopa = std::make_unique<KoopaTroopa>(sf::Vector2f(320.0f, 348.0f), "green");
+        koopa->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(koopa));
 
-    // 4. Boos
-    anims["boo_move"] = Animation("boo_move");
-    anims["boo_move"].frameList = {{"boo_move_0", 0.15f}, {"boo_move_1", 0.15f}};
-    anims["boo_attack"] = Animation("boo_attack");
-    anims["boo_attack"].frameList = {{"boo_attack_0", 0.15f}, {"boo_attack_1", 0.15f}};
-    anims["boo_seen"] = Animation("boo_seen");
-    anims["boo_seen"].frameList = {{"boo_seen_0", 0.15f}, {"boo_seen_1", 0.15f}};
-    anims["boo_funny"] = Animation("boo_funny");
-    anims["boo_funny"].frameList = {{"boo_funny_0", 0.15f}, {"boo_funny_1", 0.15f}};
+        // 3. KoopaParatroopa (Fly -> Patrol on stomp)
+        auto paratroopa = std::make_unique<KoopaParatroopa>(sf::Vector2f(750.0f, 320.0f), "green");
+        paratroopa->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(paratroopa));
 
-    // 5. Thwomps
-    anims["thwomp_dormant"] = Animation("thwomp_dormant");
-    anims["thwomp_dormant"].frameList = {{"thwomper_dormant", 0.15f}};
-    anims["thwomp_active"] = Animation("thwomp_active");
-    anims["thwomp_active"].frameList = {{"thwomper_active", 0.15f}};
+        // 4. Boo (Chase / Hide on player sight)
+        auto boo = std::make_unique<Boo>(sf::Vector2f(450.0f, 250.0f));
+        boo->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(boo));
 
-    // 6. Chain Chomps
-    for (std::string dir : {"left", "right"}) {
-        anims["chomp_head_" + dir] = Animation("chomp_head_" + dir);
-        anims["chomp_head_" + dir].frameList = {
-            {"chained_chomp_head_" + dir + "_0", 0.15f},
-            {"chained_chomp_head_" + dir + "_1", 0.15f}
-        };
-    }
-    anims["chomp_chain"] = Animation("chomp_chain");
-    anims["chomp_chain"].frameList = {{"chained_chomp_chain", 0.15f}};
-    anims["chomp_chain_squished"] = Animation("chomp_chain_squished");
-    anims["chomp_chain_squished"].frameList = {{"chained_chomp_chain_squished", 0.15f}};
+        // 5. Thwomp (Proximity Slam)
+        auto thwomp = std::make_unique<Thwomp>(sf::Vector2f(550.0f, 140.0f));
+        thwomp->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(thwomp));
 
-    // 7. Piranha Plants
-    for (std::string color : {"green", "blue"}) {
-        anims["piranha_" + color] = Animation("piranha_" + color);
-        anims["piranha_" + color].frameList = {
-            {"pirhana_" + color + "_0", 0.15f},
-            {"pirhana_" + color + "_1", 0.15f}
-        };
-    }
+        // 6. PiranhaPlant (Timer emergence / Stand suppression)
+        auto piranha = std::make_unique<PiranhaPlant>(sf::Vector2f(234.0f, 464.0f));
+        piranha->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(piranha));
 
-    // 8. Lakitus
-    anims["lakitu_left"] = Animation("lakitu_left");
-    anims["lakitu_left"].frameList = {{"lakitu_left", 0.15f}};
-    anims["lakitu_right"] = Animation("lakitu_right");
-    anims["lakitu_right"].frameList = {{"lakitu_right", 0.15f}};
-    anims["lakitu_hide"] = Animation("lakitu_hide");
-    anims["lakitu_hide"].frameList = {{"lakitu_hide", 0.15f}};
+        // 7. ChainChomp (Tethered Chase)
+        auto chomp = std::make_unique<ChainChomp>(sf::Vector2f(880.0f, 528.0f));
+        chomp->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(chomp));
 
-    // 9. Spinies
-    for (std::string dir : {"left", "right"}) {
-        anims["spiny_move_" + dir] = Animation("spiny_move_" + dir);
-        anims["spiny_move_" + dir].frameList = {
-            {"spiny_move_" + dir + "_0", 0.15f},
-            {"spiny_move_" + dir + "_1", 0.15f}
-        };
-    }
-    anims["spiny_ball"] = Animation("spiny_ball");
-    anims["spiny_ball"].frameList = {{"spiny_ball_0", 0.12f}, {"spiny_ball_1", 0.12f}};
+        // 8. Lakitu (Fly & Spiny spawn)
+        auto lakitu = std::make_unique<Lakitu>(sf::Vector2f(600.0f, 100.0f));
+        lakitu->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(lakitu));
 
-    // 10. Cheep Cheeps
-    for (std::string color : {"red", "green", "grey"}) {
-        for (std::string dir : {"left", "right"}) {
-            anims["cheep_" + color + "_" + dir] = Animation("cheep_" + color + "_" + dir);
-            anims["cheep_" + color + "_" + dir].frameList = {
-                {"cheep_cheep_" + color + "_move_" + dir + "_0", 0.15f},
-                {"cheep_cheep_" + color + "_move_" + dir + "_1", 0.15f}
-            };
-        }
-    }
+        // 9. Spiny (Falling egg -> Patrol)
+        auto spiny = std::make_unique<Spiny>(sf::Vector2f(650.0f, 528.0f));
+        spiny->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(spiny));
 
-    // 11. Blooper
-    anims["blooper_move"] = Animation("blooper_move");
-    anims["blooper_move"].frameList = {{"squid_move_0", 0.15f}, {"squid_move_1", 0.15f}};
+        // 10. HammerBro (Hammer throw & hop)
+        auto hammerBro = std::make_unique<HammerBro>(sf::Vector2f(980.0f, 392.0f));
+        hammerBro->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(hammerBro));
 
-    // 12. Bowser
-    for (std::string dir : {"left", "right"}) {
-        anims["bowser_move_" + dir] = Animation("bowser_move_" + dir);
-        anims["bowser_move_" + dir].frameList = {
-            {"bowser_move_" + dir + "_0", 0.15f},
-            {"bowser_move_" + dir + "_1", 0.15f},
-            {"bowser_move_" + dir + "_2", 0.15f},
-            {"bowser_move_" + dir + "_3", 0.15f}
-        };
-        anims["bowser_fire_" + dir] = Animation("bowser_fire_" + dir);
-        anims["bowser_fire_" + dir].frameList = {
-            {"bowser_fire_" + dir + "_0", 0.15f},
-            {"bowser_fire_" + dir + "_1", 0.15f}
-        };
-    }
-
-    // 13. Projectiles
-    anims["flower_fireball"] = Animation("flower_fireball");
-    anims["flower_fireball"].frameList = {
-        {"flower_fireball_0", 0.08f}, {"flower_fireball_1", 0.08f},
-        {"flower_fireball_2", 0.08f}, {"flower_fireball_3", 0.08f}
-    };
-    anims["flower_fireball_hit"] = Animation("flower_fireball_hit");
-    anims["flower_fireball_hit"].frameList = {
-        {"flower_fireball_hit_0", 0.08f},
-        {"flower_fireball_hit_1", 0.08f},
-        {"flower_fireball_hit_2", 0.08f}
-    };
-    anims["hammer_black"] = Animation("hammer_black");
-    anims["hammer_black"].frameList = {
-        {"hammer_black_0", 0.08f}, {"hammer_black_1", 0.08f},
-        {"hammer_black_2", 0.08f}, {"hammer_black_3", 0.08f}
-    };
-    anims["hammer_grey"] = Animation("hammer_grey");
-    anims["hammer_grey"].frameList = {
-        {"hammer_grey_0", 0.08f}, {"hammer_grey_1", 0.08f},
-        {"hammer_grey_2", 0.08f}, {"hammer_grey_3", 0.08f}
-    };
-    anims["lava_fireball_up"] = Animation("lava_fireball_up");
-    anims["lava_fireball_up"].frameList = {{"lava_fireball_up", 0.15f}};
-    anims["lava_fireball_down"] = Animation("lava_fireball_down");
-    anims["lava_fireball_down"].frameList = {{"lava_fireball_down", 0.15f}};
-
-    // 14. Bullet Bill & Blasters
-    anims["bullet_bill_left"] = Animation("bullet_bill_left");
-    anims["bullet_bill_left"].frameList = {{"bullet_bill_bullet_left", 0.15f}};
-    anims["bullet_bill_right"] = Animation("bullet_bill_right");
-    anims["bullet_bill_right"].frameList = {{"bullet_bill_bullet_right", 0.15f}};
-    anims["bullet_bill_grey"] = Animation("bullet_bill_grey");
-    anims["bullet_bill_grey"].frameList = {{"bullet_bill_grey", 0.15f}};
-    anims["blaster_body"] = Animation("blaster_body");
-    anims["blaster_body"].frameList = {{"bullet_bill_body", 0.15f}};
-    anims["blaster_combined"] = Animation("blaster_combined");
-    anims["blaster_combined"].frameList = {{"bullet_bill_combined", 0.15f}};
-    anims["blaster_head"] = Animation("blaster_head");
-    anims["blaster_head"].frameList = {{"bullet_bill_head", 0.15f}};
-    anims["blaster_neck"] = Animation("blaster_neck");
-    anims["blaster_neck"].frameList = {{"bullet_bill_neck", 0.15f}};
-
-    // Categories definition
-    std::vector<EnemyCategory> categories = {
-        {
-            "Goombas",
-            {"brown", "blue", "grey"},
-            {{"Walk cycle", "move"}, {"Squished", "squished"}}
-        },
-        {
-            "Koopas & Paratroopas",
-            {"green", "red", "blue"},
-            {
-                {"Walk Left", "move_left"},
-                {"Walk Right", "move_right"},
-                {"Fly Left", "fly_left"},
-                {"Fly Right", "fly_right"},
-                {"Shell Idle", "shell"},
-                {"Shell Leg Popout", "shell_leg_popout"}
-            }
-        },
-        {
-            "Buzzy Beetles",
-            {"black", "blue", "grey"},
-            {
-                {"Walk Left", "move_left"},
-                {"Walk Right", "move_right"},
-                {"Shell / Hide", "shell"}
-            }
-        },
-        {
-            "Spinies & Plants",
-            {"green", "blue"}, // custom subtypes for plants/spinies
-            {
-                {"Piranha Green/Blue", "piranha"},
-                {"Spiny Walk Left", "spiny_move_left"},
-                {"Spiny Walk Right", "spiny_move_right"},
-                {"Spiny Ball", "spiny_ball"}
-            }
-        },
-        {
-            "Aquatic (Cheeps & Blooper)",
-            {"red", "green", "grey"},
-            {
-                {"Cheep Swim Left", "cheep_left"},
-                {"Cheep Swim Right", "cheep_right"},
-                {"Blooper swim cycle", "blooper_move"}
-            }
-        },
-        {
-            "Bosses & Hazards",
-            {"standard"},
-            {
-                {"Bowser Move Left", "bowser_move_left"},
-                {"Bowser Move Right", "bowser_move_right"},
-                {"Bowser Fire Left", "bowser_fire_left"},
-                {"Bowser Fire Right", "bowser_fire_right"},
-                {"Boo Fly", "boo_move"},
-                {"Boo Attack", "boo_attack"},
-                {"Boo Seen", "boo_seen"},
-                {"Boo Laugh/Funny", "boo_funny"},
-                {"Thwomp Dormant", "thwomp_dormant"},
-                {"Thwomp Slamming", "thwomp_active"},
-                {"Chain Chomp Left", "chomp_head_left"},
-                {"Chain Chomp Right", "chomp_head_right"},
-                {"Chomp Chain Link", "chomp_chain"},
-                {"Chomp Squished Link", "chomp_chain_squished"},
-                {"Lakitu Left", "lakitu_left"},
-                {"Lakitu Right", "lakitu_right"},
-                {"Lakitu Hide", "lakitu_hide"}
-            }
-        },
-        {
-            "Projectiles & Blasters",
-            {"standard"},
-            {
-                {"Flower Fireball", "flower_fireball"},
-                {"Fireball Explosion", "flower_fireball_hit"},
-                {"Hammer Black", "hammer_black"},
-                {"Hammer Grey", "hammer_grey"},
-                {"Lava Bubble UP", "lava_fireball_up"},
-                {"Lava Bubble DOWN", "lava_fireball_down"},
-                {"Bullet Bill Left", "bullet_bill_left"},
-                {"Bullet Bill Right", "bullet_bill_right"},
-                {"Bullet Bill Grey", "bullet_bill_grey"},
-                {"Blaster Body", "blaster_body"},
-                {"Blaster Neck", "blaster_neck"},
-                {"Blaster Head", "blaster_head"},
-                {"Blaster Combined", "blaster_combined"}
-            }
-        }
+        // 11. BulletBill (Horizontal Blaster Corridor)
+        auto bulletBill = std::make_unique<BulletBill>(sf::Vector2f(132.0f, 512.0f), 1.0f);
+        bulletBill->setupAnimations(&enemySheet);
+        enemies.push_back(std::move(bulletBill));
     };
 
-    // State indicators
-    int activeCatIdx = 0;
-    int activeSubIdx = 0;
-    int activeActIdx = 0;
+    spawnEnemies();
 
-    float renderScale = 4.0f;
-    bool showBBox = true;
-    bool flipX = false;
-    sf::Vector2f renderPos(640.f, 360.f);
+    sf::Clock clock;
 
-    sf::Clock deltaClock;
     while (window.isOpen()) {
+        float dt = clock.restart().asSeconds() * timeScale;
+        if (dt > 0.1f) dt = 0.1f;
+
         while (const auto event = window.pollEvent()) {
             ImGui::SFML::ProcessEvent(window, *event);
+
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
-        }
 
-        float dt = deltaClock.restart().asSeconds();
-        ImGui::SFML::Update(window, sf::seconds(dt));
-
-        // Category / Subtype selection
-        const auto& cat = categories[activeCatIdx];
-        std::string activeSub = cat.subTypes[activeSubIdx];
-        std::string actionSuff = cat.actions[activeActIdx].second;
-
-        // Construct Animation Key
-        std::string animKey = "";
-        if (cat.name == "Goombas") {
-            animKey = "goomba_" + activeSub + "_" + actionSuff;
-        } else if (cat.name == "Koopas & Paratroopas") {
-            if (actionSuff == "shell" || actionSuff == "shell_leg_popout") {
-                animKey = "koopa_" + activeSub + "_" + actionSuff;
-            } else {
-                animKey = "koopa_" + activeSub + "_" + actionSuff;
-            }
-        } else if (cat.name == "Buzzy Beetles") {
-            if (actionSuff == "shell") {
-                animKey = "beetle_" + activeSub + "_shell";
-            } else {
-                animKey = "beetle_" + activeSub + "_" + actionSuff;
-            }
-        } else if (cat.name == "Spinies & Plants") {
-            if (actionSuff == "piranha") {
-                animKey = "piranha_" + activeSub; // green or blue
-            } else {
-                animKey = actionSuff; // e.g. spiny_ball or spiny_move_left
-            }
-        } else if (cat.name == "Aquatic (Cheeps & Blooper)") {
-            if (actionSuff == "blooper_move") {
-                animKey = "blooper_move";
-            } else {
-                animKey = "cheep_" + activeSub + "_" + (actionSuff == "cheep_left" ? "left" : "right");
-            }
-        } else {
-            // Hazards, Bosses & Projectiles
-            animKey = actionSuff;
-        }
-
-        // Fallback checks
-        if (anims.find(animKey) == anims.end()) {
-            animKey = "goomba_brown_move";
-        }
-
-        // Play active animation
-        animator.play(&anims[animKey]);
-        animator.update(dt);
-
-        // GUI Window
-        ImGui::Begin("Enemy & Projectile Animation Tester");
-        ImGui::Text("Browse and verify all SMB1 enemy assets:");
-        ImGui::Separator();
-
-        // 1. Category Selection dropdown
-        if (ImGui::BeginCombo("Category", cat.name.c_str())) {
-            for (size_t i = 0; i < categories.size(); ++i) {
-                bool isSel = (activeCatIdx == static_cast<int>(i));
-                if (ImGui::Selectable(categories[i].name.c_str(), isSel)) {
-                    activeCatIdx = static_cast<int>(i);
-                    activeSubIdx = 0;
-                    activeActIdx = 0;
+            // Right-Click Teleportation: Teleport Invincible Player to Mouse Cursor
+            if (const auto* mouseBtn = event->getIf<sf::Event::MouseButtonPressed>()) {
+                if (mouseBtn->button == sf::Mouse::Button::Right && !ImGui::GetIO().WantCaptureMouse) {
+                    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+                    playerPos = sf::Vector2f(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+                    std::cout << "[TELEPORT] Player teleported to (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
                 }
             }
-            ImGui::EndCombo();
+
+            // 'F' key toggle player facing direction
+            if (const auto* key = event->getIf<sf::Event::KeyPressed>()) {
+                if (key->code == sf::Keyboard::Key::F) {
+                    playerFacingRight = !playerFacingRight;
+                }
+            }
         }
 
-        // 2. Subtype Selection dropdown
-        const auto& activeCat = categories[activeCatIdx];
-        if (activeCat.subTypes.size() > 1 || activeCat.subTypes[0] != "standard") {
-            if (ImGui::BeginCombo("Variant / Palette", activeSub.c_str())) {
-                for (size_t i = 0; i < activeCat.subTypes.size(); ++i) {
-                    bool isSel = (activeSubIdx == static_cast<int>(i));
-                    if (ImGui::Selectable(activeCat.subTypes[i].c_str(), isSel)) {
-                        activeSubIdx = static_cast<int>(i);
+        // --- Invincible Player Controls (WASD / Arrows) ---
+        float moveSpeed = 300.0f;
+        playerVel = {0.0f, 0.0f};
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+            playerVel.x = -moveSpeed;
+            playerFacingRight = false;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+            playerVel.x = moveSpeed;
+            playerFacingRight = true;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+            playerVel.y = -moveSpeed;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+            playerVel.y = moveSpeed;
+        }
+
+        playerPos += playerVel * dt;
+        playerPos.x = std::clamp(playerPos.x, 30.0f, 1250.0f);
+        playerPos.y = std::clamp(playerPos.y, 30.0f, 680.0f);
+
+        playerObj.setPosition(playerPos);
+        playerObj.setFacingRight(playerFacingRight);
+
+        // Ground and Wall Terrain Clamping Constants for Zero Clipping
+        const float mainGroundY = 560.0f;
+        const float elevatedPlatformY = 380.0f;
+
+        // --- Hammer Projectiles Struct & State ---
+        struct HammerProj {
+            sf::Vector2f pos;
+            sf::Vector2f vel;
+            float rotation = 0.0f;
+        };
+        static std::vector<HammerProj> activeHammers;
+        static float hammerTimer = 0.0f;
+
+        // --- Thwomp State Machine State ---
+        static int thwompState = 0; // 0=Idle, 1=RampUp, 2=Slam, 3=Rest, 4=Rise
+        static float thwompTimer = 0.0f;
+        static const sf::Vector2f thwompHomePos(550.0f, 140.0f);
+
+        // Update active enemies & apply exact terrain collision clamping
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (!enemies[i]) continue;
+            
+            // Filter update if in specific room
+            if (currentRoom != ROOM_ALL && static_cast<int>(i + 1) != currentRoom) {
+                continue;
+            }
+
+            // --- 3. Boo (Index 3): Sight-Tracking Watch & Pursuit ---
+            if (i == 3) {
+                sf::Vector2f bPos = enemies[3]->getPosition();
+                float dx = playerPos.x - bPos.x;
+                float dy = playerPos.y - bPos.y;
+                float dist = std::sqrt(dx*dx + dy*dy);
+                bool playerToRight = (playerPos.x > bPos.x);
+                bool isPlayerWatching = (playerToRight && !playerFacingRight) || (!playerToRight && playerFacingRight);
+
+                if (isPlayerWatching) {
+                    enemies[3]->setVelocity({0.0f, 0.0f});
+                } else if (dist <= 300.0f && dist > 0.01f) {
+                    sf::Vector2f dir(dx / dist, dy / dist);
+                    enemies[3]->setVelocity(dir * 100.0f);
+                    enemies[3]->setFacingRight(dx > 0.0f);
+                } else {
+                    enemies[3]->setVelocity({0.0f, 0.0f});
+                }
+            }
+
+            // --- 4. Thwomp (Index 4): Trigger Column, 0.2s Ramp Up, Slam Down, Rest & Slow Rise ---
+            if (i == 4) {
+                sf::Vector2f tPos = enemies[4]->getPosition();
+                float dx = std::abs(playerPos.x - (tPos.x + 24.0f));
+                bool playerUnderneath = (playerPos.x >= 470.0f && playerPos.x <= 630.0f && playerPos.y > tPos.y);
+
+                if (thwompState == 0) { // Idle at home position
+                    tPos = thwompHomePos;
+                    enemies[4]->setVelocity({0.0f, 0.0f});
+                    if (dx <= 80.0f && playerUnderneath) {
+                        thwompState = 1; // Ramp Up
+                        thwompTimer = 0.2f;
+                    }
+                } else if (thwompState == 1) { // Ramp Up (0.2s vibration)
+                    thwompTimer -= dt;
+                    float vib = (static_cast<int>(thwompTimer * 100) % 2 == 0) ? 3.0f : -3.0f;
+                    tPos.x = thwompHomePos.x + vib;
+                    enemies[4]->setVelocity({0.0f, 0.1f}); // trigger angry active animation
+                    if (thwompTimer <= 0.0f) {
+                        tPos.x = thwompHomePos.x;
+                        thwompState = 2; // Rapid Slam
+                    }
+                } else if (thwompState == 2) { // Rapid Slam Down (700 px/s)
+                    enemies[4]->setVelocity({0.0f, 700.0f});
+                    tPos.y += 700.0f * dt;
+                    if (tPos.y + 64.0f >= mainGroundY) {
+                        tPos.y = mainGroundY - 64.0f;
+                        enemies[4]->setVelocity({0.0f, 0.0f});
+                        thwompState = 3; // Ground Rest
+                        thwompTimer = 0.5f;
+                    }
+                } else if (thwompState == 3) { // Ground Rest (0.5s)
+                    thwompTimer -= dt;
+                    enemies[4]->setVelocity({0.0f, 0.0f});
+                    if (thwompTimer <= 0.0f) {
+                        thwompState = 4; // Slow Rise
+                    }
+                } else if (thwompState == 4) { // Slow Rise (-80 px/s)
+                    enemies[4]->setVelocity({0.0f, -80.0f});
+                    tPos.y -= 80.0f * dt;
+                    if (tPos.y <= thwompHomePos.y) {
+                        tPos.y = thwompHomePos.y;
+                        enemies[4]->setVelocity({0.0f, 0.0f});
+                        thwompState = 0; // Reset to Idle
                     }
                 }
-                ImGui::EndCombo();
-            }
-        }
 
-        // 3. Action Selection dropdown
-        if (ImGui::BeginCombo("State / Action", activeCat.actions[activeActIdx].first.c_str())) {
-            for (size_t i = 0; i < activeCat.actions.size(); ++i) {
-                bool isSel = (activeActIdx == static_cast<int>(i));
-                if (ImGui::Selectable(activeCat.actions[i].first.c_str(), isSel)) {
-                    activeActIdx = static_cast<int>(i);
+                enemies[4]->setPosition(tPos);
+                enemies[4]->update(dt);
+                continue;
+            }
+
+            // --- 9. HammerBro (Index 9): Look at player & throw parabolic hammers ---
+            if (i == 9) {
+                sf::Vector2f hbPos = enemies[9]->getPosition();
+                bool faceRight = (playerPos.x > hbPos.x);
+                enemies[9]->setFacingRight(faceRight);
+
+                hammerTimer += dt;
+                if (hammerTimer >= 1.5f) {
+                    hammerTimer = 0.0f;
+                    HammerProj h;
+                    h.pos = sf::Vector2f(hbPos.x + 16.0f, hbPos.y + 10.0f);
+                    float vx = faceRight ? 220.0f : -220.0f;
+                    h.vel = sf::Vector2f(vx, -380.0f);
+                    activeHammers.push_back(h);
                 }
             }
-            ImGui::EndCombo();
+
+            enemies[i]->update(dt);
+
+            // Exact Terrain, Velocity Integration & Wall Collision Clamping
+            sf::Vector2f vel = enemies[i]->getVelocity();
+            sf::Vector2f ePos = enemies[i]->getPosition();
+            AABB box = enemies[i]->getBoundingBox();
+
+            // BulletBill wrap-around corridor check (Index 10: BulletBill)
+            if (i == 10) {
+                ePos.x += 150.0f * dt; // Blaster firing horizontal velocity
+                if (ePos.x > 1220.0f) {
+                    ePos.x = 132.0f; // Reset to Bill Blaster nozzle
+                }
+                enemies[i]->setPosition(ePos);
+                continue;
+            }
+
+            // 1. Apply Gravity Acceleration for ground-based and hopping enemies (Exclude Boo=3 and Lakitu=7)
+            if (i != 3 && i != 7) {
+                if (!enemies[i]->isOnGround()) {
+                    vel.y += 1200.0f * dt; // Gravity acceleration (1200 px/s^2)
+                    if (vel.y > 600.0f) vel.y = 600.0f; // Terminal velocity
+                    enemies[i]->setVelocity(vel);
+                }
+            }
+
+            // Integrate AI velocity into position
+            ePos += vel * dt;
+
+            // Wide Room Wall Boundaries
+            const float roomMinX = 100.0f;
+            const float roomMaxX = 1180.0f;
+
+            if (ePos.x <= roomMinX) {
+                ePos.x = roomMinX;
+                enemies[i]->onWall = true; 
+            } else if (ePos.x + box.width >= roomMaxX) {
+                ePos.x = roomMaxX - box.width;
+                enemies[i]->onWall = true; 
+            }
+
+            // Flying enemies (Boo = index 3, Lakitu = index 7) do not clamp to ground
+            if (i != 3 && i != 7) {
+                float currentGround = mainGroundY;
+                // HammerBro (index 9) platform landing support
+                if (i == 9 && ePos.x >= 880.0f && ePos.x <= 1080.0f && ePos.y + box.height <= 440.0f + 25.0f) {
+                    currentGround = 440.0f;
+                } else if (ePos.x >= 100.0f && ePos.x <= 400.0f && ePos.y + box.height <= elevatedPlatformY + 20.0f) {
+                    currentGround = elevatedPlatformY;
+                }
+
+                if (ePos.y + box.height >= currentGround) {
+                    ePos.y = currentGround - box.height;
+                    vel.y = 0.0f;
+                    enemies[i]->setVelocity(vel);
+                    enemies[i]->onGround = true;
+                } else {
+                    enemies[i]->onGround = false;
+                }
+            }
+
+            // Solid Barrier Wall obstacle collision check (placed at x=750 to x=782)
+            float wallLeft = 750.0f;
+            float wallRight = 782.0f;
+            if (ePos.y + box.height > 480.0f && ePos.y < 560.0f) {
+                if (ePos.x + box.width >= wallLeft && ePos.x < wallLeft) {
+                    ePos.x = wallLeft - box.width;
+                    enemies[i]->onWall = true;
+                } else if (ePos.x <= wallRight && ePos.x + box.width > wallRight) {
+                    ePos.x = wallRight;
+                    enemies[i]->onWall = true;
+                }
+            }
+
+            enemies[i]->setPosition(ePos);
+        }
+
+        // --- Update Active Hammer Projectiles ---
+        for (size_t h = 0; h < activeHammers.size(); ) {
+            activeHammers[h].vel.y += 1200.0f * dt;
+            activeHammers[h].pos += activeHammers[h].vel * dt;
+            activeHammers[h].rotation += 720.0f * dt;
+            if (activeHammers[h].pos.y > 560.0f || activeHammers[h].pos.x < 50.0f || activeHammers[h].pos.x > 1200.0f) {
+                activeHammers.erase(activeHammers.begin() + h);
+            } else {
+                ++h;
+            }
+        }
+
+        ImGui::SFML::Update(window, sf::Time(sf::seconds(dt)));
+
+        // --- ImGui Control Panel ---
+        ImGui::Begin("Enemy AI & Strategy Edge-Case Tester");
+
+        // 1. Room Selection Combo & Tab Bar
+        ImGui::Text("Room Environment Selection:");
+        ImGui::Combo("Select Room", &currentRoom, ROOM_NAMES, ROOM_COUNT);
+
+        if (ImGui::BeginTabBar("RoomTabs")) {
+            for (int r = 0; r < ROOM_COUNT; ++r) {
+                char tabLabel[32];
+                snprintf(tabLabel, sizeof(tabLabel), "Room %d", r);
+                if (ImGui::BeginTabItem(tabLabel)) {
+                    currentRoom = r;
+                    ImGui::EndTabItem();
+                }
+            }
+            ImGui::EndTabBar();
         }
 
         ImGui::Separator();
-        ImGui::SliderFloat("Scale", &renderScale, 1.f, 8.f, "%.1fx");
-        ImGui::Checkbox("Show Bounding Box Overlay", &showBBox);
-        ImGui::Checkbox("Flip Horizontally (Manual Override)", &flipX);
+        ImGui::Text("Invincible Player Controls:");
+        ImGui::Text(" - WASD / Arrow Keys: Move Player");
+        ImGui::Text(" - Right Click Anywhere: Teleport Player instantly");
+        ImGui::Text(" - Press 'F': Toggle Player Facing Direction (Currently: %s)", playerFacingRight ? "RIGHT ->" : "<- LEFT");
+        ImGui::Separator();
+
+        ImGui::Text("Teleport Presets:");
+        if (ImGui::Button("Under Thwomp")) playerPos = {550.0f, 520.0f};
+        ImGui::SameLine();
+        if (ImGui::Button("Facing Boo")) { playerPos = {550.0f, 250.0f}; playerFacingRight = false; }
+        ImGui::SameLine();
+        if (ImGui::Button("Behind Boo")) { playerPos = {350.0f, 250.0f}; playerFacingRight = true; }
+        
+        if (ImGui::Button("On Piranha Pipe")) playerPos = {234.0f, 432.0f};
+        ImGui::SameLine();
+        if (ImGui::Button("ChainChomp Radius")) playerPos = {830.0f, 520.0f};
+        ImGui::SameLine();
+        if (ImGui::Button("HammerBro Platform")) playerPos = {960.0f, 390.0f};
 
         ImGui::Separator();
-        ImGui::Text("Active Frame: %s", animKey.c_str());
-        sf::FloatRect bounds = animator.getSprite().getLocalBounds();
-        ImGui::Text("Sprite size: %.1f x %.1f px", bounds.size.x, bounds.size.y);
+        ImGui::SliderFloat("Simulation Speed", &timeScale, 0.1f, 3.0f, "%.1fx");
+        ImGui::Checkbox("Show Visual AABB Bounding Boxes", &showAABB);
+        ImGui::Checkbox("Show Attack Range Radius", &showAttackRadius);
+        ImGui::Checkbox("Show Debug Gizmos", &showGizmos);
+        if (ImGui::Button("Reset All Enemies")) spawnEnemies();
+
+        ImGui::Separator();
+        ImGui::Text("Edge-Case Status & Active States:");
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (!enemies[i]) continue;
+            sf::Vector2f ePos = enemies[i]->getPosition();
+            AABB box = enemies[i]->getBoundingBox();
+            ImGui::Text("[%zu] %s at (%.0f, %.0f) - AABB: %.0fx%.0f", i, typeid(*enemies[i]).name(), ePos.x, ePos.y, box.width, box.height);
+        }
 
         ImGui::End();
 
-        // Clear window
-        window.clear(sf::Color(50, 60, 70));
+        // --- Render World & Terrain ---
+        window.clear(sf::Color(40, 50, 60));
 
-        // Draw active sprite
-        sf::Sprite sprite = animator.getSprite();
-        sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
-        sprite.setPosition(renderPos);
-        sprite.setScale(sf::Vector2f(flipX ? -renderScale : renderScale, renderScale));
-        window.draw(sprite);
+        // 1. Draw Terrain Floors & Solid Wall Boundaries
+        sf::RectangleShape floor(sf::Vector2f(1180.0f, 160.0f));
+        floor.setPosition(sf::Vector2f(50.0f, 560.0f));
+        floor.setFillColor(sf::Color(100, 100, 100));
+        window.draw(floor);
 
-        // Draw bounding box
-        if (showBBox) {
-            sf::RectangleShape bbox(sf::Vector2f(bounds.size.x * renderScale, bounds.size.y * renderScale));
-            bbox.setOrigin(sf::Vector2f(bounds.size.x * renderScale * 0.5f, bounds.size.y * renderScale * 0.5f));
-            bbox.setPosition(renderPos);
-            bbox.setFillColor(sf::Color::Transparent);
-            bbox.setOutlineColor(sf::Color::Yellow);
-            bbox.setOutlineThickness(1.5f);
-            window.draw(bbox);
+        // Elevated Platform (Ledge Test: x=100 to x=400, y=380)
+        sf::RectangleShape platform(sf::Vector2f(300.0f, 20.0f));
+        platform.setPosition(sf::Vector2f(100.0f, 380.0f));
+        platform.setFillColor(sf::Color(140, 100, 60));
+        window.draw(platform);
+
+        // Solid Boundary Wall (Wall Hit Test: x=750 to 782)
+        sf::RectangleShape wall(sf::Vector2f(32.0f, 80.0f));
+        wall.setPosition(sf::Vector2f(750.0f, 480.0f));
+        wall.setFillColor(sf::Color(80, 80, 80));
+        window.draw(wall);
+
+        // Pipe for Piranha Plant (x=234, y=496)
+        sf::RectangleShape pipe(sf::Vector2f(64.0f, 64.0f));
+        pipe.setPosition(sf::Vector2f(234.0f, 496.0f));
+        pipe.setFillColor(sf::Color(30, 160, 40));
+        window.draw(pipe);
+
+        // Bill Blaster Cannon Shooter using bullet_bill_combined sprite (x=100, y=496)
+        sf::Sprite blasterSprite = enemySheet.getSprite("bullet_bill_combined");
+        sf::FloatRect bounds = blasterSprite.getLocalBounds();
+        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+            // Keep correct aspect ratio scaling (width=16, height=32 -> w=32, h=64 at scale=2)
+            blasterSprite.setScale(sf::Vector2f(2.0f, 2.0f));
+            blasterSprite.setPosition(sf::Vector2f(100.0f, 496.0f));
+            window.draw(blasterSprite);
+        } else {
+            sf::RectangleShape blasterBase(sf::Vector2f(32.0f, 64.0f));
+            blasterBase.setPosition(sf::Vector2f(100.0f, 496.0f));
+            blasterBase.setFillColor(sf::Color(40, 40, 45));
+            window.draw(blasterBase);
         }
+
+        // HammerBro Platform (x=900, y=440)
+        sf::RectangleShape hbPlatform(sf::Vector2f(160.0f, 16.0f));
+        hbPlatform.setPosition(sf::Vector2f(900.0f, 440.0f));
+        hbPlatform.setFillColor(sf::Color(180, 80, 40));
+        window.draw(hbPlatform);
+
+        // 2. Draw 11 Enemies (Filtered by selected room environment) & Togglable Attack Radius Overlays
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (!enemies[i]) continue;
+            if (currentRoom != ROOM_ALL && static_cast<int>(i + 1) != currentRoom) continue;
+
+            enemies[i]->render(window);
+
+            // Togglable Attack Range Radius Overlay
+            if (showAttackRadius) {
+                sf::Vector2f eCenter = enemies[i]->getPosition() + sf::Vector2f(enemies[i]->getBoundingBox().width * 0.5f, enemies[i]->getBoundingBox().height * 0.5f);
+                float radius = 0.0f;
+                bool isTriggered = false;
+
+                if (i == 3) { // Boo: 250px radius
+                    radius = 250.0f;
+                    float dx = playerPos.x - eCenter.x;
+                    float dy = playerPos.y - eCenter.y;
+                    isTriggered = (std::sqrt(dx*dx + dy*dy) <= radius) && (playerFacingRight);
+                } else if (i == 4) { // Thwomp: 80px X-column
+                    float dx = std::abs(playerPos.x - eCenter.x);
+                    isTriggered = (dx <= 80.0f) && (playerPos.y > eCenter.y);
+                    sf::RectangleShape colBox(sf::Vector2f(160.0f, 380.0f));
+                    colBox.setOrigin(sf::Vector2f(80.0f, 0.0f));
+                    colBox.setPosition(sf::Vector2f(eCenter.x, eCenter.y));
+                    colBox.setFillColor(isTriggered ? sf::Color(255, 50, 50, 40) : sf::Color(255, 220, 0, 20));
+                    colBox.setOutlineColor(isTriggered ? sf::Color(255, 50, 50, 220) : sf::Color(255, 220, 0, 180));
+                    colBox.setOutlineThickness(1.5f);
+                    window.draw(colBox);
+                } else if (i == 6) { // ChainChomp: 180px radius
+                    radius = 180.0f;
+                    float dx = playerPos.x - eCenter.x;
+                    float dy = playerPos.y - eCenter.y;
+                    isTriggered = (std::sqrt(dx*dx + dy*dy) <= radius);
+                } else if (i == 9) { // HammerBro: 300px radius
+                    radius = 300.0f;
+                    float dx = playerPos.x - eCenter.x;
+                    float dy = playerPos.y - eCenter.y;
+                    isTriggered = (std::sqrt(dx*dx + dy*dy) <= radius);
+                }
+
+                if (radius > 0.0f) {
+                    sf::CircleShape rangeCircle(radius);
+                    rangeCircle.setOrigin(sf::Vector2f(radius, radius));
+                    rangeCircle.setPosition(eCenter);
+                    rangeCircle.setFillColor(isTriggered ? sf::Color(255, 50, 50, 35) : sf::Color(255, 220, 0, 15));
+                    rangeCircle.setOutlineColor(isTriggered ? sf::Color(255, 50, 50, 220) : sf::Color(255, 220, 0, 180));
+                    rangeCircle.setOutlineThickness(1.5f);
+                    window.draw(rangeCircle);
+                }
+            }
+
+            if (showAABB) {
+                AABB b = enemies[i]->getBoundingBox();
+                sf::RectangleShape rect(sf::Vector2f(b.width, b.height));
+                rect.setPosition(sf::Vector2f(b.x, b.y));
+                rect.setFillColor(sf::Color::Transparent);
+                rect.setOutlineColor(sf::Color::Green);
+                rect.setOutlineThickness(1.0f);
+                window.draw(rect);
+            }
+
+            if (showGizmos) {
+                // Draw Velocity Arrow
+                sf::Vector2f pos = enemies[i]->getPosition();
+                sf::Vector2f vel = enemies[i]->getVelocity();
+                if (std::abs(vel.x) > 1.0f || std::abs(vel.y) > 1.0f) {
+                    sf::Vertex line[] = {
+                        sf::Vertex{pos, sf::Color::Cyan},
+                        sf::Vertex{pos + vel * 0.2f, sf::Color::Yellow}
+                    };
+                    window.draw(line, 2, sf::PrimitiveType::Lines);
+                }
+            }
+        }
+
+        // 3. Render Active Parabolic Hammer Projectiles for HammerBro
+        if (currentRoom == ROOM_ALL || currentRoom == ROOM_HAMMER_BRO) {
+            for (const auto& h : activeHammers) {
+                sf::Sprite hSprite = enemySheet.getSprite("hammer_black_0");
+                sf::FloatRect bounds = hSprite.getLocalBounds();
+                if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+                    hSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
+                    hSprite.setScale(sf::Vector2f(2.0f, 2.0f));
+                    hSprite.setPosition(h.pos);
+                    hSprite.setRotation(sf::degrees(h.rotation));
+                    window.draw(hSprite);
+                }
+            }
+        }
+
+        // 4. Draw Crisp Invincible Player Avatar (Without yellow aura circle)
+        playerObj.render(window);
+
+        // Draw Player Facing Line-of-Sight Ray (Magenta)
+        sf::Vector2f rayDir = playerFacingRight ? sf::Vector2f(150.0f, 0.0f) : sf::Vector2f(-150.0f, 0.0f);
+        sf::Vector2f rayStart = playerPos - sf::Vector2f(0.0f, 16.0f);
+        sf::Vertex sightRay[] = {
+            sf::Vertex{rayStart, sf::Color::Magenta},
+            sf::Vertex{rayStart + rayDir, sf::Color::Magenta}
+        };
+        window.draw(sightRay, 2, sf::PrimitiveType::Lines);
 
         ImGui::SFML::Render(window);
         window.display();
@@ -484,3 +648,4 @@ int main() {
     ImGui::SFML::Shutdown();
     return 0;
 }
+

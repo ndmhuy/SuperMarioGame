@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(MSVC)
+    add_compile_options(/FS)
+endif()
+
 # ---------------------------------------------------------
 # 1. Fetch Dependencies (SFML & ImGui)
 # ---------------------------------------------------------
@@ -137,18 +141,7 @@ target_link_libraries(verify_save_load PRIVATE
 
 add_executable(verify_enemies 
     "tests/verify_enemies.cpp"
-    "src/Entities/Goomba.cpp"
-    "src/Entities/KoopaTroopa.cpp"
-    "src/Entities/KoopaParatroopa.cpp"
-    "src/Entities/Boo.cpp"
-    "src/Entities/Enemy.cpp"
-    "src/Entities/PatrolStrategy.cpp"
-    "src/Entities/FlyStrategy.cpp"
-    "src/Entities/ChaseStrategy.cpp"
-    "src/Entities/Entity.cpp"
-    "src/Entities/Character.cpp"
-    "src/Core/EventBus.cpp"
-    "src/Physics/AABB.cpp"
+    ${SOURCES}
 )
 target_include_directories(verify_enemies PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -160,6 +153,7 @@ target_link_libraries(verify_enemies PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )
 
 # ---------------------------------------------------------
@@ -167,24 +161,7 @@ target_link_libraries(verify_enemies PRIVATE
 # ---------------------------------------------------------
 add_executable(verify_blocks 
     "tests/verify_blocks.cpp"
-    "src/Entities/Block.cpp"
-    "src/Entities/BrickBlock.cpp"
-    "src/Entities/QuestionBlock.cpp"
-    "src/Entities/Pipe.cpp"
-    "src/Entities/Flagpole.cpp"
-    "src/Entities/Entity.cpp"
-    "src/Entities/Character.cpp"
-    "src/Entities/Player.cpp"
-    "src/Entities/IPlayerState.cpp"
-    "src/Entities/Enemy.cpp"
-    "src/Entities/Item.cpp"
-    "src/Entities/Fireball.cpp"
-    "src/Entities/Trampoline.cpp"
-    "src/Core/EventBus.cpp"
-    "src/Physics/AABB.cpp"
-    "src/Physics/CollisionResolver.cpp"
-    "src/Physics/CollisionDetector.cpp"
-    "src/Physics/SpatialHash.cpp"
+    ${SOURCES}
 )
 
 target_include_directories(verify_blocks PUBLIC 
@@ -198,6 +175,7 @@ target_link_libraries(verify_blocks PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )
 
 # ---------------------------------------------------------
@@ -205,29 +183,7 @@ target_link_libraries(verify_blocks PRIVATE
 # ---------------------------------------------------------
 add_executable(verify_enemies_new
     "tests/verify_enemies_new.cpp"
-    "src/Entities/PiranhaPlant.cpp"
-    "src/Entities/BulletBill.cpp"
-    "src/Entities/HammerBro.cpp"
-    "src/Entities/Thwomp.cpp"
-    "src/Entities/ChainChomp.cpp"
-    "src/Entities/Lakitu.cpp"
-    "src/Entities/Spiny.cpp"
-    "src/Entities/Enemy.cpp"
-    "src/Entities/Entity.cpp"
-    "src/Entities/Character.cpp"
-    "src/Entities/Player.cpp"
-    "src/Entities/IPlayerState.cpp"
-    "src/Entities/Item.cpp"
-    "src/Entities/PatrolStrategy.cpp"
-    "src/Entities/FlyStrategy.cpp"
-    "src/Entities/ChaseStrategy.cpp"
-    "src/Entities/LinearStrategy.cpp"
-    "src/Entities/TetheredChaseStrategy.cpp"
-    "src/Entities/ProximityTriggerStrategy.cpp"
-    "src/Entities/TimerEmergenceStrategy.cpp"
-    "src/Entities/HammerThrowStrategy.cpp"
-    "src/Core/EventBus.cpp"
-    "src/Physics/AABB.cpp"
+    ${SOURCES}
 )
 
 target_include_directories(verify_enemies_new PUBLIC 
@@ -241,6 +197,7 @@ target_link_libraries(verify_enemies_new PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )
 
 # ---------------------------------------------------------
@@ -248,19 +205,7 @@ target_link_libraries(verify_enemies_new PRIVATE
 # ---------------------------------------------------------
 add_executable(verify_blocks_new
     "tests/verify_blocks_new.cpp"
-    "src/Entities/HiddenBlock.cpp"
-    "src/Entities/MovingPlatform.cpp"
-    "src/Entities/FallingPlatform.cpp"
-    "src/Entities/IceBlock.cpp"
-    "src/Entities/ConveyorBelt.cpp"
-    "src/Entities/Block.cpp"
-    "src/Entities/Entity.cpp"
-    "src/Entities/Character.cpp"
-    "src/Entities/Player.cpp"
-    "src/Entities/IPlayerState.cpp"
-    "src/Entities/Item.cpp"
-    "src/Core/EventBus.cpp"
-    "src/Physics/AABB.cpp"
+    ${SOURCES}
 )
 
 target_include_directories(verify_blocks_new PUBLIC 
@@ -274,6 +219,7 @@ target_link_libraries(verify_blocks_new PRIVATE
     SFML::Audio 
     SFML::Network
     ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
 )
 
 # ---------------------------------------------------------
@@ -522,7 +468,29 @@ target_link_libraries(verify_map_generator PRIVATE
 )
 
 # ---------------------------------------------------------
-# 16. Level Generation Utility Target (generate_game_levels)
+# 16. Verification Test Target (verify_enemies_behavior)
+# ---------------------------------------------------------
+add_executable(verify_enemies_behavior
+    "tests/verify_enemies_behavior.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(verify_enemies_behavior PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(verify_enemies_behavior PRIVATE 
+    SFML::Graphics 
+    SFML::Window 
+    SFML::System 
+    SFML::Audio 
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 17. Level Generation Utility Target (generate_game_levels)
 # ---------------------------------------------------------
 add_executable(generate_game_levels
     "tools/generate_game_levels.cpp"
@@ -542,8 +510,6 @@ target_link_libraries(generate_game_levels PRIVATE
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
 )
-
-
 
 
 

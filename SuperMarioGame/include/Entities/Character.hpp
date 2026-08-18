@@ -23,6 +23,7 @@ public:
     bool isOnGround() const { return onGround; }
     bool isOnWall() const { return onWall; }
     bool isFacingRight() const { return facingRight; }
+    void setFacingRight(bool facing) { facingRight = facing; }
 
     // Intent request flags for physics loop
     bool isMoveLeftRequested() const { return m_moveLeftRequested; }

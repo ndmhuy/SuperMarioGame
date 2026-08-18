@@ -21,6 +21,7 @@ public:
     virtual bool isActive() const;
     virtual void destroy();
     virtual float getGravityMultiplier() const { return 1.0f; }
+    virtual bool collidesWithTiles() const { return true; }
 
     // Getters/Setters for external access
     sf::Vector2f getPosition() const;
