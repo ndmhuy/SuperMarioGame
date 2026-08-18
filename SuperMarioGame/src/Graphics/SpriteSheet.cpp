@@ -9,7 +9,8 @@
 using namespace nlohmann;
 
 SpriteSheet::SpriteSheet(const std::string& sheetFolderPath) {
-    std::filesystem::path path(sheetFolderPath);
+    std::string resolvedFolder = ResourceManager::resolvePath(sheetFolderPath);
+    std::filesystem::path path(resolvedFolder);
 
     std::string filename = path.filename().string();
 
@@ -18,7 +19,7 @@ SpriteSheet::SpriteSheet(const std::string& sheetFolderPath) {
 
     ResourceManager& rm = ResourceManager::getInstance();
     if (!rm.loadTexture(textureFilepath, textureFilepath)) {
-        std::cerr << "[SpriteSheet] Failed to load texture" << std::endl;
+        std::cerr << "[SpriteSheet] Failed to load texture: " << textureFilepath << std::endl;
         m_spriteSheet = &rm.getTexture("");
         return;
     }
@@ -35,7 +36,13 @@ SpriteSheet::SpriteSheet(const std::string& textureId, const std::string& dataFi
 
 bool SpriteSheet::loadFrameData(const std::string& dataFilepath) {
     try {
-        json data = json::parse(std::ifstream(dataFilepath));
+        std::string actualPath = ResourceManager::resolvePath(dataFilepath);
+        std::ifstream file(actualPath);
+        if (!file.is_open()) {
+            std::cerr << "[SpriteSheet] Could not open json file: " << actualPath << std::endl;
+            return false;
+        }
+        json data = json::parse(file);
 
         // Standard TexturePacker "frames" format (player, enemy, item, scenery atlases)
         if (data.contains("frames")) {

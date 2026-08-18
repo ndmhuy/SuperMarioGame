@@ -63,16 +63,20 @@ sf::Vector2f PlayerStateDecorator::getSize() const {
     return sf::Vector2f{32.0f, 32.0f};
 }
 
+#include "Core/SoundManager.hpp"
+
 // --- StarDecorator ---
 StarDecorator::StarDecorator(std::unique_ptr<IPlayerState> wrappedState)
     : PlayerStateDecorator(std::move(wrappedState)), m_timeLeft(Constants::STAR_DURATION) {}
 
 void StarDecorator::enter(Player& player) {
     PlayerStateDecorator::enter(player);
+    SoundManager::getInstance().playStarMusic();
 }
 
 void StarDecorator::exit(Player& player) {
     PlayerStateDecorator::exit(player);
+    SoundManager::getInstance().restoreLevelBGM();
 }
 
 void StarDecorator::update(Player& player, float dt) {

@@ -18,6 +18,9 @@ public:
     // Singleton Instance
     static ResourceManager& getInstance();
 
+    // Helper to resolve relative asset paths across working directories
+    static std::string resolvePath(const std::string& relativePath);
+
     // Texture Methods
     bool loadTexture(const std::string& id, const std::string& path);
     bool hasTexture(const std::string& id) const;
