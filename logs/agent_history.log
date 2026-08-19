@@ -3364,3 +3364,64 @@ Summary of Changes:
   platform call underneath it. The user's precise symptom did in one line what
   two rounds of my probing did not.
 ---
+[2026-08-20 07:10:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: c41f221 (before) → a4e85dc (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin/A/complete-game-tiers-1-4
+was 0/0 before this commit.
+Prompt: [screenshot of the map editor: black screen with grid, two overlapping
+ImGui windows, duplicated navigation buttons, "?" glyphs] "fix this and
+everything else you observe above"
+Files Modified:
+- SuperMarioGame/src/Core/{PlayingState,Game,DevPanel,DebugConsole}.cpp
+- SuperMarioGame/src/Utils/MapEditor.cpp
+- SuperMarioGame/tests/verify_frontend_states.cpp
+- .gitignore
+Reachable From Main: yes — main() → Game::run → MenuState → "Level Editor" or
+"Generate & Edit" → PlayingState(startInEditor=true). This is the path that was
+broken; F1 from an already-running level was not.
+Verified By: ctest (2/2 — verify_regressions 321/321, verify_frontend_states
+34/34, up from 24) plus off-screen RenderTexture captures inspected as PNGs for
+all four generator themes. NOT verified by playing the built game.
+Summary of Changes:
+- ROOT CAUSE of "Generate & Edit is not working": not the generator. enter()
+  starts a 0.45s fade-in; render() draws that overlay after the world; the map
+  editor branch of update() returned before ScreenTransitionManager::update(),
+  so the fade sat at full black forever. The editor grid draws after the overlay
+  — hence black screen WITH grid, exactly as reported.
+- HOW IT WAS FOUND, and the method worth keeping: I built a throwaway harness
+  that rendered the real PlayingState in Generate&Edit mode to an off-screen
+  RenderTexture and printed a colour histogram. It came back with exactly two
+  colours: #000000 and #2D2D2D. 0x2D is 45, and the editor grid is white at
+  alpha 45 over black. That one number identified the entire remaining content
+  of the frame as "the grid, over nothing" and pointed straight at an opaque
+  overlay rather than a missing world. Speculating from the screenshot had me
+  looking at the generator and the camera, both of which were fine.
+- SECOND BUG, same report: MapGenerator's theme never reached BackgroundRenderer.
+  Castle/ice/underground generated levels were drawn against the overworld blue
+  sky and green hills. Both procedural paths (enter and regenerate) now set it.
+- THIRD BUG, and the reason my earlier panel-layout work had no visible effect:
+  a stale untracked imgui.ini at the repo root held Pos=60,60 for all six dev
+  windows. ImGui's saved layout beats every ImGuiCond_FirstUseEver in the code,
+  so the positions I set were being silently discarded on this machine. The ini
+  filename is now versioned (imgui_layout_v2.ini) and the unversioned file is
+  removed on startup, so a future default-layout change can retire the old file
+  instead of fighting it. Worth remembering: ImGuiCond_FirstUseEver is not a
+  default, it is a default *for a machine that has never run the program*.
+- Smaller fixes from the same screenshot: the editor window asked for no
+  position and opened under the navigation panel; two editor buttons carried
+  emoji that the ASCII default font drew as "?" (and one em-dash in a debug
+  console message did the same); the navigation panel duplicated the editor's
+  own two navigation actions under different names; combo previews were clipped
+  mid-word because the trailing label eats the window width.
+- Two bugs found while building the harness rather than from the report:
+  regenerateProceduralLevel kept the previous level's spawn point and
+  checkpoint, so death respawned into geometry that no longer existed; and
+  getMouseWorldPosition asserted on a zero-size window, which is what stopped
+  the editor being driveable headlessly at all.
+- NEW REGRESSION CASE covers the report end to end: render the editor for each
+  of the four generator themes and assert the dominant on-screen colour is that
+  theme's sky, with a control frame sampled mid-fade so deleting the overlay
+  outright could not pass it. First version of that test sampled pixel (8,8) and
+  failed for underground and castle — those levels have a solid tile ceiling
+  across the top of the frame. The test was wrong, not the fix.
+---
