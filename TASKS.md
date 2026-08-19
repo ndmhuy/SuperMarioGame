@@ -473,10 +473,10 @@
 - [x] Commit: `feat: implement CharSelectState with unlockable display`
 
 ### 7.3 World Map State [v2.0]
-- [ ] Create WorldMapState — overhead map with level nodes
-- [ ] Animated paths, star coin display, completion icons
-- [ ] Sequential level unlock
-- [ ] Commit: `feat: implement WorldMapState`
+- [x] Create WorldMapState — overhead map with level nodes
+- [x] Animated paths, star coin display, completion icons
+- [x] Sequential level unlock
+- [x] Commit: `feat: implement WorldMapState`
 
 ### 7.4 Playing State (Full Implementation)
 - [ ] Integrate: level load, player spawn, physics, camera, HUD, minimap
@@ -552,28 +552,31 @@
 > **Branch**: `git checkout -b feature/enemy-ai dev`
 
 ### 9.1 AI Behavior Tuning
-- [ ] Tune all 13 enemy types + 3 color variants [v2.0: expanded from 5]
-- [ ] Lakitu spawner logic (Factory pattern integration) [v2.0]
-- [ ] Thwomp state machine (Idle → Slam → Rise) [v2.0]
-- [ ] Chain Chomp tether physics [v2.0]
-- [ ] ImGui AI debug overlay
-- [ ] Commit: `feat: tune all enemy AI behaviors`
+- [x] Tune all 13 enemy types + 3 color variants [v2.0: expanded from 5]
+- [x] Lakitu spawner logic (Factory pattern integration) [v2.0]
+- [x] Thwomp state machine (Idle → Slam → Rise) [v2.0]
+- [x] Chain Chomp tether physics [v2.0]
+- [x] ImGui AI debug overlay
+- [x] Commit: `feat: tune all enemy AI behaviors`
 
 ### 9.2 Boom Boom Mid-Boss [v2.0]
-- [ ] 3-phase boss for Level 2
-- [ ] Charge → spin → recover cycle
-- [ ] Boss arena with locked doors
-- [ ] Commit: `feat: implement Boom Boom mid-boss`
+- [x] 3-phase boss for Level 2
+- [x] Charge → spin → recover cycle
+- [x] Boss arena with locked doors — the camera lock plus a position clamp; there
+      are no door entities, the arena itself is the gate
+- [x] Commit: `feat: implement Boom Boom mid-boss`
 
 ### 9.3 Bowser Boss
-- [ ] Create Bowser — Phase 1 (walk + fire), Phase 2 (jump + faster fire)
-- [ ] Bowser health bar, boss fireballs, Level 3 arena
-- [ ] Commit: `feat: implement Bowser boss fight`
+- [x] Create Bowser — Phase 1 (walk + fire), Phase 2 (jump + faster fire)
+- [x] Bowser health bar, boss fireballs, Level 3 arena
+- [x] Commit: `feat: implement Bowser boss fight`
 
 ### 9.4 Difficulty Scaling [v2.0]
-- [ ] DifficultyStrategy: Easy/Normal/Hard modifiers applied to all levels
-- [ ] Balance entity distributions across all levels
-- [ ] Commit: `feat: implement difficulty modes and level balancing`
+- [x] DifficultyStrategy: Easy/Normal/Hard modifiers applied to all levels —
+      enemy speed, starting lives, level clock and boss health
+- [ ] Balance entity distributions across all levels — the per-level enemy counts
+      were tuned once and have not been rebalanced against the new modifiers
+- [x] Commit: `feat: implement difficulty modes and level balancing`
 - [ ] **Merge**: `git checkout dev && git merge feature/enemy-ai`
 
 ---

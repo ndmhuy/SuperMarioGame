@@ -91,7 +91,29 @@ Without these the game runs but has no shell around it.
 | 6 | **7.8** Options & High Scores | A | 3 h | Every backing piece exists — volume, difficulty, colourblind, and now key rebinding. This is the UI over them. |
 | 7 | **Flag + power-up sprites** | — | 1 h | Two flag frames and 3 × 4 characters of Super/Fire/Cape art, or a documented palette-swap fallback. |
 
-### Tier 2 — Depth the spec calls for (~16 h)
+### Tier 2 — Depth the spec calls for (~16 h) — **DONE** (`A/tier2-bosses`)
+
+All five items plus a shared foundation neither boss could exist without.
+Caveats, so the ledger stays honest:
+
+* Boom Boom's art is *derived*, not drawn: `tools/boss-frames/` recolours and
+  scales Boomerang Bro, the nearest silhouette in the atlas. Bowser's art was
+  already there.
+* 9.4's second sub-item — rebalancing per-level enemy counts against the new
+  difficulty modifiers — is not done and is left unticked.
+* Same verification limit as Tier 1: two ctest suites pass (165 + 24 checks) and
+  the game launches, but **nobody has fought either boss on screen.** This
+  environment cannot inject keystrokes or capture the display.
+
+Two more bugs fell out of the work, both pre-existing:
+
+* `CollisionResolver` `static_cast` every `Projectile` to `Fireball`, so a
+  Hammer Bro's hammer killed other enemies. Fixed in `d3e8b55` by dispatching
+  through a real `Projectile` base.
+* `Hammer::setupAnimations` was never called — hammers fell through the
+  animation dispatcher's Player/Enemy/Item/Block chain and drew a placeholder.
+
+
 
 | # | Task | Owner | Est. |
 | :-- | :--- | :--- | ---: |

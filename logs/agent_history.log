@@ -3004,3 +3004,78 @@ Summary of Changes:
   tree, which turned out to be the AGENTS.md example schema rather than a real
   profile; renamed to A/tier1-game-loop when the user corrected it.
 ---
+[2026-08-19 23:40:00] Branch: A/tier2-bosses (off A/tier1-game-loop)
+Git Fingerprint: cd41764 (before) → 8c7eccf (after, 6 commits, not pushed)
+Fetched Remotes: yes, 19:58 (same session as the Tier 1 entry; no remote activity since — dev was 0/0 against origin/dev)
+Prompt: Show me the diff, always; now plan for the next tier — then implement it (Boom Boom art from Boomerang Bro, arenas appended to existing levels, implement rather than stop at the plan).
+Files Modified:
+- NEW SuperMarioGame/include/Entities/{Projectile,Boss,Bowser,BossFireball,BoomBoom}.hpp + src/Entities/*.cpp
+- NEW SuperMarioGame/include/Core/{DifficultyStrategy,WorldMapState}.hpp + src/Core/*.cpp
+- NEW SuperMarioGame/include/Utils/CampaignProgress.hpp + src/Utils/CampaignProgress.cpp
+- NEW tools/boss-frames/gen_boomboom_frames.py
+- SuperMarioGame/include/Entities/{Fireball,Hammer,Enemy,EntityFactory,IMovementStrategy,ProximityTriggerStrategy,Thwomp}.hpp
+  + Patrol/Chase/Fly/Linear/HammerThrow/TetheredChase/TimerEmergence Strategy.hpp
+- SuperMarioGame/src/Entities/{Fireball,Hammer,Enemy,EntityFactory,ProximityTriggerStrategy,Thwomp}.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp + src/Physics/CollisionResolver.cpp
+- SuperMarioGame/include/Core/{Game,PlayingState,DevPanel}.hpp + src/Core/{Game,PlayingState,DevPanel,CharacterSelectState}.cpp
+- SuperMarioGame/include/Graphics/Camera.hpp + src/Graphics/Camera.cpp
+- SuperMarioGame/src/Utils/{LevelLoader,SerializationUtils}.cpp
+- SuperMarioGame/assets/levels/{level_2,level_3}.json (boss + arena, flagpole moved past it)
+- SuperMarioGame/assets/spriteSheet/enemy_projectile/{enemy_projectile.png,.json} (4 derived frames appended)
+- SuperMarioGame/tests/{verify_regressions,verify_frontend_states}.cpp
+- TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — Game::run() -> MenuState -> CharacterSelectState ->
+WorldMapState -> PlayingState, which loads level_2/level_3 and therefore
+constructs BoomBoom/Bowser through EntityFactory; the boss HUD, the arena lock
+and the difficulty modifiers all run inside PlayingState::update. The AI overlay
+is behind a DevPanel checkbox, which is also on the render path.
+Verified By: ctest (2/2 suites — verify_regressions 165/165, verify_frontend_states
+24/24) + ran the game (LAUNCH ONLY — reaches MenuState; this machine blocks
+screencapture and osascript keystrokes, so NEITHER BOSS HAS BEEN FOUGHT ON
+SCREEN. The fights were driven headlessly instead: a throwaway probe loaded
+level_3, stomped Bowser five times and watched the phase change, the fire breath
+and the BossDefeated publish. Play both before tagging.)
+Summary of Changes:
+- Tier 2 of docs/issues/completion_plan.md, all five items plus a foundation
+  step the plan did not list. Neither boss could be written until a boss could
+  exist: Boss (health, i-frames, phases, defeat sequence, arena) over Enemy, a
+  producer for the HUD's long-orphaned boss fields, and an arena lock built on
+  Camera::setBounds.
+- 9.3 Bowser: five hits, phase 2 at half health adding a leap and faster fire,
+  immune to fireballs, 5000 points, arena at the end of level_3 with the
+  flagpole moved past it so he cannot be walked around. Art already existed.
+- 9.2 Boom Boom: three stomps, one escalation step per hit (phaseForHealth
+  overridden — Boss's default half-health split cannot express three steps),
+  charge/spin/recover, arena at the end of level_2. No Boom Boom art exists, so
+  tools/boss-frames/ derives four frames from Boomerang Bro: scaled 1.75x and
+  recoloured, linework left alone. Append-only, unlike the player-atlas tool —
+  repacking a seventeen-enemy atlas to add one boss risks every other enemy.
+- 9.4 DifficultyStrategy: the difficulty string had NO consumer at all before
+  this. Now drives enemy speed, starting lives, the level clock and boss health
+  (Bowser is 4/5/7 stomps). Applied through a new PlayingState::admitEntity —
+  one door every entity passes through — rather than in EntityFactory, which
+  should not know a Game singleton exists.
+- 9.1 remainder: Thwomp chose its sprite from `position.y > 140.0f`, a world
+  coordinate, so one placed low in a level rendered as permanently slamming. The
+  strategy's states are now a named enum and Thwomp asks the machine. All eight
+  strategies name themselves for a new DevPanel AI overlay.
+- 7.3 World Map: needed a real progress model first. Serializer's progress block
+  FABRICATES levelsCompleted as [1..levelId-1] and only stores the current
+  level's star coins. CampaignProgress (saves/progress.json) records the real
+  thing; unlocking is derived from completion flags rather than stored, and star
+  coins merge on replay so a worse second run cannot take one away.
+- TWO MORE PRE-EXISTING BUGS FOUND AND FIXED: CollisionResolver static_cast
+  every Projectile to Fireball, so a Hammer Bro's hammer killed other enemies
+  (formally UB, and wrong behaviour either way) — now dispatched through a real
+  Projectile base that declares who it may damage, so a fourth projectile needs
+  no resolver change. And Hammer::setupAnimations was never called: the
+  animation dispatcher tested Player/Enemy/Item/Block and hammers fell through
+  to its "unknown entity type" branch, drawing a placeholder circle.
+- Left open deliberately: 9.4's "balance entity distributions across all levels"
+  (the per-level enemy counts have not been retuned against the new modifiers),
+  recorded unticked next to its checkbox.
+- Still open from Tier 1 and unrelated to this work: verify_enemies.cpp,
+  verify_enemies_new.cpp and verify_blocks_new.cpp do not compile (Entity's
+  members went protected in 72c53d6). Not registered with ctest, so `make
+  SuperMarioGame` and both suites are clean while `make` with no target is not.
+---
