@@ -52,6 +52,14 @@ public:
     // back to Normal for an unrecognised id.
     const IDifficultyStrategy& difficulty() const;
 
+    // Whether the OS has keyboard focus on our window.
+    //
+    // sf::Keyboard::isKeyPressed reads *global* key state, not per-window, so
+    // held-key polling kept driving the player while the game was in the
+    // background or while an ImGui field had the keyboard. Callers that poll
+    // must ask this first.
+    bool isWindowFocused() const;
+
     Player* getPlayer() const;
     void setPlayer(Player* player);
     TileMap* getTileMap() const;

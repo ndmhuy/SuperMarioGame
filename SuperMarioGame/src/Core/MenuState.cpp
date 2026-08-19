@@ -29,7 +29,6 @@ constexpr int kThemeCount = 4;
 const char* const kDifficulties[] = {"EASY", "MEDIUM", "HARD"};
 constexpr int kDifficultyCount = 3;
 
-constexpr float GROUND_Y = 600.0f;
 
 std::string percent(float value) {
     std::ostringstream ss;
@@ -47,12 +46,17 @@ void MenuState::enter() {
 
     m_playerSheet  = SpriteSheet::loadAtlas("player");
     m_scenerySheet = SpriteSheet::loadAtlas("world_scenery_item");
+    m_background.setTheme(BackgroundTheme::Overworld);
+    m_background.setSpriteSheet(m_scenerySheet.get());
+    // No tilemap behind the menu, so the backdrop has to close off its own
+    // ground or the hills float over open sky.
+    m_background.setDrawGroundBand(true);
 
     m_mainItems.clear();
     // The New Game+ cycle is shown on the start row, so a player can see the
     // campaign has reset rather than wondering why 1-2 is locked again.
     m_mainItems.emplace_back("START GAME", MetaGame::newGamePlusLabel());
-    m_mainItems.emplace_back("2P VERSUS", "WASD / ARROWS");
+    m_mainItems.emplace_back("2P VERSUS", "2 PLAYERS");
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
@@ -238,60 +242,14 @@ void MenuState::update(float dt) {
 }
 
 void MenuState::drawBackground(sf::RenderTarget& target) const {
-    // Sky.
-    UiRenderer::drawDimmer(target, 255, sf::Color(92, 148, 252));
+    // Was a hand-rolled backdrop of sf::CircleShape clouds and hills, written
+    // before BackgroundRenderer existed. It read as coloured blobs next to the
+    // pixel art everywhere else, which is exactly what it looked like.
+    m_background.render(target, AABB{m_cloudScroll * 3.0f, 0.0f,
+                                     static_cast<float>(Constants::WINDOW_WIDTH),
+                                     static_cast<float>(Constants::WINDOW_HEIGHT)});
 
-    // Two cloud banks at different speeds — cheap parallax, no assets needed.
-    auto drawCloud = [&target](float x, float y, float scale) {
-        for (int i = 0; i < 3; ++i) {
-            sf::CircleShape puff(18.0f * scale);
-            puff.setFillColor(sf::Color(255, 255, 255, 210));
-            puff.setPosition({x + static_cast<float>(i) * 22.0f * scale, y - (i == 1 ? 10.0f * scale : 0.0f)});
-            target.draw(puff);
-        }
-    };
-    const float w = static_cast<float>(Constants::WINDOW_WIDTH) + 200.0f;
-    for (int i = 0; i < 4; ++i) {
-        const float base = static_cast<float>(i) * 340.0f;
-        drawCloud(std::fmod(base - m_cloudScroll + w, w) - 100.0f, 90.0f, 1.0f);
-        drawCloud(std::fmod(base + 170.0f - m_cloudScroll * 0.55f + w, w) - 100.0f, 190.0f, 0.7f);
-    }
-
-    // Rolling hills behind the ground line.
-    for (int i = 0; i < 5; ++i) {
-        sf::CircleShape hill(110.0f);
-        hill.setFillColor(sf::Color(64, 168, 72));
-        hill.setPosition({static_cast<float>(i) * 300.0f - 120.0f, GROUND_Y - 120.0f});
-        target.draw(hill);
-    }
-
-    // Ground strip, tiled from the same atlas the levels use when available.
-    const float tile = Constants::TILE_SIZE;
-    bool drewTiles = false;
-    if (m_scenerySheet && m_scenerySheet->hasFrame("solid_block_brown")) {
-        for (float x = 0.0f; x < static_cast<float>(Constants::WINDOW_WIDTH); x += tile) {
-            sf::Sprite ground = m_scenerySheet->getSprite("solid_block_brown");
-            const auto bounds = ground.getLocalBounds();
-            if (bounds.size.x <= 0.0f || bounds.size.y <= 0.0f) break;
-            ground.setScale({tile / bounds.size.x, tile / bounds.size.y});
-            ground.setPosition({x, GROUND_Y});
-            target.draw(ground);
-            drewTiles = true;
-        }
-    }
-    if (!drewTiles) {
-        sf::RectangleShape ground({static_cast<float>(Constants::WINDOW_WIDTH), tile});
-        ground.setFillColor(sf::Color(150, 90, 40));
-        ground.setPosition({0.0f, GROUND_Y});
-        target.draw(ground);
-    }
-    sf::RectangleShape subsoil({static_cast<float>(Constants::WINDOW_WIDTH),
-                                static_cast<float>(Constants::WINDOW_HEIGHT) - GROUND_Y - tile});
-    subsoil.setFillColor(sf::Color(92, 56, 24));
-    subsoil.setPosition({0.0f, GROUND_Y + tile});
-    target.draw(subsoil);
-
-    // A Mario walking the ground line, using the real two-frame walk cycle.
+    // The walking character stays: it is the one animated thing on the screen.
     if (m_playerSheet) {
         const std::string frame = "mario_small_walk_" + std::to_string(
             static_cast<int>(m_elapsed / 0.12f) % 2);
@@ -299,7 +257,9 @@ void MenuState::drawBackground(sf::RenderTarget& target) const {
             sf::Sprite walker = m_playerSheet->getSprite(frame);
             walker.setScale({2.0f, 2.0f});
             const auto bounds = walker.getLocalBounds();
-            walker.setPosition({m_walkerX, GROUND_Y - bounds.size.y * 2.0f});
+            // 640 is BackgroundRenderer's ground line: the walker has to stand on the
+            // same line the backdrop layers sit on, or it floats.
+            walker.setPosition({m_walkerX, 640.0f - bounds.size.y * 2.0f});
             target.draw(walker);
         }
     }
@@ -319,12 +279,25 @@ void MenuState::render(sf::RenderTarget& target) {
                                  sf::Color(255, 255, 255), true);
 
     if (m_page == Page::Main) {
-        UiRenderer::drawPanel(target, {centerX - 220.0f, 220.0f}, {440.0f, 250.0f},
+        // Height comes from the row count. It was a hardcoded 250px, which fit
+        // the five rows it was written for; adding 2P Versus and Daily Challenge
+        // pushed the last two rows straight out through the bottom of the panel
+        // and on top of the hint line.
+        constexpr float ROW_HEIGHT = 40.0f;
+        constexpr float PANEL_TOP = 214.0f;
+        constexpr float PADDING = 26.0f;
+        const float panelHeight = PADDING * 2.0f + ROW_HEIGHT * static_cast<float>(m_mainItems.size());
+
+        // Wide enough that the longest label ("DAILY CHALLENGE", 15 characters
+        // at 15px) clears the value column instead of printing through it.
+        UiRenderer::drawPanel(target, {centerX - 320.0f, PANEL_TOP}, {640.0f, panelHeight},
                               sf::Color(0, 0, 0, 170));
         UiRenderer::drawMenuItems(target, m_mainItems, m_mainSelected,
-                                  {centerX - 150.0f, 250.0f}, 44.0f, 16, 0.0f, m_elapsed);
+                                  {centerX - 270.0f, PANEL_TOP + PADDING}, ROW_HEIGHT, 15,
+                                  centerX + 40.0f, m_elapsed);
         UiRenderer::drawText(target, "UP/DOWN  SELECT      ENTER  CONFIRM",
-                             {centerX, 500.0f}, 11, sf::Color(255, 255, 255), true);
+                             {centerX, PANEL_TOP + panelHeight + 18.0f}, 11,
+                             sf::Color(255, 255, 255), true);
         return;
     }
 

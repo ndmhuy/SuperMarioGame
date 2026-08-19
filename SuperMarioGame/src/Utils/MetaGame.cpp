@@ -74,11 +74,14 @@ MapGeneratorConfig MetaGame::dailyChallengeConfig(unsigned int seed) {
 std::string MetaGame::todaysChallengeName() {
     const std::time_t now = std::time(nullptr);
     const std::tm* utc = std::gmtime(&now);
-    if (!utc) return "DAILY CHALLENGE";
+    if (!utc) return "TODAY";
 
+    // Just the date: this is shown in the value column of a row already labelled
+    // DAILY CHALLENGE, and repeating the word cost the width that made the two
+    // collide.
     char buffer[32] = {0};
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", utc);
-    return std::string("DAILY ") + buffer;
+    return std::string(buffer);
 }
 
 std::vector<Unlockable> MetaGame::unlockables() {

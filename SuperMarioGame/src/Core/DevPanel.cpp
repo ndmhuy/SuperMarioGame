@@ -83,6 +83,8 @@ void DevPanel::draw(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawAiOverlay(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(744.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(520.0f, 300.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin("AI Debug Overlay");
 
     ImGui::Text("Live enemies: what each one is running, and what state it is in.");
@@ -142,6 +144,12 @@ void DevPanel::drawAiOverlay(PlayingState& state) {
 }
 
 void DevPanel::drawNavigationPanel(PlayingState& state) {
+    // Placed and collapsed by default. Every dev window opened at ImGui's
+    // default position, so they stacked on top of one another and covered the
+    // left half of the screen — including the player.
+    ImGui::SetNextWindowPos(ImVec2(8.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 300.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Gameplay Controls & Navigation");
 
     ImGui::Text("Simulation State:");
@@ -223,6 +231,8 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawGeneratorPanel(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(8.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Procedural Level Generator Tuning");
     ImGui::Text("Live tuning parameters:");
 
@@ -267,6 +277,8 @@ void DevPanel::drawGeneratorPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawPlaygroundPanel(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(376.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Physics & Input Test Playground (Phase 2 & 3)");
 
     ImGui::Text("Select Active Character:");
@@ -384,6 +396,8 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawPersistencePanel(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(376.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Save/Load & Persistence (Phase 8)");
 
     Player* player = state.m_player;

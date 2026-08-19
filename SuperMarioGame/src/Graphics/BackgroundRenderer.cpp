@@ -107,6 +107,15 @@ void BackgroundRenderer::render(sf::RenderTarget& target, const AABB& visibleBou
     sky.setFillColor(getSkyColor());
     target.draw(sky);
 
+    if (m_drawGroundBand) {
+        sf::RectangleShape earth({screenW, screenH - GROUND_LINE});
+        earth.setPosition({0.0f, GROUND_LINE});
+        // Darker than the layer tint so the silhouettes still read against it.
+        earth.setFillColor(m_theme == BackgroundTheme::Ice ? sf::Color(198, 214, 232)
+                                                           : sf::Color(88, 56, 24));
+        target.draw(earth);
+    }
+
     if (!m_sheet) return;
 
     for (const Layer& layer : layersForTheme()) {

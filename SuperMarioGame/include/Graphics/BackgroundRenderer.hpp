@@ -40,6 +40,14 @@ public:
 
     void setSpriteSheet(const SpriteSheet* sheet) { m_sheet = sheet; }
 
+    // Fills everything below the layers' ground line with earth.
+    //
+    // Off by default: in a level the tilemap covers that area, and the ground
+    // line is a *screen* coordinate, so a band would be wrong wherever the
+    // camera is looking above the ground. The menus have no tilemap, which is
+    // why their hills floated over bare sky.
+    void setDrawGroundBand(bool enabled) { m_drawGroundBand = enabled; }
+
     // Drives the drifting cloud layer.
     void update(float dt);
 
@@ -70,5 +78,6 @@ private:
 
     BackgroundTheme m_theme = BackgroundTheme::Overworld;
     const SpriteSheet* m_sheet = nullptr;
+    bool m_drawGroundBand = false;
     float m_elapsed = 0.0f;
 };

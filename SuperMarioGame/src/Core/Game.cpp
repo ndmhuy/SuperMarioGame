@@ -89,6 +89,7 @@ void Game::run() {
                 continue;
             }
 
+
             // Backquote toggles the debug console, from any state. Handled here
             // rather than in a state so nothing on top can shadow it, and
             // *before* the states see the event so the key is genuinely
@@ -123,6 +124,8 @@ void Game::run() {
         ImGui::SFML::Update(m_window, elapsed);
 
         // ImGui Dev Tools panel
+        ImGui::SetNextWindowPos(ImVec2(1000.0f, 8.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
         ImGui::Begin("Super Mario Engine Dev Tools");
         ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)", 
                     1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -164,7 +167,22 @@ void Game::changeState(std::unique_ptr<IGameState> state) {
 }
 
 void Game::initWindow() {
-    m_window.create(sf::VideoMode({Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT}), Constants::WINDOW_TITLE);
+    // Fixed size, deliberately.
+    //
+    // Every screen is laid out against literal 1280x720 coordinates — the HUD,
+    // all six menus, the pause overlay, the boss health bar. The window was
+    // created resizable (the default style) with no Resized handler, so dragging
+    // it stretched the view to whatever shape the window was and pushed the
+    // right-hand HUD off the edge.
+    //
+    // Letterboxing would be the better answer, but it cannot work while every
+    // state resets to target.getDefaultView() for screen space: that view is the
+    // untouched full window and would undo it. Making the layout
+    // resolution-independent is the real fix and a much larger change; until
+    // then, not distorting beats distorting.
+    m_window.create(sf::VideoMode({Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT}),
+                    Constants::WINDOW_TITLE,
+                    sf::Style::Titlebar | sf::Style::Close);
     m_window.setFramerateLimit(60);
 }
 
@@ -204,6 +222,10 @@ void Game::shutdown() {
     if (m_window.isOpen()) {
         m_window.close();
     }
+}
+
+bool Game::isWindowFocused() const {
+    return m_window.hasFocus();
 }
 
 Player* Game::getPlayer() const {

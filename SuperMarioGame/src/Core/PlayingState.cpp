@@ -463,7 +463,21 @@ void PlayingState::update(float dt) {
     // These are polled from the keyboard rather than driven by events, so the
     // console's event filter does not cover them: typing "difficulty hard" would
     // otherwise walk the player right on every "d".
-    if (!DebugConsole::getInstance().isVisible()) {
+    // Held keys are polled from the keyboard rather than delivered as events, so
+    // nothing that consumes events can gate them. Three things have to be true:
+    //
+    //  - the console is closed (typing "difficulty hard" should not walk right);
+    //  - ImGui does not want the keyboard, or typing in any dev panel field
+    //    drives the player at the same time;
+    //  - our window actually has focus. sf::Keyboard::isKeyPressed reads global
+    //    key state, so without this the player keeps walking while the game is
+    //    in the background and you are typing somewhere else.
+    const bool inputBelongsToGameplay =
+        !DebugConsole::getInstance().isVisible() &&
+        !ImGui::GetIO().WantCaptureKeyboard &&
+        Game::getInstance().isWindowFocused();
+
+    if (inputBelongsToGameplay) {
         if (m_player)  InputManager::getInstance().update(*m_player);
         if (m_player2) InputManager::getInstance().update(*m_player2);
     }

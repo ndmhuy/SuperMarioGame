@@ -3,6 +3,7 @@
 #include "Core/IGameState.hpp"
 #include "Graphics/UiRenderer.hpp"
 #include "Graphics/SpriteSheet.hpp"
+#include "Graphics/BackgroundRenderer.hpp"
 #include "Utils/MapGenerator.hpp"
 #include <memory>
 #include <vector>
@@ -56,6 +57,10 @@ private:
     // painted sky and hills if either is missing.
     std::unique_ptr<SpriteSheet> m_playerSheet;
     std::unique_ptr<SpriteSheet> m_scenerySheet;
+
+    // The same parallax backdrop the levels use, so the menu and the game look
+    // like the same product.
+    BackgroundRenderer m_background;
 
     // Backdrop animation clocks.
     float m_cloudScroll = 0.0f;
