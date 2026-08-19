@@ -608,16 +608,21 @@
 - [x] Commit: `feat: implement config-driven entity definitions`
 
 ### 10.3 Replay System
-- [ ] Create [ReplayRecorder.hpp/.cpp](SuperMarioGame/include/Core/ReplayRecorder.hpp)
-  - Record input commands per frame
-  - Save/load replay files
-  - Deterministic playback
-- [ ] Commit: `feat: implement replay recording and playback`
+- [x] Create [ReplayRecorder.hpp/.cpp](SuperMarioGame/include/Core/ReplayRecorder.hpp)
+  - Record input commands per frame — records GameSnapshot *state* instead, one
+    frame in six. Input replay needs a bit-for-bit deterministic simulation, and
+    this one is not: float physics, an entity list that spawns and prunes, and
+    strategies reading a shared singleton.
+  - [x] Save/load replay files (saves/replays/*.json)
+  - [x] Deterministic playback — trivially, because it replays recorded state
+    rather than re-simulating
+- [x] Commit: `feat: implement replay recording and playback`
 
 ### 10.4 Debug Console
-- [ ] Create [DebugConsole.hpp/.cpp](SuperMarioGame/include/Utils/DebugConsole.hpp)
-  - Toggle with ~, text→command parsing, autocomplete
-- [ ] Commit: `feat: implement debug console with command parsing`
+- [x] Create DebugConsole.hpp/.cpp — lives in `Core/`, not `Utils/`, alongside the
+      other ICommand implementations
+  - [x] Toggle with `, [x] text→command parsing, [ ] autocomplete (not done)
+- [x] Commit: `feat: implement debug console with command parsing`
 - [ ] **Merge**: `git checkout dev && git merge feature/advanced-systems`
 
 ---
@@ -628,9 +633,11 @@
 > **Branch**: `git checkout -b feature/polish dev`
 
 ### 11.1 Two-Player Versus Mode
-- [ ] Configure Player 2 keyboard mappings
-- [ ] Shared camera following leading player, versus rules
-- [ ] Commit: `feat: implement two-player versus mode`
+- [x] Configure Player 2 keyboard mappings — these already existed in
+      InputManager; nothing had ever created a second player to use them
+- [x] Shared camera following leading player, versus rules — frames the midpoint
+      with a tether at the screen edge; score line shows who leads
+- [x] Commit: `feat: implement two-player versus mode`
 
 ### 11.2 Edge Cases & Bug Fixes
 - [ ] Respawn at checkpoint with death animation
@@ -646,9 +653,12 @@
 - [ ] Commit: `feat: implement New Game+, Daily Challenge, and unlockables`
 
 ### 11.4 Accessibility [v2.0]
-- [ ] Colorblind mode (shader/palette swap)
-- [ ] Audio navigation cues for menus
-- [ ] Commit: `feat: implement accessibility features`
+- [x] Colorblind mode (shader/palette swap) — `Graphics/ColorPalette`, applied to
+      the minimap (which drew the player green and enemies red) and the debug
+      overlay. Sprite recolouring is not done; the palette covers UI markers.
+- [x] Audio navigation cues for menus — distinct cues for star coins, checkpoints
+      and P-Switch. Menu *navigation* itself still has no per-row cue.
+- [x] Commit: `feat: implement accessibility features`
 
 ### 11.5 Final Testing
 - [ ] Complete full walkthrough of all 3 levels + bonus rooms

@@ -125,11 +125,12 @@ Two more bugs fell out of the work, both pre-existing:
 
 `EntityFactory` already returns `nullptr` for `Bowser` and `BoomBoom`, and the HUD already carries boss health-bar fields with no producer — the sockets are cut, the classes are missing.
 
-### Tier 3 — Spec extras (~13 h) — **groups A and B done** (`A/tier3-systems`)
+### Tier 3 — Spec extras (~13 h) — **DONE** (`A/tier3-systems`)
 
-Done: 10.1 Object Pool, 10.2 Config-driven entities, 5.5 Parallax, 5.10 Water &
-lava, 4.3 Camera lookahead. Remaining: 11.4 Accessibility, 11.3 Meta-game, 11.1
-Two-Player, 10.3 Replay, 10.4 Debug Console.
+All ten items. Deliberately not done inside them, recorded next to their boxes:
+console autocomplete, NG+ level mirroring, sprite recolouring for colourblind
+mode (the palette covers UI markers), per-row menu audio cues, and bubble/ember
+particles for water and lava.
 
 Four more pre-existing bugs surfaced while doing it:
 

@@ -3148,3 +3148,62 @@ Summary of Changes:
   verify_blocks_new.cpp do not compile (Entity members went protected in
   72c53d6). Not registered with ctest.
 ---
+[2026-08-20 03:10:00] Branch: A/tier3-systems
+Git Fingerprint: e0bb734 (before) → a64691e (after, 6 further commits, not pushed)
+Fetched Remotes: yes, 19:58 — no remote activity since; dev remains 0/0 against origin/dev
+Prompt: Carry on (Tier 3 groups C and D).
+Files Modified:
+- NEW SuperMarioGame/include/Graphics/ColorPalette.hpp + src/Graphics/ColorPalette.cpp
+- NEW SuperMarioGame/include/Utils/MetaGame.hpp + src/Utils/MetaGame.cpp
+- NEW SuperMarioGame/include/Core/{ConsoleCommand,DebugConsole,ReplayRecorder}.hpp
+  + src/Core/{DebugConsole,ReplayRecorder}.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp + src/Core/PlayingState.cpp
+- SuperMarioGame/src/Core/{Game,MenuState,SoundManager}.cpp
+- SuperMarioGame/include/Utils/CampaignProgress.hpp + src/Utils/CampaignProgress.cpp
+- SuperMarioGame/src/Graphics/Minimap.cpp
+- SuperMarioGame/tests/verify_regressions.cpp, TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — the console is toggled from Game::run so it works in
+every state; the palette is read by Minimap and the debug overlay; NG+ and the
+daily challenge are on the main menu; replays record from PlayingState's existing
+snapshot site; 2P versus is a main-menu row.
+Verified By: ctest (2/2 — verify_regressions 303/303, verify_frontend_states
+24/24) + ran the game (launch only, reaches MenuState). NOT verified by playing:
+nobody has driven two players, watched a replay play back, or typed into the
+console on screen. The console is covered by driving submit() directly, and the
+replay by recording, saving, loading and walking the frames headlessly.
+Summary of Changes:
+- 11.4 Accessibility: the colourblind flag had NO consumer — the same failure as
+  the difficulty setting. ColorPalette resolves colours by meaning, and the
+  minimap (player green, enemies red — the most common form of colour blindness
+  is exactly that pair) now uses it. Player is the *bright* sky blue and enemy
+  the darker vermilion: hue separation alone fails in greyscale, and the
+  regression case asserting a >20 luminance gap is what rejected my first
+  palette, which had a gap of 18. Audio cues: star coins sounded identical to
+  ordinary coins, checkpoints were silent.
+- 11.3 Meta-game: New Game+ (counter in the progress file, campaign resets, star
+  coins and achievements survive, enemies +15%/cycle capped at four so they
+  cannot outrun collision) and a date-seeded daily challenge. MapGeneratorConfig
+  had carried an unused `seed` field all along. Level mirroring NOT done — a flip
+  has to move the spawn, flagpole, every pipe exit and the boss arena, and one
+  mistake makes a level unfinishable.
+- 10.4 Debug console: ten commands over a second Command receiver. Two things
+  that would have made it unusable: the toggle is handled before states see the
+  event so it cannot be shadowed, and PlayingState stops polling held keys while
+  it is open — those are read from the keyboard, not delivered as events, so
+  typing "difficulty hard" would otherwise walk the player on every "d".
+- 10.3 Replay: extends the existing Memento rather than adding a second capture
+  path. Applying a snapshot was already written inside the rewind branch and is
+  now shared as PlayingState::applySnapshot, which carries audit A-5's
+  restore-by-id rule to the new caller for free. State rather than inputs,
+  because this simulation is not deterministic.
+- 11.1 Two-Player: InputManager has had two binding sets and registerPlayer(c,1)
+  since it was written with nothing ever using them. Shared camera on the
+  midpoint with an edge tether; P1 stays m_player so single-player paths are
+  untouched; one player running out no longer ends the run.
+- Tier 3 is complete. Not done inside it, all recorded next to the ledger boxes:
+  console autocomplete, NG+ mirroring, sprite recolouring, per-row menu cues,
+  bubble/ember particles.
+- Tier 4 (hygiene) is untouched: 207 tracked build artefacts, resolvePath in the
+  last 4 files, RAII EventBus tokens, and fast-forwarding main — which is 185
+  commits behind and is the user's call, not the agent's.
+---
