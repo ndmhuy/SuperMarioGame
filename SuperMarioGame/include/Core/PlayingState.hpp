@@ -12,6 +12,7 @@
 #include "Graphics/Minimap.hpp"
 #include "Graphics/ParticleEmitter.hpp"
 #include "Core/TimeRewindManager.hpp"
+#include "Core/DevPanel.hpp"
 #include <vector>
 #include <memory>
 
@@ -32,6 +33,18 @@ public:
     void render(sf::RenderTarget& target) override;
 
 private:
+    // DevPanel is an extension of this state's debug surface rather than an
+    // outside collaborator: it reads the same members render() does and queues
+    // mutations back. Friendship here is narrower than exposing setters for the
+    // entity list, tilemap and generator config to everyone.
+    friend class DevPanel;
+
+    // Operations the dev panels request. Defined here (not in the panel) so the
+    // state stays in charge of its own invariants.
+    void regenerateProceduralLevel();
+    void saveToSlot(int slot);
+    void loadFromSlot(int slot);
+
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
@@ -69,8 +82,9 @@ private:
     std::unique_ptr<SpriteSheet> m_scenerySheet;
     std::unique_ptr<SpriteSheet> m_blocksSheet;
 
-    // Debug / dev overlays
-    bool m_showAABB = false;
+    // Dev/debug ImGui surface. Draws on the render path but performs no game
+    // mutation itself — see DevPanel.hpp.
+    DevPanel m_devPanel;
 
     // Tilemap animation timer for animated tiles (coin, question, water, etc.)
     float m_tileAnimTimer = 0.0f;

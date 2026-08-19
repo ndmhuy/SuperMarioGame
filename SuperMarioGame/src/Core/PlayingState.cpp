@@ -312,6 +312,11 @@ void PlayingState::handleInput(const sf::Event& event) {
 }
 
 void PlayingState::update(float dt) {
+    // Apply anything the dev panels requested while rendering the previous frame.
+    // Doing it here, before the simulation runs, keeps those mutations on the
+    // fixed-timestep cadence rather than the render cadence (audit A-9).
+    m_devPanel.flush(*this);
+
     // Advance tile animation timer
     m_tileAnimTimer += dt;
 
@@ -627,7 +632,7 @@ void PlayingState::render(sf::RenderTarget& target) {
     target.draw(ParticleSystem::getInstance());
 
     // 4. Draw AABB overlays (dev toggle)
-    if (m_showAABB) {
+    if (m_devPanel.showAABB()) {
         // Tile grid AABBs — culled to the same visible window as the tile pass.
         for (int y = firstY; y <= lastY; ++y) {
             for (int x = firstX; x <= lastX; ++x) {
@@ -696,428 +701,18 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Render screen transitions overlay
     ScreenTransitionManager::getInstance().render(target);
 
-    // ImGui Panel for controlling and monitoring the gameplay simulation
-    ImGui::Begin("Gameplay Controls & Navigation");
-    ImGui::Text("Simulation State:");
-    if (m_player) {
-        ImGui::Text("Player Position: (%.1f, %.1f)", m_player->getPosition().x, m_player->getPosition().y);
-        ImGui::Text("Player Velocity: (%.1f, %.1f)", m_player->getVelocity().x, m_player->getVelocity().y);
-        ImGui::Text("Lives: %d | Coins: %d | Score: %d", m_player->getLives(), m_player->getCoins(), m_player->getScore());
-    } else {
-        ImGui::Text("No active player.");
-    }
-    ImGui::Separator();
-    ImGui::Text("Select Campaign Level:");
-    const char* campaignLevels[] = {
-        "World 1-1: Grassland Overworld",
-        "World 1-1 Sub: Underground Vault",
-        "World 1-2: Ice Cavern Path",
-        "World 1-2 Sub: Sky Platform Canopy",
-        "World 1-3: Bowser's Castle Fortress",
-        "World 1-3 Sub: Secret Castle Vault",
-        "Bonus Stage 1: Coin Paradise"
-    };
-    int oldNavLevel = m_selectedLevelIndex;
-    if (ImGui::Combo("Select Level", &m_selectedLevelIndex, campaignLevels, 7)) {
-        if (m_selectedLevelIndex != oldNavLevel || m_isProcedural) {
-            m_isProcedural = false;
-            setupTestScene();
-        }
-    }
-
-    ImGui::Separator();
-    ImGui::Text("Active Level Tube / Warp Pipe Destinations:");
-
-    std::vector<Pipe*> activePipes;
-    std::vector<std::string> pipeLabels;
-    for (const auto& entity : m_entities) {
-        if (auto pipe = dynamic_cast<Pipe*>(entity.get())) {
-            activePipes.push_back(pipe);
-            std::string label = "Tube @" + std::to_string(static_cast<int>(pipe->getPosition().x / Constants::TILE_SIZE)) +
-                                " -> " + (pipe->getTargetLevel().empty() ? "Same Level Teleport" : pipe->getTargetLevel());
-            pipeLabels.push_back(label);
-        }
-    }
-
-    static int selectedPipeIndex = 0;
-    if (activePipes.empty()) {
-        ImGui::TextDisabled("No active warp tubes in current level.");
-    } else {
-        if (selectedPipeIndex >= static_cast<int>(activePipes.size())) selectedPipeIndex = 0;
-        
-        std::vector<const char*> pipeItems;
-        for (const auto& l : pipeLabels) pipeItems.push_back(l.c_str());
-
-        ImGui::Combo("Tube Dropdown", &selectedPipeIndex, pipeItems.data(), static_cast<int>(pipeItems.size()));
-        ImGui::SameLine();
-        if (ImGui::Button("🌀 Enter Tube")) {
-            Pipe* targetPipe = activePipes[selectedPipeIndex];
-            if (m_player) {
-                SoundManager::getInstance().playSound("pipe");
-                std::string targetLevel = targetPipe->getTargetLevel();
-                sf::Vector2f exitPos = targetPipe->getExitPosition();
-                if (!targetLevel.empty()) {
-                    loadLevelByPath(targetLevel, exitPos);
-                } else if (exitPos.x != 0.0f || exitPos.y != 0.0f) {
-                    m_player->setPosition(exitPos);
-                    m_player->setVelocity({0.0f, 0.0f});
-                }
-            }
-        }
-    }
-
-    ImGui::Separator();
-    if (ImGui::Button("🏠 Return to Main Menu")) {
-        Game::getInstance().changeState(std::make_unique<MenuState>());
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("🛠️ Toggle Map Editor (F1)")) {
-        m_mapEditor.toggleActive();
-    }
-    ImGui::End();
-
-
-    if (m_isProcedural) {
-        ImGui::Begin("Procedural Level Generator Tuning");
-        ImGui::Text("Live tuning parameters:");
-
-        int themeIdx = static_cast<int>(m_genConfig.theme);
-        const char* themes[] = { "Overworld", "Underground", "Castle", "Ice" };
-        if (ImGui::Combo("Theme", &themeIdx, themes, 4)) {
-            m_genConfig.theme = static_cast<MapTheme>(themeIdx);
-        }
-
-        int diffIdx = static_cast<int>(m_genConfig.difficulty);
-        const char* diffs[] = { "Easy", "Medium", "Hard" };
-        if (ImGui::Combo("Difficulty", &diffIdx, diffs, 3)) {
-            m_genConfig.difficulty = static_cast<MapDifficulty>(diffIdx);
-        }
-
-        ImGui::SliderFloat("Roughness", &m_genConfig.roughness, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Pit Ratio", &m_genConfig.pitProbability, 0.0f, 0.35f, "%.2f");
-        ImGui::SliderFloat("Enemy Rate", &m_genConfig.enemySpawnRate, 0.0f, 0.40f, "%.2f");
-        ImGui::Checkbox("Castle Lava Hazards", &m_genConfig.enableLava);
-        ImGui::Checkbox("Moving Platforms", &m_genConfig.enableMovingPlatforms);
-
-        int seedVal = static_cast<int>(m_genConfig.seed);
-        if (ImGui::InputInt("Seed (0=Random)", &seedVal)) {
-            m_genConfig.seed = (seedVal < 0) ? 0 : static_cast<unsigned int>(seedVal);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("🎲 New Seed")) {
-            m_genConfig.seed = std::random_device{}();
-        }
-
-        if (ImGui::Button("🔄 Regenerate Level")) {
-            MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
-            for (auto& entity : m_entities) {
-                wireEntityAnimations(entity.get());
-            }
-            m_player = nullptr;
-            for (const auto& entity : m_entities) {
-                if (auto p = dynamic_cast<Player*>(entity.get())) {
-                    m_player = p;
-                    break;
-                }
-            }
-            if (m_player) {
-                InputManager::getInstance().registerPlayer(m_player, 0);
-                Game::getInstance().setPlayer(m_player);
-            }
-            m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
-        }
-        ImGui::End();
-    }
-
-    // Draw Map Editor overlays if active
-
+    // The map editor paints its own overlay and ImGui windows; otherwise reset
+    // to screen space so the dev panels sit over the world.
     if (m_mapEditor.isActive()) {
         m_mapEditor.render(target, m_tileMap, m_entities, &m_camera);
         m_mapEditor.renderImGui(m_tileMap, m_entities);
     } else {
-        // Reset view to default view for static screen space rendering (HUD, ImGui overlays)
         target.setView(target.getDefaultView());
-
-        // --- ImGui Dev Interface for Phase 2, 3 & 4 (Playground) ---
-        ImGui::Begin("Physics & Input Test Playground (Phase 2 & 3)");
-
-        // Character Selection
-        ImGui::Text("Select Active Character:");
-        const char* characters[] = { "Mario (Red)", "Luigi (Green)", "Toad (Blue)", "Peach (Pink)" };
-        int oldCharSelected = m_selectedCharIndex;
-        if (ImGui::Combo("Character", &m_selectedCharIndex, characters, 4)) {
-            if (m_selectedCharIndex != oldCharSelected && m_player) {
-                spawnSelectedPlayer(m_player->getPosition());
-            }
-        }
-
-        // Level Selection
-        ImGui::Text("Select Active Level:");
-        const char* levels[] = {
-            "World 1-1: Grassland Overworld",
-            "World 1-1 Sub: Underground Vault",
-            "World 1-2: Ice Cavern Path",
-            "World 1-2 Sub: Sky Platform Canopy",
-            "World 1-3: Bowser's Castle Fortress",
-            "World 1-3 Sub: Secret Castle Vault",
-            "Bonus Stage 1: Coin Paradise"
-        };
-        int oldLevelSelected = m_selectedLevelIndex;
-        if (ImGui::Combo("Level", &m_selectedLevelIndex, levels, 7)) {
-            if (m_selectedLevelIndex != oldLevelSelected || m_isProcedural) {
-                m_isProcedural = false;
-                setupTestScene();
-            }
-        }
-
-
-        ImGui::Separator();
-
-        if (m_player) {
-            ImGui::Text("Character Stats:");
-            ImGui::BulletText("Position: (%.2f, %.2f)", m_player->getPosition().x, m_player->getPosition().y);
-            ImGui::BulletText("Velocity: (%.2f, %.2f)", m_player->getVelocity().x, m_player->getVelocity().y);
-            ImGui::BulletText("onGround: %s", m_player->isOnGround() ? "TRUE" : "FALSE");
-            ImGui::BulletText("onWall: %s", m_player->isOnWall() ? "TRUE" : "FALSE");
-            ImGui::BulletText("Crouched: %s", m_player->isCrouched() ? "TRUE" : "FALSE");
-            ImGui::BulletText("Sliding: %s", m_player->isSliding() ? "TRUE" : "FALSE");
-            ImGui::BulletText("Coyote Frames Left: %d", m_player->getCoyoteFramesLeft());
-            ImGui::BulletText("Jump Buffer Frames Left: %d", m_player->getJumpBufferFramesLeft());
-            ImGui::BulletText("Lives: %d, Coins: %d, Score: %d", m_player->getLives(), m_player->getCoins(), m_player->getScore());
-            
-            std::string stateName = "Unknown";
-            if (IPlayerState* state = m_player->getCurrentState()) {
-                IPlayerState* baseState = state;
-                bool invincible = false;
-                bool mega = false;
-                while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
-                    if (dynamic_cast<StarDecorator*>(decorator)) invincible = true;
-                    if (dynamic_cast<MegaDecorator*>(decorator)) mega = true;
-                    baseState = decorator->getWrappedState();
-                }
-
-                if (dynamic_cast<SmallState*>(baseState)) stateName = "Small";
-                else if (dynamic_cast<SuperState*>(baseState)) stateName = "Super";
-                else if (dynamic_cast<FireState*>(baseState)) stateName = "Fire";
-                else if (dynamic_cast<CapeState*>(baseState)) stateName = "Cape";
-                else if (dynamic_cast<MiniState*>(baseState)) stateName = "Mini";
-
-                if (invincible) stateName += " + Star (Invincible)";
-                if (mega) stateName += " + Mega (Giant)";
-            }
-            ImGui::BulletText("Active Form: %s", stateName.c_str());
-        } else {
-            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No active player.");
-        }
-
-        ImGui::Separator();
-        
-        // Spawner buttons
-        ImGui::Text("Spawn items at player position:");
-        if (m_player) {
-            sf::Vector2f spawnPos = m_player->getPosition() + sf::Vector2f(0.0f, -64.0f);
-            if (ImGui::Button("Spawn Mushroom")) {
-                m_entities.push_back(std::make_unique<Mushroom>(spawnPos));
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Spawn Fire Flower")) {
-                m_entities.push_back(std::make_unique<FireFlower>(spawnPos));
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Spawn Coin")) {
-                m_entities.push_back(std::make_unique<Coin>(spawnPos));
-            }
-            if (ImGui::Button("Spawn Star")) {
-                m_entities.push_back(std::make_unique<Star>(spawnPos));
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Spawn Cape Feather")) {
-                m_entities.push_back(std::make_unique<CapeFeather>(spawnPos));
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Spawn Mega Mushroom")) {
-                m_entities.push_back(std::make_unique<MegaMushroom>(spawnPos));
-            }
-            if (ImGui::Button("Spawn Mini Mushroom")) {
-                m_entities.push_back(std::make_unique<MiniMushroom>(spawnPos));
-            }
-        }
-
-        ImGui::Separator();
-
-        if (ImGui::Button("Swap Bricks <-> Coins (P-Switch test)")) {
-            m_tileMap.swapBricksAndCoins();
-        }
-
-        ImGui::Separator();
-
-        ImGui::Checkbox("Show Physics AABB Overlays", &m_showAABB);
-
-        ImGui::Separator();
-
-        if (ImGui::Button("Reset Simulation")) {
-            setupTestScene();
-        }
-
-        ImGui::End();
-
-        // --- ImGui Dev Interface for Phase 8 (Save/Load & Persistence) ---
-        ImGui::Begin("Save/Load & Persistence (Phase 8)");
-
-        Player* player = (!m_entities.empty() && m_entities[0]) ? dynamic_cast<Player*>(m_entities[0].get()) : nullptr;
-        if (player) {
-            ImGui::Text("Active Slot: %d", Game::getInstance().getActiveSlot());
-            ImGui::Text("Active Character: %s", (dynamic_cast<Mario*>(player) ? "Mario" : (dynamic_cast<Luigi*>(player) ? "Luigi" : "Other")));
-            ImGui::Text("Lives: %d | Coins: %d | Score: %d", player->getLives(), player->getCoins(), player->getScore());
-            ImGui::Text("Position: (%.1f, %.1f)", player->getPosition().x, player->getPosition().y);
-        } else {
-            ImGui::Text("No active player character loaded.");
-        }
-        
-        ImGui::Separator();
-
-        // 1. Settings Persistence Tab
-        if (ImGui::CollapsingHeader("Settings Configuration")) {
-            float sfx = Game::getInstance().getSfxVolume();
-            float music = Game::getInstance().getMusicVolume();
-            bool colorblind = Game::getInstance().getColorblindMode();
-
-            if (ImGui::SliderFloat("SFX Volume", &sfx, 0.0f, 100.0f)) {
-                Game::getInstance().setSfxVolume(sfx);
-            }
-            if (ImGui::SliderFloat("Music Volume", &music, 0.0f, 100.0f)) {
-                Game::getInstance().setMusicVolume(music);
-            }
-            if (ImGui::Checkbox("Colorblind Mode", &colorblind)) {
-                Game::getInstance().setColorblindMode(colorblind);
-            }
-
-            std::string diff = Game::getInstance().getDifficulty();
-            const char* difficulties[] = { "easy", "normal", "hard" };
-            int activeDiffIdx = 0;
-            for (int i = 0; i < 3; ++i) {
-                if (diff == difficulties[i]) activeDiffIdx = i;
-            }
-            if (ImGui::Combo("Difficulty", &activeDiffIdx, difficulties, 3)) {
-                Game::getInstance().setDifficulty(difficulties[activeDiffIdx]);
-            }
-        }
-
-        // 2. Save Slots Persistence Tab
-        if (ImGui::CollapsingHeader("Save/Load Slots")) {
-            for (int slot = 1; slot <= 3; ++slot) {
-                ImGui::PushID(slot);
-                SaveSlotPreview preview = Serializer::getSlotPreview(slot);
-                if (preview.exists) {
-                    ImGui::Text("Slot %d: [%s] Lvl:%d (%s) Score:%d, Star Coins:%d, Play Time:%.1fs, Saved:%s",
-                                slot, preview.character.c_str(), preview.levelId, preview.levelName.c_str(),
-                                preview.score, preview.starCoinsCount, preview.playTime, preview.timestamp.c_str());
-                } else {
-                    ImGui::Text("Slot %d: Empty", slot);
-                }
-
-                if (ImGui::Button("Save")) {
-                    if (player) {
-                        Serializer::saveGame(slot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
-                    }
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Load")) {
-                    std::unique_ptr<Player> loadedPlayer;
-                    int lvlId;
-                    std::string lvlName;
-                    float timeRem, checkX, checkY;
-                    std::vector<bool> starCoins;
-                    bool success = Serializer::loadGame(slot, loadedPlayer, lvlId, lvlName, timeRem, checkX, checkY, starCoins);
-                    if (success && loadedPlayer) {
-                        if (starCoins.size() >= 3) {
-                            m_starCoinsCollected = {starCoins[0], starCoins[1], starCoins[2]};
-                        }
-                        // adoptPlayer refreshes m_player, InputManager and Game.
-                        // Assigning m_entities[0] directly here left m_player dangling.
-                        adoptPlayer(std::move(loadedPlayer));
-                        Game::getInstance().setActiveSlot(slot);
-                        std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
-                    }
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Delete")) {
-                    Serializer::deleteSlot(slot);
-                }
-                ImGui::Separator();
-                ImGui::PopID();
-            }
-        }
-
-        // 3. Statistics Persistence Tab
-        if (ImGui::CollapsingHeader("Session & Overall Statistics")) {
-            const auto& stats = StatisticsTracker::getInstance().getStats();
-            ImGui::Text("Total Enemies Defeated: %d", stats.totalEnemiesDefeated);
-            ImGui::Text("Total Coins Collected: %d", stats.totalCoinsCollected);
-            ImGui::Text("Total Deaths: %d", stats.totalDeaths);
-            ImGui::Text("Total Time Played: %.1fs", stats.totalTimePlayed);
-            ImGui::Text("Highest Combo: %d", stats.highestCombo);
-            if (ImGui::Button("Reset Stats")) {
-                StatisticsTracker::getInstance().reset();
-            }
-        }
-
-        // 4. Achievements Persistence Tab
-        if (ImGui::CollapsingHeader("Achievements Monitor")) {
-            const auto& achievements = AchievementManager::getInstance().getAchievements();
-            int unlockedCount = 0;
-            for (const auto& a : achievements) {
-                if (a.unlocked) unlockedCount++;
-            }
-            ImGui::Text("Unlocked: %d / %d", unlockedCount, static_cast<int>(achievements.size()));
-            ImGui::Separator();
-            for (const auto& a : achievements) {
-                ImGui::Text("[%s] %s: %s (%s)",
-                            (a.unlocked ? "UNLOCKED" : "LOCKED"),
-                            a.name.c_str(),
-                            a.condition.c_str(),
-                            a.icon.c_str());
-            }
-        }
-
-        ImGui::Separator();
-        if (ImGui::Button("Reset Game Data (Lock all & wipe slot 1)")) {
-            AchievementManager::getInstance().reset();
-            StatisticsTracker::getInstance().reset();
-            Serializer::deleteSlot(1);
-        }
-        
-        ImGui::TextDisabled("\nSimulation Keyboard Testing Commands:\n"
-                            "- Num1: Collect coin     - Num2: Defeat enemy\n"
-                            "- Num3: Take damage      - Num4: Lose life/Die\n"
-                            "- Num5: Cross Checkpoint - Num6: Clear Level 3\n"
-                            "- Num7: Defeat Bowser    - Num8: Collect star coin\n"
-                            "- Num9: Find hidden block");
-
-        ImGui::End();
-
-        // --- Overlay Toast Notifications ---
-        const auto& toasts = AchievementManager::getInstance().getActiveToasts();
-        if (!toasts.empty()) {
-            ImGui::SetNextWindowPos(ImVec2(Constants::WINDOW_WIDTH - 320.0f, 20.0f), ImGuiCond_Always);
-            ImGui::SetNextWindowSize(ImVec2(300.0f, 80.0f * toasts.size()), ImGuiCond_Always);
-            ImGui::Begin("Achievements Toasts Overlay", nullptr,
-                         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                         ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBackground);
-            
-            for (const auto& toast : toasts) {
-                ImGui::PushStyleVar(ImGuiStyleVar_Alpha, toast.alpha);
-                ImGui::BeginChild(toast.id.c_str(), ImVec2(290, 70), true);
-                ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Achievement Unlocked!");
-                ImGui::Text("[%s] %s", toast.icon.c_str(), toast.name.c_str());
-                ImGui::EndChild();
-                ImGui::PopStyleVar();
-            }
-            ImGui::End();
-        }
     }
+
+    // Dev/debug ImGui surface. Issues ImGui calls only — every requested change
+    // is queued and applied by update(), so render() mutates no game state.
+    m_devPanel.draw(*this);
 }
 
 void PlayingState::setupTestScene() {
@@ -1232,6 +827,58 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     return true;
 }
 
+
+void PlayingState::regenerateProceduralLevel() {
+    MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+    for (auto& entity : m_entities) {
+        wireEntityAnimations(entity.get());
+    }
+
+    m_player = nullptr;
+    for (const auto& entity : m_entities) {
+        if (auto p = dynamic_cast<Player*>(entity.get())) {
+            m_player = p;
+            break;
+        }
+    }
+    if (m_player) {
+        InputManager::getInstance().registerPlayer(m_player, 0);
+        Game::getInstance().setPlayer(m_player);
+    }
+    m_camera.setBounds(AABB{0.0f, 0.0f,
+                            m_tileMap.getWidth() * Constants::TILE_SIZE,
+                            m_tileMap.getHeight() * Constants::TILE_SIZE});
+    if (m_minimap) m_minimap->initialize(m_tileMap);
+}
+
+void PlayingState::saveToSlot(int slot) {
+    if (!m_player) return;
+    Serializer::saveGame(slot, *m_player, 1, "Level 1", Constants::LEVEL_TIME,
+                         m_player->getPosition().x, m_player->getPosition().y,
+                         std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
+}
+
+void PlayingState::loadFromSlot(int slot) {
+    std::unique_ptr<Player> loadedPlayer;
+    int lvlId = 0;
+    std::string lvlName;
+    float timeRem = 0.0f, checkX = 0.0f, checkY = 0.0f;
+    std::vector<bool> starCoins;
+
+    if (!Serializer::loadGame(slot, loadedPlayer, lvlId, lvlName, timeRem, checkX, checkY, starCoins)
+        || !loadedPlayer) {
+        return;
+    }
+
+    if (starCoins.size() >= 3) {
+        m_starCoinsCollected = {starCoins[0], starCoins[1], starCoins[2]};
+    }
+    // adoptPlayer refreshes m_player, InputManager and Game together; assigning
+    // m_entities[0] directly here is what left m_player dangling (audit A-3).
+    adoptPlayer(std::move(loadedPlayer));
+    Game::getInstance().setActiveSlot(slot);
+    std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
+}
 
 void PlayingState::adoptPlayer(std::unique_ptr<Player> player) {
     if (!player) return;
