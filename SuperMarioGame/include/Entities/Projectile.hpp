@@ -2,6 +2,8 @@
 
 #include "Entities/Entity.hpp"
 
+class SpriteSheet;
+
 class Enemy;
 class Player;
 
@@ -32,4 +34,10 @@ public:
     // Called only when the matching damages*() returned true.
     virtual void onHitEnemy(Enemy& enemy) {}
     virtual void onHitPlayer(Player& player) {}
+
+    // Declared here so the animation dispatcher can wire any projectile without
+    // naming it. Hammer had this method already and nothing ever called it: the
+    // dispatcher tested Player/Enemy/Item/Block and hammers fell through to the
+    // "unknown entity type" branch, so a thrown hammer drew its placeholder.
+    virtual void setupAnimations(const SpriteSheet* spriteSheet) {}
 };

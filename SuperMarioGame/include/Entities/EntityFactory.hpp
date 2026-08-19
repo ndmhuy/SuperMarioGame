@@ -26,7 +26,8 @@ enum class EntityType {
     ChainChomp,
     Lakitu,
     Spiny,
-    Hammer,      // Hammer Bro projectile
+    Hammer,        // Hammer Bro projectile
+    BossFireball,  // Bowser's fire breath
     Bowser,
     BoomBoom,
 

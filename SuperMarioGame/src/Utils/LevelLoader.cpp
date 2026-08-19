@@ -1,4 +1,5 @@
 #include "Utils/LevelLoader.hpp"
+#include "Entities/Boss.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/SerializationUtils.hpp"
@@ -144,6 +145,22 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
             } else {
                 EntityType eType = SerializationUtils::parseEntityTypeName(typeStr);
                 entity = EntityFactory::create(eType, position);
+            }
+
+            // A boss carries the room it is fought in. Optional "arenaX" and
+            // "arenaW" are in tiles, like every other coordinate in this file;
+            // without them the arena is centred on the boss's own spawn, so a
+            // boss dropped into a level still gets a fight rather than pacing
+            // the whole map.
+            if (auto* boss = dynamic_cast<Boss*>(entity.get())) {
+                const float arenaTilesX = entityJson.value("arenaX", tx - 7.0f);
+                const float arenaTilesW = entityJson.value("arenaW", 15.0f);
+                boss->setArena(AABB{
+                    arenaTilesX * Constants::TILE_SIZE,
+                    0.0f,
+                    arenaTilesW * Constants::TILE_SIZE,
+                    static_cast<float>(height) * Constants::TILE_SIZE
+                });
             }
 
             if (entity) {

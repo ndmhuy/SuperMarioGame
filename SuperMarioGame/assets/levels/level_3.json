@@ -162,7 +162,7 @@
     },
     {
       "type": "flagpole",
-      "x": 185,
+      "x": 197,
       "y": 12
     },
     {
@@ -209,6 +209,13 @@
       "type": "spiny",
       "x": 162,
       "y": 20
+    },
+    {
+      "type": "bowser",
+      "x": 192,
+      "y": 19,
+      "arenaX": 181,
+      "arenaW": 15
     }
   ],
   "flagpole": {

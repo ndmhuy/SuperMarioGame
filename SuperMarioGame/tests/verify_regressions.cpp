@@ -29,6 +29,11 @@
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/Serializer.hpp"
+#include "Entities/Boss.hpp"
+#include "Entities/Bowser.hpp"
+#include "Entities/BossFireball.hpp"
+#include "Entities/Hammer.hpp"
+#include "Entities/Fireball.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -747,6 +752,119 @@ void testPowerUpFramesExistForEveryCharacter() {
           "and the derived Super/Fire/Cape frames are named as the mapping expects");
 }
 
+
+// --- Tier 2: bosses ----------------------------------------------------------
+
+void testProjectilesOnlyHurtWhatTheyShould() {
+    section("9.x  every projectile answers for who it may damage");
+
+    Fireball playerShot({0.0f, 0.0f}, {200.0f, 0.0f});
+    Hammer hammer({0.0f, 0.0f}, {200.0f, -300.0f});
+    BossFireball breath({0.0f, 0.0f}, {200.0f, 0.0f});
+
+    check(playerShot.damagesEnemies() && !playerShot.damagesPlayer(),
+          "the player's fireball kills enemies and not the player");
+    check(!hammer.damagesEnemies() && hammer.damagesPlayer(),
+          "a thrown hammer hurts the player only — it used to kill enemies, because "
+          "the resolver static_cast every projectile to Fireball");
+    check(!breath.damagesEnemies() && breath.damagesPlayer(),
+          "Bowser's fire breath hurts the player only");
+
+    // The resolver's static_cast<Projectile&> is only sound while this category
+    // means exactly "is a Projectile".
+    check(playerShot.getCategory() == EntityCategory::Projectile &&
+          hammer.getCategory() == EntityCategory::Projectile &&
+          breath.getCategory() == EntityCategory::Projectile,
+          "and all three report the Projectile category the resolver dispatches on");
+}
+
+void testBowserTakesFiveHitsAndChangesPhase() {
+    section("9.3  Bowser is a five-hit fight with a phase change at half health");
+
+    Bowser bowser({100.0f, 100.0f});
+    check(bowser.getMaxHealth() == 5, "five hits, not one");
+    check(bowser.getPhase() == 1, "starts in phase 1");
+
+    int defeatedEvents = 0;
+    const auto sub = EventBus::getInstance().subscribe(
+        EventType::BossDefeated, [&defeatedEvents](const GameEvent&) { ++defeatedEvents; });
+
+    // Fire does nothing: he breathes it.
+    bowser.onHitByFireball();
+    check(bowser.getHealth() == 5, "immune to fireballs");
+
+    auto stompAndSettle = [&bowser]() {
+        bowser.onStomped();
+        // Past the i-frames, so the next stomp is a separate hit.
+        for (int i = 0; i < 70; ++i) bowser.update(1.0f / 60.0f);
+    };
+
+    stompAndSettle();
+    check(bowser.getHealth() == 4, "a stomp costs exactly one health");
+    stompAndSettle();
+    check(bowser.getPhase() == 1, "still phase 1 above half health");
+    stompAndSettle();
+    check(bowser.getPhase() == 2, "phase 2 once health drops to half");
+
+    stompAndSettle();
+    stompAndSettle();
+    check(bowser.isDefeated(), "five hits defeat him");
+    check(defeatedEvents == 1, "BossDefeated is published exactly once");
+
+    // The defeat sequence has to finish before he is removed, or the health bar
+    // vanishes the instant the last hit lands.
+    for (int i = 0; i < 200; ++i) bowser.update(1.0f / 60.0f);
+    check(!bowser.isActive(), "and he is removed once the defeat animation ends");
+
+    EventBus::getInstance().unsubscribe(sub);
+}
+
+void testBossInvulnerabilityWindowStopsDoubleCounting() {
+    section("9.x  contact damage across frames counts as one hit");
+
+    Bowser bowser({100.0f, 100.0f});
+    // A stomp overlaps for several frames; without i-frames each frame was a hit
+    // and the whole bar drained at once.
+    for (int i = 0; i < 10; ++i) {
+        bowser.onStomped();
+        bowser.update(1.0f / 60.0f);
+    }
+    check(bowser.getHealth() == 4, "ten overlapping frames cost one health, not ten");
+}
+
+void testLevelThreeActuallyContainsItsBoss() {
+    section("9.3  the level named after Bowser contains Bowser, with an arena");
+
+    TileMap map;
+    LevelData data;
+    LevelLoader loader;
+    const std::string path = levelPath("level_3.json");
+    if (!loader.loadLevel(path, map, data)) {
+        check(false, "level_3.json loads");
+        return;
+    }
+
+    Boss* boss = nullptr;
+    for (const auto& entity : data.entities) {
+        if (auto* b = dynamic_cast<Boss*>(entity.get())) boss = b;
+    }
+    check(boss != nullptr, "Bowser's Castle Fortress contains a boss");
+    if (!boss) return;
+
+    check(boss->getDisplayName() == "BOWSER", "and it is Bowser");
+    check(boss->hasArena(), "with an arena to fight him in");
+    check(boss->getArena().width > 0.0f && boss->getArena().height > 0.0f,
+          "whose bounds are real, so the camera lock has something to clamp to");
+
+    // The arena has to gate the flagpole, or the fight is optional.
+    float flagpoleX = -1.0f;
+    for (const auto& entity : data.entities) {
+        if (entity && entity->getTypeName() == "flagpole") flagpoleX = entity->getPosition().x;
+    }
+    check(flagpoleX > boss->getArena().x,
+          "and the flagpole sits past it, so Bowser cannot be walked around");
+}
+
 } // namespace
 
 int main() {
@@ -777,6 +895,10 @@ int main() {
     testHighScoreTableIsSortedAndBounded();
     testFlagpoleFramesExist();
     testPowerUpFramesExistForEveryCharacter();
+    testProjectilesOnlyHurtWhatTheyShould();
+    testBowserTakesFiveHitsAndChangesPhase();
+    testBossInvulnerabilityWindowStopsDoubleCounting();
+    testLevelThreeActuallyContainsItsBoss();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

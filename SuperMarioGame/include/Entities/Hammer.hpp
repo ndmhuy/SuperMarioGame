@@ -30,7 +30,7 @@ public:
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
-    void setupAnimations(const SpriteSheet* spriteSheet);
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     // Hammers pass through terrain — they are thrown over gaps and platforms.
     bool collidesWithTiles() const override { return false; }

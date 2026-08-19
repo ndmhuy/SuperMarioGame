@@ -98,6 +98,8 @@ EntityType parseEntityTypeName(const std::string& name) {
     if (name == "boo") return EntityType::Boo;
     if (name == "lakitu") return EntityType::Lakitu;
     if (name == "spiny") return EntityType::Spiny;
+    if (name == "bowser") return EntityType::Bowser;
+    if (name == "boom_boom" || name == "boomboom") return EntityType::BoomBoom;
 
     if (name == "mushroom") return EntityType::Mushroom;
     if (name == "fire_flower") return EntityType::FireFlower;

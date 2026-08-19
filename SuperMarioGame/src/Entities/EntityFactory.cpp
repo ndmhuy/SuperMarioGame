@@ -19,7 +19,6 @@
 #include "Entities/Lakitu.hpp"
 #include "Entities/Spiny.hpp"
 #include "Entities/Hammer.hpp"
-// Note: Bowser.hpp and BoomBoom.hpp are not yet created in the project, so they are not included here.
 
 #include "Entities/Mushroom.hpp"
 #include "Entities/FireFlower.hpp"
@@ -39,6 +38,8 @@
 #include "Entities/Pipe.hpp"
 #include "Entities/Flagpole.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Bowser.hpp"
+#include "Entities/BossFireball.hpp"
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/FallingPlatform.hpp"
@@ -83,9 +84,13 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
         case EntityType::Hammer:
             // Velocity is applied by the spawn listener after construction.
             return std::make_unique<Hammer>(position, sf::Vector2f(0.0f, 0.0f));
+        case EntityType::BossFireball:
+            // Velocity is applied by the spawn listener after construction.
+            return std::make_unique<BossFireball>(position, sf::Vector2f(0.0f, 0.0f));
         case EntityType::Bowser:
+            return std::make_unique<Bowser>(position);
         case EntityType::BoomBoom:
-            // Bowser and BoomBoom are not yet implemented in the codebase
+            // Boom Boom (task 9.2) is not implemented yet.
             return nullptr;
 
         // --- ITEMS ---

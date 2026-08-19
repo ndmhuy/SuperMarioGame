@@ -6,6 +6,7 @@
 #include "Core/GameOverState.hpp"
 #include "Utils/LevelCatalog.hpp"
 #include "Entities/Boss.hpp"
+#include "Entities/Projectile.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -1256,6 +1257,11 @@ void PlayingState::wireEntityAnimations(Entity* entity) {
         if (m_playerSheet) p->setupAnimations(m_playerSheet.get());
     } else if (auto* e = dynamic_cast<Enemy*>(entity)) {
         if (m_enemySheet) e->setupAnimations(m_enemySheet.get());
+    } else if (auto* proj = dynamic_cast<Projectile*>(entity)) {
+        // Hammers and Bowser's fire breath both live in the enemy/projectile
+        // atlas. One branch covers every projectile, so a new one is wired by
+        // existing.
+        if (m_enemySheet) proj->setupAnimations(m_enemySheet.get());
     } else if (dynamic_cast<StarCoin*>(entity)) {
         // StarCoin's big_coin_0/1/2 frames live in world_scenery_item, not item atlas
         if (auto* sc = dynamic_cast<Item*>(entity)) {
