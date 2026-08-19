@@ -52,8 +52,11 @@ sf::Texture &ResourceManager::getTexture(const std::string &id) {
     std::cerr << "[ResourceManager] Texture not found: " << id << std::endl;
     m_reportedMissing.insert("texture:" + id);
   }
-  static sf::Texture dummy;
-  return dummy;
+  // The placeholder lives in the map, not in a function-local static. A static
+  // sf::Texture is destroyed *after* the graphics context, which aborts the
+  // process during static destruction; keeping it here means clear() releases it
+  // while the context is still alive.
+  return m_textures[id];
 }
 
 bool ResourceManager::loadFont(const std::string &id, const std::string &path) {
@@ -79,8 +82,9 @@ sf::Font &ResourceManager::getFont(const std::string &id) {
     std::cerr << "[ResourceManager] Font not found: " << id << std::endl;
     m_reportedMissing.insert("font:" + id);
   }
-  static sf::Font dummy;
-  return dummy;
+  // Placeholder kept in the map for the same reason as getTexture(): sf::Font
+  // owns a glyph texture, and a function-local static one outlives the context.
+  return m_fonts[id];
 }
 
 bool ResourceManager::loadSoundBuffer(const std::string &id,
@@ -107,8 +111,8 @@ sf::SoundBuffer &ResourceManager::getSoundBuffer(const std::string &id) {
     std::cerr << "[ResourceManager] SoundBuffer not found: " << id << std::endl;
     m_reportedMissing.insert("sound:" + id);
   }
-  static sf::SoundBuffer dummy;
-  return dummy;
+  // Placeholder kept in the map, so shutdown order stays under our control.
+  return m_soundBuffers[id];
 }
 
 void ResourceManager::clear() {

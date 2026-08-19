@@ -107,11 +107,9 @@ void Game::run() {
             if (event->is<sf::Event::Closed>()) {
                 quit();
             }
-            else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyPressed->code == sf::Keyboard::Key::Escape) {
-                    quit();
-                }
-            }
+            // Escape used to quit the process from anywhere. It is now the
+            // pause key, so quitting is a decision the states own: the pause
+            // menu and the main menu both offer it explicitly.
         }
 
         // 2. Fixed Timestep Update
@@ -176,10 +174,9 @@ void Game::shutdown() {
     // Save configuration settings
     Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
 
-    // Pop all remaining game states before shutting down window and managers
-    while (!m_gsm.isEmpty()) {
-        m_gsm.popState();
-    }
+    // Tear the stack down immediately — pushState/popState are deferred to a
+    // frame boundary, and there are no more frames.
+    m_gsm.clearStates();
 
     m_player = nullptr;
     m_tileMap = nullptr;
@@ -188,6 +185,15 @@ void Game::shutdown() {
     StatisticsTracker::getInstance().shutdown();
     AchievementManager::getInstance().shutdown();
     SoundManager::getInstance().shutdown();
+
+    // Release every SFML resource the ResourceManager is holding *before* the
+    // window (and with it the graphics context) goes away. Without this the
+    // singleton's sf::Texture and sf::Font objects were destroyed during static
+    // destruction, after the context — which aborted the process on exit with
+    // "mutex lock failed". The game printed its whole shutdown and then died
+    // with SIGABRT, so nothing in the log ever showed it.
+    ResourceManager::getInstance().clear();
+
     ImGui::SFML::Shutdown();
 
     // Explicitly close window before static destructors run
