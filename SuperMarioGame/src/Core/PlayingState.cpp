@@ -5,6 +5,7 @@
 #include "Core/VictoryState.hpp"
 #include "Core/GameOverState.hpp"
 #include "Utils/LevelCatalog.hpp"
+#include "Entities/Boss.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -541,6 +542,10 @@ void PlayingState::update(float dt) {
         }
     }
 
+    // 3g. Boss arena. Runs before the camera follows, so the lock is in place
+    // for this frame rather than one frame late.
+    updateBossArena();
+
     // 4. Update Camera & Screen Transitions
     if (m_player) {
         m_camera.follow(m_player->getPosition(), dt);
@@ -581,6 +586,7 @@ void PlayingState::update(float dt) {
             hudData.characterName = "mario";
             hudData.starCoinsCollected = {true, true, false}; // 2 out of 3 collected
         }
+        syncBossHud(hudData);
         m_hud->sync(hudData);
     }
 
@@ -887,6 +893,8 @@ void PlayingState::setupTestScene() {
         spawnSelectedPlayer(m_levelSpawnPoint);
         m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
     }
+
+    findActiveBoss();
 }
 
 void PlayingState::cleanupTestScene() {
@@ -946,6 +954,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     Game::getInstance().setTileMap(&m_tileMap);
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+    findActiveBoss();
 
     std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;
     return true;
@@ -1002,6 +1011,76 @@ void PlayingState::loadFromSlot(int slot) {
     adoptPlayer(std::move(loadedPlayer));
     Game::getInstance().setActiveSlot(slot);
     std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
+}
+
+void PlayingState::findActiveBoss() {
+    m_activeBoss = nullptr;
+    m_arenaLocked = false;
+    for (const auto& entity : m_entities) {
+        if (auto* boss = dynamic_cast<Boss*>(entity.get())) {
+            m_activeBoss = boss;
+            break;   // one boss per level; the SPEC has no fight with two
+        }
+    }
+    if (m_activeBoss) {
+        std::cout << "[PlayingState] Boss in this level: "
+                  << m_activeBoss->getDisplayName() << std::endl;
+    }
+}
+
+void PlayingState::updateBossArena() {
+    // The boss entity is owned by m_entities and pruned when it deactivates, so
+    // the pointer has to be dropped in the same frame it stops being active.
+    if (m_activeBoss && !m_activeBoss->isActive()) {
+        if (m_arenaLocked) {
+            m_camera.setBounds(m_preArenaCameraBounds);
+            m_arenaLocked = false;
+            std::cout << "[PlayingState] Boss arena released." << std::endl;
+        }
+        m_activeBoss = nullptr;
+    }
+
+    if (!m_activeBoss || !m_player || !m_activeBoss->hasArena()) return;
+
+    const AABB arena = m_activeBoss->getArena();
+
+    if (!m_arenaLocked) {
+        // Lock once the player is properly inside, not the instant they clip the
+        // edge, so the camera does not snap while they are still walking in.
+        const sf::Vector2f p = m_player->getPosition();
+        if (p.x > arena.x + Constants::TILE_SIZE && p.x < arena.x + arena.width) {
+            m_preArenaCameraBounds = m_camera.getBounds();
+            m_camera.setBounds(arena);
+            m_arenaLocked = true;
+            SoundManager::getInstance().playMusic("bowser_boss_battle");
+            std::cout << "[PlayingState] Boss arena locked: " << m_activeBoss->getDisplayName()
+                      << std::endl;
+        }
+        return;
+    }
+
+    // "No escape until defeated" (SPEC 6.4): hold the player inside the arena.
+    // Clamping the position rather than adding walls keeps this out of the
+    // physics engine, which knows nothing about bosses.
+    const AABB box = m_player->getBoundingBox();
+    sf::Vector2f p = m_player->getPosition();
+    if (p.x < arena.x) {
+        p.x = arena.x;
+    } else if (p.x + box.width > arena.x + arena.width) {
+        p.x = arena.x + arena.width - box.width;
+    }
+    m_player->setPosition(p);
+}
+
+void PlayingState::syncBossHud(HudData& hudData) const {
+    if (!m_activeBoss || !m_arenaLocked) {
+        hudData.bossActive = false;
+        return;
+    }
+    hudData.bossActive    = true;
+    hudData.bossName      = m_activeBoss->getDisplayName();
+    hudData.bossHealth    = m_activeBoss->getHealth();
+    hudData.bossMaxHealth = m_activeBoss->getMaxHealth();
 }
 
 void PlayingState::killPlayer(const char* reason) {

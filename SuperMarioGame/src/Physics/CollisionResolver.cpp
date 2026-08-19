@@ -8,6 +8,7 @@
 #include "Entities/Trampoline.hpp"
 #include "Entities/PSwitch.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/KoopaTroopa.hpp"
 #include "Entities/KoopaTroopa.hpp"
@@ -117,23 +118,25 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
             resolveItemVsBlock(static_cast<Item&>(e2), static_cast<Block&>(e1), flipped());
             return;
 
+        // Every Projectile answers for itself who it may hurt, so these four
+        // cases name no concrete projectile type. They used to static_cast
+        // straight to Fireball, which meant a thrown hammer killed enemies.
         case (static_cast<int>(EntityCategory::Projectile) << 8) | static_cast<int>(EntityCategory::Enemy):
-            resolveFireballVsEnemy(static_cast<Fireball&>(e1), static_cast<Enemy&>(e2), info);
+            resolveProjectileVsEnemy(static_cast<Projectile&>(e1), static_cast<Enemy&>(e2));
             return;
         case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Projectile):
-            resolveFireballVsEnemy(static_cast<Fireball&>(e2), static_cast<Enemy&>(e1), flipped());
+            resolveProjectileVsEnemy(static_cast<Projectile&>(e2), static_cast<Enemy&>(e1));
             return;
 
         case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Enemy):
             resolveEnemyVsEnemy(static_cast<Enemy&>(e1), static_cast<Enemy&>(e2));
             return;
 
-        // A thrown hammer damages the player; it passes through everything else.
         case (static_cast<int>(EntityCategory::Projectile) << 8) | static_cast<int>(EntityCategory::Player):
-            if (auto* hammer = dynamic_cast<Hammer*>(&e1)) hammer->onHitPlayer(static_cast<Player&>(e2));
+            resolveProjectileVsPlayer(static_cast<Projectile&>(e1), static_cast<Player&>(e2));
             return;
         case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Projectile):
-            if (auto* hammer = dynamic_cast<Hammer*>(&e2)) hammer->onHitPlayer(static_cast<Player&>(e1));
+            resolveProjectileVsPlayer(static_cast<Projectile&>(e2), static_cast<Player&>(e1));
             return;
 
         default:
@@ -328,11 +331,16 @@ void CollisionResolver::resolveEnemyVsEnemy(Enemy& a, Enemy& b) {
     // Two ordinary walkers just ignore each other, as in the original games.
 }
 
-void CollisionResolver::resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy, const CollisionInfo& info) {
-    if (fireball.isActive() && enemy.isActive()) {
-        enemy.onHitByFireball();
-        fireball.destroy();
-    }
+void CollisionResolver::resolveProjectileVsEnemy(Projectile& projectile, Enemy& enemy) {
+    if (!projectile.isActive() || !enemy.isActive()) return;
+    if (!projectile.damagesEnemies()) return;   // a thrown hammer passes through
+    projectile.onHitEnemy(enemy);
+}
+
+void CollisionResolver::resolveProjectileVsPlayer(Projectile& projectile, Player& player) {
+    if (!projectile.isActive() || !player.isActive()) return;
+    if (!projectile.damagesPlayer()) return;    // the player's own fireball
+    projectile.onHitPlayer(player);
 }
 
 void CollisionResolver::resolveItemVsBlock(Item& item, Block& block, const CollisionInfo& info) {

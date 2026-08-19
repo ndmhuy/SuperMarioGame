@@ -1,17 +1,21 @@
 #pragma once
 
-#include "Entities/Entity.hpp"
+#include "Entities/Projectile.hpp"
 
 class Enemy;
 
-class Fireball : public Entity {
+// The player's fire-flower shot: bounces along the ground and kills what it
+// touches. Harmless to the player who threw it.
+class Fireball : public Projectile {
 public:
     Fireball(sf::Vector2f pos, sf::Vector2f vel);
     ~Fireball() override = default;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
-    EntityCategory getCategory() const override { return EntityCategory::Projectile; }
+
+    bool damagesEnemies() const override { return true; }
+    void onHitEnemy(Enemy& enemy) override;
 
     float getLifetime() const { return m_lifetime; }
     int getBouncesLeft() const { return m_bouncesLeft; }

@@ -1,16 +1,18 @@
 #include "Entities/Fireball.hpp"
+#include "Entities/Enemy.hpp"
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
 
 Fireball::Fireball(sf::Vector2f pos, sf::Vector2f vel)
-    : Entity() {
-    position = pos;
-    velocity = vel;
-    boundingBox.x = pos.x;
-    boundingBox.y = pos.y;
     // Collision box is deliberately smaller than the drawn flame.
-    setTargetSize({12.0f, 12.0f});
+    : Projectile(pos, {12.0f, 12.0f}) {
+    velocity = vel;
+}
+
+void Fireball::onHitEnemy(Enemy& enemy) {
+    enemy.onHitByFireball();
+    destroy();
 }
 
 void Fireball::bounce() {

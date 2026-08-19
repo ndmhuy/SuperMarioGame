@@ -35,6 +35,9 @@ public:
     // Follow target & set bounds
     void follow(const sf::Vector2f& target, float dt);
     void setBounds(const AABB& bounds);
+    // Needed so a caller that swaps the bounds temporarily — the boss arena —
+    // can put back what was there without recomputing it from the tilemap.
+    const AABB& getBounds() const;
 
     // View & bounds accessors
     sf::View& getView();

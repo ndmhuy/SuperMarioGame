@@ -20,6 +20,8 @@
 #include "Utils/MapGenerator.hpp"
 #include "Core/GameOverState.hpp"
 
+class Boss;
+
 class Entity;
 class Player;
 
@@ -110,6 +112,23 @@ private:
     EventBus::SubscriptionId m_blockBrokenSubId   = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_coinParticleSubId  = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_playerDamagedSubId = static_cast<EventBus::SubscriptionId>(-1);
+
+    // --- Boss fights ---------------------------------------------------
+    // The boss in this level, or null. Found once when the level loads rather
+    // than searched for every frame; cleared when it is removed.
+    Boss* m_activeBoss = nullptr;
+    // True once the player has crossed into the boss arena and the camera is
+    // locked to it.
+    bool m_arenaLocked = false;
+    // The camera bounds to put back when the fight ends.
+    AABB m_preArenaCameraBounds;
+
+    // Latch onto whatever boss the freshly loaded level contains.
+    void findActiveBoss();
+    // Lock on arena entry, keep the player inside, release when the boss dies.
+    void updateBossArena();
+    // Fill the HUD's boss fields, which have had no producer until now.
+    void syncBossHud(HudData& hudData) const;
 
     // True while an overlay state sits above this one.
     bool m_suspended = false;

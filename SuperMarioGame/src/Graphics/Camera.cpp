@@ -54,6 +54,10 @@ void Camera::setBounds(const AABB& bounds) {
     m_bounds = bounds;
 }
 
+const AABB& Camera::getBounds() const {
+    return m_bounds;
+}
+
 sf::View& Camera::getView() {
     return m_view;
 }
