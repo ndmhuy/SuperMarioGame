@@ -105,5 +105,20 @@ void MegaDecorator::update(Player& player, float dt) {
 }
 
 sf::Vector2f MegaDecorator::getSize() const {
-    return sf::Vector2f{128.0f, 128.0f};
+    // SPEC 6.x gives Mega as "4 tiles (128px)" — a height, like every other row
+    // of that table. This returned a 128x128 *square*, and nothing the player
+    // can be is square: every form is 24 wide. drawSprite aspect-fits, so the
+    // sprite came out ~39px wide inside a 128px box and the player collided
+    // with things 45px to either side of where they appeared. Swapping the base
+    // form underneath Mega — a Fire Flower while giant — made that obvious as a
+    // stretched "big fire" figure adrift in its own hitbox.
+    //
+    // Scaling the wrapped form to that height instead keeps the box on the
+    // sprite whatever Mega is wrapping.
+    constexpr float MEGA_HEIGHT = 128.0f;
+    const sf::Vector2f base = PlayerStateDecorator::getSize();
+    if (base.y <= 0.0f) {
+        return sf::Vector2f{MEGA_HEIGHT * 0.4f, MEGA_HEIGHT};
+    }
+    return sf::Vector2f{base.x * (MEGA_HEIGHT / base.y), MEGA_HEIGHT};
 }

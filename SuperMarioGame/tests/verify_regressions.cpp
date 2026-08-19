@@ -1291,9 +1291,25 @@ void testMegaShrinksBackDown() {
     check(superSize.y > smallSize.y, "Super is taller than Small");
 
     mario.powerUp(5); // Mega
-    check(mario.getTargetSize().y > superSize.y, "Mega is bigger again");
-    check(mario.getBoundingBox().height == mario.getTargetSize().y,
+    const sf::Vector2f megaSize = mario.getTargetSize();
+    check(megaSize.y > superSize.y, "Mega is bigger again");
+    check(mario.getBoundingBox().height == megaSize.y,
           "and the collision box grew with the sprite, not just the sprite");
+    check(megaSize.y == 128.0f, "Mega is 4 tiles tall, as the SPEC says");
+
+    // It used to be a 128x128 square. Nothing the player can be is square, so
+    // the sprite aspect-fitted to ~39px inside a 128px box and the player
+    // collided with things 45px to either side of where they appeared.
+    const float megaAspect = megaSize.x / megaSize.y;
+    const float superAspect = superSize.x / superSize.y;
+    check(std::abs(megaAspect - superAspect) < 0.01f,
+          "and keeps the shape of the form it wraps rather than becoming a square");
+
+    // Swapping the base form under Mega is what made this visible: a Fire
+    // Flower while giant produced a stretched figure adrift in its own hitbox.
+    mario.powerUp(1); // FireFlower, underneath the active Mega
+    check(mario.getTargetSize() == megaSize,
+          "collecting a power-up while Mega keeps the giant size proportional");
 
     // The existing Mega test only checked the state type — a size that never
     // came back down would have passed it.
