@@ -21,7 +21,8 @@
 namespace {
 
 // Main-menu rows, in display order.
-enum MainRow { ROW_START = 0, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
+enum MainRow { ROW_START = 0, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
+               ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
 constexpr int kThemeCount = 4;
@@ -64,6 +65,7 @@ void MenuState::enter() {
     // The New Game+ cycle is shown on the start row, so a player can see the
     // campaign has reset rather than wondering why 1-2 is locked again.
     m_mainItems.emplace_back("START GAME", MetaGame::newGamePlusLabel());
+    m_mainItems.emplace_back("2P VERSUS", "WASD / ARROWS");
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
@@ -140,6 +142,14 @@ void MenuState::activateSelection() {
             case ROW_START:
                 m_dismissed = true;
                 game.changeState(std::make_unique<CharacterSelectState>(false, false));
+                break;
+            case ROW_VERSUS:
+                // Straight into 1-1: versus is a score race on one level, and
+                // routing it through the world map would imply a shared campaign
+                // that the two players do not have.
+                m_dismissed = true;
+                game.changeState(std::make_unique<PlayingState>(
+                    false, false, MapGeneratorConfig(), 0, 0, /*twoPlayer=*/true));
                 break;
             case ROW_DAILY: {
                 // Date-seeded, so everyone playing today gets the same level —

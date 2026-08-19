@@ -13,6 +13,7 @@
 #include "Utils/SerializationUtils.hpp"
 #include "Utils/Constants.hpp"
 #include "Entities/Mario.hpp"
+#include "Entities/Luigi.hpp"
 #include "Entities/IPlayerState.hpp"
 #include "Core/GameSnapshot.hpp"
 #include "Entities/KoopaTroopa.hpp"
@@ -1826,6 +1827,39 @@ void testReplayRecordsThinsAndPlaysBack() {
     replay.clear();
 }
 
+
+void testTwoPlayerBindingsAreIndependent() {
+    section("11.1  Player 2 has its own controls, separate from Player 1");
+
+    InputManager& input = InputManager::getInstance();
+    input.resetBindingsToDefaults(0);
+    input.resetBindingsToDefaults(1);
+
+    // Player 2's bindings have existed since InputManager was written and
+    // nothing had ever registered a second player against them.
+    check(input.getBoundKeyName("left", 0) == "A", "P1 moves on A");
+    check(input.getBoundKeyName("left", 1) == "Left", "P2 moves on the arrow keys");
+    check(input.getBoundKeyName("jump", 0) != input.getBoundKeyName("jump", 1),
+          "and the two never share a jump key");
+
+    // Rebinding one player must not disturb the other.
+    input.applyBindings({{"jump", "J"}}, 0);
+    check(input.getBoundKeyName("jump", 0) == "J", "P1 rebinds");
+    check(input.getBoundKeyName("jump", 1) == "Up", "and P2 is untouched");
+
+    Mario p1({0.0f, 0.0f});
+    Luigi p2({48.0f, 0.0f});
+    input.registerPlayer(&p1, 0);
+    input.registerPlayer(&p2, 1);
+    check(input.getPlayer(0) == &p1 && input.getPlayer(1) == &p2,
+          "both players register against their own slot");
+    check(input.getPlayer(0) != input.getPlayer(1), "and they are genuinely two players");
+
+    input.resetBindingsToDefaults(0);
+    input.registerPlayer(nullptr, 0);
+    input.registerPlayer(nullptr, 1);
+}
+
 } // namespace
 
 int main() {
@@ -1889,6 +1923,7 @@ int main() {
     testDailyChallengeIsTheSameForEveryone();
     testDebugConsoleDispatchesCommands();
     testReplayRecordsThinsAndPlaysBack();
+    testTwoPlayerBindingsAreIndependent();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

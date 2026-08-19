@@ -20,6 +20,7 @@
 #include "Graphics/PipeRenderer.hpp"
 #include "Graphics/EntityDeathEffect.hpp"
 #include "Graphics/ColorPalette.hpp"
+#include "Graphics/UiRenderer.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Enemy.hpp"
 #include "Entities/Item.hpp"
@@ -62,10 +63,11 @@
 
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
-                           int characterIndex, int levelIndex)
+                           int characterIndex, int levelIndex, bool twoPlayer)
     : m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
-      m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
+      m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_twoPlayer(twoPlayer),
+      m_genConfig(genConfig) {}
 
 PlayingState::~PlayingState() {
     exit();
@@ -475,8 +477,9 @@ void PlayingState::update(float dt) {
     // These are polled from the keyboard rather than driven by events, so the
     // console's event filter does not cover them: typing "difficulty hard" would
     // otherwise walk the player right on every "d".
-    if (m_player && !DebugConsole::getInstance().isVisible()) {
-        InputManager::getInstance().update(*m_player);
+    if (!DebugConsole::getInstance().isVisible()) {
+        if (m_player)  InputManager::getInstance().update(*m_player);
+        if (m_player2) InputManager::getInstance().update(*m_player2);
     }
 
     // 3. Update all active entities
@@ -528,7 +531,19 @@ void PlayingState::update(float dt) {
     const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
     if (m_player && m_player->getPosition().y > bottomVoidY) {
         killPlayer("fell into the void");
-        if (m_player->getLives() <= 0) return;
+        if (allPlayersOut()) return;
+    }
+    // Player 2 falls into the same void.
+    if (m_player2 && m_player2->getPosition().y > bottomVoidY) {
+        SoundManager::getInstance().playSound("lost_life");
+        m_player2->loseLife();
+        if (m_player2->getLives() > 0) {
+            m_player2->setPosition(m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint);
+            m_player2->setVelocity({0.0f, 0.0f});
+        } else if (allPlayersOut()) {
+            killPlayer("both players are out");
+            return;
+        }
     }
 
     // 3d. Warp Pipe check for sub-level transitions or teleportation
@@ -584,7 +599,9 @@ void PlayingState::update(float dt) {
     updateBossArena();
 
     // 4. Update Camera & Screen Transitions
-    if (m_player) {
+    if (m_player2) {
+        updateVersusCamera(dt);
+    } else if (m_player) {
         // Velocity drives the lookahead (task 4.3): the camera leads the player
         // in the direction they are running.
         m_camera.follow(m_player->getPosition(), m_player->getVelocity(), dt);
@@ -859,6 +876,8 @@ void PlayingState::render(sf::RenderTarget& target) {
             target.draw(*m_minimap);
         }
 
+        renderVersusHud(target);
+
         if (m_rewindManager.isRewinding()) {
             // Full-screen cyan vignette scanline filter overlay
             sf::RectangleShape rewindOverlay(sf::Vector2f(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT));
@@ -964,6 +983,27 @@ void PlayingState::setupTestScene() {
         m_hasCheckpoint = false;
         spawnSelectedPlayer(m_levelSpawnPoint);
         m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
+    }
+
+    // Player 2 joins beside Player 1. Character is whichever of Mario/Luigi
+    // Player 1 did not take, so the two are always visually distinct.
+    if (m_twoPlayer && m_player) {
+        const sf::Vector2f spawn = m_player->getPosition() + sf::Vector2f(48.0f, 0.0f);
+        std::unique_ptr<Player> second = (m_selectedCharIndex == 1)
+            ? std::unique_ptr<Player>(std::make_unique<Mario>(spawn))
+            : std::unique_ptr<Player>(std::make_unique<Luigi>(spawn));
+        second->restoreStats(Game::getInstance().difficulty().startingLives(), 0, 0);
+
+        m_player2 = second.get();
+        admitEntity(m_player2);
+        m_entities.push_back(std::move(second));
+
+        // Player 2's bindings (arrows, M, N) have existed in InputManager since
+        // it was written; nothing had ever registered a second player against
+        // them (task 11.1).
+        InputManager::getInstance().registerPlayer(m_player2, 1);
+        std::cout << "[PlayingState] Two-player versus: P2 is "
+                  << m_player2->getCharacterName() << std::endl;
     }
 
     findActiveBoss();
@@ -1091,6 +1131,78 @@ void PlayingState::loadFromSlot(int slot) {
     std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
 }
 
+void PlayingState::updateVersusCamera(float dt) {
+    if (!m_player || !m_player2) return;
+
+    // Frame the midpoint, so neither player is privileged.
+    const sf::Vector2f a = m_player->getPosition();
+    const sf::Vector2f b = m_player2->getPosition();
+    const sf::Vector2f midpoint{(a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f};
+
+    // No lookahead here: with two players the frame is already a compromise, and
+    // biasing it towards one player's direction of travel makes it lurch.
+    m_camera.follow(midpoint, sf::Vector2f{0.0f, 0.0f}, dt);
+
+    // The tether. Whoever falls behind is shoved along at the screen edge rather
+    // than being left behind, which is what stops one player dragging the other
+    // out of the level — the alternative is split screen, and every screen-space
+    // overlay in the game would need to learn about viewports.
+    const AABB view = m_camera.getVisibleBounds();
+    const float margin = Constants::TILE_SIZE;
+    for (Player* player : {m_player, m_player2}) {
+        if (!player) continue;
+        const AABB box = player->getBoundingBox();
+        sf::Vector2f position = player->getPosition();
+        bool moved = false;
+
+        if (position.x < view.x + margin) {
+            position.x = view.x + margin;
+            moved = true;
+        } else if (position.x + box.width > view.x + view.width - margin) {
+            position.x = view.x + view.width - margin - box.width;
+            moved = true;
+        }
+        if (moved) {
+            player->setPosition(position);
+            // Kill the horizontal velocity too, or the player grinds against the
+            // edge with their run animation playing and never actually moves.
+            player->setVelocity({0.0f, player->getVelocity().y});
+        }
+    }
+}
+
+bool PlayingState::allPlayersOut() const {
+    const bool oneOut = !m_player || m_player->getLives() <= 0;
+    const bool twoOut = !m_player2 || m_player2->getLives() <= 0;
+    return oneOut && twoOut;
+}
+
+void PlayingState::renderVersusHud(sf::RenderTarget& target) const {
+    if (!m_player2 || !m_player) return;
+
+    // Deliberately drawn here rather than inside Hud: HudData describes one
+    // player, and widening it would push two-player concerns into every
+    // single-player HUD field.
+    const std::string p1 = "P1 " + std::to_string(m_player->getScore()) +
+                           "  x" + std::to_string(m_player->getLives());
+    const std::string p2 = "P2 " + std::to_string(m_player2->getScore()) +
+                           "  x" + std::to_string(m_player2->getLives());
+
+    UiRenderer::drawText(target, p1, {24.0f, Constants::WINDOW_HEIGHT - 56.0f}, 12,
+                         ColorPalette::get(ColorPalette::Role::Player));
+    UiRenderer::drawText(target, p2, {24.0f, Constants::WINDOW_HEIGHT - 34.0f}, 12,
+                         ColorPalette::get(ColorPalette::Role::Item));
+
+    // Who is winning, which is the whole point of versus.
+    const int lead = m_player->getScore() - m_player2->getScore();
+    const std::string status = (lead == 0) ? "TIED"
+                             : (lead > 0)  ? "P1 LEADS BY " + std::to_string(lead)
+                                           : "P2 LEADS BY " + std::to_string(-lead);
+    UiRenderer::drawText(target, status,
+                         {Constants::WINDOW_WIDTH * 0.5f, Constants::WINDOW_HEIGHT - 34.0f},
+                         12, sf::Color(255, 216, 0), true);
+}
+
 void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
     m_levelTimer = snapshot.levelTimer;
     m_camera.snapTo(snapshot.cameraCenter);
@@ -1196,6 +1308,14 @@ void PlayingState::killPlayer(const char* reason) {
 
     SoundManager::getInstance().playSound("lost_life");
     m_player->loseLife();
+
+    // In versus, one player running out does not end the run — the other is
+    // still playing, and ending it early would hand them the win by default.
+    if (m_twoPlayer && m_player->getLives() <= 0 && !allPlayersOut()) {
+        std::cout << "[PlayingState] Player 1 is out (" << reason
+                  << "); Player 2 continues." << std::endl;
+        return;
+    }
 
     if (m_player->getLives() > 0) {
         // Respawn at the last checkpoint if one was reached, otherwise at the
