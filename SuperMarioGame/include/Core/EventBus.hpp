@@ -9,7 +9,8 @@ enum class EventType {
   CoinCollected,
   EnemyDefeated,
   PlayerDied,
-  PowerUpCollected,
+  PowerUpCollected,   // a player consumed a power-up (notification)
+  PowerUpRequested,   // a block wants an item spawned above it (request)
   LevelComplete,
   ComboHit,
   AchievementUnlocked,

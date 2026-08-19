@@ -48,6 +48,7 @@ void Player::groundPound() {
     if (!onGround) { // Ground pound can only be initiated in the air
         this->velocity.x = 0.0f;
         this->velocity.y = Constants::GROUND_POUND_SPEED;
+        m_groundPounding = true;
     }
 }
 
@@ -355,6 +356,14 @@ void Player::update(float dt) {
         if (m_fireballCooldownTimer < 0.0f) {
             m_fireballCooldownTimer = 0.0f;
         }
+    }
+
+    // 1b. A ground pound that has reached the floor. GroundPoundSlam had two
+    // subscribers waiting — camera shake and the impact SFX — and no publisher,
+    // so pounding landed with no feedback at all (audit G-4).
+    if (m_groundPounding && onGround) {
+        m_groundPounding = false;
+        EventBus::getInstance().publish({EventType::GroundPoundSlam, this});
     }
 
     // 2. Coyote time and jump buffering.

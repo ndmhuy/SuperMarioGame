@@ -13,6 +13,7 @@
 #include "Graphics/ParticleEmitter.hpp"
 #include "Core/TimeRewindManager.hpp"
 #include "Core/DevPanel.hpp"
+#include "Utils/Constants.hpp"
 #include <vector>
 #include <memory>
 
@@ -50,6 +51,8 @@ private:
     std::vector<std::unique_ptr<Entity>> m_entities;
     MapEditor m_mapEditor;
     EventBus::SubscriptionId m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_powerUpSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_levelCompleteSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
     Player* m_player = nullptr;
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
@@ -59,7 +62,24 @@ private:
 
 
     std::unique_ptr<Hud> m_hud;
-    float m_levelTimer = 300.0f;
+    float m_levelTimer = Constants::LEVEL_TIME;
+    bool  m_timeWarningFired = false;
+
+    // Level completion (flagpole -> short celebration -> advance)
+    bool  m_levelComplete = false;
+    float m_levelCompleteTimer = 0.0f;
+
+    // Where this level says the player starts — the respawn fallback before any
+    // checkpoint is reached.
+    sf::Vector2f m_levelSpawnPoint{96.0f, 64.0f};
+    // Last checkpoint reached, used by respawn instead of a hardcoded corner.
+    sf::Vector2f m_checkpointPosition{96.0f, 64.0f};
+    bool m_hasCheckpoint = false;
+
+    // Advance to the next campaign level, or back to the menu after the last.
+    void advanceToNextLevel();
+    // Kill the player: lose a life and respawn, or end the run.
+    void killPlayer(const char* reason);
 
     // Minimap overlay (toggled with M via EventType::MinimapToggled)
     std::unique_ptr<Minimap> m_minimap;

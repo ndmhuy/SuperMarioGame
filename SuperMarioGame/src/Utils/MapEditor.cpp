@@ -83,7 +83,7 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
 
     // 1. Free Camera Panning Controls (A / D / W / S or Arrow Keys or Middle Mouse Drag)
     if (camera) {
-        camera->setBoundsEnabled(false);
+        camera->setBoundsEnabled(false); // PlayingState re-enables on exit
         float panSpeed = 650.0f;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
             camera->move(sf::Vector2f(-panSpeed * dt, 0.0f));

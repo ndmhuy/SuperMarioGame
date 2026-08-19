@@ -109,7 +109,9 @@ void PlayingState::enter() {
         }
         if (!m_player) {
             spawnSelectedPlayer(sf::Vector2f(96.0f, 64.0f));
+            m_levelSpawnPoint = sf::Vector2f(96.0f, 64.0f);
         } else {
+            m_levelSpawnPoint = m_player->getPosition();
             InputManager::getInstance().registerPlayer(m_player, 0);
             Game::getInstance().setPlayer(m_player);
         }
@@ -125,6 +127,12 @@ void PlayingState::enter() {
 
     // Auto-save at checkpoint
     m_checkpointSubId = EventBus::getInstance().subscribe(EventType::CheckpointActivated, [this](const GameEvent& ev) {
+        // Remember where to respawn. Death used to teleport to a hardcoded
+        // (96,64) regardless of level or progress (audit G-3).
+        if (m_player) {
+            m_checkpointPosition = m_player->getPosition();
+            m_hasCheckpoint = true;
+        }
         int activeSlot = Game::getInstance().getActiveSlot();
         if (!m_entities.empty() && m_entities[0]) {
             if (auto* player = dynamic_cast<Player*>(m_entities[0].get())) {
@@ -212,6 +220,37 @@ void PlayingState::enter() {
         if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::DeathPoof);
     });
 
+    // --- Question blocks: actually produce the item they announce ---
+    m_powerUpSubId = bus.subscribe(EventType::PowerUpRequested, [this](const GameEvent& ev) {
+        if (!ev.data.has_value() || ev.data.type() != typeid(PowerUpRequest)) return;
+        const auto request = std::any_cast<PowerUpRequest>(ev.data);
+
+        std::unique_ptr<Entity> item;
+        switch (request.itemType) {
+            case 1:  item = std::make_unique<FireFlower>(request.spawnPosition);   break;
+            case 2:  item = std::make_unique<CapeFeather>(request.spawnPosition);  break;
+            case 3:  item = std::make_unique<MiniMushroom>(request.spawnPosition); break;
+            case 4:  item = std::make_unique<Star>(request.spawnPosition);         break;
+            case 5:  item = std::make_unique<MegaMushroom>(request.spawnPosition); break;
+            default: item = std::make_unique<Mushroom>(request.spawnPosition);     break;
+        }
+        wireEntityAnimations(item.get());
+        m_entities.push_back(std::move(item));
+    });
+
+    // --- Level complete: the flagpole fires this; without a listener the game
+    // could be flagged but never actually finished (audit G-1). ---
+    m_levelCompleteSubId = bus.subscribe(EventType::LevelComplete, [this](const GameEvent&) {
+        if (m_levelComplete) return;   // flagpole can fire more than once
+        m_levelComplete = true;
+        m_levelCompleteTimer = 0.0f;
+        std::cout << "[PlayingState] Level complete!" << std::endl;
+    });
+
+    // --- Checkpoint: remember where to respawn, then auto-save ---
+    m_checkpointPosition = m_player ? m_player->getPosition() : sf::Vector2f(96.0f, 64.0f);
+    m_hasCheckpoint = false;
+
     // --- Screen transition: fade the level in on entry ---
     ScreenTransitionManager::getInstance().reset();
     ScreenTransitionManager::getInstance().fadeIn(0.45f);
@@ -240,7 +279,8 @@ void PlayingState::exit() {
         EventBus& bus = EventBus::getInstance();
         const auto NONE = static_cast<EventBus::SubscriptionId>(-1);
         for (auto* id : { &m_enemyDefeatedSubId, &m_blockBrokenSubId,
-                          &m_coinParticleSubId, &m_playerDamagedSubId }) {
+                          &m_coinParticleSubId, &m_playerDamagedSubId,
+                          &m_powerUpSubId, &m_levelCompleteSubId }) {
             if (*id != NONE) { bus.unsubscribe(*id); *id = NONE; }
         }
     }
@@ -327,6 +367,13 @@ void PlayingState::update(float dt) {
         return;
     }
 
+    // The map editor unclamps the camera so the designer can pan off-map. It is
+    // only updated while active, so it cannot restore the flag itself — gameplay
+    // re-asserts the invariant here instead (audit C-3).
+    if (!m_camera.isBoundsEnabled()) {
+        m_camera.setBoundsEnabled(true);
+    }
+
     // 1. Update trackers
     StatisticsTracker::getInstance().update(dt);
     AchievementManager::getInstance().update(dt);
@@ -341,7 +388,7 @@ void PlayingState::update(float dt) {
         GameSnapshot snapshot = m_rewindManager.popSnapshot();
 
         m_levelTimer = snapshot.levelTimer;
-        m_camera.getView().setCenter(snapshot.cameraCenter);
+        m_camera.snapTo(snapshot.cameraCenter);
 
         if (m_player) {
             m_player->restoreMemento(snapshot.playerState);
@@ -394,25 +441,11 @@ void PlayingState::update(float dt) {
         m_entities.end()
     );
 
-    // 3c. Void fall detection & Revive Mechanics
-    float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
+    // 3c. Void fall — one shared death path, so the timer and the pit agree.
+    const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
     if (m_player && m_player->getPosition().y > bottomVoidY) {
-        SoundManager::getInstance().playSound("pipe");
-        if (m_player->getLives() > 1) {
-            m_player->loseLife();
-            m_player->setPosition(sf::Vector2f(96.0f, 64.0f));
-            m_player->setVelocity(sf::Vector2f(0.0f, 0.0f));
-            m_camera.getView().setCenter(sf::Vector2f(640.0f, 360.0f));
-            std::cout << "[PlayingState] Player fell into void pit! Revived at overhead spawn. Lives remaining: " << m_player->getLives() << std::endl;
-        } else {
-            m_player->loseLife();
-            std::cout << "[PlayingState] Game Over! Out of lives." << std::endl;
-            // Fade to black before handing control back, rather than cutting instantly.
-            ScreenTransitionManager::getInstance().fadeOut(0.6f, []() {
-                Game::getInstance().changeState(std::make_unique<MenuState>());
-            });
-            return;
-        }
+        killPlayer("fell into the void");
+        if (m_player->getLives() <= 0) return;
     }
 
     // 3d. Warp Pipe check for sub-level transitions or teleportation
@@ -432,6 +465,34 @@ void PlayingState::update(float dt) {
         }
     }
 
+
+    // 3e. Level timer. It was set once, shown in the HUD and snapshotted for
+    // rewind, but never actually decremented — so there was no time pressure and
+    // no time-out death, and TimeWarning was never published despite having a
+    // subscriber (audit G-2).
+    if (!m_levelComplete && m_levelTimer > 0.0f) {
+        m_levelTimer -= dt;
+
+        if (!m_timeWarningFired && m_levelTimer <= 100.0f) {
+            m_timeWarningFired = true;
+            EventBus::getInstance().publish({EventType::TimeWarning, static_cast<int>(m_levelTimer)});
+        }
+
+        if (m_levelTimer <= 0.0f) {
+            m_levelTimer = 0.0f;
+            killPlayer("ran out of time");
+            if (m_player && m_player->getLives() <= 0) return;
+        }
+    }
+
+    // 3f. Level complete: hold briefly on the flag, then move on.
+    if (m_levelComplete) {
+        m_levelCompleteTimer += dt;
+        if (m_levelCompleteTimer >= 3.0f) {
+            advanceToNextLevel();
+            return;
+        }
+    }
 
     // 4. Update Camera & Screen Transitions
     if (m_player) {
@@ -745,6 +806,8 @@ void PlayingState::setupTestScene() {
 
     if (loader.loadLevel(chosenPath, m_tileMap, levelData)) {
         // Spawn active player character at the spawnPoint loaded from JSON
+        m_levelSpawnPoint = levelData.spawnPoint;
+        m_hasCheckpoint = false;   // a new level invalidates the old checkpoint
         spawnSelectedPlayer(levelData.spawnPoint);
         
         // Transfer all loaded items/entities and wire their animations
@@ -762,7 +825,9 @@ void PlayingState::setupTestScene() {
             m_tileMap.setTile(x, 20, TileType::Ground);
             m_tileMap.setTile(x, 21, TileType::Ground);
         }
-        spawnSelectedPlayer(sf::Vector2f(100.0f, 100.0f));
+        m_levelSpawnPoint = sf::Vector2f(100.0f, 100.0f);
+        m_hasCheckpoint = false;
+        spawnSelectedPlayer(m_levelSpawnPoint);
         m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
     }
 }
@@ -815,6 +880,8 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     // cleanupTestScene() nulled m_player, so spawnSelectedPlayer cannot carry the
     // stats itself — apply them here, through the same silent path.
+    m_levelSpawnPoint = spawnPos;
+    m_hasCheckpoint = false;
     spawnSelectedPlayer(spawnPos);
     if (m_player) {
         m_player->restoreStats(savedLives, savedCoins, savedScore);
@@ -878,6 +945,61 @@ void PlayingState::loadFromSlot(int slot) {
     adoptPlayer(std::move(loadedPlayer));
     Game::getInstance().setActiveSlot(slot);
     std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
+}
+
+void PlayingState::killPlayer(const char* reason) {
+    if (!m_player) return;
+
+    SoundManager::getInstance().playSound("lost_life");
+    m_player->loseLife();
+
+    if (m_player->getLives() > 0) {
+        // Respawn at the last checkpoint if one was reached, otherwise at the
+        // level's own spawn point — never at a hardcoded corner.
+        const sf::Vector2f respawn = m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint;
+        m_player->setPosition(respawn);
+        m_player->setVelocity({0.0f, 0.0f});
+        m_camera.snapTo(respawn);
+
+        // A fresh clock per life, so a timeout death is recoverable.
+        m_levelTimer = Constants::LEVEL_TIME;
+        m_timeWarningFired = false;
+
+        std::cout << "[PlayingState] Player " << reason << ". Lives remaining: "
+                  << m_player->getLives() << std::endl;
+    } else {
+        std::cout << "[PlayingState] Game Over — " << reason << "." << std::endl;
+        EventBus::getInstance().publish({EventType::GameOver, 0});
+        ScreenTransitionManager::getInstance().fadeOut(0.6f, []() {
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+        });
+    }
+}
+
+void PlayingState::advanceToNextLevel() {
+    // Campaign order matches the level dropdown: 1-1, 1-1 sub, 1-2, 1-2 sub,
+    // 1-3, 1-3 sub, bonus. Finishing the last one returns to the menu.
+    const int nextIndex = m_selectedLevelIndex + 1;
+    const int levelCount = 7;
+
+    if (m_isProcedural || nextIndex >= levelCount) {
+        std::cout << "[PlayingState] Campaign complete — returning to menu." << std::endl;
+        ScreenTransitionManager::getInstance().fadeOut(0.8f, []() {
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+        });
+        return;
+    }
+
+    std::cout << "[PlayingState] Advancing to level index " << nextIndex << std::endl;
+    m_selectedLevelIndex = nextIndex;
+    m_levelComplete = false;
+    m_levelCompleteTimer = 0.0f;
+    m_levelTimer = Constants::LEVEL_TIME;
+    m_timeWarningFired = false;
+    m_hasCheckpoint = false;
+    setupTestScene();
+    SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
+    ScreenTransitionManager::getInstance().fadeIn(0.45f);
 }
 
 void PlayingState::adoptPlayer(std::unique_ptr<Player> player) {

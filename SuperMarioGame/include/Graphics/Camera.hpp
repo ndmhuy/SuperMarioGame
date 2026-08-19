@@ -47,6 +47,15 @@ public:
     void setBoundsEnabled(bool enabled);
     bool isBoundsEnabled() const;
 
+    // Jump straight to a target, respecting bounds. Use this for respawns, level
+    // loads and rewind restores — writing getView().setCenter() directly leaves
+    // m_position stale and the next update() undoes it (audit C-4).
+    void snapTo(const sf::Vector2f& target);
+
+    // Where the view centre would sit for a given target, after clamping.
+    // Exposed so tests can assert the clamp without driving a frame.
+    sf::Vector2f clampToBounds(sf::Vector2f center) const;
+
     // Screen Shake API
     void triggerScreenShake(ShakePreset preset);
     void triggerScreenShake(float intensity, float duration, sf::Vector2f direction = {0.0f, 0.0f}, bool useDecay = true);

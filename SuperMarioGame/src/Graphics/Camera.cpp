@@ -224,33 +224,56 @@ sf::Vector2f Camera::calculateShakeOffset(float dt) {
     return offset;
 }
 
-void Camera::update(float dt) {
-    sf::Vector2f finalCenter = m_position;
+sf::Vector2f Camera::clampToBounds(sf::Vector2f center) const {
+    if (!m_boundsEnabled) return center;
 
-    if (m_boundsEnabled) {
-        float halfWidth = m_view.getSize().x / 2.0f;
-        float halfHeight = m_view.getSize().y / 2.0f;
+    const float halfWidth  = m_view.getSize().x / 2.0f;
+    const float halfHeight = m_view.getSize().y / 2.0f;
 
-        float clampedX = m_position.x;
-        if (m_bounds.width > m_view.getSize().x) {
-            clampedX = MathUtils::clamp(m_position.x, m_bounds.x + halfWidth, m_bounds.x + m_bounds.width - halfWidth);
-        } else {
-            clampedX = m_bounds.x + m_bounds.width / 2.0f;
-        }
-
-        float clampedY = m_position.y;
-        if (m_bounds.height > m_view.getSize().y) {
-            clampedY = MathUtils::clamp(m_position.y, m_bounds.y + halfHeight, m_bounds.y + m_bounds.height - halfHeight);
-        } else {
-            clampedY = m_bounds.y + m_bounds.height / 2.0f;
-        }
-
-        finalCenter = sf::Vector2f(clampedX, clampedY);
+    // Horizontal: standard clamp when the map is wider than the view.
+    if (m_bounds.width > m_view.getSize().x) {
+        center.x = MathUtils::clamp(center.x,
+                                    m_bounds.x + halfWidth,
+                                    m_bounds.x + m_bounds.width - halfWidth);
+    } else {
+        center.x = m_bounds.x + m_bounds.width / 2.0f;
     }
 
-    sf::Vector2f shakeOffset = calculateShakeOffset(dt);
-    finalCenter += shakeOffset;
+    // Vertical: same clamp when the map is taller than the view.
+    if (m_bounds.height > m_view.getSize().y) {
+        center.y = MathUtils::clamp(center.y,
+                                    m_bounds.y + halfHeight,
+                                    m_bounds.y + m_bounds.height - halfHeight);
+    } else {
+        // Map is SHORTER than the view, so some of the screen must fall outside
+        // it — the only choice is which edge. Anchor the view's bottom to the
+        // map's bottom: empty space above the level reads as sky, whereas empty
+        // space below cuts the ground off and looks broken.
+        //
+        // Centring here instead put 40px of void above AND below every sub-level
+        // (640px map vs 720px view) — audit C-1.
+        center.y = m_bounds.y + m_bounds.height - halfHeight;
+    }
 
-    m_view.setCenter(finalCenter);
+    return center;
+}
+
+void Camera::update(float dt) {
+    // Clamp first, then add shake, then clamp the result again. Shake used to be
+    // applied after the only clamp, so every shake pushed the view outside the
+    // map by up to its intensity (audit C-2).
+    sf::Vector2f center = clampToBounds(m_position);
+    center += calculateShakeOffset(dt);
+    center = clampToBounds(center);
+
+    m_view.setCenter(center);
+}
+
+void Camera::snapTo(const sf::Vector2f& target) {
+    // Jump the camera without interpolation, keeping m_position authoritative.
+    // Writing getView().setCenter() directly instead leaves m_position stale, so
+    // the next update() snaps straight back (audit C-4).
+    m_position = target;
+    m_view.setCenter(clampToBounds(m_position));
 }
 

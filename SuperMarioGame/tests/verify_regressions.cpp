@@ -19,6 +19,7 @@
 #include "Entities/KoopaParatroopa.hpp"
 #include "Entities/Goomba.hpp"
 #include "Utils/SerializationUtils.hpp"
+#include "Graphics/Camera.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -27,6 +28,7 @@
 #include <memory>
 #include <unordered_map>
 #include <cstdint>
+#include <cmath>
 
 namespace {
 
@@ -327,6 +329,63 @@ void testEntityTypeNameIsVirtual() {
     check(para.getCategory()   == EntityCategory::Enemy, "Paratroopa reports Enemy category");
 }
 
+// ---------------------------------------------------------------------------
+// C-1/C-2 — the camera showed void outside the map. Four causes; these pin the
+// two that are pure geometry.
+// ---------------------------------------------------------------------------
+void testCameraClampsToMap() {
+    section("C-1  camera never shows outside a map taller than the view");
+
+    Camera cam;
+    const float VW = 1280.0f, VH = 720.0f;
+    cam.setBounds(AABB{0.0f, 0.0f, 6400.0f, 736.0f});   // level_1 dimensions
+
+    // Far off the left/top edge.
+    sf::Vector2f c = cam.clampToBounds({-5000.0f, -5000.0f});
+    check(c.x - VW/2 >= -0.01f, "left edge held: view.left >= 0");
+    check(c.y - VH/2 >= -0.01f, "top edge held: view.top >= 0");
+
+    // Far off the right/bottom edge.
+    c = cam.clampToBounds({99999.0f, 99999.0f});
+    check(c.x + VW/2 <= 6400.0f + 0.01f, "right edge held: view.right <= map width");
+    check(c.y + VH/2 <= 736.0f + 0.01f,  "bottom edge held: view.bottom <= map height");
+}
+
+void testCameraOnShortMapKeepsGroundVisible() {
+    section("C-1  map shorter than the view anchors to the ground, not the centre");
+
+    Camera cam;
+    const float VH = 720.0f, mapH = 640.0f;             // level_1_sub dimensions
+    cam.setBounds(AABB{0.0f, 0.0f, 2080.0f, mapH});
+
+    const sf::Vector2f c = cam.clampToBounds({1000.0f, 0.0f});
+    const float viewBottom = c.y + VH/2;
+
+    // Centring gave view.bottom = 680, i.e. 40px of void below the ground.
+    check(std::abs(viewBottom - mapH) < 0.01f,
+          "view bottom sits exactly on the map bottom (no void below the ground)");
+    check(c.y - VH/2 < 0.0f, "the leftover space is above the map, which reads as sky");
+}
+
+void testShakeCannotEscapeBounds() {
+    section("C-2  screen shake cannot push the view outside the map");
+
+    Camera cam;
+    cam.setBounds(AABB{0.0f, 0.0f, 6400.0f, 736.0f});
+    cam.setPosition({640.0f, 368.0f});
+    cam.triggerScreenShake(ShakePreset::Heavy);         // 6px, 0.30s
+
+    const float VW = 1280.0f, VH = 720.0f;
+    bool everOutside = false;
+    for (int i = 0; i < 40; ++i) {
+        cam.setPosition({VW / 2.0f, VH / 2.0f});        // pinned to the top-left corner
+        cam.update(Constants::FIXED_TIMESTEP);
+        const AABB v = cam.getVisibleBounds();
+        if (v.x < -0.01f || v.y < -0.01f) everOutside = true;
+    }
+    check(!everOutside, "40 frames of Heavy shake at the corner never left the map");
+}
+
 } // namespace
 
 int main() {
@@ -343,6 +402,9 @@ int main() {
     testJumpBufferFiresOnLanding();
     testPowerUpPreservesStar();
     testEntityTypeNameIsVirtual();
+    testCameraClampsToMap();
+    testCameraOnShortMapKeepsGroundVisible();
+    testShakeCannotEscapeBounds();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

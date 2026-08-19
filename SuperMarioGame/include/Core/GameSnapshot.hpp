@@ -23,6 +23,14 @@ struct EntitySnapshot {
     bool active = true;
 };
 
+// Payload for EventType::PowerUpRequested — a block asking for an item to be
+// spawned. Carries the spawn site so the listener does not have to find the
+// block that sent it.
+struct PowerUpRequest {
+    int itemType = 0;             // matches Player::powerUp() item ids
+    sf::Vector2f spawnPosition{}; // world position to spawn at
+};
+
 struct GameSnapshot {
     PlayerSnapshot playerState;
     std::vector<EntitySnapshot> entityStates;
