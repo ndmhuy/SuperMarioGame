@@ -43,7 +43,15 @@ public:
     // Total star coins collected across the campaign, for the map's header.
     static int totalStarCoins();
 
-    // Wipes the file. Used by the tests, and by any future New Game+ flow.
+    // --- New Game+ (task 11.3) ---
+    // How many times the campaign has been finished. Kept here rather than in a
+    // third file because this one already outlives a run.
+    static int newGamePlusLevel();
+    // Records another completed campaign and clears the level flags, so the
+    // next cycle starts from 1-1 with the unlocks and the counter intact.
+    static bool advanceNewGamePlus();
+
+    // Wipes the file, counter included.
     static bool reset();
 
 private:

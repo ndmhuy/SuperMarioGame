@@ -35,6 +35,7 @@
 #include "Utils/EntityConfig.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
 #include "Graphics/ColorPalette.hpp"
+#include "Utils/MetaGame.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1643,6 +1644,65 @@ void testColorblindModeIsActuallyConsumed() {
     game.setColorblindMode(original);
 }
 
+
+void testNewGamePlusEscalatesAndKeepsUnlocks() {
+    section("11.3  New Game+ resets the campaign without wiping what was earned");
+
+    const std::string path = Serializer::saveDirectory() + "/progress.json";
+    const std::string backup = path + ".metabak";
+    const bool hadExisting = std::filesystem::exists(path);
+    if (hadExisting) std::filesystem::rename(path, backup);
+    CampaignProgress::reset();
+
+    check(MetaGame::newGamePlusLevel() == 0, "a fresh profile is a first playthrough");
+    check(MetaGame::enemySpeedMultiplier() == 1.0f, "with no speed bonus");
+    check(MetaGame::newGamePlusLabel().empty(), "and nothing to show in the menu");
+
+    // Clear a level and collect coins, then finish the campaign.
+    CampaignProgress::recordLevelCleared(0, {true, true, false});
+    check(CampaignProgress::isUnlocked(1), "1-2 is unlocked");
+
+    MetaGame::advanceNewGamePlus();
+    check(MetaGame::newGamePlusLevel() == 1, "finishing the campaign advances the cycle");
+    check(MetaGame::enemySpeedMultiplier() > 1.0f, "and enemies get faster");
+    check(MetaGame::newGamePlusLabel() == "NEW GAME+", "with a label for the menu");
+
+    // The point of NG+ is that the campaign resets and the meta-progress does not.
+    check(!CampaignProgress::isUnlocked(1), "the campaign is locked back to 1-1");
+    check(CampaignProgress::totalStarCoins() == 2,
+          "but the star coins already found are kept — otherwise it is just a wipe");
+
+    // The escalation is capped: past roughly 1.6x an enemy moves more than its
+    // own width per frame and tunnels through the collision grid.
+    for (int i = 0; i < 12; ++i) MetaGame::advanceNewGamePlus();
+    check(MetaGame::enemySpeedMultiplier() <= 1.65f,
+          "and the multiplier is capped, so enemies cannot outrun collision");
+
+    CampaignProgress::reset();
+    if (hadExisting) std::filesystem::rename(backup, path);
+}
+
+void testDailyChallengeIsTheSameForEveryone() {
+    section("11.3  the daily challenge is reproducible from its date");
+
+    const unsigned int today = MetaGame::dailySeed(2026, 8, 20);
+    check(today == MetaGame::dailySeed(2026, 8, 20),
+          "the same date gives the same seed — otherwise it is not a shared challenge");
+    check(today != MetaGame::dailySeed(2026, 8, 21), "and a different date gives a different one");
+    check(today != MetaGame::dailySeed(2026, 9, 20), "including a different month");
+    check(today != 0u,
+          "and never zero, which MapGenerator reads as 'pick a random seed' — that "
+          "would make the daily challenge different on every launch");
+
+    const MapGeneratorConfig a = MetaGame::dailyChallengeConfig(today);
+    const MapGeneratorConfig b = MetaGame::dailyChallengeConfig(today);
+    check(a.seed == b.seed && a.pitProbability == b.pitProbability
+          && a.enemySpawnRate == b.enemySpawnRate,
+          "and the whole generator config is derived from it, not just the seed");
+    check(MetaGame::dailyChallengeConfig(MetaGame::dailySeed(2026, 8, 21)).seed != a.seed,
+          "tomorrow is a different level");
+}
+
 } // namespace
 
 int main() {
@@ -1702,6 +1762,8 @@ int main() {
     testLavaIsARealTileThatBurns();
     testCameraLooksAheadAndHonoursScrollModes();
     testColorblindModeIsActuallyConsumed();
+    testNewGamePlusEscalatesAndKeepsUnlocks();
+    testDailyChallengeIsTheSameForEveryone();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

@@ -65,6 +65,9 @@ bool CampaignProgress::save(const std::vector<LevelProgress>& progress) {
 
         nlohmann::json j;
         j["version"] = "1.0";
+        // Preserve the New Game+ counter: save() only ever receives the level
+        // vector, so writing a fresh document would silently reset it.
+        j["newGamePlus"] = newGamePlusLevel();
         j["levels"] = nlohmann::json::array();
         for (const auto& level : progress) {
             nlohmann::json entry;
@@ -122,6 +125,61 @@ int CampaignProgress::totalStarCoins() {
         total += level.starCoinCount();
     }
     return total;
+}
+
+int CampaignProgress::newGamePlusLevel() {
+    try {
+        const std::string path = filePath();
+        if (!std::filesystem::exists(path)) return 0;
+        std::ifstream file(path);
+        if (!file.is_open()) return 0;
+        nlohmann::json j;
+        file >> j;
+        return j.value("newGamePlus", 0);
+    } catch (const std::exception&) {
+        return 0;   // an unreadable file means a first playthrough, not a crash
+    }
+}
+
+bool CampaignProgress::advanceNewGamePlus() {
+    const int next = newGamePlusLevel() + 1;
+
+    // The level flags are cleared so the next cycle starts from 1-1 again, but
+    // the counter and everything derived from achievements survive — that is
+    // what makes it New Game *plus* rather than a wipe.
+    std::vector<LevelProgress> fresh(static_cast<std::size_t>(LevelCatalog::count()));
+    // Star coins are meta-progress, so they carry over.
+    const std::vector<LevelProgress> previous = load();
+    for (std::size_t i = 0; i < fresh.size() && i < previous.size(); ++i) {
+        fresh[i].starCoins = previous[i].starCoins;
+    }
+
+    try {
+        const std::string path = filePath();
+        std::filesystem::path fsPath(path);
+        if (fsPath.has_parent_path()) {
+            std::filesystem::create_directories(fsPath.parent_path());
+        }
+
+        nlohmann::json j;
+        j["version"] = "1.0";
+        j["newGamePlus"] = next;
+        j["levels"] = nlohmann::json::array();
+        for (const auto& level : fresh) {
+            nlohmann::json entry;
+            entry["completed"] = level.completed;
+            entry["starCoins"] = {level.starCoins[0], level.starCoins[1], level.starCoins[2]};
+            j["levels"].push_back(std::move(entry));
+        }
+
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << j.dump(4);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[CampaignProgress] Could not advance New Game+: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 bool CampaignProgress::reset() {

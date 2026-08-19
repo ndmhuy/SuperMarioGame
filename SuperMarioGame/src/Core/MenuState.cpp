@@ -5,6 +5,7 @@
 #include "Core/Game.hpp"
 #include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/MetaGame.hpp"
 
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
@@ -20,7 +21,7 @@
 namespace {
 
 // Main-menu rows, in display order.
-enum MainRow { ROW_START = 0, ROW_EDITOR, ROW_GENERATOR, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
+enum MainRow { ROW_START = 0, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
 constexpr int kThemeCount = 4;
@@ -60,7 +61,10 @@ void MenuState::enter() {
     m_scenerySheet = tryLoadSheet("world_scenery_item");
 
     m_mainItems.clear();
-    m_mainItems.emplace_back("START GAME");
+    // The New Game+ cycle is shown on the start row, so a player can see the
+    // campaign has reset rather than wondering why 1-2 is locked again.
+    m_mainItems.emplace_back("START GAME", MetaGame::newGamePlusLabel());
+    m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
     m_mainItems.emplace_back("OPTIONS & SCORES");
@@ -137,6 +141,15 @@ void MenuState::activateSelection() {
                 m_dismissed = true;
                 game.changeState(std::make_unique<CharacterSelectState>(false, false));
                 break;
+            case ROW_DAILY: {
+                // Date-seeded, so everyone playing today gets the same level —
+                // which is the only thing that makes it a challenge.
+                m_dismissed = true;
+                const MapGeneratorConfig daily =
+                    MetaGame::dailyChallengeConfig(MetaGame::todaysSeed());
+                game.changeState(std::make_unique<CharacterSelectState>(false, true, daily));
+                break;
+            }
             case ROW_EDITOR:
                 m_dismissed = true;
                 game.changeState(std::make_unique<PlayingState>(true, false));

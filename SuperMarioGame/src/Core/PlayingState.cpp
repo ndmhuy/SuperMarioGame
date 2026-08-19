@@ -9,6 +9,7 @@
 #include "Entities/Boss.hpp"
 #include "Entities/Projectile.hpp"
 #include "Core/DifficultyStrategy.hpp"
+#include "Utils/MetaGame.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -1262,6 +1263,13 @@ void PlayingState::advanceToNextLevel() {
     const int nextIndex = m_selectedLevelIndex + 1;
 
     if (m_isProcedural || nextIndex >= LevelCatalog::count()) {
+        if (!m_isProcedural) {
+            // Finishing the last level opens the next New Game+ cycle: the level
+            // flags reset, the counter and the unlocks do not (task 11.3).
+            MetaGame::advanceNewGamePlus();
+            std::cout << "[PlayingState] New Game+ level is now "
+                      << MetaGame::newGamePlusLevel() << "." << std::endl;
+        }
         std::cout << "[PlayingState] Campaign complete — returning to menu." << std::endl;
         ScreenTransitionManager::getInstance().fadeOut(0.8f, []() {
             Game::getInstance().changeState(std::make_unique<MenuState>());
@@ -1377,7 +1385,10 @@ void PlayingState::admitEntity(Entity* entity) {
     // rather than in EntityFactory — the factory should not have to know that a
     // Game singleton with a difficulty setting exists.
     if (auto* enemy = dynamic_cast<Enemy*>(entity)) {
-        enemy->applySpeedScale(Game::getInstance().difficulty().enemySpeedScale());
+        // Difficulty and New Game+ compound: a second playthrough on Hard is
+        // meant to be harder than either alone (tasks 9.4 and 11.3).
+        enemy->applySpeedScale(Game::getInstance().difficulty().enemySpeedScale()
+                               * MetaGame::enemySpeedMultiplier());
     }
 }
 
