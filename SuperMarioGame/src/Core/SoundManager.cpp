@@ -32,7 +32,12 @@ SoundManager::SoundManager() {
         samples.push_back(static_cast<std::int16_t>(value * 32767.0));
     }
     std::vector<sf::SoundChannel> channelMap = {sf::SoundChannel::Mono};
-    m_fallbackBuffer.loadFromSamples(samples.data(), samples.size(), 1, sampleRate, channelMap);
+    // The result is [[nodiscard]]. A failed fallback tone is not fatal — it is
+    // the substitute for a missing sound file — but it should not be silent
+    // about failing.
+    if (!m_fallbackBuffer.loadFromSamples(samples.data(), samples.size(), 1, sampleRate, channelMap)) {
+        std::cerr << "[SoundManager] Could not build the fallback tone buffer." << std::endl;
+    }
 }
 
 void SoundManager::loadAllSounds() {
@@ -84,7 +89,13 @@ void SoundManager::setupEventSubscriptions() {
     EventBus& bus = EventBus::getInstance();
 
     bus.subscribe(EventType::CoinCollected, [this](const GameEvent&) { playSound("coin"); });
-    bus.subscribe(EventType::StarCoinCollected, [this](const GameEvent&) { playSound("coin"); });
+    // Task 11.4, audio cues: a star coin is one of three in a level and used to
+    // sound exactly like an ordinary coin, so a player relying on sound could
+    // not tell a major pickup from a trivial one. A checkpoint was silent
+    // altogether — the only feedback was visual.
+    bus.subscribe(EventType::StarCoinCollected, [this](const GameEvent&) { playSound("one_up"); });
+    bus.subscribe(EventType::CheckpointActivated, [this](const GameEvent&) { playSound("vine_grow"); });
+    bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent&) { playSound("boing"); });
     bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent&) { playSound("stomp"); });
     bus.subscribe(EventType::PlayerDied, [this](const GameEvent&) { stopMusic(); playSound("lost_life"); });
     bus.subscribe(EventType::PowerUpCollected, [this](const GameEvent&) { playSound("power_up"); });

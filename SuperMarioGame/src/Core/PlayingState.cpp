@@ -16,6 +16,7 @@
 #include "Graphics/SpriteSheet.hpp"
 #include "Graphics/PipeRenderer.hpp"
 #include "Graphics/EntityDeathEffect.hpp"
+#include "Graphics/ColorPalette.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Enemy.hpp"
 #include "Entities/Item.hpp"
@@ -834,10 +835,13 @@ void PlayingState::render(sf::RenderTarget& target) {
             sf::RectangleShape dbg(sf::Vector2f(bb.width, bb.height));
             dbg.setPosition(sf::Vector2f(bb.x, bb.y));
             dbg.setFillColor(sf::Color::Transparent);
-            sf::Color outlineColor = sf::Color(0, 255, 0, 220);   // Green = player/generic
-            if (dynamic_cast<Enemy*>(entity.get()))  outlineColor = sf::Color(255, 50, 50, 220);   // Red
-            else if (dynamic_cast<Item*>(entity.get()))  outlineColor = sf::Color(255, 220, 0, 220);   // Yellow
-            else if (dynamic_cast<Block*>(entity.get())) outlineColor = sf::Color(0, 220, 255, 220);  // Cyan
+            // Category colours come from the palette, so the debug overlay is
+            // readable under colourblind mode too (task 11.4).
+            sf::Color outlineColor = ColorPalette::get(ColorPalette::Role::Player);
+            if (dynamic_cast<Enemy*>(entity.get()))      outlineColor = ColorPalette::get(ColorPalette::Role::Enemy);
+            else if (dynamic_cast<Item*>(entity.get()))  outlineColor = ColorPalette::get(ColorPalette::Role::Item);
+            else if (dynamic_cast<Block*>(entity.get())) outlineColor = ColorPalette::get(ColorPalette::Role::Block);
+            outlineColor.a = 220;
             dbg.setOutlineColor(outlineColor);
             dbg.setOutlineThickness(1.5f);
             target.draw(dbg);

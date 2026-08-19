@@ -34,6 +34,7 @@
 #include "Utils/ObjectPool.hpp"
 #include "Utils/EntityConfig.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/ColorPalette.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1602,6 +1603,46 @@ void testCameraLooksAheadAndHonoursScrollModes() {
     check(horizontal.getPosition().x > 1000.0f, "but still follows horizontally");
 }
 
+
+void testColorblindModeIsActuallyConsumed() {
+    section("11.4  the colourblind setting changes what is drawn");
+
+    Game& game = Game::getInstance();
+    const bool original = game.getColorblindMode();
+
+    game.setColorblindMode(false);
+    const sf::Color standardPlayer = ColorPalette::get(ColorPalette::Role::Player);
+    const sf::Color standardEnemy  = ColorPalette::get(ColorPalette::Role::Enemy);
+    check(standardPlayer.g > standardPlayer.r && standardEnemy.r > standardEnemy.g,
+          "the standard minimap palette is the green/red pair that needed fixing");
+
+    game.setColorblindMode(true);
+    check(ColorPalette::isColorblindModeActive(), "the flag reaches the palette at all");
+    const sf::Color cbPlayer = ColorPalette::get(ColorPalette::Role::Player);
+    const sf::Color cbEnemy  = ColorPalette::get(ColorPalette::Role::Enemy);
+    check(cbPlayer != standardPlayer || cbEnemy != standardEnemy,
+          "and switching it changes the colours — before this it changed nothing at all");
+
+    // Blue against vermilion: separable by hue under every common type of colour
+    // blindness, and by brightness even in greyscale.
+    auto luminance = [](sf::Color c) {
+        return 0.2126f * static_cast<float>(c.r) + 0.7152f * static_cast<float>(c.g)
+             + 0.0722f * static_cast<float>(c.b);
+    };
+    check(std::abs(luminance(cbPlayer) - luminance(cbEnemy)) > 20.0f,
+          "player and enemy differ in brightness, not only in hue");
+
+    std::set<std::uint32_t> seen;
+    for (ColorPalette::Role role : {ColorPalette::Role::Player, ColorPalette::Role::Enemy,
+                                    ColorPalette::Role::Item, ColorPalette::Role::Block,
+                                    ColorPalette::Role::Hazard}) {
+        seen.insert(ColorPalette::get(role).toInteger());
+    }
+    check(seen.size() == 5, "all five gameplay roles are distinct colours");
+
+    game.setColorblindMode(original);
+}
+
 } // namespace
 
 int main() {
@@ -1660,6 +1701,7 @@ int main() {
     testBackgroundThemesAreDistinctAndDrawable();
     testLavaIsARealTileThatBurns();
     testCameraLooksAheadAndHonoursScrollModes();
+    testColorblindModeIsActuallyConsumed();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

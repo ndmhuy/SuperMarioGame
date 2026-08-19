@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <SFML/Graphics/Color.hpp>
+#include "Graphics/ColorPalette.hpp"
 #include "Entities/Player.hpp"
 #include "Entities/Enemy.hpp"
 #include "Entities/Item.hpp"
@@ -53,15 +54,17 @@ void Minimap::draw(sf::RenderTarget& target, sf::RenderStates states) const {
         switch (entity.second)
         {
         case EntityType::Player:
-            entityDot.setFillColor(Constants::MINIMAP_PLAYER_DOT_COLOR);
+            // Was Constants::MINIMAP_PLAYER_DOT_COLOR (green) against a red enemy
+            // dot — the classic red/green pair (task 11.4).
+            entityDot.setFillColor(ColorPalette::get(ColorPalette::Role::Player));
             break;
             
         case EntityType::Enemy:
-            entityDot.setFillColor(Constants::MINIMAP_ENEMY_DOT_COLOR);
+            entityDot.setFillColor(ColorPalette::get(ColorPalette::Role::Enemy));
             break;
             
         case EntityType::Item:
-            entityDot.setFillColor(Constants::MINIMAP_ITEM_DOT_COLOR);
+            entityDot.setFillColor(ColorPalette::get(ColorPalette::Role::Item));
             break;
         }
 
