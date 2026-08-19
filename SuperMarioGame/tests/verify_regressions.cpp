@@ -30,6 +30,7 @@
 #include "Core/IGameState.hpp"
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelCatalog.hpp"
+#include "Utils/CampaignProgress.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1085,6 +1086,48 @@ void testEveryStrategyIdentifiesItself() {
     std::cout << "        (" << strategyless << " enemies drive themselves without a strategy)\n";
 }
 
+
+void testCampaignProgressUnlocksSequentially() {
+    section("7.3  campaign progress is recorded, not fabricated");
+
+    // Work on a scratch file so a developer's real progress survives.
+    const std::string path = "saves/progress.json";
+    const std::string backup = "saves/progress.json.regressionbak";
+    const bool hadExisting = std::filesystem::exists(path);
+    if (hadExisting) std::filesystem::rename(path, backup);
+    CampaignProgress::reset();
+
+    check(CampaignProgress::isUnlocked(0), "the first level is always open");
+    check(!CampaignProgress::isUnlocked(1), "and the second is not, on a fresh profile");
+    check(CampaignProgress::highestUnlockedIndex() == 0, "so the map opens on 1-1");
+
+    CampaignProgress::recordLevelCleared(0, {true, false, true});
+    check(CampaignProgress::isUnlocked(1), "clearing a level unlocks the next one");
+    check(CampaignProgress::highestUnlockedIndex() == 1, "and the map follows the player forward");
+    check(!CampaignProgress::isUnlocked(2), "but only the next one — unlocking is sequential");
+    check(CampaignProgress::totalStarCoins() == 2, "the star coins that were found are kept");
+
+    // Serializer's own progress block generates levelsCompleted as [1..levelId-1],
+    // which would have claimed everything before the current level was cleared.
+    const std::vector<LevelProgress> progress = CampaignProgress::load();
+    check(progress.size() == static_cast<std::size_t>(LevelCatalog::count()),
+          "progress is always sized to the campaign, so callers can index it");
+    check(progress[0].completed && !progress[1].completed,
+          "only levels actually finished are marked finished");
+
+    // Replaying a level worse than before must not take coins away.
+    CampaignProgress::recordLevelCleared(0, {false, true, false});
+    const std::vector<LevelProgress> merged = CampaignProgress::load();
+    check(merged[0].starCoinCount() == 3,
+          "a second run merges its coins in rather than overwriting them");
+
+    check(!CampaignProgress::isUnlocked(-1) && !CampaignProgress::isUnlocked(999),
+          "out-of-range levels are locked, not crashes");
+
+    CampaignProgress::reset();
+    if (hadExisting) std::filesystem::rename(backup, path);
+}
+
 } // namespace
 
 int main() {
@@ -1127,6 +1170,7 @@ int main() {
     testDifficultyScalesEnemiesAndBosses();
     testThwompRunsItsStateMachine();
     testEveryStrategyIdentifiesItself();
+    testCampaignProgressUnlocksSequentially();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

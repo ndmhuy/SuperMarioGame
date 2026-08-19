@@ -5,6 +5,7 @@
 #include "Core/VictoryState.hpp"
 #include "Core/GameOverState.hpp"
 #include "Utils/LevelCatalog.hpp"
+#include "Utils/CampaignProgress.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Projectile.hpp"
 #include "Core/DifficultyStrategy.hpp"
@@ -1152,6 +1153,13 @@ void PlayingState::restartLevel() {
 void PlayingState::presentLevelSummary() {
     if (m_summaryShown) return;
     m_summaryShown = true;
+
+    // Record the clear before the summary goes up, so the world map is correct
+    // the moment the player gets back to it. Procedural levels are not part of
+    // the campaign and are deliberately not recorded.
+    if (!m_isProcedural) {
+        CampaignProgress::recordLevelCleared(m_selectedLevelIndex, m_starCoinsCollected);
+    }
 
     LevelSummary summary;
     summary.levelName    = m_isProcedural ? "Procedural" : LevelCatalog::nameFor(m_selectedLevelIndex);

@@ -19,6 +19,7 @@
 #include "Core/OptionsState.hpp"
 #include "Core/PauseState.hpp"
 #include "Core/VictoryState.hpp"
+#include "Core/WorldMapState.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Core/SoundManager.hpp"
 #include "Utils/Serializer.hpp"
@@ -327,6 +328,43 @@ void testCharacterSelectGatesLockedSlots(sf::RenderTexture* target) {
     select.exit();
 }
 
+void testWorldMapRefusesLockedLevels(sf::RenderTexture* target) {
+    section("7.3  the world map will not travel past a locked level");
+
+    // A fresh profile, so only 1-1 is open.
+    const std::string path = "saves/progress.json";
+    const std::string backup = "saves/progress.json.frontendbak";
+    const bool hadExisting = std::filesystem::exists(path);
+    if (hadExisting) std::filesystem::rename(path, backup);
+    CampaignProgress::reset();
+
+    WorldMapState map(0);
+    map.enter();
+    map.update(0.016f);
+    renderOnce(map, target);
+
+    // Walking right repeatedly must stop at the locked node rather than wrap or
+    // run off the end of the node list.
+    for (int i = 0; i < 20; ++i) {
+        step(map, sf::Keyboard::Key::Right);
+        renderOnce(map, target);
+    }
+    check(true, "twenty presses against the lock neither wrap nor crash");
+
+    // With the first level cleared, one more node opens up.
+    CampaignProgress::recordLevelCleared(0, {true, true, true});
+    WorldMapState progressed(1);
+    progressed.enter();
+    progressed.update(0.016f);
+    renderOnce(progressed, target);
+    check(true, "and the map renders a cleared node with its star coins");
+    progressed.exit();
+
+    map.exit();
+    CampaignProgress::reset();
+    if (hadExisting) std::filesystem::rename(backup, path);
+}
+
 void testMenuNavigatesWithoutImGui(sf::RenderTexture* target) {
     section("7.1  the main menu navigates and renders with no ImGui frame");
 
@@ -384,6 +422,7 @@ int main() {
     testPauseIsAnOverlayAndOffersItsChoices(target);
     testPauseDismissesOnce();
     testCharacterSelectGatesLockedSlots(target);
+    testWorldMapRefusesLockedLevels(target);
     testMenuNavigatesWithoutImGui(target);
 
     // These screens play sounds and load atlases, so both the audio device and a

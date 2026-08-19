@@ -2,6 +2,7 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/PlayingState.hpp"
+#include "Core/WorldMapState.hpp"
 #include "Core/AchievementManager.hpp"
 #include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
@@ -89,6 +90,14 @@ void CharacterSelectState::confirmSelection() {
 
     m_dismissed = true;
     SoundManager::getInstance().playSound("enter_level");
+
+    // The plain campaign goes through the world map, so the player picks where
+    // to start and can see what they have cleared. The editor and the generator
+    // have no campaign to map, so they drop straight into play.
+    if (!m_startInEditor && !m_isProcedural) {
+        Game::getInstance().changeState(std::make_unique<WorldMapState>(m_selected));
+        return;
+    }
     Game::getInstance().changeState(std::make_unique<PlayingState>(
         m_startInEditor, m_isProcedural, m_genConfig, m_selected, 0));
 }
