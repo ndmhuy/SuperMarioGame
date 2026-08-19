@@ -2885,3 +2885,26 @@ Summary of Changes:
 - 4 dynamic_casts deliberately left in CollisionResolver (KoopaTroopa, Trampoline, PSwitch, Flagpole): concrete-behaviour checks, not dispatch. Removing them needs new virtuals on Item/Block — scoped as separate work.
 - All 12 work packages of docs/issues/member_a_fix_plan.md are now complete. Branch NOT merged to dev and NOT pushed.
 ---
+[2026-08-18 18:10:00] Branch: dev
+Git Fingerprint: 71fb98c (before) → 09b6e87 (after, merged and pushed)
+Fetched Remotes: yes, 17:52
+Prompt: Push and merge into dev; then audit the camera, map generator and entities for gameplay completion — camera must clamp to the map and not show out of bounds.
+Files Modified:
+- (merge only) A/fix/audit-remediation -> dev, no conflicts
+- logs/agent_history.log
+Reachable From Main: yes — merge of WP1-WP12, all on the live gameplay path.
+Verified By: ctest verify_regressions (52/52) + ran the game post-merge (7s, clean startup); rebuilt after merging per AGENTS.md Directive 1.
+Summary of Changes:
+- Pushed A/fix/audit-remediation, merged --no-ff into dev (clean, 0 conflicts), rebuilt, retested, ran, pushed dev 71fb98c..09b6e87.
+- AUDIT (no code changes yet) of Camera, MapGenerator and Entities for gameplay completion. Key findings:
+  * CAMERA: the reported out-of-bounds is real and has 4 independent causes. (1) All three sub-levels are 640px tall vs a 720px view; the clamp's else-branch locks Y to the map centre, so the view spans -40..680 — 40px of void above AND below. (2) Screen shake is added AFTER the clamp in Camera::update, so any shake escapes bounds on every map. (3) MapEditor calls setBoundsEnabled(false) on F1 and nothing ever re-enables it, so one editor visit unbounds the camera for the rest of the session. (4) Two sites write getView().setCenter() directly, bypassing the clamp; the void-fall one is then immediately overwritten by update() and is dead code.
+  * CAMERA: main levels are 736px vs a 720px view = 16px of vertical pan, so the camera is effectively locked vertically and vertical level design is impossible.
+  * GAMEPLAY: the game cannot be won. Flagpole publishes LevelComplete but the only subscribers are SoundManager and AchievementManager — nothing advances the level, loads the next map, or shows a victory screen.
+  * GAMEPLAY: the level timer never counts down. m_levelTimer is set to 300, displayed in the HUD and snapshotted for rewind, but never decremented. No time pressure, no TimeWarning (never published despite a subscriber), no time-out death.
+  * GAMEPLAY: checkpoints are not respawn points. Void-fall respawn is hardcoded to (96,64) regardless of level or progress; CheckpointActivated only triggers an autosave and is semantically overloaded (Pipe publishes it for warps).
+  * GAMEPLAY: 6 EventTypes are declared and never published — TimeWarning, GameStart, StateChanged, PauseToggled, GroundPoundSlam, ScreenShakeTriggered. GroundPoundSlam has 2 subscribers (camera shake, SFX) so ground pound lands with no feedback.
+  * MAPGEN: pit widths 2-4 tiles are inside the 3.5-tile walking jump, so generated levels are solvable — the guardrail works. The MovingPlatform mitigation is inert though (EntityFactory passes travelRange (0,0), audit B-5).
+  * MAPGEN: default height 23 tiles = 736px reproduces the 16px-pan camera problem for generated levels too.
+  * The two new -Wreorder-ctor warnings (MovingPlatform, HiddenBlock) were checked and are benign — the dependent member is declared before its dependency in both.
+- No code changes made this session beyond the merge; findings reported to the user for prioritisation.
+---
