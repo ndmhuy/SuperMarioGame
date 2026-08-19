@@ -106,7 +106,7 @@
     "x": 3,
     "y": 16
   },
-  "theme": "overworld",
+  "theme": "underground",
   "tileSize": 32.0,
   "tiles": [
     {

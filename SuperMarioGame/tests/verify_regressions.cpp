@@ -33,6 +33,7 @@
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/ObjectPool.hpp"
 #include "Utils/EntityConfig.hpp"
+#include "Graphics/BackgroundRenderer.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -54,6 +55,7 @@
 #include <cstdint>
 #include <cmath>
 #include <algorithm>
+#include <set>
 #include <SFML/Graphics/RenderTexture.hpp>
 
 namespace {
@@ -1486,6 +1488,44 @@ void testEntityConfigDrivesTuning() {
     check(missing == 0, "no enemy is missing from the config");
 }
 
+
+void testBackgroundThemesAreDistinctAndDrawable() {
+    section("5.5  every level theme resolves to its own backdrop");
+
+    BackgroundRenderer bg;
+    check(bg.parseThemeName("underground") == BackgroundTheme::Underground, "themes parse");
+    check(bg.parseThemeName("castle") == BackgroundTheme::Castle, "including castle");
+    check(bg.parseThemeName("ice") == BackgroundTheme::Ice, "and ice");
+    check(bg.parseThemeName("nonsense") == BackgroundTheme::Overworld,
+          "and an unknown theme falls back to Overworld rather than drawing nothing");
+
+    // Each theme must look different, or the field is decorative.
+    std::set<std::uint32_t> skies;
+    for (BackgroundTheme theme : {BackgroundTheme::Overworld, BackgroundTheme::Underground,
+                                  BackgroundTheme::Castle, BackgroundTheme::Ice}) {
+        bg.setTheme(theme);
+        skies.insert(bg.getSkyColor().toInteger());
+    }
+    check(skies.size() == 4, "all four skies are distinct colours");
+
+    // Every level has to name a theme the renderer knows, and the levels used to
+    // all claim "overworld" — including the ice cavern and the castle.
+    int wrong = 0;
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        const std::string& rel = LevelCatalog::pathFor(i);
+        const std::string file = rel.substr(rel.find_last_of('/') + 1);
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!loader.loadLevel(levelPath(file), map, data)) continue;
+        if (data.theme.empty()) {
+            std::cout << "        no theme: " << file << "\n";
+            ++wrong;
+        }
+    }
+    check(wrong == 0, "every campaign level names a theme");
+}
+
 } // namespace
 
 int main() {
@@ -1541,6 +1581,7 @@ int main() {
     testPoolWillNotGrowWithoutBound();
     testEveryWritableTypeRoundTrips();
     testEntityConfigDrivesTuning();
+    testBackgroundThemesAreDistinctAndDrawable();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

@@ -97,6 +97,8 @@ void PlayingState::enter() {
     m_enemySheet   = tryLoadSheet("enemy_projectile");
     m_itemSheet    = tryLoadSheet("item");
     m_scenerySheet = tryLoadSheet("world_scenery_item");
+    // The backdrop draws from the same world atlas the tiles come from.
+    m_background.setSpriteSheet(m_scenerySheet.get());
     // Note: tileset_blocks is deprecated — tile sprites come from world_scenery_item (m_scenerySheet)
 
     // Initialize HUD and Level Timer
@@ -565,6 +567,7 @@ void PlayingState::update(float dt) {
         m_camera.follow(m_player->getPosition(), dt);
     }
     m_camera.update(dt);
+    m_background.update(dt);
     ScreenTransitionManager::getInstance().update(dt);
 
     // 4b. Update the wired visual subsystems.
@@ -633,6 +636,12 @@ void PlayingState::update(float dt) {
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
+    // Parallax backdrop first, in screen space: each layer is offset by a
+    // fraction of the camera position, so it has to be drawn before the world
+    // view is applied (task 5.5).
+    target.setView(target.getDefaultView());
+    m_background.render(target, m_camera.getVisibleBounds());
+
     // Set view to camera view for scrolling world space rendering
     target.setView(m_camera.getView());
 
@@ -895,6 +904,7 @@ void PlayingState::setupTestScene() {
 
         // Set camera bounds matching the level size
         m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
+        m_background.setTheme(levelData.theme);
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -968,6 +978,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     Game::getInstance().setTileMap(&m_tileMap);
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+    m_background.setTheme(levelData.theme);
     findActiveBoss();
 
     std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;

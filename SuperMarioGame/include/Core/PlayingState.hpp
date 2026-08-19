@@ -11,6 +11,7 @@
 #include "Graphics/Hud.hpp"
 #include "Graphics/Minimap.hpp"
 #include "Graphics/ParticleEmitter.hpp"
+#include "Graphics/BackgroundRenderer.hpp"
 #include "Core/TimeRewindManager.hpp"
 #include "Core/DevPanel.hpp"
 #include "Utils/Constants.hpp"
@@ -157,6 +158,10 @@ private:
 
     // Tilemap animation timer for animated tiles (coin, question, water, etc.)
     float m_tileAnimTimer = 0.0f;
+
+    // Parallax backdrop (task 5.5). Before this the window was cleared to a flat
+    // cornflower blue and every level looked identical behind the geometry.
+    BackgroundRenderer m_background;
 
     std::array<bool, 3> m_starCoinsCollected = {false, false, false};
     EventBus::SubscriptionId m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
