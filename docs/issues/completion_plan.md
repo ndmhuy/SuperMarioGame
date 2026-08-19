@@ -62,7 +62,22 @@ Several ledger tasks are now complete as a side effect of the audit work. Verifi
 
 Seventeen ledger tasks. Grouped by what they buy.
 
-### Tier 1 — Required for a complete game loop (~14 h)
+### Tier 1 — Required for a complete game loop (~14 h) — **DONE** (`A/tier1-game-loop`)
+
+All seven items are implemented and both ctest suites pass. What is *not* done
+inside them, so the ledger stays honest:
+
+* 7.1 has no attract mode (it needs 10.3 Replay) and no Load Game entry.
+* 7.5 has no World Map entry, because 7.3 does not exist yet.
+* Nobody has watched pause / victory / game over on screen. The environment this
+  was built in cannot inject keystrokes or capture the screen, so the evidence is
+  the two ctest suites plus a launch that reaches the new menu. **Play it before
+  tagging the milestone.**
+
+One bug fell out of the work: the game aborted on exit with SIGABRT because
+`Game::shutdown` never released the `ResourceManager`'s textures and fonts. It
+printed its whole clean-shutdown log and then died, which is why 208 sessions
+never noticed. Fixed in `91ab4d4`.
 
 Without these the game runs but has no shell around it.
 

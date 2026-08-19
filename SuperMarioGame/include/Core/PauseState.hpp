@@ -3,6 +3,7 @@
 #include "Core/IGameState.hpp"
 #include "Graphics/UiRenderer.hpp"
 #include <functional>
+#include <string>
 #include <vector>
 
 // Task 7.5 — the pause overlay.
@@ -16,6 +17,7 @@
 class PauseState : public IGameState {
 public:
     PauseState(std::function<void()> onRestartLevel,
+               std::function<void()> onSaveGame,
                std::function<void()> onQuitToMenu);
     ~PauseState() override = default;
 
@@ -32,7 +34,12 @@ private:
     void moveSelection(int delta);
 
     std::function<void()> m_onRestartLevel;
+    std::function<void()> m_onSaveGame;
     std::function<void()> m_onQuitToMenu;
+
+    // Feedback line shown after a save, so the choice is not silent.
+    std::string m_notice;
+    float m_noticeTimer = 0.0f;
 
     std::vector<UiMenuItem> m_items;
     int m_selected = 0;

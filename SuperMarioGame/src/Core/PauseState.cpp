@@ -10,14 +10,17 @@
 
 namespace {
 constexpr float PANEL_W = 460.0f;
-constexpr float PANEL_H = 320.0f;
+constexpr float PANEL_H = 360.0f;
 }
 
 PauseState::PauseState(std::function<void()> onRestartLevel,
+                       std::function<void()> onSaveGame,
                        std::function<void()> onQuitToMenu)
     : m_onRestartLevel(std::move(onRestartLevel)),
+      m_onSaveGame(std::move(onSaveGame)),
       m_onQuitToMenu(std::move(onQuitToMenu)) {
     m_items.emplace_back("RESUME");
+    m_items.emplace_back("SAVE GAME");
     m_items.emplace_back("OPTIONS");
     m_items.emplace_back("RESTART LEVEL");
     m_items.emplace_back("QUIT TO MENU");
@@ -50,15 +53,22 @@ void PauseState::activateSelection() {
             m_dismissed = true;
             Game::getInstance().popState();
             break;
-        case 1: // Options — pushed over the pause menu, pops back to it
+        case 1: // Save game — stays on the pause menu and reports back
+            if (m_onSaveGame) {
+                m_onSaveGame();
+                m_notice = "SAVED TO SLOT " + std::to_string(Game::getInstance().getActiveSlot());
+                m_noticeTimer = 2.5f;
+            }
+            break;
+        case 2: // Options — pushed over the pause menu, pops back to it
             Game::getInstance().pushState(std::make_unique<OptionsState>());
             break;
-        case 2: // Restart level
+        case 3: // Restart level
             m_dismissed = true;
             Game::getInstance().popState();
             if (m_onRestartLevel) m_onRestartLevel();
             break;
-        case 3: // Quit to menu
+        case 4: // Quit to menu
             m_dismissed = true;
             Game::getInstance().popState();
             if (m_onQuitToMenu) m_onQuitToMenu();
@@ -101,6 +111,10 @@ void PauseState::handleInput(const sf::Event& event) {
 
 void PauseState::update(float dt) {
     m_elapsed += dt;
+    if (m_noticeTimer > 0.0f) {
+        m_noticeTimer -= dt;
+        if (m_noticeTimer <= 0.0f) m_notice.clear();
+    }
 }
 
 void PauseState::render(sf::RenderTarget& target) {
@@ -119,6 +133,12 @@ void PauseState::render(sf::RenderTarget& target) {
 
     UiRenderer::drawMenuItems(target, m_items, m_selected,
                               {px + 78.0f, py + 118.0f}, 42.0f, 16, 0.0f, m_elapsed);
+
+    if (!m_notice.empty()) {
+        UiRenderer::drawText(target, m_notice,
+                             {Constants::WINDOW_WIDTH * 0.5f, py + PANEL_H - 70.0f},
+                             10, sf::Color(120, 255, 140), true);
+    }
 
     UiRenderer::drawText(target, "UP/DOWN  SELECT   ENTER  CONFIRM",
                          {Constants::WINDOW_WIDTH * 0.5f, py + PANEL_H - 44.0f},

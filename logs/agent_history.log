@@ -2930,3 +2930,77 @@ Summary of Changes:
 - Earlier in the same session: merged the level-population work (35 enemies added, 21 question blocks given contents) and fixed a live runtime bug where build/assets was a stale hand-made copy holding only levels/, so the game read out-of-date level data and audio/textures only resolved via path fallback. A POST_BUILD step now syncs the whole assets tree.
 - Branch was initially created as B/fix/... and renamed to A/fix/member-b-findings: the work is Member A's even though the findings are Member B's.
 ---
+[2026-08-19 21:05:00] Branch: A/tier1-game-loop
+Git Fingerprint: 2de9fac (before) → cd41764 (after, 4 commits, not pushed)
+Fetched Remotes: yes, 19:58 — dev was level with origin/dev (0/0)
+Prompt: Based on docs/issues/completion_plan.md, plan for the first tier and implement it.
+Files Modified:
+- NEW SuperMarioGame/include/Core/{PauseState,GameOverState,VictoryState,CharacterSelectState,OptionsState}.hpp + src/Core/*.cpp
+- NEW SuperMarioGame/include/Graphics/UiRenderer.hpp + src/Graphics/UiRenderer.cpp
+- NEW SuperMarioGame/include/Utils/LevelCatalog.hpp + src/Utils/LevelCatalog.cpp
+- NEW SuperMarioGame/tests/verify_frontend_states.cpp
+- NEW tools/powerup-frames/gen_powerup_frames.py
+- SuperMarioGame/include/Core/{IGameState,GameStateManager,MenuState,PlayingState,InputManager}.hpp + matching src/Core/*.cpp
+- SuperMarioGame/src/Core/{Game,ResourceManager}.cpp
+- SuperMarioGame/include/Entities/Flagpole.hpp, src/Entities/{Flagpole,Player,MovingPlatform}.cpp
+- SuperMarioGame/include/Utils/Serializer.hpp, src/Utils/Serializer.cpp
+- SuperMarioGame/assets/spriteSheet/player/{player.png,player.json} (regenerated: 92 base + 144 derived frames)
+- SuperMarioGame/CMakeLists.txt, tests/verify_regressions.cpp
+- TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — Game::run() pushes MenuState, which reaches
+CharacterSelectState and OptionsState; PlayingState pushes PauseState (Escape/P)
+and VictoryState (flagpole), and changes to GameOverState at zero lives.
+verify_frontend_states constructs the states directly, but it is not the only
+caller of any of them.
+Verified By: ctest (2/2 suites — verify_regressions 99/99, verify_frontend_states
+24/24) + ran the game (LAUNCH ONLY — reaches the new MenuState; this machine
+blocks both screencapture and osascript keystrokes, so pause/victory/game over
+have NOT been watched on screen. Do not tag the milestone before someone plays it.)
+Summary of Changes:
+- Tier 1 items 1-7 of docs/issues/completion_plan.md, in the order that document
+  specifies. Item 1's real blocker was GameStateManager::render drawing only the
+  top of the stack; it now walks down past overlays and draws bottom-to-top,
+  gated by a new IGameState::isOverlay(), with onSuspend/onResume for the state
+  that loses the top slot.
+- All push/pop/change are now deferred through one ordered pending-op queue.
+  Only changeState was deferred before, so a state popping itself from update()
+  was freed while its own member function was still executing — VictoryState does
+  exactly that. There is a regression case for it.
+- Six screens added/rebuilt: Pause (overlay, Resume/Save/Options/Restart/Quit),
+  Game Over (score, coins, stars, death counter, Retry Level), Victory (overlay,
+  time-bonus tally, star-coin summary, drives the existing advanceToNextLevel),
+  Character Select (Toad/Peach gated on the existing achievements), Menu
+  (SFML, keyboard, parallax backdrop) and Options & High Scores.
+- MenuState's rewrite closes X-1's neighbour X-5: the old screen made five
+  changeState calls from inside render(), because an ImGui button is a draw call.
+  Nothing in the new front-end touches ImGui.
+- Serializer gained a high-score table (saves/highscores.json, sorted, capped at
+  10, rejects zero-score runs). Escape no longer quits from Game::run — it is the
+  pause key, and quitting is an explicit menu choice.
+- Assets: the flagpole drew NOTHING because Flagpole named "flag_white" and
+  "flag_reddish_white", which are in no atlas. It now uses pole_flag_green plus
+  the five-frame full_flag_pole_0..4 descent that was already shipped. Super,
+  Fire and Cape had no art at all and rendered as small Mario; a new documented
+  generator derives 144 frames from the _small set (2x vertical for Super to
+  match the 24x30 -> 24x60 hitbox ratio, palette swaps for Fire and Cape) and
+  Player::refreshStateAnimations now selects them, with a hasFrame fallback.
+- FOUND AND FIXED A PRE-EXISTING BUG: the game aborted on exit with SIGABRT
+  (exit 134). Game::shutdown never released the ResourceManager's sf::Texture
+  and sf::Font objects, so they were destroyed during static destruction after
+  the graphics context. It printed its entire clean-shutdown log and *then* died,
+  which is why no session ever caught it. Confirmed pre-existing (Entity/Player
+  untouched by this work) and confirmed fixed with a probe of the real
+  startup/shutdown path. The three placeholder statics inside ResourceManager's
+  getters had the same defect and now live in the maps clear() empties.
+- ALSO PRE-EXISTING, NOT FIXED: tests/verify_enemies.cpp,
+  verify_enemies_new.cpp and verify_blocks_new.cpp do not compile — Entity's
+  members became protected in 72c53d6, long after d954a66 last touched those
+  files, and TestPlayer is abstract. They are not registered with ctest, so
+  `make` (all targets) fails while `make SuperMarioGame` and both ctest suites
+  are clean. Left alone as out of Tier 1 scope.
+- Left open deliberately: 7.1 attract mode (needs 10.3 Replay) and Load Game,
+  7.5 World Map entry (needs 7.3). Recorded next to the ledger checkboxes.
+- Branch was created as B/tier1-game-loop from the .member_profile.json in the
+  tree, which turned out to be the AGENTS.md example schema rather than a real
+  profile; renamed to A/tier1-game-loop when the user corrected it.
+---

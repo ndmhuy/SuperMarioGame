@@ -338,6 +338,7 @@ void PlayingState::handleInput(const sf::Event& event) {
                 keyPressed->code == sf::Keyboard::Key::P) {
                 Game::getInstance().pushState(std::make_unique<PauseState>(
                     [this]() { restartLevel(); },
+                    [this]() { saveToSlot(Game::getInstance().getActiveSlot()); },
                     []() {
                         ScreenTransitionManager::getInstance().reset();
                         Game::getInstance().changeState(std::make_unique<MenuState>());

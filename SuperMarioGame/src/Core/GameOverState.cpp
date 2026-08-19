@@ -3,6 +3,7 @@
 #include "Core/MenuState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/StatisticsTracker.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/Serializer.hpp"
@@ -128,6 +129,12 @@ void GameOverState::render(sf::RenderTarget& target) {
     UiRenderer::drawText(target, "COINS  " + std::to_string(m_summary.coins) +
                                  "    STARS  " + std::to_string(m_summary.starCoins) + "/3",
                          {centerX, y}, 12, sf::Color(255, 216, 0), true);
+
+    // Death counter, read from the tracker that has always counted PlayerDied.
+    y += 28.0f;
+    UiRenderer::drawText(target, "DEATHS  " +
+                         std::to_string(StatisticsTracker::getInstance().getStats().totalDeaths),
+                         {centerX, y}, 12, sf::Color(200, 120, 120), true);
 
     if (m_madeHighScore) {
         y += 34.0f;

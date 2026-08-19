@@ -251,8 +251,10 @@ void testPauseIsAnOverlayAndOffersItsChoices(sf::RenderTexture* target) {
     section("7.5  the pause menu is an overlay and its choices fire");
 
     bool restarted = false;
+    bool saved = false;
     bool quit = false;
     PauseState pause([&restarted]() { restarted = true; },
+                     [&saved]() { saved = true; },
                      [&quit]() { quit = true; });
     pause.enter();
     pause.update(0.016f);
@@ -260,7 +262,12 @@ void testPauseIsAnOverlayAndOffersItsChoices(sf::RenderTexture* target) {
 
     check(pause.isOverlay(), "it draws over the frozen level");
 
-    // Down twice from RESUME lands on RESTART LEVEL.
+    // Down once from RESUME lands on SAVE GAME, which must not dismiss the menu.
+    step(pause, sf::Keyboard::Key::Down);
+    step(pause, sf::Keyboard::Key::Enter);
+    check(saved, "SAVE GAME calls back into PlayingState");
+
+    // Two more Downs reach RESTART LEVEL — proving the menu is still live.
     step(pause, sf::Keyboard::Key::Down);
     step(pause, sf::Keyboard::Key::Down);
     step(pause, sf::Keyboard::Key::Enter);
@@ -273,6 +280,7 @@ void testPauseIsAnOverlayAndOffersItsChoices(sf::RenderTexture* target) {
     bool restarted2 = false;
     bool quit2 = false;
     PauseState pause2([&restarted2]() { restarted2 = true; },
+                      []() {},
                       [&quit2]() { quit2 = true; });
     pause2.enter();
     step(pause2, sf::Keyboard::Key::Up);      // wraps from RESUME to QUIT TO MENU
@@ -285,9 +293,10 @@ void testPauseDismissesOnce() {
     section("7.5  a dismissed pause menu stops acting on input");
 
     int restarts = 0;
-    PauseState pause([&restarts]() { ++restarts; }, []() {});
+    PauseState pause([&restarts]() { ++restarts; }, []() {}, []() {});
     pause.enter();
 
+    step(pause, sf::Keyboard::Key::Down);
     step(pause, sf::Keyboard::Key::Down);
     step(pause, sf::Keyboard::Key::Down);
     step(pause, sf::Keyboard::Key::Enter);

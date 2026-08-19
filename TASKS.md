@@ -459,15 +459,18 @@
 > **Branch**: `git checkout -b feature/game-states dev`
 
 ### 7.1 Animated Menu State [v2.0]
-- [ ] Rewrite `MenuState` with animated background, running Mario, spinning coins
-- [ ] Attract mode (demo playback after 30s idle) [v2.0]
+- [x] Rewrite `MenuState` with animated background, running Mario, spinning coins
+- [ ] Attract mode (demo playback after 30s idle) [v2.0] — needs 10.3 Replay System
 - [ ] Options: New Game, Load Game, Options, High Scores, Statistics, Achievements, Quit [v2.0: expanded]
-- [ ] Commit: `feat: implement animated MenuState`
+      — New Game, Options & High Scores, Map Editor, Procedural Level and Quit
+      are live. Load Game is not wired to the menu yet; Statistics and
+      Achievements are tasks 7.9 and 7.10.
+- [x] Commit: `feat: implement animated MenuState`
 
 ### 7.2 Character Select State
-- [ ] Create CharSelectState — show Mario, Luigi side-by-side
-- [ ] Show Toad, Peach as locked/unlocked based on progress [v2.0]
-- [ ] Commit: `feat: implement CharSelectState with unlockable display`
+- [x] Create CharSelectState — show Mario, Luigi side-by-side
+- [x] Show Toad, Peach as locked/unlocked based on progress [v2.0]
+- [x] Commit: `feat: implement CharSelectState with unlockable display`
 
 ### 7.3 World Map State [v2.0]
 - [ ] Create WorldMapState — overhead map with level nodes
@@ -484,22 +487,24 @@
 - [ ] Commit: `feat: implement full PlayingState with all v2.0 systems`
 
 ### 7.5 Pause State
-- [ ] Create PauseState — transparent overlay with Resume, Restart, Save, World Map, Menu, Quit [v2.0: expanded options]
-- [ ] Commit: `feat: implement PauseState overlay`
+- [x] Create PauseState — transparent overlay with Resume, Restart, Save, World Map, Menu, Quit [v2.0: expanded options]
+      — Resume, Save Game, Options, Restart Level, Quit to Menu. There is no
+      World Map entry because task 7.3 does not exist yet.
+- [x] Commit: `feat: implement PauseState overlay`
 
 ### 7.6 Game Over State
-- [ ] Create GameOverState with death counter and retry screen [v2.0]
-- [ ] Commit: `feat: implement GameOverState with death counter`
+- [x] Create GameOverState with death counter and retry screen [v2.0]
+- [x] Commit: `feat: implement GameOverState with death counter`
 
 ### 7.7 Victory State
-- [ ] Create VictoryState — score calculations, star coin summary, level transition
-- [ ] Commit: `feat: implement VictoryState`
+- [x] Create VictoryState — score calculations, star coin summary, level transition
+- [x] Commit: `feat: implement VictoryState`
 
 ### 7.8 Options State & High Scores
-- [ ] Create OptionsState — volume sliders, difficulty selection, controls rebinding [v2.0]
-- [ ] Colorblind mode toggle [v2.0]
-- [ ] High score display and persistence
-- [ ] Commit: `feat: implement OptionsState with difficulty and key rebinding`
+- [x] Create OptionsState — volume sliders, difficulty selection, controls rebinding [v2.0]
+- [x] Colorblind mode toggle [v2.0]
+- [x] High score display and persistence
+- [x] Commit: `feat: implement OptionsState with difficulty and key rebinding`
 
 ### 7.9 Statistics State [v2.0]
 - [ ] Create StatisticsState — total enemies, coins, deaths, time, combos
