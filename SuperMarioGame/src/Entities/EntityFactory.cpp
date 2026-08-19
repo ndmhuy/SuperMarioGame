@@ -40,6 +40,7 @@
 #include "Entities/Fireball.hpp"
 #include "Entities/Bowser.hpp"
 #include "Entities/BossFireball.hpp"
+#include "Entities/BoomBoom.hpp"
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/FallingPlatform.hpp"
@@ -90,8 +91,7 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
         case EntityType::Bowser:
             return std::make_unique<Bowser>(position);
         case EntityType::BoomBoom:
-            // Boom Boom (task 9.2) is not implemented yet.
-            return nullptr;
+            return std::make_unique<BoomBoom>(position);
 
         // --- ITEMS ---
         case EntityType::Mushroom:

@@ -31,6 +31,7 @@
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
+#include "Entities/BoomBoom.hpp"
 #include "Entities/BossFireball.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/Fireball.hpp"
@@ -865,6 +866,91 @@ void testLevelThreeActuallyContainsItsBoss() {
           "and the flagpole sits past it, so Bowser cannot be walked around");
 }
 
+
+void testBoomBoomEscalatesOncePerHit() {
+    section("9.2  Boom Boom is a three-stomp fight that escalates per hit");
+
+    BoomBoom boss({400.0f, 100.0f});
+    check(boss.getMaxHealth() == 3, "three stomps, as the SPEC says");
+    check(boss.getPhase() == 1, "starts in phase 1");
+
+    auto stompAndSettle = [&boss]() {
+        boss.onStomped();
+        for (int i = 0; i < 70; ++i) boss.update(1.0f / 60.0f);
+    };
+
+    stompAndSettle();
+    check(boss.getPhase() == 2, "one hit moves him to phase 2 — the default "
+                                "half-health split cannot express three steps");
+    stompAndSettle();
+    check(boss.getPhase() == 3, "two hits reach phase 3, where the spin attack lives");
+    stompAndSettle();
+    check(boss.isDefeated(), "and the third finishes him");
+}
+
+void testBoomBoomStaysInsideItsArena() {
+    section("9.2  Boom Boom cannot charge out of the room he is fought in");
+
+    BoomBoom boss({400.0f, 100.0f});
+    boss.setArena(AABB{320.0f, 0.0f, 480.0f, 736.0f});
+
+    for (int i = 0; i < 600; ++i) {
+        boss.update(1.0f / 60.0f);
+        // The physics engine is not running here, so integrate the charge by hand.
+        boss.setPosition({boss.getPosition().x + boss.getVelocity().x * (1.0f / 60.0f),
+                          boss.getPosition().y});
+    }
+
+    const float x = boss.getPosition().x;
+    check(x >= 320.0f && x <= 800.0f,
+          "ten seconds of charging leaves him inside the arena (x = " +
+          std::to_string(static_cast<int>(x)) + ")");
+}
+
+void testLevelTwoContainsItsMidBoss() {
+    section("9.2  Level 2 contains Boom Boom, gating its flagpole");
+
+    TileMap map;
+    LevelData data;
+    LevelLoader loader;
+    if (!loader.loadLevel(levelPath("level_2.json"), map, data)) {
+        check(false, "level_2.json loads");
+        return;
+    }
+
+    Boss* boss = nullptr;
+    for (const auto& entity : data.entities) {
+        if (auto* b = dynamic_cast<Boss*>(entity.get())) boss = b;
+    }
+    check(boss != nullptr, "Level 2 has a mid-boss");
+    if (!boss) return;
+
+    check(boss->getDisplayName() == "BOOM BOOM", "and it is Boom Boom");
+    check(boss->hasArena(), "with an arena");
+
+    float flagpoleX = -1.0f;
+    for (const auto& entity : data.entities) {
+        if (entity && entity->getTypeName() == "flagpole") flagpoleX = entity->getPosition().x;
+    }
+    check(flagpoleX > boss->getArena().x,
+          "and the flagpole is past it — SPEC 6.4's 'opens path to the flagpole'");
+}
+
+void testEveryBossTypeIsBuildable() {
+    section("9.x  EntityFactory builds every boss the level format can name");
+
+    // Both used to return nullptr, so a level naming one silently got nothing.
+    auto bowser = EntityFactory::create(EntityType::Bowser, {0.0f, 0.0f});
+    auto boomBoom = EntityFactory::create(EntityType::BoomBoom, {0.0f, 0.0f});
+    check(dynamic_cast<Boss*>(bowser.get()) != nullptr, "bowser builds");
+    check(dynamic_cast<Boss*>(boomBoom.get()) != nullptr, "boom_boom builds");
+
+    check(SerializationUtils::parseEntityTypeName("bowser") == EntityType::Bowser,
+          "and the level format's name for it round-trips");
+    check(SerializationUtils::parseEntityTypeName("boom_boom") == EntityType::BoomBoom,
+          "likewise boom_boom");
+}
+
 } // namespace
 
 int main() {
@@ -899,6 +985,10 @@ int main() {
     testBowserTakesFiveHitsAndChangesPhase();
     testBossInvulnerabilityWindowStopsDoubleCounting();
     testLevelThreeActuallyContainsItsBoss();
+    testBoomBoomEscalatesOncePerHit();
+    testBoomBoomStaysInsideItsArena();
+    testLevelTwoContainsItsMidBoss();
+    testEveryBossTypeIsBuildable();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";
