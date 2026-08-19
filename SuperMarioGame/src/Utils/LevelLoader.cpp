@@ -225,6 +225,11 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
         // 2. Serialize Entities list
         j["entities"] = nlohmann::json::array();
         for (const auto& entity : entities) {
+            // Projectiles are in flight, not level furniture. Writing a
+            // hammer or a fireball into a level file would resurrect it on
+            // every load — and before the type names were fixed it came back
+            // as a Goomba.
+            if (entity && entity->getCategory() == EntityCategory::Projectile) continue;
             if (!entity) continue;
             std::string typeStr = SerializationUtils::getEntityTypeName(*entity);
             if (typeStr == "unknown" || typeStr == "mario" || typeStr == "luigi" || typeStr == "toad" || typeStr == "peach") {

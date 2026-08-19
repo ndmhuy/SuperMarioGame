@@ -98,6 +98,8 @@ EntityType parseEntityTypeName(const std::string& name) {
     if (name == "boo") return EntityType::Boo;
     if (name == "lakitu") return EntityType::Lakitu;
     if (name == "spiny") return EntityType::Spiny;
+    if (name == "bullet_bill") return EntityType::BulletBill;
+    if (name == "chain_chomp") return EntityType::ChainChomp;
     if (name == "bowser") return EntityType::Bowser;
     if (name == "boom_boom" || name == "boomboom") return EntityType::BoomBoom;
 
@@ -120,7 +122,19 @@ EntityType parseEntityTypeName(const std::string& name) {
     if (name == "brick_block") return EntityType::BrickBlock;
     if (name == "moving_platform") return EntityType::MovingPlatform;
     if (name == "falling_platform") return EntityType::FallingPlatform;
+    if (name == "hidden_block") return EntityType::HiddenBlock;
+    if (name == "ice_block") return EntityType::IceBlock;
+    if (name == "conveyor_belt") return EntityType::ConveyorBelt;
 
+    // Transient projectiles. They should never reach a level file — saveLevel
+    // skips them — but if an old file names one, it must not silently become
+    // something else.
+    if (name == "hammer") return EntityType::Hammer;
+    if (name == "boss_fireball") return EntityType::BossFireball;
+
+    // Unknown names still fall back to Goomba rather than throwing, because
+    // level files are hand-edited — but every type the game can *write* now
+    // parses back to itself, which is what verify_regressions asserts.
     return EntityType::Goomba;
 }
 

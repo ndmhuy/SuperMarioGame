@@ -35,6 +35,10 @@ public:
     // setSpeed(), so callers cannot reach in and overwrite tuned values.
     void applySpeedScale(float scale);
 
+    // Sets the tuned base speed. Used only by EntityFactory when applying
+    // assets/config/entities.json; gameplay code scales, it does not assign.
+    void setSpeed(float newSpeed);
+
     bool isFlipped() const { return m_isFlipped; }
     bool isDyingDownward() const { return m_isDyingDownward; }
     virtual bool isDeadOrDying() const { return !active || m_isFlipped || m_isDyingDownward; }

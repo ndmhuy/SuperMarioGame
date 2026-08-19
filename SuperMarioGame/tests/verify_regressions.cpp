@@ -32,6 +32,7 @@
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/ObjectPool.hpp"
+#include "Utils/EntityConfig.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1419,6 +1420,72 @@ void testPoolWillNotGrowWithoutBound() {
     check(pool.freeCount() <= 4, "the free list respects its cap");
 }
 
+
+void testEveryWritableTypeRoundTrips() {
+    section("persistence  every entity the game can save parses back to itself");
+
+    // getTypeName() is what LevelLoader writes into a level file, and
+    // parseEntityTypeName is what reads it. Five entities never overrode
+    // getTypeName, so they wrote "unknown" — which parsed back as a Goomba.
+    // Saving from the map editor silently turned Bullet Bills, Chain Chomps,
+    // Hidden Blocks, Ice Blocks and Conveyor Belts into Goombas.
+    int broken = 0;
+    for (int i = 0; i < 40; ++i) {
+        const EntityType type = static_cast<EntityType>(i);
+        auto entity = EntityFactory::create(type, {0.0f, 0.0f});
+        if (!entity) continue;
+
+        const std::string name = entity->getTypeName();
+        if (SerializationUtils::parseEntityTypeName(name) != type) {
+            std::cout << "        \"" << name << "\" does not parse back to its own type\n";
+            ++broken;
+        }
+    }
+    check(broken == 0, "every constructible type survives a name round-trip");
+}
+
+void testEntityConfigDrivesTuning() {
+    section("10.2  entities.json is read, and covers the whole roster");
+
+    EntityConfig::reload();
+    check(EntityConfig::entryCount() >= 13,
+          "the file covers all 13 enemies (it had 3, and nothing read it)");
+
+    const EntityConfigEntry* goomba = EntityConfig::find("goomba");
+    check(goomba != nullptr, "and is keyed by the name entities report");
+    if (!goomba) return;
+    check(goomba->speed > 0.0f && goomba->score > 0, "with real values in it");
+
+    // Seeded from the code, so adopting the file changed no behaviour. This is
+    // the check that catches the two drifting apart again.
+    auto configured = EntityFactory::create(EntityType::Goomba, {0.0f, 0.0f});
+    auto raw = EntityFactory::createUnconfigured(EntityType::Goomba, {0.0f, 0.0f});
+    auto* configuredEnemy = dynamic_cast<Enemy*>(configured.get());
+    auto* rawEnemy = dynamic_cast<Enemy*>(raw.get());
+    check(configuredEnemy && rawEnemy, "the factory builds both ways");
+    if (!configuredEnemy || !rawEnemy) return;
+
+    check(configuredEnemy->getSpeed() == rawEnemy->getSpeed(),
+          "the file agrees with the constructor on speed, so nothing shifted");
+    check(configuredEnemy->getScoreValue() == rawEnemy->getScoreValue(), "and on score");
+
+    int missing = 0;
+    for (EntityType type : {EntityType::Goomba, EntityType::KoopaTroopa,
+                            EntityType::KoopaParatroopa, EntityType::Boo,
+                            EntityType::PiranhaPlant, EntityType::BulletBill,
+                            EntityType::HammerBro, EntityType::Thwomp,
+                            EntityType::ChainChomp, EntityType::Lakitu,
+                            EntityType::Spiny, EntityType::Bowser, EntityType::BoomBoom}) {
+        auto entity = EntityFactory::create(type, {0.0f, 0.0f});
+        if (!entity) continue;
+        if (!EntityConfig::find(entity->getTypeName())) {
+            std::cout << "        not in entities.json: " << entity->getTypeName() << "\n";
+            ++missing;
+        }
+    }
+    check(missing == 0, "no enemy is missing from the config");
+}
+
 } // namespace
 
 int main() {
@@ -1472,6 +1539,8 @@ int main() {
     testObjectPoolRecyclesInsteadOfAllocating();
     testPooledObjectsComeBackFresh();
     testPoolWillNotGrowWithoutBound();
+    testEveryWritableTypeRoundTrips();
+    testEntityConfigDrivesTuning();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";
