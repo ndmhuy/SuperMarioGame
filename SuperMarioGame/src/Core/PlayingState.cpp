@@ -11,6 +11,7 @@
 #include "Core/DifficultyStrategy.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Core/ReplayRecorder.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -438,6 +439,20 @@ void PlayingState::update(float dt) {
     StatisticsTracker::getInstance().update(dt);
     AchievementManager::getInstance().update(dt);
 
+    // 0a. Replay playback. Applied instead of simulating: physics and AI stay
+    // switched off for the frame, so what is shown is what was recorded rather
+    // than a re-simulation that would drift.
+    if (ReplayRecorder::getInstance().isPlaying()) {
+        if (const GameSnapshot* frame = ReplayRecorder::getInstance().advance()) {
+            applySnapshot(*frame);
+            m_camera.update(dt);
+            m_background.update(dt);
+            m_tileAnimTimer += dt;
+            return;
+        }
+        std::cout << "[Replay] Playback finished." << std::endl;
+    }
+
     // 0. Time Rewind check (Hold R or Left/Right Shift keys to rewind time using Memento snapshots)
     // R only. LShift is bound to RunCommand for Player 1, so accepting it here
     // meant holding Shift to run rewound time instead — running was unusable
@@ -446,31 +461,7 @@ void PlayingState::update(float dt) {
 
     if (rewindRequested && m_rewindManager.hasSnapshots()) {
         m_rewindManager.setRewinding(true);
-        GameSnapshot snapshot = m_rewindManager.popSnapshot();
-
-        m_levelTimer = snapshot.levelTimer;
-        m_camera.snapTo(snapshot.cameraCenter);
-
-        if (m_player) {
-            m_player->restoreMemento(snapshot.playerState);
-        }
-
-        // Restore entities by id, not by index. Between record and restore the
-        // prune step removes inactive entities and the fireball listener appends
-        // new ones, so positions in m_entities do not correspond across frames.
-        std::unordered_map<std::uint32_t, const EntitySnapshot*> byId;
-        byId.reserve(snapshot.entityStates.size());
-        for (const auto& es : snapshot.entityStates) {
-            byId.emplace(es.id, &es);
-        }
-        for (const auto& entity : m_entities) {
-            if (!entity) continue;
-            auto it = byId.find(entity->getId());
-            if (it == byId.end()) continue;  // spawned after this snapshot — leave it alone
-            entity->setPosition(it->second->position);
-            entity->setVelocity(it->second->velocity);
-            entity->active = it->second->active;
-        }
+        applySnapshot(m_rewindManager.popSnapshot());
         return; // Skip forward physics integration while rewinding
     }
 
@@ -664,6 +655,9 @@ void PlayingState::update(float dt) {
         }
 
         m_rewindManager.recordSnapshot(snapshot);
+        // The replay wants the same Memento, kept for longer and thinned out —
+        // no second capture path, and nothing to drift out of step (task 10.3).
+        ReplayRecorder::getInstance().record(snapshot);
     }
 }
 
@@ -973,6 +967,11 @@ void PlayingState::setupTestScene() {
     }
 
     findActiveBoss();
+
+    // Always recording, so "replay save" after something interesting happens
+    // actually has the interesting thing in it. Bounded by kMaxFrames.
+    ReplayRecorder::getInstance().startRecording(
+        m_isProcedural ? "procedural" : LevelCatalog::nameFor(m_selectedLevelIndex));
 }
 
 void PlayingState::cleanupTestScene() {
@@ -1090,6 +1089,32 @@ void PlayingState::loadFromSlot(int slot) {
     adoptPlayer(std::move(loadedPlayer));
     Game::getInstance().setActiveSlot(slot);
     std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
+}
+
+void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
+    m_levelTimer = snapshot.levelTimer;
+    m_camera.snapTo(snapshot.cameraCenter);
+
+    if (m_player) {
+        m_player->restoreMemento(snapshot.playerState);
+    }
+
+    // Restore entities by id, not by index. Between record and restore the prune
+    // step removes inactive entities and the fireball listener appends new ones,
+    // so positions in m_entities do not correspond across frames (audit A-5).
+    std::unordered_map<std::uint32_t, const EntitySnapshot*> byId;
+    byId.reserve(snapshot.entityStates.size());
+    for (const auto& entityState : snapshot.entityStates) {
+        byId.emplace(entityState.id, &entityState);
+    }
+    for (const auto& entity : m_entities) {
+        if (!entity) continue;
+        auto it = byId.find(entity->getId());
+        if (it == byId.end()) continue;  // spawned after this snapshot — leave it alone
+        entity->setPosition(it->second->position);
+        entity->setVelocity(it->second->velocity);
+        entity->active = it->second->active;
+    }
 }
 
 void PlayingState::findActiveBoss() {

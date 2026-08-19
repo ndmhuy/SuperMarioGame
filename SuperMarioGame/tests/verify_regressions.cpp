@@ -37,6 +37,7 @@
 #include "Graphics/ColorPalette.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Core/ReplayRecorder.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1763,6 +1764,68 @@ void testDebugConsoleDispatchesCommands() {
     Game::getInstance().setPlayer(nullptr);
 }
 
+
+void testReplayRecordsThinsAndPlaysBack() {
+    section("10.3  replays record, thin out, persist and play back");
+
+    ReplayRecorder& replay = ReplayRecorder::getInstance();
+    replay.clear();
+
+    check(!replay.isRecording() && replay.frameCount() == 0, "a cleared recorder is empty");
+    check(!replay.startPlayback(), "and refuses to play nothing");
+
+    replay.startRecording("1-1");
+    check(replay.isRecording(), "recording starts");
+
+    // Offered every frame, kept every Nth: a snapshot per frame would make a
+    // three-minute level tens of megabytes.
+    const int offered = 600;
+    for (int i = 0; i < offered; ++i) {
+        GameSnapshot frame;
+        frame.levelTimer = 300.0f - static_cast<float>(i) * 0.1f;
+        frame.playerState.position = {static_cast<float>(i), 100.0f};
+        frame.playerState.lives = 3;
+        frame.entityStates.push_back({7u, {static_cast<float>(i) * 2.0f, 50.0f}, {1.0f, 0.0f}, true});
+        replay.record(frame);
+    }
+    const std::size_t kept = replay.frameCount();
+    check(kept > 0, "frames are kept");
+    check(kept <= static_cast<std::size_t>(offered / ReplayRecorder::kFrameInterval) + 1,
+          "but thinned to roughly one in " + std::to_string(ReplayRecorder::kFrameInterval) +
+          " (kept " + std::to_string(kept) + " of " + std::to_string(offered) + ")");
+
+    replay.stopRecording();
+    check(!replay.isRecording(), "recording stops");
+
+    // Round-trip through disk.
+    const std::string dir = Serializer::saveDirectory() + "/replays";
+    check(replay.save("regression_test"), "a replay saves");
+    replay.clear();
+    check(replay.frameCount() == 0, "and the recorder can be emptied");
+    check(replay.load("regression_test"), "then loaded back");
+    check(replay.frameCount() == kept, "with every frame intact");
+    check(replay.levelName() == "1-1", "and the level it was recorded on");
+
+    // Playback walks the frames once and stops.
+    check(replay.startPlayback(), "playback starts");
+    std::size_t played = 0;
+    const GameSnapshot* first = replay.advance();
+    check(first != nullptr, "the first frame comes back");
+    if (first) {
+        check(!first->entityStates.empty() && first->entityStates[0].id == 7u,
+              "with its entity states, keyed by id rather than index");
+    }
+    while (replay.advance() != nullptr) ++played;
+    check(played + 1 == kept, "and it walks every frame exactly once");
+    check(!replay.isPlaying(), "then stops on its own");
+
+    check(!replay.load("no_such_replay"), "loading a missing replay fails cleanly");
+
+    std::error_code ec;
+    std::filesystem::remove(dir + "/regression_test.json", ec);
+    replay.clear();
+}
+
 } // namespace
 
 int main() {
@@ -1825,6 +1888,7 @@ int main() {
     testNewGamePlusEscalatesAndKeepsUnlocks();
     testDailyChallengeIsTheSameForEveryone();
     testDebugConsoleDispatchesCommands();
+    testReplayRecordsThinsAndPlaysBack();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

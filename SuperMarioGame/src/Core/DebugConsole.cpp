@@ -9,6 +9,7 @@
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/MetaGame.hpp"
+#include "Core/ReplayRecorder.hpp"
 #include "Utils/SerializationUtils.hpp"
 
 #include <imgui.h>
@@ -208,6 +209,57 @@ public:
     }
 };
 
+class ReplayCommand : public IConsoleCommand {
+public:
+    std::string name() const override { return "replay"; }
+    std::string help() const override {
+        return "replay <rec|stop|save NAME|load NAME|play|list> - record and watch a run";
+    }
+    std::string execute(const std::vector<std::string>& args) override {
+        ReplayRecorder& replay = ReplayRecorder::getInstance();
+        if (args.empty()) {
+            return "frames: " + std::to_string(replay.frameCount()) +
+                   (replay.isRecording() ? " (recording)" : "") +
+                   (replay.isPlaying() ? " (playing)" : "");
+        }
+
+        const std::string& verb = args[0];
+        if (verb == "rec") {
+            replay.startRecording(args.size() > 1 ? args[1] : "manual");
+            return "recording";
+        }
+        if (verb == "stop") {
+            replay.stopRecording();
+            replay.stopPlayback();
+            return "stopped at " + std::to_string(replay.frameCount()) + " frames";
+        }
+        if (verb == "save") {
+            if (args.size() < 2) return "replay save <name>";
+            return replay.save(args[1]) ? "saved " + args[1] : "nothing to save";
+        }
+        if (verb == "load") {
+            if (args.size() < 2) return "replay load <name>";
+            return replay.load(args[1])
+                ? "loaded " + std::to_string(replay.frameCount()) + " frames"
+                : "no replay called " + args[1];
+        }
+        if (verb == "play") {
+            return replay.startPlayback()
+                ? "playing back " + std::to_string(replay.frameCount()) + " frames"
+                : "nothing recorded or loaded";
+        }
+        if (verb == "list") {
+            const std::vector<std::string> names = ReplayRecorder::list();
+            if (names.empty()) return "no saved replays";
+            std::ostringstream out;
+            out << "replays:";
+            for (const std::string& n : names) out << " " << n;
+            return out.str();
+        }
+        return help();
+    }
+};
+
 class ClearCommand : public IConsoleCommand {
 public:
     std::string name() const override { return "clear"; }
@@ -242,6 +294,7 @@ void DebugConsole::init() {
     registerCommand(std::make_unique<DifficultyCommand>());
     registerCommand(std::make_unique<LevelCommand>());
     registerCommand(std::make_unique<ProgressCommand>());
+    registerCommand(std::make_unique<ReplayCommand>());
     registerCommand(std::make_unique<ClearCommand>());
 
     print("debug console ready - type help");

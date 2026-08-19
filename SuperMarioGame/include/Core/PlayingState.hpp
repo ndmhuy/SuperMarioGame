@@ -128,6 +128,11 @@ private:
     // The camera bounds to put back when the fight ends.
     AABB m_preArenaCameraBounds;
 
+    // Puts the world back to a recorded Memento. Shared by the time rewind and
+    // by replay playback — they differ in where the snapshot comes from, not in
+    // what applying it means (task 10.3).
+    void applySnapshot(const GameSnapshot& snapshot);
+
     // Latch onto whatever boss the freshly loaded level contains.
     void findActiveBoss();
     // Lock on arena entry, keep the player inside, release when the boss dies.
