@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Enemy.hpp"
 
 class Lakitu : public Enemy {
 public:
     explicit Lakitu(sf::Vector2f position);
     ~Lakitu() override = default;
+
+    std::string getTypeName() const override { return "lakitu"; }
 
     void onStomped() override;
     void onHitByFireball() override;

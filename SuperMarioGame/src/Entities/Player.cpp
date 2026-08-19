@@ -1,10 +1,29 @@
 #include "Entities/Player.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/SoundManager.hpp"
 #include "Core/GameSnapshot.hpp"
 #include "Core/Game.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
+
+void Player::performJump() {
+    velocity.y = -jumpForce;
+    onGround = false;
+    coyoteFramesLeft = 0;      // one jump per grace window
+    jumpBufferFramesLeft = 0;  // request satisfied
+    SoundManager::getInstance().playSound("jump_small");
+}
+
+void Player::jump() {
+    if (onGround || coyoteFramesLeft > 0) {
+        performJump();
+    } else {
+        // Airborne: remember the request briefly. Player::update fires it the
+        // moment we touch down, so a press a few frames early is not swallowed.
+        jumpBufferFramesLeft = Constants::JUMP_BUFFER_FRAMES;
+    }
+}
 
 void Player::run() {
     m_runRequested = true;
@@ -47,21 +66,52 @@ void Player::shootFireball() {
     m_fireballCooldownTimer = 0.3f; // 0.3s cooldown between shots
 }
 
+IPlayerState* Player::getBaseState() const {
+    IPlayerState* baseState = m_currentState.get();
+    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+        baseState = decorator->getWrappedState();
+    }
+    return baseState;
+}
+
+void Player::setBaseState(std::unique_ptr<IPlayerState> newBase) {
+    if (!newBase) return;
+
+    // No decorators active: this is an ordinary state change.
+    auto* outermost = dynamic_cast<PlayerStateDecorator*>(m_currentState.get());
+    if (!outermost) {
+        changeState(std::move(newBase));
+        return;
+    }
+
+    // Walk to the innermost decorator and swap the base form underneath it, so an
+    // active Star or Mega survives collecting a Fire Flower (audit A-8).
+    PlayerStateDecorator* innermost = outermost;
+    while (auto* next = dynamic_cast<PlayerStateDecorator*>(innermost->getWrappedState())) {
+        innermost = next;
+    }
+
+    if (IPlayerState* oldBase = innermost->getWrappedState()) {
+        oldBase->exit(*this);
+    }
+    newBase->enter(*this);
+    innermost->setWrappedState(std::move(newBase));
+
+    applyStateSize();
+    refreshStateAnimations();
+}
+
 void Player::powerUp(int itemType) {
     if (itemType == 0) { // Mushroom: Small -> Super
-        IPlayerState* baseState = m_currentState.get();
-        while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
-            baseState = decorator->getWrappedState();
-        }
-        if (dynamic_cast<SmallState*>(baseState)) {
-            changeState(std::make_unique<SuperState>());
+        if (dynamic_cast<SmallState*>(getBaseState())) {
+            setBaseState(std::make_unique<SuperState>());
         }
     } else if (itemType == 1) { // FireFlower: -> Fire
-        changeState(std::make_unique<FireState>());
+        setBaseState(std::make_unique<FireState>());
     } else if (itemType == 2) { // CapeFeather: -> Cape
-        changeState(std::make_unique<CapeState>());
+        setBaseState(std::make_unique<CapeState>());
     } else if (itemType == 3) { // MiniMushroom: -> Mini
-        changeState(std::make_unique<MiniState>());
+        setBaseState(std::make_unique<MiniState>());
     } else if (itemType == 4) { // Star: Wrap current state with StarDecorator
         if (m_currentState) {
             auto starDecorator = std::make_unique<StarDecorator>(std::move(m_currentState));
@@ -100,6 +150,7 @@ void Player::powerDown() {
         state = decorator->getWrappedState();
     }
 
+
     if (isInvincible || isMega) return;
 
     // Apply temporary invincibility frames
@@ -107,10 +158,10 @@ void Player::powerDown() {
 
     // Powerdown transition: Fire/Cape/Mini -> Super -> Small -> Death
     if (dynamic_cast<FireState*>(state) || dynamic_cast<CapeState*>(state) || dynamic_cast<MiniState*>(state)) {
-        changeState(std::make_unique<SuperState>());
+        setBaseState(std::make_unique<SuperState>());
         EventBus::getInstance().publish({EventType::PlayerDamaged, this});
     } else if (dynamic_cast<SuperState*>(state)) {
-        changeState(std::make_unique<SmallState>());
+        setBaseState(std::make_unique<SmallState>());
         EventBus::getInstance().publish({EventType::PlayerDamaged, this});
     } else if (dynamic_cast<SmallState*>(state)) {
         loseLife();
@@ -122,6 +173,36 @@ IPlayerState* Player::getCurrentState() const {
     return m_currentState.get();
 }
 
+void Player::applyStateSize() {
+    if (!m_currentState) return;
+
+    // Resize the bounding box to the active state, keeping the feet planted so
+    // growing or shrinking never pushes the player through the floor.
+    const sf::Vector2f newSize = m_currentState->getSize();
+    const float heightDiff = newSize.y - boundingBox.height;
+    position.y -= heightDiff;
+
+    setTargetSize(newSize);
+    boundingBox.x = position.x;
+    boundingBox.y = position.y;
+}
+
+void Player::refreshStateAnimations() {
+    if (!m_spriteSheet || !m_currentState) return;
+
+    // Sprite prefix comes from the innermost base form; decorators do not have
+    // their own sprite sets.
+    IPlayerState* baseState = m_currentState.get();
+    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
+        baseState = decorator->getWrappedState();
+    }
+    std::string stateSuffix = "small";
+    if (dynamic_cast<MiniState*>(baseState)) {
+        stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
+    }
+    setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
+}
+
 void Player::changeState(std::unique_ptr<IPlayerState> state) {
     if (m_currentState) {
         m_currentState->exit(*this);
@@ -129,30 +210,29 @@ void Player::changeState(std::unique_ptr<IPlayerState> state) {
     m_currentState = std::move(state);
     if (m_currentState) {
         m_currentState->enter(*this);
-        
-        // Dynamically adjust player bounding box size to match the new state
-        sf::Vector2f newSize = m_currentState->getSize();
-        float heightDiff = newSize.y - boundingBox.height;
-        
-        // Adjust position.y so player's feet stay grounded when growing/shrinking
-        position.y -= heightDiff;
-        
-        setTargetSize(newSize);
-        boundingBox.x = position.x;
-        boundingBox.y = position.y;
+        applyStateSize();
+        refreshStateAnimations();
+    }
+}
 
-        // Update character animations based on the new active state
-        if (m_spriteSheet) {
-            IPlayerState* baseState = m_currentState.get();
-            while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
-                baseState = decorator->getWrappedState();
-            }
-            std::string stateSuffix = "small";
-            if (dynamic_cast<MiniState*>(baseState)) {
-                stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
-            }
-            setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
-        }
+void Player::unwrapExpiredState() {
+    // Retire expired timed decorators. Called from update() *after* the state's own
+    // update() has returned, so destroying it here is safe. Loops because Star and
+    // Mega can be stacked and may lapse on the same frame.
+    while (m_currentState && m_currentState->isExpired()) {
+        auto* decorator = dynamic_cast<PlayerStateDecorator*>(m_currentState.get());
+        if (!decorator) break;   // nothing to fall back to
+
+        std::unique_ptr<IPlayerState> inner = decorator->releaseWrappedState();
+        if (!inner) break;
+
+        // Only the decorator's own teardown runs: its m_wrappedState is already
+        // null, so the inner state is not exited — it never left, and deliberately
+        // does not get enter() called on it again.
+        m_currentState->exit(*this);
+        m_currentState = std::move(inner);
+        applyStateSize();
+        refreshStateAnimations();
     }
 }
 
@@ -277,16 +357,21 @@ void Player::update(float dt) {
         }
     }
 
-    // 2. Update coyote time and jump buffer counters
-    if (coyoteFramesLeft > 0) {
+    // 2. Coyote time and jump buffering.
+    if (onGround) {
+        // Refresh the grace window while grounded, and satisfy any jump that was
+        // pressed just before touchdown.
+        coyoteFramesLeft = Constants::COYOTE_FRAMES;
+        if (jumpBufferFramesLeft > 0) {
+            performJump();
+        }
+    } else if (coyoteFramesLeft > 0) {
+        // Airborne: burn down the post-ledge grace window.
         --coyoteFramesLeft;
     }
+
     if (jumpBufferFramesLeft > 0) {
         --jumpBufferFramesLeft;
-    }
-    
-    if (onGround) {
-        coyoteFramesLeft = Constants::COYOTE_FRAMES;
     }
 
     // 3. Handle Crouching transitions
@@ -372,36 +457,25 @@ void Player::update(float dt) {
     if (m_currentState) {
         m_currentState->update(*this, dt);
     }
+
+    // 6. Retire any expired timed state, now that its update() has returned and
+    // destroying it is safe.
+    unwrapExpiredState();
 }
 
 void Player::render(sf::RenderTarget& target) {
     if (!active) return;
     if (m_animator && m_hasAnimation) {
         sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
-            float scaledW = bounds.size.x * scale;
-            float scaledH = bounds.size.y * scale;
 
-            // Base AABB remains locked to m_targetSize during all animation frames
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            float scaleX = facingRight ? -scale : scale;  // sprite faces left by default in atlas
-            sprite.setScale(sf::Vector2f(scaleX, scale));
-            sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
-
-            // Hurt invincibility visual alpha flicker (15Hz modulation between 100 and 255 alpha)
-            if (invincibilityTimer > 0.0f && invincibilityTimer < 9000.0f) {
-                bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
-                std::uint8_t alpha = dim ? 100 : 255;
-                sprite.setColor(sf::Color(255, 255, 255, alpha));
-            }
-
-            target.draw(sprite);
+        // Hurt i-frames flicker the sprite between 100 and 255 alpha at ~15Hz.
+        if (invincibilityTimer > 0.0f && invincibilityTimer < 9000.0f) {
+            const bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
+            sprite.setColor(sf::Color(255, 255, 255, dim ? 100 : 255));
         }
+
+        // Sprites face left in the atlas, so facingRight is the flip case.
+        drawSprite(target, sprite, SpriteAnchor::BottomCenter, /*flipX=*/facingRight);
     }
 }
 
@@ -434,6 +508,12 @@ void Player::loseLife() {
     if (lives <= 0) {
         EventBus::getInstance().publish({EventType::GameOver, 0});
     }
+}
+
+void Player::restoreStats(int newLives, int newCoins, int newScore) {
+    lives = newLives;
+    coins = newCoins;
+    score = newScore;
 }
 
 void Player::resetCombo() {

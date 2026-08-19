@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Block.hpp"
 
 class QuestionBlock : public Block {
@@ -7,6 +9,8 @@ public:
     // itemType: 0 = Coin, 1 = Mushroom, 2 = FireFlower, 3 = Star, 4 = OneUp
     explicit QuestionBlock(sf::Vector2f position, int itemType = 0);
     ~QuestionBlock() override = default;
+
+    std::string getTypeName() const override { return "question_block"; }
 
     void onHitFromBelow(Player& player) override;
     void render(sf::RenderTarget& target) override;

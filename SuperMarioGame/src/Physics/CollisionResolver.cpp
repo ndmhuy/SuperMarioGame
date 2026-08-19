@@ -23,7 +23,10 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
     entity.boundingBox.x = entity.position.x;
     entity.boundingBox.y = entity.position.y;
 
-    auto character = dynamic_cast<Character*>(&entity);
+    // Category answers "is this a Character?" without a cast.
+    Character* character = (entity.getCategory() == EntityCategory::Player ||
+                            entity.getCategory() == EntityCategory::Enemy)
+                         ? static_cast<Character*>(&entity) : nullptr;
 
     // Cancel velocity along the collision normal
     if (info.normal.x != 0.0f) {
@@ -46,7 +49,8 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
         if (info.normal.y == -1.0f) {
             if (character) {
                 character->onGround = true;
-            } else if (auto item = dynamic_cast<Item*>(&entity)) {
+            } else if (entity.getCategory() == EntityCategory::Item) {
+                Item* item = static_cast<Item*>(&entity);
                 item->setOnGround(true);
             }
         }
@@ -56,85 +60,72 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
 void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const CollisionInfo& info) {
     if (!info.collided) return;
 
-    auto player1 = dynamic_cast<Player*>(&e1);
-    auto player2 = dynamic_cast<Player*>(&e2);
+    // Ask each side what it is, once, instead of running up to twelve
+    // dynamic_casts per pair per frame (audit A-10). Ordering the pair halves the
+    // number of cases: (Enemy, Player) is handled as (Player, Enemy) with the
+    // collision normal flipped, because the normal points from e1 towards e2.
+    const EntityCategory c1 = e1.getCategory();
+    const EntityCategory c2 = e2.getCategory();
 
-    // 1. Player vs Player
-    if (player1 && player2) {
-        resolvePlayerVsPlayer(*player1, *player2, info);
-        return;
-    }
+    auto flipped = [&info] {
+        CollisionInfo f = info;
+        f.normal = -info.normal;
+        return f;
+    };
 
-    // 2. Player vs Enemy
-    auto enemy1 = dynamic_cast<Enemy*>(&e1);
-    auto enemy2 = dynamic_cast<Enemy*>(&e2);
+    // Category pairs, in a fixed order so each combination appears once.
+    auto pair = [](EntityCategory a, EntityCategory b) {
+        return (static_cast<int>(a) << 8) | static_cast<int>(b);
+    };
 
-    if (player1 && enemy2) {
-        resolvePlayerVsEnemy(*player1, *enemy2, info);
-        return;
-    }
-    if (enemy1 && player2) {
-        CollisionInfo flippedInfo = info;
-        flippedInfo.normal = -info.normal;
-        resolvePlayerVsEnemy(*player2, *enemy1, flippedInfo);
-        return;
-    }
+    switch (pair(c1, c2)) {
+        case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Player):
+            resolvePlayerVsPlayer(static_cast<Player&>(e1), static_cast<Player&>(e2), info);
+            return;
 
-    // 3. Player vs Item
-    auto item1 = dynamic_cast<Item*>(&e1);
-    auto item2 = dynamic_cast<Item*>(&e2);
+        case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Enemy):
+            resolvePlayerVsEnemy(static_cast<Player&>(e1), static_cast<Enemy&>(e2), info);
+            return;
+        case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Player):
+            resolvePlayerVsEnemy(static_cast<Player&>(e2), static_cast<Enemy&>(e1), flipped());
+            return;
 
-    if (player1 && item2) {
-        resolvePlayerVsItem(*player1, *item2, info);
-        return;
-    }
-    if (item1 && player2) {
-        CollisionInfo flippedInfo = info;
-        flippedInfo.normal = -info.normal;
-        resolvePlayerVsItem(*player2, *item1, flippedInfo);
-        return;
-    }
+        case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Item):
+            resolvePlayerVsItem(static_cast<Player&>(e1), static_cast<Item&>(e2), info);
+            return;
+        case (static_cast<int>(EntityCategory::Item) << 8) | static_cast<int>(EntityCategory::Player):
+            resolvePlayerVsItem(static_cast<Player&>(e2), static_cast<Item&>(e1), flipped());
+            return;
 
-    // 4. Character / Item vs Block
-    auto char1 = dynamic_cast<Character*>(&e1);
-    auto char2 = dynamic_cast<Character*>(&e2);
-    auto block1 = dynamic_cast<Block*>(&e1);
-    auto block2 = dynamic_cast<Block*>(&e2);
+        // Enemies are Characters too, so Enemy-vs-Block lands here as well.
+        case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Block):
+        case (static_cast<int>(EntityCategory::Enemy)  << 8) | static_cast<int>(EntityCategory::Block):
+            resolveCharacterVsBlock(static_cast<Character&>(e1), static_cast<Block&>(e2), info);
+            return;
+        case (static_cast<int>(EntityCategory::Block) << 8) | static_cast<int>(EntityCategory::Player):
+        case (static_cast<int>(EntityCategory::Block) << 8) | static_cast<int>(EntityCategory::Enemy):
+            resolveCharacterVsBlock(static_cast<Character&>(e2), static_cast<Block&>(e1), flipped());
+            return;
 
-    if (char1 && block2) {
-        resolveCharacterVsBlock(*char1, *block2, info);
-        return;
-    }
-    if (block1 && char2) {
-        CollisionInfo flippedInfo = info;
-        flippedInfo.normal = -info.normal;
-        resolveCharacterVsBlock(*char2, *block1, flippedInfo);
-        return;
-    }
-    if (item1 && block2) {
-        resolveItemVsBlock(*item1, *block2, info);
-        return;
-    }
-    if (block1 && item2) {
-        CollisionInfo flippedInfo = info;
-        flippedInfo.normal = -info.normal;
-        resolveItemVsBlock(*item2, *block1, flippedInfo);
-        return;
-    }
+        case (static_cast<int>(EntityCategory::Item) << 8) | static_cast<int>(EntityCategory::Block):
+            resolveItemVsBlock(static_cast<Item&>(e1), static_cast<Block&>(e2), info);
+            return;
+        case (static_cast<int>(EntityCategory::Block) << 8) | static_cast<int>(EntityCategory::Item):
+            resolveItemVsBlock(static_cast<Item&>(e2), static_cast<Block&>(e1), flipped());
+            return;
 
-    // 5. Fireball vs Enemy
-    auto fireball1 = dynamic_cast<Fireball*>(&e1);
-    auto fireball2 = dynamic_cast<Fireball*>(&e2);
+        case (static_cast<int>(EntityCategory::Projectile) << 8) | static_cast<int>(EntityCategory::Enemy):
+            resolveFireballVsEnemy(static_cast<Fireball&>(e1), static_cast<Enemy&>(e2), info);
+            return;
+        case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Projectile):
+            resolveFireballVsEnemy(static_cast<Fireball&>(e2), static_cast<Enemy&>(e1), flipped());
+            return;
 
-    if (fireball1 && enemy2) {
-        resolveFireballVsEnemy(*fireball1, *enemy2, info);
-        return;
-    }
-    if (enemy1 && fireball2) {
-        CollisionInfo flippedInfo = info;
-        flippedInfo.normal = -info.normal;
-        resolveFireballVsEnemy(*fireball2, *enemy1, flippedInfo);
-        return;
+        default:
+            // Enemy-vs-Enemy is deliberately absent, which is why a kicked shell
+            // cannot defeat anything (audit B-8, Member B). Item-vs-Item and
+            // Projectile-vs-Block are genuinely no-ops.
+            return;
     }
 }
 
@@ -258,7 +249,8 @@ void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& blo
 
     // Handle flagpole trigger specifically (subclass of Block)
     if (auto flagpole = dynamic_cast<Flagpole*>(&block)) {
-        if (auto player = dynamic_cast<Player*>(&character)) {
+        if (character.getCategory() == EntityCategory::Player) {
+            Player* player = static_cast<Player*>(&character);
             flagpole->onPlayerCollision(*player, character.position.y);
         }
         return; // Flagpole does not physically block the character
@@ -281,8 +273,8 @@ void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& blo
             character.onGround = true;
         }
         if (info.normal.y == 1.0f) { // Character hit ceiling (block from below)
-            if (auto player = dynamic_cast<Player*>(&character)) {
-                block.onHitFromBelow(*player);
+            if (character.getCategory() == EntityCategory::Player) {
+                block.onHitFromBelow(static_cast<Player&>(character));
             }
         }
     }

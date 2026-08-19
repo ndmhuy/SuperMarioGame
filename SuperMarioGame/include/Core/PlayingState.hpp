@@ -12,6 +12,7 @@
 #include "Graphics/Minimap.hpp"
 #include "Graphics/ParticleEmitter.hpp"
 #include "Core/TimeRewindManager.hpp"
+#include "Core/DevPanel.hpp"
 #include <vector>
 #include <memory>
 
@@ -32,23 +33,30 @@ public:
     void render(sf::RenderTarget& target) override;
 
 private:
+    // DevPanel is an extension of this state's debug surface rather than an
+    // outside collaborator: it reads the same members render() does and queues
+    // mutations back. Friendship here is narrower than exposing setters for the
+    // entity list, tilemap and generator config to everyone.
+    friend class DevPanel;
+
+    // Operations the dev panels request. Defined here (not in the panel) so the
+    // state stays in charge of its own invariants.
+    void regenerateProceduralLevel();
+    void saveToSlot(int slot);
+    void loadFromSlot(int slot);
+
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
     MapEditor m_mapEditor;
     EventBus::SubscriptionId m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_powerUpSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_levelCompleteSubId = static_cast<EventBus::SubscriptionId>(-1);
     Player* m_player = nullptr;
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
     int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
     TimeRewindManager m_rewindManager;
 
-    bool m_isLevelComplete = false;
-    float m_levelCompleteTimer = 0.0f;
-    int m_levelCompletePoints = 0;
 
     std::unique_ptr<Hud> m_hud;
     float m_levelTimer = 300.0f;
@@ -74,8 +82,9 @@ private:
     std::unique_ptr<SpriteSheet> m_scenerySheet;
     std::unique_ptr<SpriteSheet> m_blocksSheet;
 
-    // Debug / dev overlays
-    bool m_showAABB = false;
+    // Dev/debug ImGui surface. Draws on the render path but performs no game
+    // mutation itself — see DevPanel.hpp.
+    DevPanel m_devPanel;
 
     // Tilemap animation timer for animated tiles (coin, question, water, etc.)
     float m_tileAnimTimer = 0.0f;
@@ -86,6 +95,12 @@ private:
     void setupTestScene();
     void cleanupTestScene();
     void spawnSelectedPlayer(const sf::Vector2f& pos);
+
+    // Takes ownership of `player`, installs it at m_entities[0], and refreshes every
+    // observer that holds a raw Player* (m_player, InputManager, Game) plus its
+    // animations. Every path that replaces the active player MUST go through this —
+    // assigning m_entities[0] directly leaves m_player dangling (audit A-3).
+    void adoptPlayer(std::unique_ptr<Player> player);
     bool loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride = {0.0f, 0.0f});
 
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet

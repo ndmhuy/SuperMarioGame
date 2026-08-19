@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Block.hpp"
 
 enum class FallingPlatformState {
@@ -13,6 +15,8 @@ class FallingPlatform : public Block {
 public:
     explicit FallingPlatform(sf::Vector2f position);
     ~FallingPlatform() override = default;
+
+    std::string getTypeName() const override { return "falling_platform"; }
 
     void onHitFromBelow(Player& player) override;
     void update(float dt) override;

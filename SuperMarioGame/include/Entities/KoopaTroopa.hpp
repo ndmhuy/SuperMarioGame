@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Enemy.hpp"
 
 class Player;
@@ -15,6 +17,8 @@ class KoopaTroopa : public Enemy {
 public:
     explicit KoopaTroopa(sf::Vector2f position, bool isRed = false);
     virtual ~KoopaTroopa() override = default;
+
+    std::string getTypeName() const override { return "koopa_troopa"; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

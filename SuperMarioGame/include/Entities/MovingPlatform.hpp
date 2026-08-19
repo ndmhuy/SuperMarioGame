@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Block.hpp"
 
 class MovingPlatform : public Block {
 public:
     MovingPlatform(sf::Vector2f position, sf::Vector2f travelRange, float speed = 50.0f);
     ~MovingPlatform() override = default;
+
+    std::string getTypeName() const override { return "moving_platform"; }
 
     void onHitFromBelow(Player& player) override;
     void update(float dt) override;

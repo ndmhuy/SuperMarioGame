@@ -24,6 +24,8 @@ public:
     virtual void onStomped() = 0;
     virtual void onHitByFireball() = 0;
 
+    EntityCategory getCategory() const override { return EntityCategory::Enemy; }
+
     // Score properties
     int getScoreValue() const;
     void setScoreValue(int value);

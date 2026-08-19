@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Enemy.hpp"
 
 class Goomba : public Enemy {
 public:
     explicit Goomba(sf::Vector2f position, bool isRed = false);
     virtual ~Goomba() override = default;
+
+    std::string getTypeName() const override { return "goomba"; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

@@ -8,6 +8,8 @@ public:
     explicit Pipe(sf::Vector2f position, int pipeId = 0, sf::Vector2f exitPosition = {0.0f, 0.0f}, std::string targetLevel = "", bool isEntrance = false, float rotationDegrees = 0.0f);
     ~Pipe() override = default;
 
+    std::string getTypeName() const override { return "pipe"; }
+
     void onHitFromBelow(Player& player) override;
     void render(sf::RenderTarget& target) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;

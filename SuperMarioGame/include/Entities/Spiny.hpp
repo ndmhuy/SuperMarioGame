@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Enemy.hpp"
 
 class Spiny : public Enemy {
 public:
     explicit Spiny(sf::Vector2f position, bool isEgg = false);
     ~Spiny() override = default;
+
+    std::string getTypeName() const override { return "spiny"; }
 
     void onStomped() override;
     void onHitByFireball() override;

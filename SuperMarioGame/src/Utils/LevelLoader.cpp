@@ -95,15 +95,15 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
             int ty = tileJson.value("y", 0);
             int tw = tileJson.value("w", 1); // horizontal span width
             
-            TileType tileType = TileType::Empty;
-            if (typeStr == "ground") tileType = TileType::Ground;
-            else if (typeStr == "brick") tileType = TileType::Brick;
-            else if (typeStr == "question_block" || typeStr == "question") tileType = TileType::Question;
-            else if (typeStr == "pipe") tileType = TileType::Pipe;
-            else if (typeStr == "ice") tileType = TileType::Ice;
-            else if (typeStr == "conveyor") tileType = TileType::Conveyor;
-            else if (typeStr == "water") tileType = TileType::Water;
-            else if (typeStr == "coin") tileType = TileType::Coin;
+            // Single source of truth — see SerializationUtils. A local copy of this
+            // mapping previously drifted and dropped every "coin_tile" in the game.
+            const TileType tileType = SerializationUtils::parseTileTypeName(typeStr);
+
+            if (tileType == TileType::Empty && typeStr != "empty") {
+                std::cerr << "[LevelLoader] Unknown tile type '" << typeStr
+                          << "' at (" << tx << ", " << ty << ") in " << jsonPath
+                          << " — skipped." << std::endl;
+            }
 
             if (tileType != TileType::Empty) {
                 for (int dx = 0; dx < tw; ++dx) {

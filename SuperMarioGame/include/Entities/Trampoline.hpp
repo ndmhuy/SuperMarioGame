@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Item.hpp"
 
 class Trampoline : public Item {
 public:
     explicit Trampoline(sf::Vector2f pos);
     ~Trampoline() override = default;
+
+    std::string getTypeName() const override { return "trampoline"; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

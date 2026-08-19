@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/KoopaTroopa.hpp"
 
 class KoopaParatroopa : public KoopaTroopa {
 public:
     explicit KoopaParatroopa(sf::Vector2f position, bool isRed = false);
     virtual ~KoopaParatroopa() override = default;
+
+    std::string getTypeName() const override { return "koopa_paratroopa"; }
 
     void update(float dt) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;

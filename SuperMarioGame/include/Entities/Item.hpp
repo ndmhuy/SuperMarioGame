@@ -19,6 +19,7 @@ public:
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    EntityCategory getCategory() const override { return EntityCategory::Item; }
 
     // Ground status & read-only getter
     bool isCollected() const { return collected; }
