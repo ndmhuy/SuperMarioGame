@@ -6,6 +6,7 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
+#include <iostream>
 
 void Player::performJump() {
     velocity.y = -jumpForce;
@@ -197,11 +198,32 @@ void Player::refreshStateAnimations() {
     while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
         baseState = decorator->getWrappedState();
     }
+    // Each base state has its own sprite set. Super, Fire and Cape used to fall
+    // through to "small", so every power-up looked identical in play (the art
+    // simply did not exist until tools/powerup-frames derived it).
     std::string stateSuffix = "small";
     if (dynamic_cast<MiniState*>(baseState)) {
         stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
+    } else if (dynamic_cast<FireState*>(baseState)) {
+        stateSuffix = "fire";
+    } else if (dynamic_cast<CapeState*>(baseState)) {
+        stateSuffix = "cape";
+    } else if (dynamic_cast<SuperState*>(baseState)) {
+        stateSuffix = "super";
     }
-    setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
+
+    // Fall back rather than render nothing if an atlas predates the derived
+    // frames: setupCharacterAnimations() would otherwise ask for frames that are
+    // not there and leave the player invisible.
+    const std::string prefix = getCharacterName() + "_" + stateSuffix;
+    if (stateSuffix != "small" && !m_spriteSheet->hasFrame(prefix + "_idle")
+                               && !m_spriteSheet->hasFrame(prefix + "_walk_0")) {
+        std::cerr << "[Player] Atlas has no \"" << prefix
+                  << "\" frames; falling back to _small." << std::endl;
+        setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_small");
+        return;
+    }
+    setupCharacterAnimations(m_spriteSheet, prefix);
 }
 
 void Player::changeState(std::unique_ptr<IPlayerState> state) {

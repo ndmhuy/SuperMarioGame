@@ -24,6 +24,12 @@ public:
     float getFlagY() const { return m_flagY; }
 
 private:
+    // Two clips: the flag waiting at the top, and the one-shot slide down the
+    // pole played when the player touches it. Block::m_animation holds a copy of
+    // whichever is current; these are kept as the definitions to copy from.
+    Animation m_raisedAnimation;
+    Animation m_descentAnimation;
+
     float m_poleHeight = 300.0f;
     bool m_triggered = false;
     float m_flagY = 0.0f;

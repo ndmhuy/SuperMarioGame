@@ -45,12 +45,36 @@ void Flagpole::onPlayerCollision(Player& player, float collisionY) {
     player.addScore(points);
     SoundManager::getInstance().playSound("flagpole");
     EventBus::getInstance().publish({EventType::LevelComplete, points});
+
+    // Swap to the descent animation so the flag visibly slides down the pole.
+    m_animation = m_descentAnimation;
+    if (m_animator) {
+        m_animator->play(&m_animation);
+        m_hasAnimation = true;
+    }
 }
 
 void Flagpole::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
-    m_animation = Animation("flagpole");
-    m_animation.frameList = {{"flag_white", 0.15f}, {"flag_reddish_white", 0.15f}};
+
+    // These used to name "flag_white" and "flag_reddish_white", which are in no
+    // atlas — so the flagpole drew nothing at all. The world atlas carries a
+    // raised flag (pole_flag_green) and a five-frame descent
+    // (full_flag_pole_0..4), which is the animation the flag actually needs.
+    m_raisedAnimation = Animation("flagpole_raised");
+    m_raisedAnimation.frameList = {{"pole_flag_green", 0.20f}};
+    m_raisedAnimation.isLooping = true;
+
+    m_descentAnimation = Animation("flagpole_descent");
+    m_descentAnimation.frameList = {
+        {"full_flag_pole_0", 0.18f}, {"full_flag_pole_1", 0.18f},
+        {"full_flag_pole_2", 0.18f}, {"full_flag_pole_3", 0.18f},
+        {"full_flag_pole_4", 0.18f}
+    };
+    // The flag comes to rest at the bottom; it must not loop back to the top.
+    m_descentAnimation.isLooping = false;
+
+    m_animation = m_raisedAnimation;
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;
