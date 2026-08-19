@@ -2862,3 +2862,26 @@ Summary of Changes:
 - Work is on A/fix/audit-remediation per AGENTS.md Directive 1; NOT merged to dev and not pushed.
 - Still open for Member A: WP10 (render() mutates state), WP11 (AABB in render), WP12 (dispatch + friend sprawl).
 ---
+[2026-08-18 17:35:00] Branch: A/fix/audit-remediation
+Git Fingerprint: 9671052 (before) → e2479e5 (after, 4 commits, not pushed)
+Fetched Remotes: yes, 15:41 (same session, no remote change since)
+Prompt: Continue implementing the Member A fix plan (WP10-WP12).
+Files Modified:
+- SuperMarioGame/include/Core/DevPanel.hpp (NEW), src/Core/DevPanel.cpp (NEW)
+- SuperMarioGame/src/Core/PlayingState.cpp, include/Core/PlayingState.hpp
+- SuperMarioGame/src/Entities/Entity.cpp, include/Entities/Entity.hpp
+- SuperMarioGame/src/Entities/{Player,Enemy,Block,Item,Trampoline,KoopaParatroopa,ChainChomp,BulletBill,Lakitu,Fireball}.cpp
+- 31 entity headers (getTypeName overrides), include/Entities/{Player,Enemy,Block,Item,Fireball}.hpp (getCategory)
+- SuperMarioGame/src/Physics/CollisionResolver.cpp
+- SuperMarioGame/src/Utils/SerializationUtils.cpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — all changes are on the live gameplay path; DevPanel is constructed by PlayingState and drawn every frame.
+Verified By: ctest verify_regressions (52/52 checks) + ran the game (3 separate 7s smoke runs across WP10/WP11/WP12, clean startup, no crash)
+Summary of Changes:
+- WP10 / A-9: extracted ~420 lines of dev ImGui from PlayingState::render() into a new DevPanel class. PLAN DEVIATION, for a hard technical reason: the plan said draw from update(), but ImGui calls are only legal after ImGui::SFML::Update(), which Game::run() calls AFTER the fixed-timestep loop. Split by effect instead — DevPanel::draw() stays on the render path and records each requested change as a closure; DevPanel::flush() replays them from the top of update(). Plan's actual acceptance criterion met: render() has zero ImGui calls, zero member assignments, zero calls into Game/MapGenerator/LevelLoader/Serializer. PlayingState.cpp 1218->897 lines; render() 619->209.
+  Folded in: deduplicated the two identical level-name arrays; persistence panel now uses m_player and the virtual getCharacterName() instead of dynamic_cast<Player*>(m_entities[0]) and a Mario/Luigi cast chain; slot save/load/regenerate moved onto PlayingState so it owns its invariants (regenerate now also re-inits the minimap, which the inline version forgot); item spawners now wire animations, which they did not.
+- WP11 / A-12 + X-6: added protected Entity::drawSprite()/drawPlaceholder(); collapsed six duplicated render bodies (Player, Enemy, Block, Item, Trampoline, KoopaParatroopa) onto them. Removed the render-time boundingBox sizing from all six, so the physics AABB no longer depends on the draw call. Removed the dead scaledW/scaledH locals. Five constructors that set boundingBox without syncing m_targetSize now call setTargetSize().
+- WP12 / A-10 + A-11: added virtual Entity::getCategory() and rewrote resolveEntityVsEntity's 12-cast cascade as a switch on the ordered category pair; converted 4 more dispatch-shaped casts. Added virtual getTypeName() across 31 concrete entities, replacing a 30-cast chain in SerializationUtils — this ALSO FIXED A LATENT BUG: the chain tested KoopaTroopa before its subclass KoopaParatroopa, so every Paratroopa serialised as "koopa_troopa" and reloaded without wings. Removed friend int main() from Entity and Character (unused). CollisionResolver and PlayingState friendships probed and confirmed still required.
+- 4 dynamic_casts deliberately left in CollisionResolver (KoopaTroopa, Trampoline, PSwitch, Flagpole): concrete-behaviour checks, not dispatch. Removing them needs new virtuals on Item/Block — scoped as separate work.
+- All 12 work packages of docs/issues/member_a_fix_plan.md are now complete. Branch NOT merged to dev and NOT pushed.
+---
