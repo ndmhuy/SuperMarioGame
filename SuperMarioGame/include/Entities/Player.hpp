@@ -106,6 +106,7 @@ protected:
     bool sliding = false;
     bool m_crouchRequestedThisFrame = false;
     bool m_runRequested = false;
+    bool m_groundPounding = false;
     bool m_isImmortal = false;
     float m_fireballCooldownTimer = 0.0f;
     Entity* m_heldEntity = nullptr;

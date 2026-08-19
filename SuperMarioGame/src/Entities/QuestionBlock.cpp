@@ -2,6 +2,8 @@
 #include "Entities/Player.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/GameSnapshot.hpp"
+#include "Utils/Constants.hpp"
 
 QuestionBlock::QuestionBlock(sf::Vector2f position, int itemType)
     : Block(position), m_containedItemType(itemType), m_isEmpty(false) {
@@ -26,10 +28,17 @@ void QuestionBlock::onHitFromBelow(Player& player) {
         player.addScore(200);
         SoundManager::getInstance().playSound("coin");
     } else {
-        // Powerup
+        // Powerup: ask for an item to be spawned on top of this block.
+        //
+        // This used to publish PowerUpCollected, which is the *pickup*
+        // notification — nothing listened for it as a spawn request, so all 59
+        // question blocks in the game awarded points and produced nothing, and
+        // no power-up was reachable anywhere (audit B-2).
         SoundManager::getInstance().playSound("powerup_appears");
-        // Publish event to notify EntityFactory/PlayingState to spawn the item
-        EventBus::getInstance().publish({EventType::PowerUpCollected, m_containedItemType});
+        PowerUpRequest request;
+        request.itemType = m_containedItemType;
+        request.spawnPosition = position - sf::Vector2f(0.0f, Constants::TILE_SIZE);
+        EventBus::getInstance().publish({EventType::PowerUpRequested, request});
         player.addScore(1000);
     }
 
