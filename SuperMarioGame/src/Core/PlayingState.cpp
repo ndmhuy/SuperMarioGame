@@ -93,6 +93,10 @@ void PlayingState::enter() {
         return nullptr;
     };
 
+    // Lead the player by up to a third of a screen at full run speed. Enough to
+    // see what is coming; more than this and the player sits at the screen edge.
+    m_camera.setLookahead(140.0f);
+
     m_playerSheet  = tryLoadSheet("player");
     m_enemySheet   = tryLoadSheet("enemy_projectile");
     m_itemSheet    = tryLoadSheet("item");
@@ -503,6 +507,25 @@ void PlayingState::update(float dt) {
     }
     m_entities.erase(deadBegin, m_entities.end());
 
+    // 3b2. Lava burns. A Lava tile is not solid — you fall into it, you do not
+    // stand on it — so nothing in the physics engine would ever have noticed it.
+    // Checked against the player's feet, which is the part that touches first.
+    if (m_player && !m_levelComplete) {
+        const AABB box = m_player->getBoundingBox();
+        const TileType underfoot = m_tileMap.getTileAt(box.x + box.width * 0.5f,
+                                                       box.y + box.height - 2.0f);
+        if (underfoot == TileType::Lava) {
+            // takeDamage steps the form down and grants i-frames, so standing in
+            // lava does not drain every life in one frame; Small Mario touching
+            // it still dies outright, which is the intent.
+            m_player->takeDamage(1);
+            if (m_player->getLives() <= 0) {
+                killPlayer("fell into the lava");
+                return;
+            }
+        }
+    }
+
     // 3c. Void fall — one shared death path, so the timer and the pit agree.
     const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
     if (m_player && m_player->getPosition().y > bottomVoidY) {
@@ -564,7 +587,9 @@ void PlayingState::update(float dt) {
 
     // 4. Update Camera & Screen Transitions
     if (m_player) {
-        m_camera.follow(m_player->getPosition(), dt);
+        // Velocity drives the lookahead (task 4.3): the camera leads the player
+        // in the direction they are running.
+        m_camera.follow(m_player->getPosition(), m_player->getVelocity(), dt);
     }
     m_camera.update(dt);
     m_background.update(dt);
@@ -648,6 +673,8 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Compute animated tile frame indices from timer
     int coinFrame     = static_cast<int>(m_tileAnimTimer / 0.15f) % 4;
     int questionFrame = static_cast<int>(m_tileAnimTimer / 0.20f) % 4;
+    // Two-frame wave cycle shared by water and lava surfaces.
+    const int waveFrame = static_cast<int>(m_tileAnimTimer / 0.35f) % 2;
 
     // Only iterate tiles the camera can actually see. Sweeping the whole grid was
     // roughly 4,400 sprite draws per frame on a 200-wide level (audit A-14).
@@ -703,8 +730,20 @@ void PlayingState::render(sf::RenderTarget& target) {
                         frameKey = "conveyor_belt_green";
                         break;
                     case TileType::Water: {
-                        bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Water);
-                        frameKey = isSurface ? "water_dark_blue_wave_short" : "water_dark_blue_bg";
+                        const bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Water);
+                        // The surface alternates between the two wave frames the
+                        // atlas ships, so it actually moves rather than only
+                        // bobbing up and down (task 5.10).
+                        frameKey = isSurface
+                            ? (waveFrame == 0 ? "water_dark_blue_wave_long" : "water_light_blue_wave_long")
+                            : "water_dark_blue_bg";
+                        break;
+                    }
+                    case TileType::Lava: {
+                        const bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Lava);
+                        frameKey = isSurface
+                            ? (waveFrame == 0 ? "lava_wave_long" : "lava_wave_short")
+                            : "lava_bg";
                         break;
                     }
                     case TileType::Coin:
@@ -723,7 +762,12 @@ void PlayingState::render(sf::RenderTarget& target) {
                             Constants::TILE_SIZE / bounds.size.y
                         ));
                         sf::Vector2f drawPos = tilePos;
-                        if (tileType == TileType::Water && (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Water)) {
+                        const bool liquidSurface =
+                            (tileType == TileType::Water &&
+                             (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Water)) ||
+                            (tileType == TileType::Lava &&
+                             (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Lava));
+                        if (liquidSurface) {
                             // Pure vertical bobbing up and down (started 5px lower to prevent exposing top gap)
                             float bobY = std::sin(m_tileAnimTimer * 3.0f) * 2.5f;
                             drawPos.y += 5.0f + bobY;
@@ -1059,6 +1103,7 @@ void PlayingState::updateBossArena() {
     if (m_activeBoss && !m_activeBoss->isActive()) {
         if (m_arenaLocked) {
             m_camera.setBounds(m_preArenaCameraBounds);
+            m_camera.setScrollMode(Camera::ScrollMode::Free);
             m_arenaLocked = false;
             std::cout << "[PlayingState] Boss arena released." << std::endl;
         }
@@ -1076,6 +1121,9 @@ void PlayingState::updateBossArena() {
         if (p.x > arena.x + Constants::TILE_SIZE && p.x < arena.x + arena.width) {
             m_preArenaCameraBounds = m_camera.getBounds();
             m_camera.setBounds(arena);
+            // Stop chasing as well as clamping: with the arena narrower than the
+            // view, chasing only fights the clamp.
+            m_camera.setScrollMode(Camera::ScrollMode::Locked);
             m_arenaLocked = true;
             SoundManager::getInstance().playMusic("bowser_boss_battle");
             std::cout << "[PlayingState] Boss arena locked: " << m_activeBoss->getDisplayName()

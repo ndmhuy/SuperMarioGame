@@ -18,7 +18,11 @@ enum class TileType : int {
     Conveyor = 6,
     Water = 7,
     Coin = 8,
-    Used = 9
+    Used = 9,
+    // Appended deliberately: the numeric values are what save files and the
+    // rewind snapshots store, so inserting Lava anywhere else would silently
+    // re-interpret every level ever saved.
+    Lava = 10
 };
 
 struct TileInfo {

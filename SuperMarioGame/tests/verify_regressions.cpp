@@ -1526,6 +1526,82 @@ void testBackgroundThemesAreDistinctAndDrawable() {
     check(wrong == 0, "every campaign level names a theme");
 }
 
+
+void testLavaIsARealTileThatBurns() {
+    section("5.10  lava exists, round-trips, and is not walkable");
+
+    // Water has always been a tile type; lava had none at all, despite Level 3
+    // being "Castle / Lava" in the SPEC and its pit being filled with water.
+    check(SerializationUtils::getTileTypeName(TileType::Lava) == "lava", "lava has a name");
+    check(SerializationUtils::parseTileTypeName("lava") == TileType::Lava, "and it round-trips");
+    check(static_cast<int>(TileType::Lava) == 10,
+          "appended after Used, so no previously-saved tile value changes meaning");
+
+    TileMap map;
+    map.initialize(8, 8);
+    map.setTile(3, 3, TileType::Lava);
+    check(map.getTileType(3, 3) == TileType::Lava, "a map can hold it");
+    check(!TileMap::getInfo(TileType::Lava).isSolid,
+          "and it is not solid — you fall into lava, you do not stand on it");
+
+    // And the castle level actually has some, or the feature is unreachable.
+    LevelData data;
+    LevelLoader loader;
+    TileMap castle;
+    if (loader.loadLevel(levelPath("level_3.json"), castle, data)) {
+        check(countTiles(castle, TileType::Lava) > 0,
+              "Bowser's Castle Fortress has lava in it (it had water)");
+        check(countTiles(castle, TileType::Water) == 0, "and no water left in the castle");
+    } else {
+        check(false, "level_3.json loads");
+    }
+}
+
+
+void testCameraLooksAheadAndHonoursScrollModes() {
+    section("4.3  the camera leads a running player and honours its scroll mode");
+
+    const AABB level{0.0f, 0.0f, 6400.0f, 736.0f};
+
+    Camera plain;
+    plain.setBounds(level);
+    plain.setLookahead(0.0f);
+    plain.snapTo({2000.0f, 400.0f});
+    for (int i = 0; i < 240; ++i) plain.follow({2000.0f, 400.0f}, {300.0f, 0.0f}, 1.0f / 60.0f);
+    const float plainX = plain.getPosition().x;
+
+    Camera leading;
+    leading.setBounds(level);
+    leading.setLookahead(140.0f);
+    leading.snapTo({2000.0f, 400.0f});
+    for (int i = 0; i < 240; ++i) leading.follow({2000.0f, 400.0f}, {300.0f, 0.0f}, 1.0f / 60.0f);
+    check(leading.getPosition().x > plainX + 50.0f,
+          "running right pushes the camera ahead of the player");
+
+    Camera trailing;
+    trailing.setBounds(level);
+    trailing.setLookahead(140.0f);
+    trailing.snapTo({2000.0f, 400.0f});
+    for (int i = 0; i < 240; ++i) trailing.follow({2000.0f, 400.0f}, {-300.0f, 0.0f}, 1.0f / 60.0f);
+    check(trailing.getPosition().x < plainX - 50.0f, "and running left pulls it back");
+
+    // Locked: a boss arena clamps through its bounds, so chasing only fights it.
+    Camera locked;
+    locked.setBounds(level);
+    locked.snapTo({1000.0f, 400.0f});
+    locked.setScrollMode(Camera::ScrollMode::Locked);
+    for (int i = 0; i < 120; ++i) locked.follow({5000.0f, 400.0f}, {300.0f, 0.0f}, 1.0f / 60.0f);
+    check(locked.getPosition().x == 1000.0f, "a locked camera ignores the target entirely");
+
+    Camera horizontal;
+    horizontal.setBounds(level);
+    horizontal.snapTo({1000.0f, 400.0f});
+    horizontal.setScrollMode(Camera::ScrollMode::Horizontal);
+    for (int i = 0; i < 120; ++i) horizontal.follow({1400.0f, 50.0f}, {300.0f, 0.0f}, 1.0f / 60.0f);
+    check(horizontal.getPosition().y == 400.0f, "horizontal mode does not follow vertically");
+    check(horizontal.getPosition().x > 1000.0f, "but still follows horizontally");
+}
+
 } // namespace
 
 int main() {
@@ -1582,6 +1658,8 @@ int main() {
     testEveryWritableTypeRoundTrips();
     testEntityConfigDrivesTuning();
     testBackgroundThemesAreDistinctAndDrawable();
+    testLavaIsARealTileThatBurns();
+    testCameraLooksAheadAndHonoursScrollModes();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

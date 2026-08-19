@@ -56,6 +56,7 @@ std::string getTileTypeName(TileType type) {
         case TileType::Ice:      return "ice";
         case TileType::Conveyor: return "conveyor";
         case TileType::Water:    return "water";
+        case TileType::Lava:     return "lava";
         case TileType::Coin:     return "coin_tile";
         case TileType::Used:     return "used";
         case TileType::Empty:    return "empty";
@@ -71,6 +72,7 @@ TileType parseTileTypeName(const std::string& name) {
     if (name == "ice") return TileType::Ice;
     if (name == "conveyor") return TileType::Conveyor;
     if (name == "water") return TileType::Water;
+    if (name == "lava") return TileType::Lava;
     if (name == "coin_tile" || name == "coin") return TileType::Coin;              // "coin" = legacy alias
     if (name == "used") return TileType::Used;
     return TileType::Empty;

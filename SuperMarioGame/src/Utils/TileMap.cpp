@@ -40,6 +40,13 @@ const TileInfo& TileMap::getInfo(TileType type) {
             static const TileInfo info{TileType::Water, false, sf::Color(30, 100, 230, 128), "Water"};
             return info;
         }
+        case TileType::Lava: {
+            // Not solid: you fall into lava, you do not stand on it. The damage
+            // is applied by PlayingState, which is the only place that knows
+            // which entity is the player.
+            static const TileInfo info{TileType::Lava, false, sf::Color(220, 70, 20, 160), "Lava"};
+            return info;
+        }
         case TileType::Coin: {
             static const TileInfo info{TileType::Coin, false, sf::Color(255, 215, 0), "Coin"};
             return info;
