@@ -11,6 +11,7 @@ enum class EventType {
   PlayerDied,
   PowerUpCollected,   // a player consumed a power-up (notification)
   PowerUpRequested,   // a block wants an item spawned above it (request)
+  EntitySpawnRequested, // an entity wants another entity created (Lakitu, HammerBro)
   LevelComplete,
   ComboHit,
   AchievementUnlocked,

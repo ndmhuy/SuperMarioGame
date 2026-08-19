@@ -76,10 +76,7 @@ void Spiny::onHitByFireball() {
     EventBus::getInstance().publish(event);
 }
 
-const AABB& Spiny::getBoundingBox() const {
-    static const AABB emptyBox{0.f, 0.f, 0.f, 0.f};
-    if (m_isFlipped) {
-        return emptyBox;
-    }
-    return boundingBox;
+bool Spiny::isCollidable() const {
+    // Was a zero-sized AABB returned from getBoundingBox() (audit B-14).
+    return !(m_isFlipped);
 }

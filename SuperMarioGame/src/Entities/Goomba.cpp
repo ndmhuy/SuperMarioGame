@@ -1,6 +1,7 @@
 #include "Entities/Goomba.hpp"
 #include "Entities/PatrolStrategy.hpp"
 #include "Utils/Constants.hpp"
+#include <string>
 #include "Core/EventBus.hpp"
 
 Goomba::Goomba(sf::Vector2f position, bool isRed)
@@ -29,8 +30,12 @@ void Goomba::update(float dt) {
 
 void Goomba::setupAnimations(const SpriteSheet* spriteSheet) {
     Enemy::setupAnimations(spriteSheet);
-    m_animation = Animation("goomba_move");
-    m_animation.frameList = {{"goomba_brown_move_0", 0.15f}, {"goomba_brown_move_1", 0.15f}};
+    // The ledge-aware variant needs to look different. The atlas has no red
+    // goomba (blue/brown/grey only), so grey stands in (audit B-12).
+    const std::string colour = m_isRed ? "grey" : "brown";
+    m_animation = Animation("goomba_move_" + colour);
+    m_animation.frameList = {{"goomba_" + colour + "_move_0", 0.15f},
+                             {"goomba_" + colour + "_move_1", 0.15f}};
     m_squishAnim = Animation("goomba_squished");
     m_squishAnim.frameList = {{"goomba_brown_squished", 0.15f}};
     if (m_animator) {

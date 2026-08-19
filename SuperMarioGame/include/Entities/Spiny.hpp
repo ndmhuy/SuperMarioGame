@@ -15,7 +15,7 @@ public:
     void onHitByFireball() override;
     void update(float dt) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
-    const AABB& getBoundingBox() const override;
+    bool isCollidable() const override;
 
     bool isFlipped() const { return m_isFlipped; }
     bool isEgg() const { return m_isEgg; }

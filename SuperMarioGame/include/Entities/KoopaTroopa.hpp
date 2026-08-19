@@ -37,7 +37,7 @@ public:
     float getShellTimer() const { return m_shellTimer; }
     bool isFlipped() const { return m_isFlipped; }
 
-    const AABB& getBoundingBox() const override;
+    bool isCollidable() const override;
     bool isDeadOrDying() const override { return Enemy::isDeadOrDying() || m_state == KoopaState::ShellHeld; }
 
 protected:

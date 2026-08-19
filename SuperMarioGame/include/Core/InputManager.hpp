@@ -3,7 +3,11 @@
 #include "Core/ICommand.hpp"
 #include <SFML/Graphics.hpp>
 #include <unordered_map>
+#include <set>
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <set>
 
 class InputManager {
 public:
@@ -21,6 +25,24 @@ public:
 
     // Update held keys
     void update(Character& character);
+
+    // Apply persisted bindings from config.json.
+    //
+    // Serializer has always read and written a keyBindings map and Game has
+    // always held it, but nothing ever pushed it into the mappings — the player
+    // kept the hardcoded defaults no matter what was configured (audit B-11,
+    // GitHub issue #9).
+    //
+    // Keys are action names ("jump", "left", "right", "fire", "run", "crouch")
+    // and values are key names as produced by keyName(). Unknown actions and
+    // unparseable keys are ignored so a hand-edited config cannot brick input.
+    void applyBindings(const std::unordered_map<std::string, std::string>& bindings,
+                       int playerIndex = 0);
+
+    // Human-readable name for a key, and its inverse. Used for persistence and
+    // for showing the current binding in the options UI.
+    static std::string keyName(sf::Keyboard::Key key);
+    static bool parseKeyName(const std::string& name, sf::Keyboard::Key& out);
 
     // Register characters to player indices (0 = P1, 1 = P2)
     void registerPlayer(Character* character, int playerIndex);
@@ -41,4 +63,10 @@ private:
     // We support Player 1 (index 0) and Player 2 (index 1)
     std::unordered_map<sf::Keyboard::Key, std::shared_ptr<ICommand>> m_pressMappings[2];
     std::unordered_map<sf::Keyboard::Key, std::shared_ptr<ICommand>> m_holdMappings[2];
+
+    // Action-name views over the same commands, so a binding can be moved to a
+    // different key without rebuilding it.
+    std::unordered_map<std::string, std::shared_ptr<ICommand>> m_commandsByAction;
+    std::set<std::string> m_heldActions;                       // polled, not edge-triggered
+    std::unordered_map<std::string, sf::Keyboard::Key> m_boundKey[2];
 };

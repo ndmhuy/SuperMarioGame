@@ -21,6 +21,9 @@
 #include "Utils/SerializationUtils.hpp"
 #include "Graphics/Camera.hpp"
 #include "Entities/QuestionBlock.hpp"
+#include "Entities/HiddenBlock.hpp"
+#include "Entities/EntityFactory.hpp"
+#include "Core/InputManager.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -427,6 +430,66 @@ void testLevelsArePopulated() {
           std::to_string(totalPowerUpBlocks) + " do)");
 }
 
+// ---------------------------------------------------------------------------
+// Member B findings.
+// ---------------------------------------------------------------------------
+void testHiddenBlockCanBeRevealed() {
+    section("B-3  a hidden block is collidable, so it can be found at all");
+
+    HiddenBlock block({100.0f, 100.0f});
+    check(!block.isRevealed(), "starts hidden");
+    check(block.isCollidable(),
+          "still collidable while hidden — it returned a zero AABB before, which "
+          "made onHitFromBelow unreachable and the block undiscoverable");
+
+    Mario mario({100.0f, 140.0f});
+    block.onHitFromBelow(mario);
+    check(block.isRevealed(), "revealed once hit from below");
+}
+
+void testMovingPlatformActuallyMoves() {
+    section("B-5  moving platforms have a travel range");
+
+    auto entity = EntityFactory::create(EntityType::MovingPlatform, {200.0f, 200.0f});
+    check(entity != nullptr, "factory builds a MovingPlatform");
+    if (!entity) return;
+
+    const sf::Vector2f start = entity->getPosition();
+    for (int i = 0; i < 60; ++i) entity->update(Constants::FIXED_TIMESTEP);
+
+    check(std::abs(entity->getPosition().x - start.x) > 1.0f,
+          "it has moved after a second (factory passed a zero range before)");
+}
+
+void testNonCollidableEntitiesAreNotAtTheOrigin() {
+    section("B-14 disabled entities report themselves, not a box at (0,0)");
+
+    Goomba goomba({500.0f, 300.0f});
+    check(goomba.isCollidable(), "a live goomba collides");
+
+    goomba.onStomped();                       // squished
+    check(!goomba.isCollidable(), "a squished goomba opts out of collision");
+
+    const AABB box = goomba.getBoundingBox();
+    check(box.x > 400.0f,
+          "its bounding box still reports its real position, not (0,0) "
+          "(the old zero-AABB idiom polluted spatial-hash cell 0,0)");
+}
+
+void testKeyBindingsApply() {
+    section("B-11 persisted key bindings reach the InputManager");
+
+    sf::Keyboard::Key parsed;
+    check(InputManager::parseKeyName("W", parsed) && parsed == sf::Keyboard::Key::W,
+          "key names parse");
+    check(InputManager::keyName(sf::Keyboard::Key::LShift) == "LShift", "and round-trip");
+    check(!InputManager::parseKeyName("NotAKey", parsed), "nonsense is rejected, not guessed");
+
+    // Rebinding jump to J must not throw and must be accepted.
+    InputManager::getInstance().applyBindings({{"jump", "J"}}, 0);
+    check(true, "applyBindings accepts a valid rebind without throwing");
+}
+
 } // namespace
 
 int main() {
@@ -447,6 +510,10 @@ int main() {
     testCameraOnShortMapKeepsGroundVisible();
     testShakeCannotEscapeBounds();
     testLevelsArePopulated();
+    testHiddenBlockCanBeRevealed();
+    testMovingPlatformActuallyMoves();
+    testNonCollidableEntitiesAreNotAtTheOrigin();
+    testKeyBindingsApply();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

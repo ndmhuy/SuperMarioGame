@@ -2,11 +2,26 @@
 #include "Entities/HammerThrowStrategy.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/GameSnapshot.hpp"
+#include "Entities/EntityFactory.hpp"
 
 HammerBro::HammerBro(sf::Vector2f position)
     : Enemy(position, 1000, {32.0f, 48.0f}) {
-    // Set AI platform patrolling and hammer throwing strategy
-    setStrategy(std::make_unique<HammerThrowStrategy>());
+    auto strategy = std::make_unique<HammerThrowStrategy>();
+
+    // HammerThrowStrategy has always had this hook and nothing ever set it, so
+    // the throw branch was dead and no Hammer class existed to spawn (audit
+    // B-6). Ask the world to create the projectile.
+    strategy->setThrowCallback([](sf::Vector2f origin, bool faceRight) {
+        EntitySpawnRequest request;
+        request.type = static_cast<int>(EntityType::Hammer);
+        request.position = origin;
+        // Up and forward, so it arcs over a short gap.
+        request.velocity = sf::Vector2f(faceRight ? 220.0f : -220.0f, -420.0f);
+        EventBus::getInstance().publish({EventType::EntitySpawnRequested, request});
+    });
+
+    setStrategy(std::move(strategy));
 }
 
 void HammerBro::setupAnimations(const SpriteSheet* spriteSheet) {

@@ -12,6 +12,7 @@
 #include "Core/WallJumpCommand.hpp"
 
 #include <vector>
+#include <iostream>
 
 // Simple CompositeCommand class to execute multiple commands (e.g. Jump and WallJump on same key)
 class CompositeCommand : public ICommand {
@@ -55,6 +56,14 @@ void InputManager::loadDefaultBindings() {
     compositeJumpCmd->addCommand(jumpCmd);
     compositeJumpCmd->addCommand(wjCmd);
 
+    // Action tables, so applyBindings() can move a command to a different key
+    // without needing to know how it was constructed.
+    m_commandsByAction = {
+        {"jump", compositeJumpCmd}, {"fire", fireCmd}, {"groundpound", gpCmd},
+        {"left", leftCmd}, {"right", rightCmd}, {"crouch", crouchCmd}, {"run", runCmd},
+    };
+    m_heldActions = {"left", "right", "crouch", "run"};
+
     // --- PLAYER 1 BINDINGS (WASD) ---
     // Press mappings (one-shot actions)
     m_pressMappings[0][sf::Keyboard::Key::W] = compositeJumpCmd;
@@ -79,6 +88,16 @@ void InputManager::loadDefaultBindings() {
     m_holdMappings[1][sf::Keyboard::Key::Right] = rightCmd;
     m_holdMappings[1][sf::Keyboard::Key::Down] = crouchCmd; // Hold Down arrow to crouch
     m_holdMappings[1][sf::Keyboard::Key::N] = runCmd;
+
+    // Remember which key each action landed on, per player.
+    m_boundKey[0] = {{"jump", sf::Keyboard::Key::W}, {"fire", sf::Keyboard::Key::F},
+                     {"groundpound", sf::Keyboard::Key::S}, {"left", sf::Keyboard::Key::A},
+                     {"right", sf::Keyboard::Key::D}, {"crouch", sf::Keyboard::Key::S},
+                     {"run", sf::Keyboard::Key::LShift}};
+    m_boundKey[1] = {{"jump", sf::Keyboard::Key::Up}, {"fire", sf::Keyboard::Key::M},
+                     {"groundpound", sf::Keyboard::Key::Down}, {"left", sf::Keyboard::Key::Left},
+                     {"right", sf::Keyboard::Key::Right}, {"crouch", sf::Keyboard::Key::Down},
+                     {"run", sf::Keyboard::Key::N}};
 }
 
 void InputManager::registerPlayer(Character* character, int playerIndex) {
@@ -111,5 +130,69 @@ void InputManager::update(Character& character) {
         if (sf::Keyboard::isKeyPressed(pair.first)) {
             pair.second->execute(character);
         }
+    }
+}
+
+// --- Key name <-> enum -------------------------------------------------------
+// Only the keys a player can reasonably bind. Anything outside this table is
+// rejected rather than guessed at.
+namespace {
+const std::pair<const char*, sf::Keyboard::Key> kKeyNames[] = {
+    {"A", sf::Keyboard::Key::A}, {"B", sf::Keyboard::Key::B}, {"C", sf::Keyboard::Key::C},
+    {"D", sf::Keyboard::Key::D}, {"E", sf::Keyboard::Key::E}, {"F", sf::Keyboard::Key::F},
+    {"G", sf::Keyboard::Key::G}, {"H", sf::Keyboard::Key::H}, {"I", sf::Keyboard::Key::I},
+    {"J", sf::Keyboard::Key::J}, {"K", sf::Keyboard::Key::K}, {"L", sf::Keyboard::Key::L},
+    {"M", sf::Keyboard::Key::M}, {"N", sf::Keyboard::Key::N}, {"O", sf::Keyboard::Key::O},
+    {"P", sf::Keyboard::Key::P}, {"Q", sf::Keyboard::Key::Q}, {"R", sf::Keyboard::Key::R},
+    {"S", sf::Keyboard::Key::S}, {"T", sf::Keyboard::Key::T}, {"U", sf::Keyboard::Key::U},
+    {"V", sf::Keyboard::Key::V}, {"W", sf::Keyboard::Key::W}, {"X", sf::Keyboard::Key::X},
+    {"Y", sf::Keyboard::Key::Y}, {"Z", sf::Keyboard::Key::Z},
+    {"Space",  sf::Keyboard::Key::Space},  {"LShift", sf::Keyboard::Key::LShift},
+    {"RShift", sf::Keyboard::Key::RShift}, {"Left",   sf::Keyboard::Key::Left},
+    {"Right",  sf::Keyboard::Key::Right},  {"Up",     sf::Keyboard::Key::Up},
+    {"Down",   sf::Keyboard::Key::Down},   {"Enter",  sf::Keyboard::Key::Enter},
+};
+} // namespace
+
+std::string InputManager::keyName(sf::Keyboard::Key key) {
+    for (const auto& [name, value] : kKeyNames) {
+        if (value == key) return name;
+    }
+    return "";
+}
+
+bool InputManager::parseKeyName(const std::string& name, sf::Keyboard::Key& out) {
+    for (const auto& [text, value] : kKeyNames) {
+        if (name == text) { out = value; return true; }
+    }
+    return false;
+}
+
+void InputManager::applyBindings(const std::unordered_map<std::string, std::string>& bindings,
+                                 int playerIndex) {
+    if (playerIndex < 0 || playerIndex > 1) return;
+
+    for (const auto& [action, keyText] : bindings) {
+        auto cmdIt = m_commandsByAction.find(action);
+        if (cmdIt == m_commandsByAction.end()) continue;   // not a bindable action
+
+        sf::Keyboard::Key key;
+        if (!parseKeyName(keyText, key)) {
+            std::cerr << "[InputManager] Ignoring unknown key \"" << keyText
+                      << "\" bound to \"" << action << "\"" << std::endl;
+            continue;
+        }
+
+        const bool held = m_heldActions.count(action) > 0;
+        auto& mappings = held ? m_holdMappings[playerIndex] : m_pressMappings[playerIndex];
+
+        // Release the key this action currently occupies, then take the new one.
+        auto boundIt = m_boundKey[playerIndex].find(action);
+        if (boundIt != m_boundKey[playerIndex].end()) {
+            mappings.erase(boundIt->second);
+        }
+
+        mappings[key] = cmdIt->second;
+        m_boundKey[playerIndex][action] = key;
     }
 }

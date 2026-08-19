@@ -55,7 +55,9 @@ public:
         auto it = m_keyBindings.find(action);
         return (it != m_keyBindings.end()) ? it->second : "";
     }
-    void setKeyBinding(const std::string& action, const std::string& key) { m_keyBindings[action] = key; }
+    // Rebinding applies immediately as well as persisting, so the options UI
+    // does not require a restart to take effect.
+    void setKeyBinding(const std::string& action, const std::string& key);
 
     bool getColorblindMode() const { return m_colorblindMode; }
     void setColorblindMode(bool enabled) { m_colorblindMode = enabled; }

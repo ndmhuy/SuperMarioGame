@@ -151,10 +151,7 @@ void KoopaTroopa::throwShell(float speed, float angleDeg) {
     SoundManager::getInstance().playSound("kick");
 }
 
-const AABB& KoopaTroopa::getBoundingBox() const {
-    if (isDeadOrDying()) {
-        static const AABB emptyBox{ 0.0f, 0.0f, 0.0f, 0.0f };
-        return emptyBox;
-    }
-    return boundingBox;
+bool KoopaTroopa::isCollidable() const {
+    // Was a zero-sized AABB returned from getBoundingBox() (audit B-14).
+    return !isDeadOrDying();
 }

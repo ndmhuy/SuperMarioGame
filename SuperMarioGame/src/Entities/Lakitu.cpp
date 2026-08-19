@@ -2,6 +2,9 @@
 #include "Entities/FlyStrategy.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/GameSnapshot.hpp"
+#include "Entities/EntityFactory.hpp"
+#include "Utils/Constants.hpp"
 
 Lakitu::Lakitu(sf::Vector2f position)
     : Enemy(position, 800) {
@@ -41,11 +44,20 @@ void Lakitu::update(float dt) {
     boundingBox.x = position.x;
     boundingBox.y = position.y;
 
-    // Update egg timer
+    // Drop a Spiny on a timer. This used to increment a counter and play a
+    // sound without ever creating anything, so Lakitu was a hovering sprite
+    // (audit B-7). Entities cannot reach the world's entity list, so it asks.
     m_eggTimer += dt;
     if (m_eggTimer >= 4.0f) {
         m_eggTimer = 0.0f;
         m_spawnCount++;
-        SoundManager::getInstance().playSound("kick"); // or throw sound
+
+        EntitySpawnRequest request;
+        request.type = static_cast<int>(EntityType::Spiny);
+        request.position = position + sf::Vector2f(0.0f, Constants::TILE_SIZE);
+        request.velocity = sf::Vector2f(facingRight ? 40.0f : -40.0f, 0.0f);
+        EventBus::getInstance().publish({EventType::EntitySpawnRequested, request});
+
+        SoundManager::getInstance().playSound("kick");
     }
 }
