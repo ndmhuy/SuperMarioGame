@@ -3281,3 +3281,48 @@ Summary of Changes:
 - The v1.0-complete tag was re-pointed from 679d301 to 59794fe so the milestone
   includes its own documentation. Safe to re-tag: nothing is pushed.
 - Working on dev from here, not main.
+[2026-08-20 05:40:00] Branch: A/complete-game-tiers-1-4 (off main)
+Git Fingerprint: 4224b0a (before) → 7b1e75f (after, 1 commit, PUSHED)
+Fetched Remotes: yes, 05:12
+Prompt: (screenshots) not balanced / background arbitrary / movement buggy / generate & edit not working; then: create PR for all what we have done.
+Files Modified:
+- SuperMarioGame/src/Core/{MenuState,Game,PlayingState,DevPanel}.cpp
+- SuperMarioGame/include/Core/{MenuState,Game}.hpp
+- SuperMarioGame/include/Graphics/BackgroundRenderer.hpp + src/Graphics/BackgroundRenderer.cpp
+- SuperMarioGame/src/Utils/MetaGame.cpp
+Reachable From Main: yes — all of it is menu, window and input code on the live path.
+Verified By: ctest (2/2 — 314 + 24) + rendered the menu to an off-screen target
+and looked at it before and after. NOT verified by playing: the reporter's two
+remaining symptoms could not be reproduced here.
+Summary of Changes:
+- FIXED, confirmed from the screenshot: the main menu panel was a hardcoded
+  250px for what had become 7 rows, so the last two rendered outside it and on
+  top of the hint line. Height now derives from the row count. "DAILY CHALLENGE"
+  also printed through its own date; the panel is wider and the date no longer
+  repeats the word.
+- FIXED: the menu's backdrop was hand-drawn CircleShape blobs from before
+  BackgroundRenderer existed. It now uses the same parallax backdrop as the
+  levels, with a new opt-in ground band (levels have a tilemap to fill that area;
+  menus do not, which is why the hills floated).
+- FIXED: dev panels all opened at ImGui's default position, stacked on each
+  other over the player. Assigned positions, collapsed by default.
+- FIXED: the window was resizable with no Resized handler, so dragging it
+  stretched the fixed 1280x720 layout — the likely reason the HUD was clipped in
+  the screenshot. Made fixed-size; letterboxing cannot work while every state
+  resets to getDefaultView(), and resolution-independent layout is a much larger
+  change.
+- MOVEMENT: could NOT reproduce. I verified the persisted bindings load intact
+  (A/D/W/F) and drove MoveRightCommand through the real PhysicsEngine — 140px in
+  one second at walk speed 150. Both correct. The plausible remaining cause was
+  input capture, so held-key polling now requires the console closed, ImGui not
+  wanting the keyboard, and the window focused: sf::Keyboard::isKeyPressed reads
+  GLOBAL key state, so the player was walking while ImGui fields had focus and
+  while the game was in the background. Reported to the user as unconfirmed.
+- GENERATE & EDIT: could NOT reproduce. MapGenerator produces a winnable 200x23
+  level with a player for all four themes, and the menu routes GenerateEdit to
+  PlayingState(startInEditor=true, isProcedural=true). Asked the user what they
+  actually see.
+- PUSHED (first push of this work, user asked for a PR): branch
+  A/complete-game-tiers-1-4, PR #12 into dev. 31 commits, 142 files,
+  +13358/-1239. main and dev remain unpushed locally.
+---
