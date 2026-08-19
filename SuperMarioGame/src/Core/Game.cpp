@@ -1,6 +1,7 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/InputManager.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
@@ -27,6 +28,12 @@ void Game::run() {
     // Apply loaded volumes to SoundManager
     SoundManager::getInstance().setSFXVolume(m_sfxVolume);
     SoundManager::getInstance().setMusicVolume(m_musicVolume);
+
+    // Apply the persisted key bindings. Serializer has always read and written
+    // this map and Game has always held it, but nothing pushed it into the
+    // InputManager, so custom bindings were silently ignored and the player kept
+    // the hardcoded defaults (audit B-11, GitHub issue #9).
+    InputManager::getInstance().applyBindings(m_keyBindings, 0);
 
     // Initialize tracking systems
     StatisticsTracker::getInstance().init();
@@ -213,4 +220,11 @@ void Game::setSfxVolume(float volume) {
 void Game::setMusicVolume(float volume) {
     m_musicVolume = volume;
     SoundManager::getInstance().setMusicVolume(volume);
+}
+
+void Game::setKeyBinding(const std::string& action, const std::string& key) {
+    m_keyBindings[action] = key;
+    // Push straight through so the change is live this frame; shutdown() persists
+    // the map to config.json.
+    InputManager::getInstance().applyBindings({{action, key}}, 0);
 }

@@ -31,6 +31,16 @@ struct PowerUpRequest {
     sf::Vector2f spawnPosition{}; // world position to spawn at
 };
 
+// Payload for EventType::EntitySpawnRequested. Entities have no handle on the
+// world's entity list, so anything that needs to create another entity asks for
+// it here and PlayingState performs the spawn. This is how Lakitu drops Spinies
+// and Hammer Bro throws hammers (audit B-6, B-7).
+struct EntitySpawnRequest {
+    int type = 0;                 // EntityType, as int to keep this header light
+    sf::Vector2f position{};
+    sf::Vector2f velocity{};
+};
+
 struct GameSnapshot {
     PlayerSnapshot playerState;
     std::vector<EntitySnapshot> entityStates;

@@ -48,10 +48,14 @@ void HiddenBlock::render(sf::RenderTarget& target) {
     }
 }
 
-const AABB& HiddenBlock::getBoundingBox() const {
-    static const AABB emptyBox{0.f, 0.f, 0.f, 0.f};
-    if (!m_isRevealed) {
-        return emptyBox;
-    }
-    return boundingBox;
+bool HiddenBlock::isCollidable() const {
+    // A hidden block is ALWAYS collidable — that is the whole mechanic. It was
+    // returning a zero-sized AABB while unrevealed, so it never collided, so
+    // onHitFromBelow never fired, so it could never be revealed: a deadlock that
+    // made every hidden block in the game unreachable (audit B-3).
+    //
+    // Invisibility is a rendering concern, handled in render(). Solidity from
+    // above is handled in resolveCharacterVsBlock, which ignores unrevealed
+    // blocks so the player does not bump an invisible ceiling while running.
+    return true;
 }

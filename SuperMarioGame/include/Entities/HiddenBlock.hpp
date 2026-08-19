@@ -11,7 +11,7 @@ public:
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
-    const AABB& getBoundingBox() const override;
+    bool isCollidable() const override;
 
     bool isRevealed() const { return m_isRevealed; }
 

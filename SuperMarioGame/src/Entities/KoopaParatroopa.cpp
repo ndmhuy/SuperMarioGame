@@ -3,6 +3,7 @@
 #include "Entities/PatrolStrategy.hpp"
 #include "Utils/Constants.hpp"
 #include "Core/EventBus.hpp"
+#include <string>
 
 KoopaParatroopa::KoopaParatroopa(sf::Vector2f position, bool isRed)
     : KoopaTroopa(position, isRed) {
@@ -19,8 +20,12 @@ KoopaParatroopa::KoopaParatroopa(sf::Vector2f position, bool isRed)
 
 void KoopaParatroopa::setupAnimations(const SpriteSheet* spriteSheet) {
     KoopaTroopa::setupAnimations(spriteSheet);
-    m_flyAnim = Animation("koopa_fly");
-    m_flyAnim.frameList = {{"koopa_green_fly_left_0", 0.15f}, {"koopa_green_fly_left_1", 0.15f}};
+    // KoopaTroopa::setupAnimations already honours m_isRed; the fly frames were
+    // the one place still hardcoded to green (audit B-12).
+    const std::string colour = m_isRed ? "red" : "green";
+    m_flyAnim = Animation("koopa_fly_" + colour);
+    m_flyAnim.frameList = {{"koopa_" + colour + "_fly_left_0", 0.15f},
+                           {"koopa_" + colour + "_fly_left_1", 0.15f}};
     if (m_animator) {
         m_animator->play(&m_flyAnim);
         m_hasAnimation = true;

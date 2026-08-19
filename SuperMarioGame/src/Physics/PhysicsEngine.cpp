@@ -328,7 +328,9 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // Rebuild the spatial hash with the updated and resolved bounding boxes
     m_spatialHash.clear();
     for (const auto& entity : entities) {
-        if (entity && entity->isActive()) {
+        // Non-collidable entities are left out of the hash entirely rather than
+        // inserted at a fake position (audit B-14).
+        if (entity && entity->isActive() && entity->isCollidable()) {
             m_spatialHash.insert(entity.get(), entity->getBoundingBox());
         }
     }
@@ -341,7 +343,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     std::unordered_set<std::pair<Entity*, Entity*>, PairHash> resolvedPairs;
 
     for (const auto& entity : entities) {
-        if (!entity || !entity->isActive()) continue;
+        if (!entity || !entity->isActive() || !entity->isCollidable()) continue;
 
         auto candidates = m_spatialHash.query(entity->getBoundingBox());
         for (auto candidate : candidates) {

@@ -70,10 +70,7 @@ void Enemy::setScoreValue(int value) {
     m_scoreValue = value;
 }
 
-const AABB& Enemy::getBoundingBox() const {
-    if (isDeadOrDying()) {
-        static const AABB emptyBox{0.0f, 0.0f, 0.0f, 0.0f};
-        return emptyBox;
-    }
-    return boundingBox;
+bool Enemy::isCollidable() const {
+    // Was a zero-sized AABB returned from getBoundingBox() (audit B-14).
+    return !isDeadOrDying();
 }

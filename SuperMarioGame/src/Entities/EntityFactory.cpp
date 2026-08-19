@@ -1,4 +1,5 @@
 #include "Entities/EntityFactory.hpp"
+#include "Utils/Constants.hpp"
 
 // Include respective concrete entity headers (only those currently implemented in the codebase)
 #include "Entities/Mario.hpp"
@@ -17,6 +18,7 @@
 #include "Entities/ChainChomp.hpp"
 #include "Entities/Lakitu.hpp"
 #include "Entities/Spiny.hpp"
+#include "Entities/Hammer.hpp"
 // Note: Bowser.hpp and BoomBoom.hpp are not yet created in the project, so they are not included here.
 
 #include "Entities/Mushroom.hpp"
@@ -78,6 +80,9 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
             return std::make_unique<Lakitu>(position);
         case EntityType::Spiny:
             return std::make_unique<Spiny>(position);
+        case EntityType::Hammer:
+            // Velocity is applied by the spawn listener after construction.
+            return std::make_unique<Hammer>(position, sf::Vector2f(0.0f, 0.0f));
         case EntityType::Bowser:
         case EntityType::BoomBoom:
             // Bowser and BoomBoom are not yet implemented in the codebase
@@ -121,7 +126,12 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
         case EntityType::HiddenBlock:
             return std::make_unique<HiddenBlock>(position);
         case EntityType::MovingPlatform:
-            return std::make_unique<MovingPlatform>(position, sf::Vector2f(0.f, 0.f));
+            // A zero travel range makes m_rangeLen 0, so update() takes the
+            // stationary branch and the platform never moves — every platform
+            // placed from a level file or the generator was static (audit B-5).
+            // Default to a 4-tile horizontal patrol; level data can override it
+            // once the schema carries a range.
+            return std::make_unique<MovingPlatform>(position, sf::Vector2f(4.0f * Constants::TILE_SIZE, 0.0f));
         case EntityType::FallingPlatform:
             return std::make_unique<FallingPlatform>(position);
         case EntityType::IceBlock:

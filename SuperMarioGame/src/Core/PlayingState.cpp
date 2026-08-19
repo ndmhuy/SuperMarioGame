@@ -243,6 +243,23 @@ void PlayingState::enter() {
         m_entities.push_back(std::move(item));
     });
 
+    // --- Entities asking for other entities (Lakitu's Spinies, Hammer Bro's
+    // hammers). Entities have no handle on the world list, so they publish and
+    // this performs the spawn (audit B-6, B-7). ---
+    m_entitySpawnSubId = bus.subscribe(EventType::EntitySpawnRequested, [this](const GameEvent& ev) {
+        if (!ev.data.has_value() || ev.data.type() != typeid(EntitySpawnRequest)) return;
+        const auto request = std::any_cast<EntitySpawnRequest>(ev.data);
+
+        // Keep a lid on projectiles so a long fight cannot flood the world.
+        if (m_entities.size() >= 400) return;
+
+        auto spawned = EntityFactory::create(static_cast<EntityType>(request.type), request.position);
+        if (!spawned) return;
+        spawned->setVelocity(request.velocity);
+        wireEntityAnimations(spawned.get());
+        m_entities.push_back(std::move(spawned));
+    });
+
     // --- Level complete: the flagpole fires this; without a listener the game
     // could be flagged but never actually finished (audit G-1). ---
     m_levelCompleteSubId = bus.subscribe(EventType::LevelComplete, [this](const GameEvent&) {
@@ -285,7 +302,8 @@ void PlayingState::exit() {
         const auto NONE = static_cast<EventBus::SubscriptionId>(-1);
         for (auto* id : { &m_enemyDefeatedSubId, &m_blockBrokenSubId,
                           &m_coinParticleSubId, &m_playerDamagedSubId,
-                          &m_powerUpSubId, &m_levelCompleteSubId }) {
+                          &m_powerUpSubId, &m_levelCompleteSubId,
+                          &m_entitySpawnSubId }) {
             if (*id != NONE) { bus.unsubscribe(*id); *id = NONE; }
         }
     }
@@ -384,9 +402,10 @@ void PlayingState::update(float dt) {
     AchievementManager::getInstance().update(dt);
 
     // 0. Time Rewind check (Hold R or Left/Right Shift keys to rewind time using Memento snapshots)
-    bool rewindRequested = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R) ||
-                           sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ||
-                           sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift);
+    // R only. LShift is bound to RunCommand for Player 1, so accepting it here
+    // meant holding Shift to run rewound time instead — running was unusable
+    // (audit B-10).
+    bool rewindRequested = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R);
 
     if (rewindRequested && m_rewindManager.hasSnapshots()) {
         m_rewindManager.setRewinding(true);

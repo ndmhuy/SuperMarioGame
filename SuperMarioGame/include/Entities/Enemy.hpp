@@ -35,7 +35,7 @@ public:
     virtual bool isDeadOrDying() const { return !active || m_isFlipped || m_isDyingDownward; }
     void triggerFlipDeath(sf::Vector2f launchVel = {80.0f, -250.0f});
     void triggerDownwardDeath(sf::Vector2f launchVel = {0.0f, 150.0f});
-    const AABB& getBoundingBox() const override;
+    bool isCollidable() const override;
     bool collidesWithTiles() const override { return !m_isFlipped && !m_isDyingDownward; }
 
 protected:

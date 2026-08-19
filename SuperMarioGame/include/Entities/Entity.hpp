@@ -57,6 +57,15 @@ public:
     virtual std::string getTypeName() const { return "unknown"; }
     virtual bool collidesWithTiles() const { return true; }
 
+    // Whether this entity takes part in entity-vs-entity collision right now.
+    //
+    // Five classes used to express "ignore me" by returning a zero-sized AABB
+    // from getBoundingBox(). That worked only because AABB::intersects uses a
+    // strict comparison, it inserted every such entity into spatial-hash cell
+    // (0,0) each frame, and it lied to anything that asked where they were
+    // (audit B-14). Say it directly instead.
+    virtual bool isCollidable() const { return true; }
+
     // Getters/Setters for external access
     sf::Vector2f getPosition() const;
     sf::Vector2f getVelocity() const;

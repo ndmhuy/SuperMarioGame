@@ -102,10 +102,7 @@ void FallingPlatform::render(sf::RenderTarget& target) {
     Block::render(target);
 }
 
-const AABB& FallingPlatform::getBoundingBox() const {
-    static const AABB emptyBox{0.f, 0.f, 0.f, 0.f};
-    if (m_state == FallingPlatformState::Respawning) {
-        return emptyBox;
-    }
-    return boundingBox;
+bool FallingPlatform::isCollidable() const {
+    // Was a zero-sized AABB returned from getBoundingBox() (audit B-14).
+    return !(m_state == FallingPlatformState::Respawning);
 }

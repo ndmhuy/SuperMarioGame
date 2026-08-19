@@ -80,7 +80,9 @@ endfunction()
 # ---------------------------------------------------------
 # 2. Source Files configuration
 # ---------------------------------------------------------
-file(GLOB_RECURSE SOURCES 
+# CONFIGURE_DEPENDS re-globs on build, so adding a new .cpp does not require a
+# manual reconfigure. Without it a new source silently fails to link.
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
 )
 

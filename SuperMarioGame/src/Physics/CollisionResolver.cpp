@@ -3,10 +3,13 @@
 #include "Entities/Enemy.hpp"
 #include "Entities/Item.hpp"
 #include "Entities/Block.hpp"
+#include "Entities/HiddenBlock.hpp"
 #include "Entities/Flagpole.hpp"
 #include "Entities/Trampoline.hpp"
 #include "Entities/PSwitch.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Hammer.hpp"
+#include "Entities/KoopaTroopa.hpp"
 #include "Entities/KoopaTroopa.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
@@ -121,10 +124,20 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
             resolveFireballVsEnemy(static_cast<Fireball&>(e2), static_cast<Enemy&>(e1), flipped());
             return;
 
+        case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Enemy):
+            resolveEnemyVsEnemy(static_cast<Enemy&>(e1), static_cast<Enemy&>(e2));
+            return;
+
+        // A thrown hammer damages the player; it passes through everything else.
+        case (static_cast<int>(EntityCategory::Projectile) << 8) | static_cast<int>(EntityCategory::Player):
+            if (auto* hammer = dynamic_cast<Hammer*>(&e1)) hammer->onHitPlayer(static_cast<Player&>(e2));
+            return;
+        case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Projectile):
+            if (auto* hammer = dynamic_cast<Hammer*>(&e2)) hammer->onHitPlayer(static_cast<Player&>(e1));
+            return;
+
         default:
-            // Enemy-vs-Enemy is deliberately absent, which is why a kicked shell
-            // cannot defeat anything (audit B-8, Member B). Item-vs-Item and
-            // Projectile-vs-Block are genuinely no-ops.
+            // Item-vs-Item and Projectile-vs-Block are genuinely no-ops.
             return;
     }
 }
@@ -247,6 +260,13 @@ void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const Coll
 void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& block, const CollisionInfo& info) {
     if (!info.collided || !block.isActive()) return;
 
+    // An unrevealed hidden block is solid only from underneath. Any other
+    // approach passes straight through, so the player never bumps into
+    // invisible geometry while running or falling past it.
+    if (auto hidden = dynamic_cast<HiddenBlock*>(&block)) {
+        if (!hidden->isRevealed() && info.normal.y != 1.0f) return;
+    }
+
     // Handle flagpole trigger specifically (subclass of Block)
     if (auto flagpole = dynamic_cast<Flagpole*>(&block)) {
         if (character.getCategory() == EntityCategory::Player) {
@@ -278,6 +298,34 @@ void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& blo
             }
         }
     }
+}
+
+void CollisionResolver::resolveEnemyVsEnemy(Enemy& a, Enemy& b) {
+    // A shell sliding after a kick clears everything it touches. Without this
+    // branch the resolver had no enemy-vs-enemy case at all, so shells passed
+    // straight through and shell chains were impossible (audit B-8).
+    auto slidingShell = [](Enemy& e) -> KoopaTroopa* {
+        auto koopa = dynamic_cast<KoopaTroopa*>(&e);
+        if (koopa && koopa->getState() == KoopaState::ShellKicked) return koopa;
+        return nullptr;
+    };
+
+    KoopaTroopa* shellA = slidingShell(a);
+    KoopaTroopa* shellB = slidingShell(b);
+
+    // Two shells meeting cancel each other rather than fighting over who wins.
+    if (shellA && shellB) {
+        shellA->onHitByFireball();
+        shellB->onHitByFireball();
+        return;
+    }
+
+    // onHitByFireball is the existing "knocked out from the side" path: it flips
+    // the enemy, awards score and publishes EnemyDefeated.
+    if (shellA && !b.isDeadOrDying()) { b.onHitByFireball(); return; }
+    if (shellB && !a.isDeadOrDying()) { a.onHitByFireball(); return; }
+
+    // Two ordinary walkers just ignore each other, as in the original games.
 }
 
 void CollisionResolver::resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy, const CollisionInfo& info) {
