@@ -37,19 +37,6 @@ std::string percent(float value) {
     return ss.str();
 }
 
-std::unique_ptr<SpriteSheet> tryLoadSheet(const std::string& folderName) {
-    for (const std::string& root : {"assets/spriteSheet/", "SuperMarioGame/assets/spriteSheet/",
-                                    "../assets/spriteSheet/"}) {
-        const std::string path = root + folderName;
-        if (std::filesystem::exists(path)) {
-            try {
-                return std::make_unique<SpriteSheet>(path);
-            } catch (...) {}
-        }
-    }
-    return nullptr;
-}
-
 } // namespace
 
 void MenuState::enter() {
@@ -58,8 +45,8 @@ void MenuState::enter() {
     // "title_screen" to assets/bgm/main_menu.mp3 and resolves it per platform.
     SoundManager::getInstance().playMusic("title_screen");
 
-    m_playerSheet  = tryLoadSheet("player");
-    m_scenerySheet = tryLoadSheet("world_scenery_item");
+    m_playerSheet  = SpriteSheet::loadAtlas("player");
+    m_scenerySheet = SpriteSheet::loadAtlas("world_scenery_item");
 
     m_mainItems.clear();
     // The New Game+ cycle is shown on the start row, so a player can see the

@@ -26,19 +26,6 @@ constexpr float MAP_BASELINE = 400.0f;
 // what makes the row read as a route rather than a list.
 constexpr float MAP_WAVE = 90.0f;
 
-std::unique_ptr<SpriteSheet> tryLoadSheet(const std::string& folderName) {
-    for (const std::string& root : {"assets/spriteSheet/", "SuperMarioGame/assets/spriteSheet/",
-                                    "../assets/spriteSheet/"}) {
-        const std::string path = root + folderName;
-        if (std::filesystem::exists(path)) {
-            try {
-                return std::make_unique<SpriteSheet>(path);
-            } catch (...) {}
-        }
-    }
-    return nullptr;
-}
-
 } // namespace
 
 WorldMapState::WorldMapState(int characterIndex)
@@ -73,8 +60,8 @@ void WorldMapState::enter() {
     // actually want to be — not back at 1-1 every time.
     m_selected = CampaignProgress::highestUnlockedIndex();
 
-    m_scenerySheet = tryLoadSheet("world_scenery_item");
-    m_playerSheet = tryLoadSheet("player");
+    m_scenerySheet = SpriteSheet::loadAtlas("world_scenery_item");
+    m_playerSheet = SpriteSheet::loadAtlas("player");
     m_dismissed = false;
 }
 

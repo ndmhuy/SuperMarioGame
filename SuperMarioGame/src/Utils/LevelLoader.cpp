@@ -1,4 +1,5 @@
 #include "Utils/LevelLoader.hpp"
+#include "Core/ResourceManager.hpp"
 #include "Entities/Boss.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
@@ -35,17 +36,14 @@
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
     std::string filename = std::filesystem::path(jsonPath).filename().string();
     std::vector<std::string> fallbacks = {
-        jsonPath,
-        "SuperMarioGame/" + jsonPath,
-        "../" + jsonPath,
-        "build/" + jsonPath,
-        "../build/" + jsonPath,
-        "assets/levels/" + filename,
-        "../assets/levels/" + filename,
-        "SuperMarioGame/assets/levels/" + filename,
+        // resolvePath knows the source roots; this list only has to cover the
+        // shapes it does not — a path given relative to the levels directory,
+        // and the copy of assets/ that CMake syncs into the build tree (audit
+        // A-13, which counted eleven candidates here).
+        ResourceManager::resolvePath(jsonPath),
+        ResourceManager::resolvePath("assets/levels/" + filename),
         "build/assets/levels/" + filename,
-        "../build/assets/levels/" + filename,
-        "SuperMarioGame/build/assets/levels/" + filename
+        "../build/assets/levels/" + filename
     };
 
     std::ifstream file;

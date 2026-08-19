@@ -5,5 +5,10 @@ build/
 bin/
 saves/
 .cache/
+
+# macOS Finder metadata. These were tracked for months: .gitignore only stops
+# *new* files being added, so a file already in the index keeps being committed.
+.DS_Store
+**/.DS_Store
 .member_profile.json
 

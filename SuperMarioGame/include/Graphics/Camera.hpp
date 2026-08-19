@@ -29,8 +29,16 @@ public:
     // Prevent copying, allow moving
     Camera(const Camera&) = delete;
     Camera& operator=(const Camera&) = delete;
-    Camera(Camera&&) noexcept = default;
-    Camera& operator=(Camera&&) noexcept = default;
+    // Deliberately not movable. The constructor subscribes lambdas that capture
+    // `this`, so a defaulted move copied the subscription ids to the new object
+    // while the callbacks still pointed at the old one: the moved-from
+    // destructor would then cancel the *new* camera's shake subscriptions, and a
+    // shake arriving in between would run against a dead object (audit X-7).
+    //
+    // Re-subscribing in a move constructor would work too, but nothing moves a
+    // Camera, and a deleted operation is a compile error rather than a bug.
+    Camera(Camera&&) = delete;
+    Camera& operator=(Camera&&) = delete;
 
     // How the camera treats the level it is looking at (task 4.3).
     enum class ScrollMode {

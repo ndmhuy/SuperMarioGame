@@ -80,33 +80,19 @@ void PlayingState::enter() {
     SoundManager::getInstance().loadAllSounds();
     SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
 
-    // --- Load all 5 Sprite Sheet Atlases ---
-    // Path candidates search: run from build/Debug or project root
-    auto tryLoadSheet = [](const std::string& folderName) -> std::unique_ptr<SpriteSheet> {
-        std::vector<std::string> candidates = {
-            "assets/spriteSheet/" + folderName,
-            "SuperMarioGame/assets/spriteSheet/" + folderName,
-            "../assets/spriteSheet/" + folderName
-        };
-        for (const auto& path : candidates) {
-            if (std::filesystem::exists(path)) {
-                try {
-                    return std::make_unique<SpriteSheet>(path);
-                } catch (...) {}
-            }
-        }
-        std::cerr << "[PlayingState] WARNING: Could not locate sprite sheet: " << folderName << std::endl;
-        return nullptr;
-    };
+    // --- Load all sprite sheet atlases ---
+    // Path resolution lives in SpriteSheet::loadAtlas now; this used to
+    // carry its own three-candidate search, and three other screens had
+    // copied it (audit A-13).
 
     // Lead the player by up to a third of a screen at full run speed. Enough to
     // see what is coming; more than this and the player sits at the screen edge.
     m_camera.setLookahead(140.0f);
 
-    m_playerSheet  = tryLoadSheet("player");
-    m_enemySheet   = tryLoadSheet("enemy_projectile");
-    m_itemSheet    = tryLoadSheet("item");
-    m_scenerySheet = tryLoadSheet("world_scenery_item");
+    m_playerSheet  = SpriteSheet::loadAtlas("player");
+    m_enemySheet   = SpriteSheet::loadAtlas("enemy_projectile");
+    m_itemSheet    = SpriteSheet::loadAtlas("item");
+    m_scenerySheet = SpriteSheet::loadAtlas("world_scenery_item");
     // The backdrop draws from the same world atlas the tiles come from.
     m_background.setSpriteSheet(m_scenerySheet.get());
     // Note: tileset_blocks is deprecated — tile sprites come from world_scenery_item (m_scenerySheet)

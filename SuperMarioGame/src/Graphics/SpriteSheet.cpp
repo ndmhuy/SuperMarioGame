@@ -1,4 +1,7 @@
 #include "Graphics/SpriteSheet.hpp"
+#include "Core/ResourceManager.hpp"
+#include <filesystem>
+#include <iostream>
 
 #include "nlohmann/json.hpp"
 #include "Core/ResourceManager.hpp"
@@ -109,4 +112,19 @@ std::vector<std::string> SpriteSheet::getFrameNames() const {
 
 bool SpriteSheet::hasFrame(const std::string& frameName) const {
     return m_frames.find(frameName) != m_frames.end();
+}
+
+std::unique_ptr<SpriteSheet> SpriteSheet::loadAtlas(const std::string& folderName) {
+    const std::string resolved =
+        ResourceManager::resolvePath("assets/spriteSheet/" + folderName);
+    if (!std::filesystem::exists(resolved)) {
+        std::cerr << "[SpriteSheet] Atlas not found: " << folderName << std::endl;
+        return nullptr;
+    }
+    try {
+        return std::make_unique<SpriteSheet>(resolved);
+    } catch (const std::exception& e) {
+        std::cerr << "[SpriteSheet] Could not load " << folderName << ": " << e.what() << std::endl;
+        return nullptr;
+    }
 }

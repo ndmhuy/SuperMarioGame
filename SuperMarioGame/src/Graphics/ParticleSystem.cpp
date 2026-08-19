@@ -16,15 +16,17 @@ ParticleSystem::ParticleSystem() {
     // Triangle rendering primitive (2 triangles per particle quad for SFML 3.0)
     m_vertexArray.setPrimitiveType(sf::PrimitiveType::Triangles);
 
-    // Resolve texture path for particles
+    // Resolve texture path for particles.
+    //
+    // Was six hand-written candidates, each repeating a root that
+    // ResourceManager::resolvePath already knows (audit A-13). The test atlas is
+    // still a fallback, because a particle system with no texture draws nothing
+    // and that is worse than drawing the wrong thing.
     ResourceManager& rm = ResourceManager::getInstance();
-    std::string texPath = "assets/spriteSheet/particles/particles.png";
-    if (!std::filesystem::exists(texPath)) texPath = "../assets/spriteSheet/particles/particles.png";
-    if (!std::filesystem::exists(texPath)) texPath = "../../assets/spriteSheet/particles/particles.png";
-    if (!std::filesystem::exists(texPath)) texPath = "SuperMarioGame/assets/spriteSheet/particles/particles.png";
-    if (!std::filesystem::exists(texPath)) texPath = "../SuperMarioGame/assets/spriteSheet/particles/particles.png";
-    if (!std::filesystem::exists(texPath)) texPath = "assets/spriteSheet/test/test.png";
-    if (!std::filesystem::exists(texPath)) texPath = "../assets/spriteSheet/test/test.png";
+    std::string texPath = ResourceManager::resolvePath("assets/spriteSheet/particles/particles.png");
+    if (!std::filesystem::exists(texPath)) {
+        texPath = ResourceManager::resolvePath("assets/spriteSheet/test/test.png");
+    }
 
     if (std::filesystem::exists(texPath)) {
         if (rm.loadTexture("particleTexture", texPath)) {

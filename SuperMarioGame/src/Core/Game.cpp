@@ -47,52 +47,25 @@ void Game::run() {
     // every state rather than only from PlayingState (task 10.4).
     DebugConsole::getInstance().init();
 
-    // Ensure HUD font is loaded in ResourceManager before any state (and its Hud) is constructed
+    // Preload the shared resources every state expects to find already loaded.
+    // These used to be three hand-written candidate-path lists (audit A-13);
+    // ResourceManager::resolvePath is the one place that knows where assets
+    // live, and loadFont/loadTexture already call it.
     ResourceManager& rm = ResourceManager::getInstance();
-    std::vector<std::string> fontCandidates = {
-        "assets/font/PressStart2P.ttf",
-        "SuperMarioGame/assets/font/PressStart2P.ttf",
-        "asset/font/PressStart2P.ttf",
-        "assets/fonts/PressStart2P.ttf",
-        "SuperMarioGame/asset/font/PressStart2P.ttf",
-        "SuperMarioGame/assets/fonts/PressStart2P.ttf",
-        "../asset/font/PressStart2P.ttf",
-        "../assets/fonts/PressStart2P.ttf",
-        "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf",
-        "C:/Windows/Fonts/consola.ttf",
-        "C:/Windows/Fonts/arial.ttf"
-    };
-    for (const auto& path : fontCandidates) {
-        if (std::filesystem::exists(path)) {
-            if (rm.loadFont("PressStart2P", path)) break;
+    if (!rm.loadFont("PressStart2P", "assets/font/PressStart2P.ttf")) {
+        // A system font keeps the UI legible rather than invisible when the
+        // bundled one is missing.
+        for (const char* systemFont : {"/System/Library/Fonts/Supplemental/Arial.ttf",
+                                       "/System/Library/Fonts/Helvetica.ttc",
+                                       "C:/Windows/Fonts/arial.ttf"}) {
+            if (rm.loadFont("PressStart2P", systemFont)) break;
         }
     }
-
-    // Load Player texture into ResourceManager
-    std::vector<std::string> playerTextureCandidates = {
-        "assets/spriteSheet/player/player.png",
-        "SuperMarioGame/assets/spriteSheet/player/player.png",
-        "../assets/spriteSheet/player/player.png"
-    };
-    for (const auto& path : playerTextureCandidates) {
-        if (std::filesystem::exists(path)) {
-            if (rm.loadTexture("player", path)) break;
-        }
-    }
-
-    // Load Tileset texture into ResourceManager
-    std::vector<std::string> tilesetCandidates = {
-        "assets/spriteSheet/tileset/tileset_blocks.png",
-        "SuperMarioGame/assets/spriteSheet/tileset/tileset_blocks.png",
-        "../assets/spriteSheet/tileset/tileset_blocks.png"
-    };
-    for (const auto& path : tilesetCandidates) {
-        if (std::filesystem::exists(path)) {
-            if (rm.loadTexture("tileset_blocks", path)) break;
-        }
-    }
+    rm.loadTexture("player", "assets/spriteSheet/player/player.png");
+    // No tileset_blocks preload: that atlas moved to "[Deprecated] tileset" and
+    // tile sprites come from world_scenery_item. The old candidate loop guarded
+    // every path with exists(), so it silently found nothing and nobody noticed
+    // the load had been dead for a long time.
 
     // Push initial menu state
     m_gsm.pushState(std::make_unique<MenuState>());

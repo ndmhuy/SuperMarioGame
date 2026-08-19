@@ -1860,6 +1860,83 @@ void testTwoPlayerBindingsAreIndependent() {
     input.registerPlayer(nullptr, 1);
 }
 
+
+void testEventBusSurvivesHandlersThatMutateIt() {
+    section("X-7  the event bus does not copy its subscribers, and survives mutation");
+
+    EventBus& bus = EventBus::getInstance();
+
+    // A handler unsubscribing itself mid-delivery used to be survivable only
+    // because publish() copied the whole subscriber vector — a std::function
+    // heap allocation per subscriber, on every coin, stomp and jump.
+    int selfCancelling = 0;
+    EventBus::SubscriptionId id = 0;
+    id = bus.subscribe(EventType::CoinCollected, [&](const GameEvent&) {
+        ++selfCancelling;
+        bus.unsubscribe(id);
+    });
+
+    int bystander = 0;
+    const auto bystanderId = bus.subscribe(EventType::CoinCollected,
+                                           [&bystander](const GameEvent&) { ++bystander; });
+
+    bus.publish({EventType::CoinCollected, 1});
+    check(selfCancelling == 1, "a handler that unsubscribes itself still runs once");
+    check(bystander == 1, "and the subscriber after it still receives the event");
+
+    bus.publish({EventType::CoinCollected, 1});
+    check(selfCancelling == 1, "and does not run again");
+    check(bystander == 2, "while the bystander does");
+
+    // Subscribing during delivery must not deliver the in-flight event to the
+    // new subscriber, which would be an easy accidental infinite loop.
+    int lateJoiner = 0;
+    EventBus::SubscriptionId lateId = 0;
+    const auto joinerId = bus.subscribe(EventType::BlockBroken, [&](const GameEvent&) {
+        if (lateId == 0) {
+            lateId = bus.subscribe(EventType::BlockBroken,
+                                   [&lateJoiner](const GameEvent&) { ++lateJoiner; });
+        }
+    });
+    bus.publish({EventType::BlockBroken, 0});
+    check(lateJoiner == 0, "a subscriber added during delivery does not receive that event");
+    bus.publish({EventType::BlockBroken, 0});
+    check(lateJoiner == 1, "but does receive the next one");
+
+    bus.unsubscribe(bystanderId);
+    bus.unsubscribe(joinerId);
+    if (lateId != 0) bus.unsubscribe(lateId);
+}
+
+void testScopedSubscriptionCannotBeForgotten() {
+    section("X-7  a scoped subscription unsubscribes itself");
+
+    EventBus& bus = EventBus::getInstance();
+    int hits = 0;
+
+    {
+        EventBus::ScopedSubscription token(EventType::PlayerDamaged,
+                                           [&hits](const GameEvent&) { ++hits; });
+        check(token.active(), "the token holds a live subscription");
+        bus.publish({EventType::PlayerDamaged, 0});
+        check(hits == 1, "which receives events");
+    }
+
+    // The whole point: leaving the scope cancels it. A raw SubscriptionId that
+    // its owner forgets to release leaves a callback pointing into a destroyed
+    // object, which fires the next time that event is published.
+    bus.publish({EventType::PlayerDamaged, 0});
+    check(hits == 1, "and leaving the scope cancels it without anyone remembering to");
+
+    // Move-only, so two owners cannot cancel the same id twice.
+    EventBus::ScopedSubscription first(EventType::PlayerDamaged,
+                                       [&hits](const GameEvent&) { ++hits; });
+    EventBus::ScopedSubscription second = std::move(first);
+    check(!first.active() && second.active(), "moving transfers ownership");
+    bus.publish({EventType::PlayerDamaged, 0});
+    check(hits == 2, "and the moved-to token still works");
+}
+
 } // namespace
 
 int main() {
@@ -1924,6 +2001,8 @@ int main() {
     testDebugConsoleDispatchesCommands();
     testReplayRecordsThinsAndPlaysBack();
     testTwoPlayerBindingsAreIndependent();
+    testEventBusSurvivesHandlersThatMutateIt();
+    testScopedSubscriptionCannotBeForgotten();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

@@ -32,18 +32,7 @@ CharacterSelectState::CharacterSelectState(bool startInEditor, bool isProcedural
 void CharacterSelectState::enter() {
     std::cout << "Entering CharacterSelectState" << std::endl;
 
-    // Same candidate search PlayingState uses — the working directory differs
-    // between running from build/ and from the source root.
-    for (const std::string& path : {"assets/spriteSheet/player",
-                                    "SuperMarioGame/assets/spriteSheet/player",
-                                    "../assets/spriteSheet/player"}) {
-        if (std::filesystem::exists(path)) {
-            try {
-                m_playerSheet = std::make_unique<SpriteSheet>(path);
-                break;
-            } catch (...) {}
-        }
-    }
+    m_playerSheet = SpriteSheet::loadAtlas("player");
     if (!m_playerSheet) {
         std::cerr << "[CharacterSelectState] Player atlas not found; drawing name cards only."
                   << std::endl;
