@@ -5,8 +5,7 @@
 
 Lakitu::Lakitu(sf::Vector2f position)
     : Enemy(position, 800) {
-    boundingBox.width = 32.0f;
-    boundingBox.height = 32.0f;
+    setTargetSize({32.0f, 32.0f});
 
     // Lakitu hovers and follows player horizontally
     setStrategy(std::make_unique<FlyStrategy>(FlyMode::FollowPlayer));

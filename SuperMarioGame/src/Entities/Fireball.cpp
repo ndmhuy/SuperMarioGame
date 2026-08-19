@@ -9,8 +9,8 @@ Fireball::Fireball(sf::Vector2f pos, sf::Vector2f vel)
     velocity = vel;
     boundingBox.x = pos.x;
     boundingBox.y = pos.y;
-    boundingBox.width = 12.0f;
-    boundingBox.height = 12.0f;
+    // Collision box is deliberately smaller than the drawn flame.
+    setTargetSize({12.0f, 12.0f});
 }
 
 void Fireball::bounce() {

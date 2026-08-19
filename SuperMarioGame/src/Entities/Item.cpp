@@ -32,31 +32,20 @@ void Item::update(float dt) {
 void Item::render(sf::RenderTarget& target) {
     if (!active || collected) return;
     if (m_animator && m_hasAnimation) {
-        sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            if (m_baseScale <= 0.0f) {
-                m_baseScale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
+        const sf::Sprite sprite = m_animator->getSprite();
+        // Cache the scale from the first frame so frames of differing size do not
+        // make the item pulse as it animates.
+        if (m_baseScale <= 0.0f) {
+            const sf::FloatRect bounds = sprite.getLocalBounds();
+            if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+                m_baseScale = std::min(m_targetSize.x / bounds.size.x,
+                                       m_targetSize.y / bounds.size.y);
             }
-            float scale = m_baseScale;
-
-            // Base AABB remains locked to m_targetSize during all animation frames
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            sprite.setScale(sf::Vector2f(scale, scale));
-            sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
-
-            target.draw(sprite);
         }
+        drawSprite(target, sprite, SpriteAnchor::BottomCenter,
+                   /*flipX=*/false, /*flipY=*/false, /*overrideScale=*/m_baseScale);
     } else {
-        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-        rect.setFillColor(sf::Color::Yellow);
-        rect.setOutlineColor(sf::Color::White);
-        rect.setOutlineThickness(1.0f);
-        target.draw(rect);
+        drawPlaceholder(target, sf::Color::Yellow);
     }
 }
 

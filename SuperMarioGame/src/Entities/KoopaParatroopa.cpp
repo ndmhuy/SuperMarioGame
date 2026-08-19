@@ -49,30 +49,15 @@ void KoopaParatroopa::render(sf::RenderTarget& target) {
     if (!active) return;
     if (m_animator && m_hasAnimation) {
         sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
-            float scaledW = bounds.size.x * scale;
-            float scaledH = bounds.size.y * scale;
 
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            float scaleX = facingRight ? -scale : scale;
-            float scaleY = m_isFlipped ? -scale : scale;
-            sprite.setScale(sf::Vector2f(scaleX, scaleY));
-            sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
-
-            // Transformation invincibility visual flicker
-            if (m_transformInvincibilityTimer > 0.0f) {
-                bool dim = (static_cast<int>(m_transformInvincibilityTimer * 30.0f) % 2 == 0);
-                std::uint8_t alpha = dim ? 100 : 255;
-                sprite.setColor(sf::Color(255, 255, 255, alpha));
-            }
-
-            target.draw(sprite);
+        // Flicker while the wings-lost transformation grants brief immunity.
+        if (m_transformInvincibilityTimer > 0.0f) {
+            const bool dim = (static_cast<int>(m_transformInvincibilityTimer * 30.0f) % 2 == 0);
+            sprite.setColor(sf::Color(255, 255, 255, dim ? 100 : 255));
         }
+
+        drawSprite(target, sprite, SpriteAnchor::BottomCenter,
+                   /*flipX=*/facingRight, /*flipY=*/m_isFlipped);
     }
 }
 

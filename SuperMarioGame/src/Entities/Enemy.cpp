@@ -45,33 +45,11 @@ void Enemy::update(float dt) {
 void Enemy::render(sf::RenderTarget& target) {
     if (!active) return;
     if (m_animator && m_hasAnimation) {
-        sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
-            float scaledW = bounds.size.x * scale;
-            float scaledH = bounds.size.y * scale;
-
-            // Base AABB remains locked to m_targetSize during all animation frames
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            // Set origin and position
-            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            float scaleX = facingRight ? -scale : scale; // horizontal flip if facing left/right
-            float scaleY = m_isFlipped ? -scale : scale; // vertical flip if defeated/flipped
-            sprite.setScale(sf::Vector2f(scaleX, scaleY));
-            sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
-
-            target.draw(sprite);
-        }
+        // Sprites face left in the atlas, so facingRight is the flip case.
+        drawSprite(target, m_animator->getSprite(), SpriteAnchor::BottomCenter,
+                   /*flipX=*/facingRight, /*flipY=*/m_isFlipped);
     } else {
-        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-        rect.setFillColor(sf::Color::Red);
-        rect.setOutlineColor(sf::Color::White);
-        rect.setOutlineThickness(1.0f);
-        target.draw(rect);
+        drawPlaceholder(target, sf::Color::Red);
     }
 }
 

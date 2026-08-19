@@ -36,29 +36,8 @@ void Block::update(float dt) {
 void Block::render(sf::RenderTarget& target) {
     if (!active) return;
     if (m_animator && m_hasAnimation) {
-        sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
-            float scaledW = bounds.size.x * scale;
-            float scaledH = bounds.size.y * scale;
-
-            // Base AABB remains locked to m_targetSize during all animation frames
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            sprite.setOrigin(sf::Vector2f(0.0f, 0.0f));
-            sprite.setScale(sf::Vector2f(scale, scale));
-            sprite.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-
-            target.draw(sprite);
-        }
+        drawSprite(target, m_animator->getSprite(), SpriteAnchor::TopLeft);
     } else {
-        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-        rect.setFillColor(sf::Color(180, 100, 30));
-        rect.setOutlineColor(sf::Color::White);
-        rect.setOutlineThickness(1.0f);
-        target.draw(rect);
+        drawPlaceholder(target, sf::Color(180, 100, 30));
     }
 }

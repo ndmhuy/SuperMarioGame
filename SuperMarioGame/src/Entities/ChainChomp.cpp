@@ -5,8 +5,7 @@
 
 ChainChomp::ChainChomp(sf::Vector2f position)
     : Enemy(position, 0) {
-    boundingBox.width = 32.0f;
-    boundingBox.height = 32.0f;
+    setTargetSize({32.0f, 32.0f});
     
     // Set AI tethered chase strategy anchored at spawn post position
     setStrategy(std::make_unique<TetheredChaseStrategy>(position));

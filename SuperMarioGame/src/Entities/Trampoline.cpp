@@ -7,8 +7,7 @@
 
 Trampoline::Trampoline(sf::Vector2f pos) : Item(pos) {
     velocity = sf::Vector2f{0.0f, 0.0f};
-    boundingBox.width = 32.0f;
-    boundingBox.height = 32.0f;
+    setTargetSize({32.0f, 32.0f});
 }
 
 void Trampoline::update(float dt) {
@@ -54,29 +53,13 @@ void Trampoline::setupAnimations(const SpriteSheet* spriteSheet) {
 void Trampoline::render(sf::RenderTarget& target) {
     if (!active || collected) return;
     if (m_animator && m_hasAnimation) {
-        sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            // Base boundingBox remains fixed at base size (32x32)
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            float scale = m_targetSize.x / 16.0f;
-
-            // Sprite origin set to bottom-center and positioned at bottom-center of AABB
-            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            sprite.setScale(sf::Vector2f(scale, scale));
-            sprite.setPosition(sf::Vector2f(boundingBox.x + 16.0f, boundingBox.y + 32.0f));
-
-            target.draw(sprite);
-        }
+        // Pinned to the 16px source frame rather than aspect-fitted, so the
+        // squash animation reads as compression instead of rescaling.
+        drawSprite(target, m_animator->getSprite(), SpriteAnchor::BottomCenter,
+                   /*flipX=*/false, /*flipY=*/false,
+                   /*overrideScale=*/m_targetSize.x / 16.0f);
     } else {
-        sf::RectangleShape rect(sf::Vector2f(boundingBox.width, boundingBox.height));
-        rect.setPosition(sf::Vector2f(boundingBox.x, boundingBox.y));
-        rect.setFillColor(sf::Color::Yellow);
-        rect.setOutlineColor(sf::Color::White);
-        rect.setOutlineThickness(1.0f);
-        target.draw(rect);
+        drawPlaceholder(target, sf::Color::Yellow);
     }
 }
 

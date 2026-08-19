@@ -5,8 +5,7 @@
 
 BulletBill::BulletBill(sf::Vector2f position, float dirX)
     : Enemy(position, 200) {
-    boundingBox.width = 32.0f;
-    boundingBox.height = 32.0f;
+    setTargetSize({32.0f, 32.0f});
     
     // Straight line movement horizontally
     setStrategy(std::make_unique<LinearStrategy>(200.0f, sf::Vector2f(dirX, 0.0f)));

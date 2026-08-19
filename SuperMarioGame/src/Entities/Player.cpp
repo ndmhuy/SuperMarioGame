@@ -467,30 +467,15 @@ void Player::render(sf::RenderTarget& target) {
     if (!active) return;
     if (m_animator && m_hasAnimation) {
         sf::Sprite sprite = m_animator->getSprite();
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            float scale = std::min(m_targetSize.x / bounds.size.x, m_targetSize.y / bounds.size.y);
-            float scaledW = bounds.size.x * scale;
-            float scaledH = bounds.size.y * scale;
 
-            // Base AABB remains locked to m_targetSize during all animation frames
-            boundingBox.width = m_targetSize.x;
-            boundingBox.height = m_targetSize.y;
-
-            sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
-            float scaleX = facingRight ? -scale : scale;  // sprite faces left by default in atlas
-            sprite.setScale(sf::Vector2f(scaleX, scale));
-            sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f, boundingBox.y + m_targetSize.y));
-
-            // Hurt invincibility visual alpha flicker (15Hz modulation between 100 and 255 alpha)
-            if (invincibilityTimer > 0.0f && invincibilityTimer < 9000.0f) {
-                bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
-                std::uint8_t alpha = dim ? 100 : 255;
-                sprite.setColor(sf::Color(255, 255, 255, alpha));
-            }
-
-            target.draw(sprite);
+        // Hurt i-frames flicker the sprite between 100 and 255 alpha at ~15Hz.
+        if (invincibilityTimer > 0.0f && invincibilityTimer < 9000.0f) {
+            const bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
+            sprite.setColor(sf::Color(255, 255, 255, dim ? 100 : 255));
         }
+
+        // Sprites face left in the atlas, so facingRight is the flip case.
+        drawSprite(target, sprite, SpriteAnchor::BottomCenter, /*flipX=*/facingRight);
     }
 }
 

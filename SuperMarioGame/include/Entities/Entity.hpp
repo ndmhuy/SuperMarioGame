@@ -2,6 +2,8 @@
 
 #include "Physics/AABB.hpp"
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Color.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <cstdint>
 
@@ -41,6 +43,31 @@ public:
     void setTargetSize(sf::Vector2f size) { m_targetSize = size; boundingBox.width = size.x; boundingBox.height = size.y; }
 
 protected:
+    // Where a sprite's origin sits relative to the entity's bounding box.
+    enum class SpriteAnchor {
+        TopLeft,       // blocks: sprite fills the box from its top-left corner
+        BottomCenter   // characters and items: feet planted, centred horizontally
+    };
+
+    // Aspect-fit a sprite into m_targetSize and draw it against the bounding box.
+    //
+    // Player, Enemy, Block and Item each carried their own copy of this maths,
+    // including the same two dead locals in every copy (audit X-6). They differed
+    // only in anchor and flip, which are parameters here.
+    //
+    // `overrideScale > 0` pins the scale instead of recomputing it, for callers
+    // that cache a base scale so animation frames of differing size do not make
+    // the entity pulse.
+    void drawSprite(sf::RenderTarget& target,
+                    sf::Sprite sprite,
+                    SpriteAnchor anchor,
+                    bool flipX = false,
+                    bool flipY = false,
+                    float overrideScale = 0.0f) const;
+
+    // Debug rectangle used when no sprite sheet is wired up.
+    void drawPlaceholder(sf::RenderTarget& target, sf::Color fill) const;
+
     // Friends are allowed direct write access to coordinate updates
     friend class PhysicsEngine;
     friend class CollisionResolver;
