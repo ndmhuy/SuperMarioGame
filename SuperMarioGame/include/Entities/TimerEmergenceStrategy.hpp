@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entities/IMovementStrategy.hpp"
+#include <string>
 #include <SFML/System/Vector2.hpp>
 
 enum class EmergenceState {
@@ -14,6 +15,8 @@ class TimerEmergenceStrategy : public IMovementStrategy {
 public:
     explicit TimerEmergenceStrategy(sf::Vector2f anchorPos = sf::Vector2f(0.f, 0.f));
     virtual ~TimerEmergenceStrategy() override = default;
+
+    std::string getName() const override { return "TimerEmergence"; }
 
     sf::Vector2f getAnchorPos() const;
     void setAnchorPos(sf::Vector2f anchorPos);

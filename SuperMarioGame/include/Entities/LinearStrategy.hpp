@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Entities/IMovementStrategy.hpp"
+#include <string>
 #include <SFML/System/Vector2.hpp>
 
 class LinearStrategy : public IMovementStrategy {
 public:
     explicit LinearStrategy(float speed = 200.0f, sf::Vector2f direction = sf::Vector2f(-1.0f, 0.0f));
     virtual ~LinearStrategy() override = default;
+
+    std::string getName() const override { return "Linear"; }
 
     float getSpeed() const;
     void setSpeed(float speed);

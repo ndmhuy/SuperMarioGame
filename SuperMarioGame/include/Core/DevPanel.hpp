@@ -51,10 +51,13 @@ private:
     void drawPlaygroundPanel(PlayingState& state);
     void drawPersistencePanel(PlayingState& state);
     void drawAchievementToasts();
+    // Task 9.1's AI debug overlay: what every live enemy is doing and why.
+    void drawAiOverlay(PlayingState& state);
 
     std::vector<Action> m_pending;
 
     // Purely presentational state — owned here, not by PlayingState.
     bool m_showAABB = false;
+    bool m_showAiOverlay = false;
     int  m_selectedPipeIndex = 0;
 };

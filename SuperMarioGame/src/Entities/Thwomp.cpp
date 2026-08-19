@@ -11,13 +11,19 @@ Thwomp::Thwomp(sf::Vector2f position)
 
 void Thwomp::update(float dt) {
     Enemy::update(dt);
-    if (m_animator) {
-        if (velocity.y > 0.0f || (position.y > 140.0f && velocity.y == 0.0f)) {
-            m_animator->play(&m_activeAnim);
-        } else {
-            m_animator->play(&m_dormantAnim);
-        }
+    if (!m_animator) return;
+
+    // Ask the state machine what it is doing. This used to infer the sprite from
+    // `velocity.y > 0 || position.y > 140.0f` — a magic number that made a
+    // Thwomp placed low in a level render as permanently slamming, and one in a
+    // tall level never wake up (task 9.1).
+    ProximityState state = ProximityState::Idle;
+    if (const auto* proximity = dynamic_cast<const ProximityTriggerStrategy*>(getStrategy())) {
+        state = proximity->getState();
     }
+
+    const bool awake = (state == ProximityState::Slamming || state == ProximityState::Resting);
+    m_animator->play(awake ? &m_activeAnim : &m_dormantAnim);
 }
 
 void Thwomp::setupAnimations(const SpriteSheet* spriteSheet) {

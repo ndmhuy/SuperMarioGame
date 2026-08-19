@@ -18,6 +18,8 @@
 #include "Entities/KoopaTroopa.hpp"
 #include "Entities/KoopaParatroopa.hpp"
 #include "Entities/Goomba.hpp"
+#include "Entities/Thwomp.hpp"
+#include "Entities/ProximityTriggerStrategy.hpp"
 #include "Utils/SerializationUtils.hpp"
 #include "Graphics/Camera.hpp"
 #include "Entities/QuestionBlock.hpp"
@@ -1015,6 +1017,74 @@ void testDifficultyScalesEnemiesAndBosses() {
     game.setDifficulty(original);
 }
 
+
+void testThwompRunsItsStateMachine() {
+    section("9.1  Thwomp's animation follows its state machine, not a magic y value");
+
+    Thwomp thwomp({320.0f, 96.0f});
+    const auto* strategy = dynamic_cast<const ProximityTriggerStrategy*>(thwomp.getStrategy());
+    check(strategy != nullptr, "it runs a ProximityTriggerStrategy");
+    if (!strategy) return;
+
+    check(strategy->getState() == ProximityState::Idle, "and starts Idle, waiting on the ceiling");
+    check(strategy->getDebugState() == "Idle", "reporting that state by name for the AI overlay");
+
+    // No player registered, so nothing triggers it: it must stay parked rather
+    // than slamming because it happens to sit below y = 140.
+    for (int i = 0; i < 120; ++i) thwomp.update(1.0f / 60.0f);
+    check(strategy->getState() == ProximityState::Idle,
+          "an untriggered Thwomp stays Idle — the old code read the sprite from "
+          "position.y > 140, so one placed low in a level slammed forever");
+
+    // Drive the machine directly through the four states.
+    auto* mutableStrategy = const_cast<ProximityTriggerStrategy*>(strategy);
+    mutableStrategy->setState(ProximityState::Slamming);
+    check(strategy->getDebugState() == "Slamming", "Slamming reports by name");
+    mutableStrategy->setState(ProximityState::Resting);
+    check(strategy->getDebugState() == "Resting", "Resting reports by name");
+    mutableStrategy->setState(ProximityState::Rising);
+    check(strategy->getDebugState() == "Rising", "Rising reports by name");
+}
+
+void testEveryStrategyIdentifiesItself() {
+    section("9.1  every shipped strategy names itself for the AI overlay");
+
+    // An enemy whose strategy will not name itself is invisible in the overlay,
+    // which is the one thing the overlay exists to prevent.
+    struct Case { const char* enemy; std::unique_ptr<Entity> entity; };
+    std::vector<std::pair<std::string, std::unique_ptr<Entity>>> cases;
+    for (EntityType type : {EntityType::Goomba, EntityType::KoopaTroopa,
+                            EntityType::KoopaParatroopa, EntityType::Boo,
+                            EntityType::PiranhaPlant, EntityType::BulletBill,
+                            EntityType::HammerBro, EntityType::Thwomp,
+                            EntityType::ChainChomp, EntityType::Lakitu,
+                            EntityType::Spiny}) {
+        auto entity = EntityFactory::create(type, {100.0f, 100.0f});
+        if (entity) cases.emplace_back(entity->getTypeName(), std::move(entity));
+    }
+
+    int unnamed = 0;
+    int strategyless = 0;
+    for (const auto& [name, entity] : cases) {
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy) continue;
+        const IMovementStrategy* strategy = enemy->getStrategy();
+        if (!strategy) {
+            std::cout << "        no strategy: " << name << "\n";
+            ++strategyless;
+            continue;
+        }
+        if (strategy->getName() == "Strategy") {   // the un-overridden default
+            std::cout << "        unnamed strategy on: " << name << "\n";
+            ++unnamed;
+        }
+    }
+
+    check(!cases.empty(), "the factory built the enemy roster");
+    check(unnamed == 0, "no enemy is running an unnamed strategy");
+    std::cout << "        (" << strategyless << " enemies drive themselves without a strategy)\n";
+}
+
 } // namespace
 
 int main() {
@@ -1055,6 +1125,8 @@ int main() {
     testEveryBossTypeIsBuildable();
     testDifficultyStrategyActuallyChangesTheGame();
     testDifficultyScalesEnemiesAndBosses();
+    testThwompRunsItsStateMachine();
+    testEveryStrategyIdentifiesItself();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

@@ -18,6 +18,9 @@
 #include "Entities/MegaMushroom.hpp"
 #include "Entities/MiniMushroom.hpp"
 #include "Entities/IPlayerState.hpp"
+#include "Entities/Enemy.hpp"
+#include "Entities/Boss.hpp"
+#include "Entities/IMovementStrategy.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
 #include "Utils/MapGenerator.hpp"
@@ -71,10 +74,72 @@ void DevPanel::draw(PlayingState& state) {
         drawPlaygroundPanel(state);
         drawPersistencePanel(state);
         drawAchievementToasts();
+        if (m_showAiOverlay) {
+            drawAiOverlay(state);
+        }
     }
 }
 
 // ---------------------------------------------------------------------------
+
+void DevPanel::drawAiOverlay(PlayingState& state) {
+    ImGui::Begin("AI Debug Overlay");
+
+    ImGui::Text("Live enemies: what each one is running, and what state it is in.");
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("ai_overlay", 6,
+                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                          ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp)) {
+        ImGui::TableSetupColumn("Enemy");
+        ImGui::TableSetupColumn("Strategy");
+        ImGui::TableSetupColumn("State");
+        ImGui::TableSetupColumn("Position");
+        ImGui::TableSetupColumn("Velocity");
+        ImGui::TableSetupColumn("Status");
+        ImGui::TableHeadersRow();
+
+        int shown = 0;
+        for (const auto& entity : state.m_entities) {
+            auto* enemy = dynamic_cast<Enemy*>(entity.get());
+            if (!enemy || !enemy->isActive()) continue;
+
+            const IMovementStrategy* strategy = enemy->getStrategy();
+            const std::string strategyName = strategy ? strategy->getName() : "-- none --";
+            const std::string debugState = strategy ? strategy->getDebugState() : "";
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", enemy->getTypeName().c_str());
+            ImGui::TableNextColumn();
+            // A strategy-less enemy is worth spotting: it will never move.
+            if (strategy) ImGui::Text("%s", strategyName.c_str());
+            else          ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "%s", strategyName.c_str());
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", debugState.empty() ? "-" : debugState.c_str());
+            ImGui::TableNextColumn();
+            ImGui::Text("%.0f, %.0f", enemy->getPosition().x, enemy->getPosition().y);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.0f, %.0f", enemy->getVelocity().x, enemy->getVelocity().y);
+            ImGui::TableNextColumn();
+            if (auto* boss = dynamic_cast<Boss*>(enemy)) {
+                ImGui::Text("BOSS %d/%d p%d", boss->getHealth(), boss->getMaxHealth(), boss->getPhase());
+            } else if (enemy->isDeadOrDying()) {
+                ImGui::Text("dying");
+            } else {
+                ImGui::Text("%s", enemy->isFacingRight() ? "-> right" : "left <-");
+            }
+            ++shown;
+        }
+        ImGui::EndTable();
+
+        if (shown == 0) {
+            ImGui::TextDisabled("No live enemies in this level.");
+        }
+    }
+
+    ImGui::End();
+}
 
 void DevPanel::drawNavigationPanel(PlayingState& state) {
     ImGui::Begin("Gameplay Controls & Navigation");
@@ -306,6 +371,7 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
 
     ImGui::Separator();
     ImGui::Checkbox("Show Physics AABB Overlays", &m_showAABB);
+    ImGui::Checkbox("Show AI Debug Overlay", &m_showAiOverlay);
 
     ImGui::Separator();
     if (ImGui::Button("Reset Simulation")) {
