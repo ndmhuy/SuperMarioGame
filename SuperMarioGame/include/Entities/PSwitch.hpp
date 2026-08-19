@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Item.hpp"
 
 class PSwitch : public Item {
 public:
     explicit PSwitch(sf::Vector2f pos);
     ~PSwitch() override = default;
+
+    std::string getTypeName() const override { return "pswitch"; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

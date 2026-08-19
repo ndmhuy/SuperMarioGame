@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Block.hpp"
 
 class Flagpole : public Block {
 public:
     explicit Flagpole(sf::Vector2f position, float poleHeight = 300.0f);
     ~Flagpole() override = default;
+
+    std::string getTypeName() const override { return "flagpole"; }
 
     void update(float dt) override;
     void onHitFromBelow(Player& player) override;

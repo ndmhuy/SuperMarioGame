@@ -6,9 +6,28 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <cstdint>
+#include <string>
 
 class PhysicsEngine;
 class CollisionResolver;
+
+// Broad kind of an entity, reported by the entity itself.
+//
+// CollisionResolver used to identify both sides of a collision with up to twelve
+// sequential dynamic_casts, per colliding pair, per frame (audit A-10). Asking
+// the object what it is turns that into two virtual calls and a switch.
+//
+// This is a category, not a type id: it answers "how does this collide?", which
+// is exactly the question the resolver asks. Anything needing the concrete type
+// should use a virtual of its own instead of widening this enum.
+enum class EntityCategory {
+    Unknown,
+    Player,
+    Enemy,
+    Item,
+    Block,
+    Projectile
+};
 
 class Entity {
 public:
@@ -24,6 +43,18 @@ public:
     virtual bool isActive() const;
     virtual void destroy();
     virtual float getGravityMultiplier() const { return 1.0f; }
+
+    // What kind of thing this is, for collision dispatch. Overridden once per
+    // base class (Player, Enemy, Item, Block, Fireball) — concrete subclasses
+    // inherit it.
+    virtual EntityCategory getCategory() const { return EntityCategory::Unknown; }
+
+    // Stable serialisation name for this concrete type, e.g. "goomba".
+    // Replaces a 30-deep dynamic_cast chain in SerializationUtils (audit A-10).
+    // As a virtual it is also correct for derived types: the cast chain tested
+    // KoopaTroopa before KoopaParatroopa, so every Paratroopa was written out as
+    // a plain "koopa_troopa".
+    virtual std::string getTypeName() const { return "unknown"; }
     virtual bool collidesWithTiles() const { return true; }
 
     // Getters/Setters for external access
@@ -81,7 +112,6 @@ protected:
     friend class HammerThrowStrategy;
     friend class TetheredChaseStrategy;
     friend class ProximityTriggerStrategy;
-    friend int main();
 
     sf::Vector2f position;
     sf::Vector2f velocity;

@@ -77,42 +77,10 @@ TileType parseTileTypeName(const std::string& name) {
 }
 
 std::string getEntityTypeName(const Entity& entity) {
-    if (dynamic_cast<const Mario*>(&entity)) return "mario";
-    if (dynamic_cast<const Luigi*>(&entity)) return "luigi";
-    if (dynamic_cast<const Toad*>(&entity)) return "toad";
-    if (dynamic_cast<const Peach*>(&entity)) return "peach";
-
-    if (dynamic_cast<const Goomba*>(&entity)) return "goomba";
-    if (dynamic_cast<const KoopaTroopa*>(&entity)) return "koopa_troopa";
-    if (dynamic_cast<const KoopaParatroopa*>(&entity)) return "koopa_paratroopa";
-    if (dynamic_cast<const PiranhaPlant*>(&entity)) return "piranha_plant";
-    if (dynamic_cast<const HammerBro*>(&entity)) return "hammer_bro";
-    if (dynamic_cast<const Thwomp*>(&entity)) return "thwomp";
-    if (dynamic_cast<const Boo*>(&entity)) return "boo";
-    if (dynamic_cast<const Lakitu*>(&entity)) return "lakitu";
-    if (dynamic_cast<const Spiny*>(&entity)) return "spiny";
-
-    if (dynamic_cast<const Mushroom*>(&entity)) return "mushroom";
-    if (dynamic_cast<const OneUpMushroom*>(&entity)) return "oneup_mushroom";
-    if (dynamic_cast<const MiniMushroom*>(&entity)) return "mini_mushroom";
-    if (dynamic_cast<const MegaMushroom*>(&entity)) return "mega_mushroom";
-    if (dynamic_cast<const CapeFeather*>(&entity)) return "cape_feather";
-    if (dynamic_cast<const FireFlower*>(&entity)) return "fire_flower";
-    if (dynamic_cast<const Star*>(&entity)) return "star";
-    if (dynamic_cast<const Coin*>(&entity)) return "coin";
-    if (dynamic_cast<const StarCoin*>(&entity)) return "star_coin";
-    if (dynamic_cast<const PSwitch*>(&entity)) return "pswitch";
-    if (dynamic_cast<const POWBlock*>(&entity)) return "pow_block";
-    if (dynamic_cast<const Trampoline*>(&entity)) return "trampoline";
-
-    if (dynamic_cast<const Pipe*>(&entity)) return "pipe";
-    if (dynamic_cast<const Flagpole*>(&entity)) return "flagpole";
-    if (dynamic_cast<const QuestionBlock*>(&entity)) return "question_block";
-    if (dynamic_cast<const BrickBlock*>(&entity)) return "brick_block";
-    if (dynamic_cast<const MovingPlatform*>(&entity)) return "moving_platform";
-    if (dynamic_cast<const FallingPlatform*>(&entity)) return "falling_platform";
-
-    return "unknown";
+    // Was 30 sequential dynamic_casts. Each entity now reports its own name, so
+    // adding a type no longer means editing this function — and derived types
+    // are no longer shadowed by their base (see Entity::getTypeName).
+    return entity.getTypeName();
 }
 
 EntityType parseEntityTypeName(const std::string& name) {

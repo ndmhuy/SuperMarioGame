@@ -59,6 +59,7 @@ public:
 
     // Read-only getters for external consumers (HUD, UI, save)
     virtual std::string getCharacterName() const = 0;
+    EntityCategory getCategory() const override { return EntityCategory::Player; }
     int getLives() const { return lives; }
     int getCoins() const { return coins; }
     int getScore() const { return score; }

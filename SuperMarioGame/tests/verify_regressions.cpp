@@ -15,6 +15,10 @@
 #include "Entities/Mario.hpp"
 #include "Entities/IPlayerState.hpp"
 #include "Core/GameSnapshot.hpp"
+#include "Entities/KoopaTroopa.hpp"
+#include "Entities/KoopaParatroopa.hpp"
+#include "Entities/Goomba.hpp"
+#include "Utils/SerializationUtils.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -301,6 +305,28 @@ void testPowerUpPreservesStar() {
           "base form advanced to FireState underneath the decorator");
 }
 
+// ---------------------------------------------------------------------------
+// A-10 — getEntityTypeName was a 30-deep dynamic_cast chain that tested
+// KoopaTroopa before its own subclass KoopaParatroopa, so every Paratroopa was
+// serialised as a plain koopa_troopa and reloaded without wings.
+// ---------------------------------------------------------------------------
+void testEntityTypeNameIsVirtual() {
+    section("A-10  entity type names are not shadowed by base classes");
+
+    Goomba goomba({0.0f, 0.0f});
+    KoopaTroopa koopa({0.0f, 0.0f});
+    KoopaParatroopa para({0.0f, 0.0f});
+
+    check(SerializationUtils::getEntityTypeName(goomba) == "goomba", "Goomba -> \"goomba\"");
+    check(SerializationUtils::getEntityTypeName(koopa) == "koopa_troopa", "KoopaTroopa -> \"koopa_troopa\"");
+    check(SerializationUtils::getEntityTypeName(para) == "koopa_paratroopa",
+          "KoopaParatroopa -> \"koopa_paratroopa\", not shadowed by its base");
+
+    // The category is what the collision resolver dispatches on.
+    check(goomba.getCategory() == EntityCategory::Enemy, "Goomba reports Enemy category");
+    check(para.getCategory()   == EntityCategory::Enemy, "Paratroopa reports Enemy category");
+}
+
 } // namespace
 
 int main() {
@@ -316,6 +342,7 @@ int main() {
     testCoyoteWindowExpires();
     testJumpBufferFiresOnLanding();
     testPowerUpPreservesStar();
+    testEntityTypeNameIsVirtual();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

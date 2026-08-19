@@ -48,7 +48,6 @@ protected:
     friend class HammerThrowStrategy;
     friend class TetheredChaseStrategy;
     friend class ProximityTriggerStrategy;
-    friend int main();
 
     int health = 1;
     float speed = 0.0f;

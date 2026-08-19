@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Player.hpp"
 
 class Peach : public Player {
 public:
     explicit Peach(sf::Vector2f pos);
     ~Peach() override = default;
+
+    std::string getTypeName() const override { return "peach"; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

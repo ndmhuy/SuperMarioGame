@@ -1,11 +1,15 @@
 #pragma once
 
+#include <string>
+
 #include "Entities/Player.hpp"
 
 class Luigi : public Player {
 public:
     explicit Luigi(sf::Vector2f pos);
     ~Luigi() override = default;
+
+    std::string getTypeName() const override { return "luigi"; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

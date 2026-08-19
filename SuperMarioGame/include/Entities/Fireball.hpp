@@ -11,6 +11,7 @@ public:
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+    EntityCategory getCategory() const override { return EntityCategory::Projectile; }
 
     float getLifetime() const { return m_lifetime; }
     int getBouncesLeft() const { return m_bouncesLeft; }

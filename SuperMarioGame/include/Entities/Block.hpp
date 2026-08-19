@@ -17,6 +17,7 @@ public:
 
     // Overrides Entity lifecycle & physics
     float getGravityMultiplier() const override { return 0.0f; }
+    EntityCategory getCategory() const override { return EntityCategory::Block; }
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     virtual void setupAnimations(const SpriteSheet* spriteSheet);
