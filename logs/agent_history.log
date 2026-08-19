@@ -3207,3 +3207,57 @@ Summary of Changes:
   last 4 files, RAII EventBus tokens, and fast-forwarding main — which is 185
   commits behind and is the user's call, not the agent's.
 ---
+[2026-08-20 04:30:00] Branch: A/tier3-systems -> dev -> main
+Git Fingerprint: dev 2de9fac -> 679d301; main 53be790 -> 679d301 (both fast-forward, unpushed)
+Fetched Remotes: yes, 04:22 — dev and main were both level with their remotes before the merge
+Prompt: Do the rest (Tier 4 hygiene, including main).
+Files Modified:
+- .gitignore (.DS_Store, imgui.ini)
+- 208 build artefacts untracked via `git rm -r --cached` (205 clangd .idx, 3 .DS_Store) + imgui.ini
+- SuperMarioGame/include/Graphics/{SpriteSheet,Camera}.hpp + src/Graphics/{SpriteSheet,ParticleSystem}.cpp
+- SuperMarioGame/include/Core/EventBus.hpp + src/Core/EventBus.cpp
+- SuperMarioGame/src/Core/{Game,PlayingState,MenuState,CharacterSelectState,WorldMapState}.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp, tests/verify_regressions.cpp
+- TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — literally: main now points at this work.
+Verified By: ctest (2/2 — verify_regressions 314/314, verify_frontend_states
+24/24) + rebuilt warning-clean and ran the game from main (launch only, reaches
+MenuState). The merge rule's "rebuild plus run the game afterwards" was done on
+main after the fast-forward, not before.
+Summary of Changes:
+- MERGE (user-directed, per Directive 1's exception): A/tier3-systems -> dev and
+  dev -> main, both --ff-only. NO CONFLICTS WERE POSSIBLE: the three task
+  branches are stacked, so tier1 and tier2 are ancestors of tier3, dev was an
+  ancestor of tier3 and main an ancestor of dev — all four checked with
+  `git merge-base --is-ancestor` before touching anything. main moved 206
+  commits and is now level with dev. Tagged v1.0-complete.
+- NOT PUSHED. Directive 1: "Never push without being asked." main and dev are
+  206 and 27 commits ahead of their remotes respectively, waiting for the user.
+- X-8: the count was 208, not 207 — 205 clangd index files, 3 .DS_Store. Note
+  for the record: .gitignore had listed .cache/ and build/ for a long time, which
+  does nothing for files already in the index. That is why adding the rule never
+  fixed it. imgui.ini untracked too; it is rewritten every run and made every
+  session start with a dirty tree.
+- A-13: the audit said four files guessed asset paths; it was SEVEN, and three of
+  those were screens I added in Tiers 1 and 3 that had each copied the same
+  three-candidate lambda. So this item got worse before it got better. Closed at
+  the source: SpriteSheet::loadAtlas replaces four copies, everything else goes
+  through ResourceManager::resolvePath. Converting Game's lists exposed a load
+  that had been dead for a long time — tileset_blocks pointed at a folder that
+  had been renamed to "[Deprecated] tileset", and the exists() guard on every
+  candidate meant it failed silently.
+- X-7: EventBus::publish deep-copied its subscriber vector on EVERY event — a
+  std::function heap allocation per subscriber, on a bus that fires for every
+  coin, stomp, block and jump. Unsubscribe now tombstones, so publish walks the
+  live vector. A handler subscribing during delivery no longer receives the event
+  it is handling. Camera's defaulted move operations are deleted: it registers
+  this-capturing lambdas, so a move left the callbacks pointing at the old
+  object. EventBus::ScopedSubscription is the RAII token the audit asked for.
+- ALL FOUR TIERS OF docs/issues/completion_plan.md ARE NOW COMPLETE.
+- STANDING CAVEAT, unchanged and important: none of Tiers 1-4 has been verified
+  by playing. This environment blocks screen capture and keystroke injection.
+  Nobody has fought Bowser or Boom Boom, driven two players, watched a replay,
+  typed in the console, or seen the pause/victory/game-over screens on screen.
+  Everything is covered by 338 headless checks and by rendering to off-screen
+  targets. Play it before relying on the tag.
+---

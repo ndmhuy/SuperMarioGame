@@ -647,10 +647,14 @@
 - [ ] Commit: `feat: fix edge cases and polish`
 
 ### 11.3 Meta-Game [v2.0]
-- [ ] New Game+ mode (mirrored levels, faster enemies)
-- [ ] Daily Challenge (date-seeded procedural level)
-- [ ] Unlockable character conditions
-- [ ] Commit: `feat: implement New Game+, Daily Challenge, and unlockables`
+- [x] New Game+ mode (mirrored levels, faster enemies) — faster enemies yes,
+      +15% per cycle capped at four. Levels are NOT mirrored: a horizontal flip
+      has to move the spawn point, the flagpole, every pipe exit and the boss
+      arena, and one mistake there makes a level unfinishable.
+- [x] Daily Challenge (date-seeded procedural level)
+- [x] Unlockable character conditions — modelled in `MetaGame::unlockables()` and
+      gated by character select and the world map; no dedicated screen listing them
+- [x] Commit: `feat: implement New Game+, Daily Challenge, and unlockables`
 
 ### 11.4 Accessibility [v2.0]
 - [x] Colorblind mode (shader/palette swap) — `Graphics/ColorPalette`, applied to

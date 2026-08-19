@@ -157,7 +157,17 @@ Four more pre-existing bugs surfaced while doing it:
 | 21 | **5.10** Water & lava animation | A | 2 h |
 | 22 | **4.3** Camera lookahead + scroll modes | A | 1.5 h |
 
-### Tier 4 — Hygiene (~3 h)
+### Tier 4 — Hygiene (~3 h) — **DONE**
+
+All four. `main` is level with `dev` at `679d301` and tagged `v1.0-complete`;
+both are unpushed, because pushing is the user's call.
+
+X-8 turned out to be 208 files, not 207, and A-13 seven files rather than four —
+three of the seven were new screens I added in Tiers 1 and 3, each having copied
+the same path-guessing lambda. Both are closed at the source: one
+`SpriteSheet::loadAtlas`, and everything else through `resolvePath`.
+
+
 
 | # | Task | Est. |
 | :-- | :--- | ---: |
