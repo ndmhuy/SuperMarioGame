@@ -26,6 +26,24 @@ public:
     // Update held keys
     void update(Character& character);
 
+    // --- Held-key tracking -------------------------------------------------
+    //
+    // Held actions used to ask sf::Keyboard::isKeyPressed. That reads *global*
+    // OS key state rather than our window's, and on macOS it needs Input
+    // Monitoring permission: without it, it silently returns false forever. The
+    // result was that jump worked (a press mapping, driven by events) while
+    // walking did not (a hold mapping, driven by polling) — with no error
+    // anywhere.
+    //
+    // Key state now comes from the event stream, which needs no permission, is
+    // window-scoped by construction, and cannot report a key held while the
+    // game is in the background.
+    void noteKeyEvent(const sf::Event& event);
+    bool isHeld(sf::Keyboard::Key key) const;
+    // Called on focus loss: a key released while another window had focus never
+    // reaches us, and would otherwise stay held forever.
+    void clearHeldKeys();
+
     // Apply persisted bindings from config.json.
     //
     // Serializer has always read and written a keyBindings map and Game has
@@ -74,6 +92,7 @@ private:
 
     // Registered player pointers
     Character* m_players[2] = { nullptr, nullptr };
+    std::set<sf::Keyboard::Key> m_heldKeys;
 
     // We support Player 1 (index 0) and Player 2 (index 1)
     std::unordered_map<sf::Keyboard::Key, std::shared_ptr<ICommand>> m_pressMappings[2];

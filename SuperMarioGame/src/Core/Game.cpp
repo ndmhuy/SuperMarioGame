@@ -84,6 +84,12 @@ void Game::run() {
         while (const std::optional<sf::Event> event = m_window.pollEvent()) {
             ImGui::SFML::ProcessEvent(m_window, *event);
 
+            // Held-key state is tracked from events rather than polled from the
+            // OS. Recorded here, for every event, so presses and releases stay
+            // balanced even when a state chooses to ignore the key — an
+            // unrecorded release is a key held down forever.
+            InputManager::getInstance().noteKeyEvent(*event);
+
             if (event->is<sf::Event::Closed>()) {
                 quit();
                 continue;

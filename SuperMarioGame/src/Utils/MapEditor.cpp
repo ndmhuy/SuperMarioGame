@@ -1,3 +1,4 @@
+#include "Core/InputManager.hpp"
 #include "Utils/MapEditor.hpp"
 #include "Utils/Constants.hpp"
 #include "Entities/Entity.hpp"
@@ -85,16 +86,16 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
     if (camera) {
         camera->setBoundsEnabled(false); // PlayingState re-enables on exit
         float panSpeed = 650.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::A) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Left)) {
             camera->move(sf::Vector2f(-panSpeed * dt, 0.0f));
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::D) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Right)) {
             camera->move(sf::Vector2f(panSpeed * dt, 0.0f));
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::W) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Up)) {
             camera->move(sf::Vector2f(0.0f, -panSpeed * dt));
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::S) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Down)) {
             camera->move(sf::Vector2f(0.0f, panSpeed * dt));
         }
 

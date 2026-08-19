@@ -1937,6 +1937,60 @@ void testScopedSubscriptionCannotBeForgotten() {
     check(hits == 2, "and the moved-to token still works");
 }
 
+
+void testHeldKeysComeFromEventsNotTheOs() {
+    section("input  held keys are tracked from events, not polled from the OS");
+
+    InputManager& input = InputManager::getInstance();
+    input.resetBindingsToDefaults(0);
+    input.clearHeldKeys();
+
+    auto keyDown = [](sf::Keyboard::Key code) {
+        sf::Event::KeyPressed pressed;
+        pressed.code = code;
+        return sf::Event(pressed);
+    };
+    auto keyUp = [](sf::Keyboard::Key code) {
+        sf::Event::KeyReleased released;
+        released.code = code;
+        return sf::Event(released);
+    };
+
+    check(!input.isHeld(sf::Keyboard::Key::D), "nothing is held to begin with");
+    input.noteKeyEvent(keyDown(sf::Keyboard::Key::D));
+    check(input.isHeld(sf::Keyboard::Key::D), "a press marks the key held");
+    input.noteKeyEvent(keyUp(sf::Keyboard::Key::D));
+    check(!input.isHeld(sf::Keyboard::Key::D), "and a release clears it");
+
+    // The bug this replaces: held actions asked sf::Keyboard::isKeyPressed,
+    // which reads global OS key state. On macOS that needs Input Monitoring
+    // permission and silently returns false without it — so jump worked (a press
+    // mapping, driven by events) while walking did not (a hold mapping, driven
+    // by polling), with nothing logged anywhere.
+    Mario mario({100.0f, 100.0f});
+    input.registerPlayer(&mario, 0);
+
+    input.clearHeldKeys();
+    input.update(mario);
+    check(!mario.isMoveRightRequested(), "with no key held, no movement is requested");
+
+    input.noteKeyEvent(keyDown(sf::Keyboard::Key::D));
+    input.update(mario);
+    check(mario.isMoveRightRequested(),
+          "holding D drives MoveRight through the event-tracked state");
+
+    // A release that arrives while another window has focus never reaches us,
+    // so focus loss has to clear everything or the key sticks down forever.
+    input.noteKeyEvent(keyDown(sf::Keyboard::Key::A));
+    check(input.isHeld(sf::Keyboard::Key::A), "A is held");
+    input.noteKeyEvent(sf::Event(sf::Event::FocusLost{}));
+    check(!input.isHeld(sf::Keyboard::Key::A) && !input.isHeld(sf::Keyboard::Key::D),
+          "losing focus releases everything, so no key sticks");
+
+    input.registerPlayer(nullptr, 0);
+    input.clearHeldKeys();
+}
+
 } // namespace
 
 int main() {
@@ -2001,6 +2055,7 @@ int main() {
     testDebugConsoleDispatchesCommands();
     testReplayRecordsThinsAndPlaysBack();
     testTwoPlayerBindingsAreIndependent();
+    testHeldKeysComeFromEventsNotTheOs();
     testEventBusSurvivesHandlersThatMutateIt();
     testScopedSubscriptionCannotBeForgotten();
 

@@ -29,9 +29,9 @@ void Peach::update(float dt) {
         
         bool jumpHeld = false;
         if (isP1) {
-            jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
+            jumpHeld = InputManager::getInstance().isHeld(sf::Keyboard::Key::W) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Space);
         } else if (isP2) {
-            jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
+            jumpHeld = InputManager::getInstance().isHeld(sf::Keyboard::Key::Up);
         }
 
         if (jumpHeld && m_hoverTimer < 1.5f && velocity.y >= 0.0f) {

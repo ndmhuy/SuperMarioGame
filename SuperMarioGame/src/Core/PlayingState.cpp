@@ -445,7 +445,10 @@ void PlayingState::update(float dt) {
     // R only. LShift is bound to RunCommand for Player 1, so accepting it here
     // meant holding Shift to run rewound time instead — running was unusable
     // (audit B-10).
-    bool rewindRequested = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::R);
+    // Same defect as the movement keys: isKeyPressed reads global OS state and
+    // returns false without macOS Input Monitoring permission, so rewind was
+    // dead for the same invisible reason.
+    const bool rewindRequested = InputManager::getInstance().isHeld(sf::Keyboard::Key::R);
 
     if (rewindRequested && m_rewindManager.hasSnapshots()) {
         m_rewindManager.setRewinding(true);
@@ -463,19 +466,14 @@ void PlayingState::update(float dt) {
     // These are polled from the keyboard rather than driven by events, so the
     // console's event filter does not cover them: typing "difficulty hard" would
     // otherwise walk the player right on every "d".
-    // Held keys are polled from the keyboard rather than delivered as events, so
-    // nothing that consumes events can gate them. Three things have to be true:
-    //
-    //  - the console is closed (typing "difficulty hard" should not walk right);
-    //  - ImGui does not want the keyboard, or typing in any dev panel field
-    //    drives the player at the same time;
-    //  - our window actually has focus. sf::Keyboard::isKeyPressed reads global
-    //    key state, so without this the player keeps walking while the game is
-    //    in the background and you are typing somewhere else.
+    // Held-key state comes from the event stream now, so being unfocused already
+    // means no keys are held — InputManager clears them on FocusLost. What still
+    // needs gating is who the keys belong to while the window *is* focused:
+    // typing "difficulty hard" in the console, or into any ImGui field, must not
+    // also walk the player right on every "d".
     const bool inputBelongsToGameplay =
         !DebugConsole::getInstance().isVisible() &&
-        !ImGui::GetIO().WantCaptureKeyboard &&
-        Game::getInstance().isWindowFocused();
+        !ImGui::GetIO().WantCaptureKeyboard;
 
     if (inputBelongsToGameplay) {
         if (m_player)  InputManager::getInstance().update(*m_player);

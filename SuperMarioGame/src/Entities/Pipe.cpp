@@ -1,3 +1,4 @@
+#include "Core/InputManager.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Player.hpp"
 #include "Graphics/PipeRenderer.hpp"
@@ -28,8 +29,8 @@ bool Pipe::checkWarp(Player& player) const {
 
     if (withinHorizontalBounds && onTop) {
         // In real gameplay, warp is triggered by pressing down (S or Down key)
-        bool downPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) || 
-                           sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S);
+        bool downPressed = InputManager::getInstance().isHeld(sf::Keyboard::Key::Down) || 
+                           InputManager::getInstance().isHeld(sf::Keyboard::Key::S);
         if (downPressed) {
             // Trigger warp!
             SoundManager::getInstance().playSound("pipe");

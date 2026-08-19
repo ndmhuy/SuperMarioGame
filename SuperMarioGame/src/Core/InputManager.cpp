@@ -120,6 +120,24 @@ void InputManager::handleInput(const sf::Event& event, Character& character) {
     }
 }
 
+void InputManager::noteKeyEvent(const sf::Event& event) {
+    if (const auto* pressed = event.getIf<sf::Event::KeyPressed>()) {
+        m_heldKeys.insert(pressed->code);
+    } else if (const auto* released = event.getIf<sf::Event::KeyReleased>()) {
+        m_heldKeys.erase(released->code);
+    } else if (event.is<sf::Event::FocusLost>()) {
+        clearHeldKeys();
+    }
+}
+
+bool InputManager::isHeld(sf::Keyboard::Key key) const {
+    return m_heldKeys.count(key) > 0;
+}
+
+void InputManager::clearHeldKeys() {
+    m_heldKeys.clear();
+}
+
 void InputManager::update(Character& character) {
     int pIdx = 0;
     if (&character == m_players[1]) {
@@ -127,7 +145,7 @@ void InputManager::update(Character& character) {
     }
 
     for (auto& pair : m_holdMappings[pIdx]) {
-        if (sf::Keyboard::isKeyPressed(pair.first)) {
+        if (isHeld(pair.first)) {
             pair.second->execute(character);
         }
     }
