@@ -1,4 +1,5 @@
 #include "Entities/PiranhaPlant.hpp"
+#include "Utils/Constants.hpp"
 #include "Entities/TimerEmergenceStrategy.hpp"
 #include "Entities/Player.hpp"
 #include "Core/Game.hpp"
@@ -7,6 +8,10 @@
 
 PiranhaPlant::PiranhaPlant(sf::Vector2f position)
     : Enemy(position, 100, {32.0f, 48.0f}) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_PIRANHA_SPEED;
+
     // Set AI emergence strategy anchored at the spawn position
     setStrategy(std::make_unique<TimerEmergenceStrategy>(position));
 }

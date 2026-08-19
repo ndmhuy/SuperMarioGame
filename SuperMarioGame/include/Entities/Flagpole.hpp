@@ -21,6 +21,8 @@ public:
 
     float getPoleHeight() const { return m_poleHeight; }
     bool isTriggered() const { return m_triggered; }
+    // How far the flag has slid down the pole, in pixels from the top. Zero
+    // until the player touches it, m_poleHeight once the descent finishes.
     float getFlagY() const { return m_flagY; }
 
 private:
@@ -32,6 +34,10 @@ private:
 
     float m_poleHeight = 300.0f;
     bool m_triggered = false;
+    // These three were placeholders for a slide-down that was never written —
+    // m_flagY stayed at zero forever, so getFlagY() always answered "at the top"
+    // and two of them were dead weight (-Wunused-private-field). They now track
+    // the real descent animation.
     float m_flagY = 0.0f;
     float m_targetFlagY = 0.0f;
     float m_animTimer = 0.0f;

@@ -1,10 +1,15 @@
 #include "Entities/Thwomp.hpp"
+#include "Utils/Constants.hpp"
 #include "Entities/ProximityTriggerStrategy.hpp"
 #include "Entities/Player.hpp"
 #include "Core/Game.hpp"
 
 Thwomp::Thwomp(sf::Vector2f position)
     : Enemy(position, 0, {48.0f, 64.0f}) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_THWOMP_SLAM_SPEED;
+
     // Proximity trigger slam strategy
     setStrategy(std::make_unique<ProximityTriggerStrategy>());
 }

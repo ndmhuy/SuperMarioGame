@@ -178,6 +178,9 @@ void PlayingState::enter() {
             sf::Vector2f vel(dir * 350.0f, 50.0f);
 
             auto fireball = EntityFactory::createFireball(spawnPos, vel);
+            // Was pushed straight onto the list, so it never had its animations
+            // wired and fell back to hand-drawn circles every time.
+            admitEntity(fireball.get());
             m_entities.push_back(std::move(fireball));
 
             SoundManager::getInstance().playSound("fireball");

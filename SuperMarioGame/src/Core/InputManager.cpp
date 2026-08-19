@@ -154,6 +154,17 @@ const std::pair<const char*, sf::Keyboard::Key> kKeyNames[] = {
 };
 } // namespace
 
+std::string InputManager::getActionForKey(const std::string& key, int playerIndex) const {
+    if (playerIndex < 0 || playerIndex > 1) return "";
+    sf::Keyboard::Key code;
+    if (!parseKeyName(key, code)) return "";
+
+    for (const auto& [action, bound] : m_boundKey[playerIndex]) {
+        if (bound == code) return action;
+    }
+    return "";
+}
+
 std::string InputManager::getBoundKeyName(const std::string& action, int playerIndex) const {
     if (playerIndex < 0 || playerIndex > 1) return "";
     const auto& table = m_boundKey[playerIndex];
@@ -174,6 +185,14 @@ bool InputManager::parseKeyName(const std::string& name, sf::Keyboard::Key& out)
         if (name == text) { out = value; return true; }
     }
     return false;
+}
+
+namespace {
+// keyName() is static on the class; this keeps the log line readable.
+std::string key_name_for_log(sf::Keyboard::Key key) {
+    const std::string name = InputManager::keyName(key);
+    return name.empty() ? "?" : name;
+}
 }
 
 void InputManager::applyBindings(const std::unordered_map<std::string, std::string>& bindings,
@@ -200,7 +219,57 @@ void InputManager::applyBindings(const std::unordered_map<std::string, std::stri
             mappings.erase(boundIt->second);
         }
 
+        // If another action already owns this key, hand it the key we are about
+        // to vacate instead of leaving it dead. Binding "jump" to A used to
+        // silently unbind "left", and the only way back was editing config.json.
+        std::string displaced;
+        for (const auto& [otherAction, otherKey] : m_boundKey[playerIndex]) {
+            if (otherAction != action && otherKey == key) {
+                displaced = otherAction;
+                break;
+            }
+        }
+
+        const bool haveOldKey = (boundIt != m_boundKey[playerIndex].end());
+        // Re-applying the key an action already holds is not a conflict. Crouch
+        // and ground pound ship on the same key deliberately — holding and
+        // tapping are different gestures — so a default re-apply would otherwise
+        // "swap" S onto S and log a conflict that does not exist.
+        if (!displaced.empty() && haveOldKey && boundIt->second != key) {
+            const sf::Keyboard::Key vacated = boundIt->second;
+            const bool displacedHeld = m_heldActions.count(displaced) > 0;
+            auto& displacedMappings = displacedHeld ? m_holdMappings[playerIndex]
+                                                    : m_pressMappings[playerIndex];
+            auto displacedCmd = m_commandsByAction.find(displaced);
+            if (displacedCmd != m_commandsByAction.end()) {
+                displacedMappings.erase(key);
+                displacedMappings[vacated] = displacedCmd->second;
+                m_boundKey[playerIndex][displaced] = vacated;
+                std::cout << "[InputManager] \"" << key_name_for_log(key) << "\" was on \""
+                          << displaced << "\"; swapped it onto \"" << key_name_for_log(vacated)
+                          << "\" rather than leaving it unbound." << std::endl;
+            }
+        }
+
         mappings[key] = cmdIt->second;
         m_boundKey[playerIndex][action] = key;
     }
+}
+
+std::unordered_map<std::string, std::string> InputManager::resetBindingsToDefaults(int playerIndex) {
+    std::unordered_map<std::string, std::string> defaults;
+    if (playerIndex < 0 || playerIndex > 1) return defaults;
+
+    // The built-in layout, named once here and applied through the same path a
+    // user rebind takes, so defaults cannot drift from what applyBindings does.
+    if (playerIndex == 0) {
+        defaults = {{"left", "A"}, {"right", "D"}, {"jump", "W"}, {"run", "LShift"},
+                    {"crouch", "S"}, {"fire", "F"}, {"groundpound", "S"}};
+    } else {
+        defaults = {{"left", "Left"}, {"right", "Right"}, {"jump", "Up"}, {"run", "N"},
+                    {"crouch", "Down"}, {"fire", "M"}, {"groundpound", "Down"}};
+    }
+
+    applyBindings(defaults, playerIndex);
+    return defaults;
 }

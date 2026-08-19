@@ -61,8 +61,15 @@ void Player::slide() {
     m_crouchRequestedThisFrame = true;
 }
 
+bool Player::canShootFireball() const {
+    if (m_fireballCooldownTimer > 0.0f) return false;
+    // getBaseState() unwraps Star and Mega, so an invincible or giant Fire Mario
+    // keeps his fireballs — the decorators wrap the form, they do not replace it.
+    return dynamic_cast<FireState*>(getBaseState()) != nullptr;
+}
+
 void Player::shootFireball() {
-    if (m_fireballCooldownTimer > 0.0f) return;
+    if (!canShootFireball()) return;
 
     EventBus::getInstance().publish({EventType::PlayerShotFireball, this});
     m_fireballCooldownTimer = 0.3f; // 0.3s cooldown between shots

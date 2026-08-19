@@ -46,6 +46,16 @@ public:
     // what a control is set to; Game only holds the bindings that were *changed*.
     std::string getBoundKeyName(const std::string& action, int playerIndex = 0) const;
 
+    // Which action currently owns `key`, or "" if none does. applyBindings uses
+    // this to swap rather than orphan; the options screen shows it as a warning.
+    std::string getActionForKey(const std::string& key, int playerIndex = 0) const;
+
+    // Puts every control back to the built-in layout and returns it, so the
+    // caller can persist the same thing it just applied. Without this, a player
+    // who binds "left" to a key they cannot find again has no way back short of
+    // deleting config.json by hand.
+    std::unordered_map<std::string, std::string> resetBindingsToDefaults(int playerIndex = 0);
+
     static std::string keyName(sf::Keyboard::Key key);
     static bool parseKeyName(const std::string& name, sf::Keyboard::Key& out);
 

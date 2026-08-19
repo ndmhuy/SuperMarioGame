@@ -25,6 +25,7 @@ constexpr float DEFAULT_HALF_WIDTH = 5.0f * Constants::TILE_SIZE;
 BoomBoom::BoomBoom(sf::Vector2f position)
     : Boss(position, "BOOM BOOM", BOOMBOOM_HEALTH, BOOMBOOM_SCORE,
            {BOOMBOOM_WIDTH, BOOMBOOM_HEIGHT}) {
+    speed = Constants::BOSS_BOOM_BOOM_SPEED;
     enter(Action::Charging);
 }
 
@@ -35,10 +36,12 @@ int BoomBoom::phaseForHealth(int health) const {
 }
 
 float BoomBoom::chargeSpeed() const {
+    // Escalates off Character::speed rather than three literals, so the
+    // difficulty modifier reaches all three phases.
     switch (getPhase()) {
-        case 1:  return 120.0f;
-        case 2:  return 170.0f;
-        default: return 230.0f;   // "fastest charge"
+        case 1:  return speed;
+        case 2:  return speed * 1.4f;
+        default: return speed * 1.9f;   // "fastest charge"
     }
 }
 

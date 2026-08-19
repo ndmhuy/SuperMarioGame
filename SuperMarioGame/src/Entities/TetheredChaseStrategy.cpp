@@ -65,7 +65,8 @@ void TetheredChaseStrategy::applyMovement(Enemy& enemy, float dt) {
     m_timer += dt;
 
     if (m_isLunging) {
-        float lungeSpeed = 250.0f; // Rapid lunge speed
+        // Was a literal 250; Chain Chomp now carries it, so difficulty scales it.
+        const float lungeSpeed = enemy.speed > 0.0f ? enemy.speed : 250.0f;
         enemy.velocity = m_lungeDir * lungeSpeed;
         enemy.facingRight = (enemy.velocity.x > 0.f);
     } else {

@@ -1,10 +1,14 @@
 #include "Entities/BulletBill.hpp"
+#include "Utils/Constants.hpp"
 #include "Entities/LinearStrategy.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 
 BulletBill::BulletBill(sf::Vector2f position, float dirX)
     : Enemy(position, 200) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_BULLET_BILL_SPEED;
     setTargetSize({32.0f, 32.0f});
     
     // Straight line movement horizontally

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <ctime>
 #include <algorithm>
+#include <vector>
 
 // Helper to get active character name
 static std::string getCharacterName(const Player& player) {
@@ -61,16 +62,55 @@ static std::string getCurrentISOTimestamp() {
     return ss.str();
 }
 
+// Everything under saves/ resolves through here.
+//
+// These used to be bare relative paths, so the file you got depended on where
+// the binary was launched from: running from build/ read build/saves/config.json
+// while running from the source root read saves/config.json. Two different
+// configs, and a key rebind saved in one was invisible to the other — which is
+// exactly how a player ends up unable to move with a config file that looks
+// fine.
+//
+// Resolution mirrors ResourceManager::resolvePath: prefer a saves/ directory
+// that already exists at one of the usual roots, and otherwise fall back to the
+// working directory so a first run still has somewhere to write.
+std::string Serializer::saveDirectory() {
+    static const std::string resolved = [] {
+        const std::vector<std::string> candidates = {
+            "saves", "../saves", "../../saves",
+            "SuperMarioGame/saves", "../SuperMarioGame/saves"
+        };
+        // Never settle on a saves/ that sits inside a CMake build tree. That is
+        // how the split happened: launching from build/ found build/saves and
+        // wrote settings there, so the same game had two configs and a key
+        // rebind made in one was invisible from the other.
+        auto insideBuildTree = [](const std::string& dir) {
+            std::error_code ec;
+            const std::filesystem::path parent = std::filesystem::path(dir).parent_path();
+            return std::filesystem::exists(parent / "CMakeCache.txt", ec);
+        };
+
+        for (const auto& candidate : candidates) {
+            std::error_code ec;
+            if (std::filesystem::is_directory(candidate, ec) && !insideBuildTree(candidate)) {
+                return candidate;
+            }
+        }
+        return std::string("saves");
+    }();
+    return resolved;
+}
+
 std::string Serializer::getSaveFilePath(int slot) {
-    return "saves/slot_" + std::to_string(slot) + ".json";
+    return saveDirectory() + "/slot_" + std::to_string(slot) + ".json";
 }
 
 std::string Serializer::getSettingsFilePath() {
-    return "saves/config.json";
+    return saveDirectory() + "/config.json";
 }
 
 std::string Serializer::getHighScoresFilePath() {
-    return "saves/highscores.json";
+    return saveDirectory() + "/highscores.json";
 }
 
 std::vector<HighScoreEntry> Serializer::loadHighScores() {

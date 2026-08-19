@@ -61,6 +61,9 @@ void OptionsState::buildRows() {
         m_rows.push_back({RowKind::Binding, prettyAction(action), action, false});
     }
 
+    // A player who binds a control to a key they cannot find again needs a way
+    // back that is not "edit config.json by hand".
+    m_rows.push_back({RowKind::Action, "RESET CONTROLS", "", false});
     m_rows.push_back({RowKind::Action, "BACK", "", false});
     m_selected = std::min(m_selected, static_cast<int>(m_rows.size()) - 1);
 }
@@ -132,7 +135,18 @@ void OptionsState::activateSelected() {
             adjustSelected(1);
             break;
         case RowKind::Action:
-            close();
+            if (row.label == "RESET CONTROLS") {
+                // Applied and persisted through the same path a manual rebind
+                // takes, so the defaults cannot drift from what the game does.
+                const auto defaults = InputManager::getInstance().resetBindingsToDefaults(0);
+                for (const auto& [action, key] : defaults) {
+                    Game::getInstance().setKeyBinding(action, key);
+                }
+                m_notice = "CONTROLS RESET TO DEFAULTS";
+                m_noticeTimer = 2.5f;
+            } else {
+                close();
+            }
             break;
         default:
             break;
@@ -159,9 +173,23 @@ void OptionsState::handleInput(const sf::Event& event) {
         const std::string keyText = InputManager::keyName(keyPressed->code);
         if (!keyText.empty()) {
             const Row& row = m_rows[static_cast<std::size_t>(m_awaitingBindingRow)];
+
+            // Say so when the key was already taken. applyBindings swaps the two
+            // rather than orphaning the other action, but silently moving a
+            // control the player did not mention is worse than telling them.
+            const std::string previousOwner =
+                InputManager::getInstance().getActionForKey(keyText, 0);
             // setKeyBinding both applies the binding live and stores it for
             // saveSettings() to persist at shutdown.
             Game::getInstance().setKeyBinding(row.actionId, keyText);
+            if (!previousOwner.empty() && previousOwner != row.actionId) {
+                m_notice = keyText + " SWAPPED WITH " + prettyAction(previousOwner);
+                m_noticeTimer = 2.5f;
+                // The displaced action moved to the key this one vacated, and
+                // Game must persist that too or it reverts on the next launch.
+                Game::getInstance().setKeyBinding(
+                    previousOwner, InputManager::getInstance().getBoundKeyName(previousOwner, 0));
+            }
         } else {
             std::cerr << "[OptionsState] That key has no name in the binding table; ignored."
                       << std::endl;
@@ -212,6 +240,10 @@ void OptionsState::handleInput(const sf::Event& event) {
 
 void OptionsState::update(float dt) {
     m_elapsed += dt;
+    if (m_noticeTimer > 0.0f) {
+        m_noticeTimer -= dt;
+        if (m_noticeTimer <= 0.0f) m_notice.clear();
+    }
 }
 
 void OptionsState::render(sf::RenderTarget& target) {
@@ -246,6 +278,11 @@ void OptionsState::render(sf::RenderTarget& target) {
         UiRenderer::drawMenuItems(target, items, m_selected,
                                   {px + 60.0f, py + 100.0f}, 34.0f, 13,
                                   px + PANEL_W - 200.0f, m_elapsed);
+
+        if (!m_notice.empty()) {
+            UiRenderer::drawText(target, m_notice, {centerX, py + PANEL_H - 60.0f}, 10,
+                                 sf::Color(120, 255, 140), true);
+        }
 
         const char* hint = (m_awaitingBindingRow >= 0)
             ? "PRESS A KEY TO BIND   ESC CANCEL"

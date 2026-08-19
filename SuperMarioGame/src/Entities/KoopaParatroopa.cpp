@@ -7,6 +7,9 @@
 
 KoopaParatroopa::KoopaParatroopa(sf::Vector2f position, bool isRed)
     : KoopaTroopa(position, isRed) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_PARATROOPA_SPEED;
     setScoreValue(400);
     m_hasWings = true;
 

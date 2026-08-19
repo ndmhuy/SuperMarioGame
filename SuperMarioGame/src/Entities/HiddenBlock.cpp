@@ -4,7 +4,9 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 
 HiddenBlock::HiddenBlock(sf::Vector2f position, int itemType)
-    : Block(position), m_containedItemType(itemType), m_isRevealed(false) {
+    // Initialiser order must match the declaration order in the header
+    // (-Wreorder-ctor).
+    : Block(position), m_isRevealed(false), m_containedItemType(itemType) {
     m_breakable = false;
 }
 

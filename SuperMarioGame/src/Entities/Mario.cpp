@@ -39,10 +39,6 @@ void Mario::render(sf::RenderTarget& target) {
     }
 }
 
-void Mario::shootFireball() {
-    Player::shootFireball();
-}
-
 std::string Mario::getCharacterName() const {
     return "mario";
 }

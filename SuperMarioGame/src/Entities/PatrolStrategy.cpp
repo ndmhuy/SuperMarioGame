@@ -50,7 +50,9 @@ void PatrolStrategy::calculateTarget(Enemy& enemy, float dt) {
 }
 
 void PatrolStrategy::applyMovement(Enemy& enemy, float dt) {
-    float patrolSpeed = enemy.speed > 0.0f ? enemy.speed : 50.0f;
+    // enemy.speed is the single source of truth now; every enemy sets it in its
+    // constructor, so there is nothing to substitute for.
+    const float patrolSpeed = enemy.speed;
     enemy.velocity.x = (m_movingRight ? 1.0f : -1.0f) * patrolSpeed;
     enemy.facingRight = m_movingRight;
 }

@@ -42,6 +42,12 @@ public:
 
     static SaveSlotPreview getSlotPreview(int slot);
 
+    // The one directory every save file lives in, resolved once. Public because
+    // CampaignProgress writes alongside these files and must not resolve its own
+    // — see the comment on the definition: bare relative paths gave you a
+    // different config depending on the working directory.
+    static std::string saveDirectory();
+
     // High-score table (saves/highscores.json). recordHighScore() merges the
     // entry in, keeps the list sorted descending and truncates to MAX_HIGH_SCORES,
     // so callers never have to read-modify-write it themselves.

@@ -41,6 +41,7 @@
 #include "Entities/BossFireball.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Flagpole.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -1128,6 +1129,218 @@ void testCampaignProgressUnlocksSequentially() {
     if (hadExisting) std::filesystem::rename(backup, path);
 }
 
+
+void testOnlyFireMarioCanShoot() {
+    section("gameplay  only the Fire state may throw fireballs");
+
+    Mario mario({100.0f, 100.0f});
+    check(dynamic_cast<SmallState*>(mario.getCurrentState()) != nullptr, "starts Small");
+    check(!mario.canShootFireball(),
+          "Small Mario cannot shoot — shootFireball() had NO state check at all, "
+          "so every form could, which made the Fire Flower pointless");
+
+    mario.powerUp(0); // Super
+    check(!mario.canShootFireball(), "nor can Super Mario");
+
+    mario.powerUp(2); // CapeFeather
+    check(dynamic_cast<CapeState*>(mario.getBaseState()) != nullptr, "reached Cape");
+    check(!mario.canShootFireball(), "nor Cape Mario");
+
+    mario.powerUp(3); // MiniMushroom
+    check(!mario.canShootFireball(), "nor Mini Mario");
+
+    mario.powerUp(1); // Fire
+    check(dynamic_cast<FireState*>(mario.getBaseState()) != nullptr, "reached Fire");
+    check(mario.canShootFireball(), "Fire Mario can");
+
+    // A decorator wraps the form, it does not replace it.
+    mario.powerUp(4); // Star
+    check(dynamic_cast<StarDecorator*>(mario.getCurrentState()) != nullptr, "Star wraps Fire");
+    check(mario.canShootFireball(),
+          "and an invincible Fire Mario keeps his fireballs — getBaseState() "
+          "unwraps the decorator rather than seeing through to nothing");
+
+    // The cooldown is the other half of the gate.
+    int shots = 0;
+    const auto sub = EventBus::getInstance().subscribe(
+        EventType::PlayerShotFireball, [&shots](const GameEvent&) { ++shots; });
+    for (int i = 0; i < 10; ++i) mario.shootFireball();
+    check(shots == 1, "ten presses in one frame fire once, not ten times");
+    EventBus::getInstance().unsubscribe(sub);
+
+    // Taking a hit steps down out of Fire, and the gate closes with it. Star has
+    // to lapse first — it makes the player immune, so damage would be ignored.
+    mario.powerUp(1);
+    const int starFrames = static_cast<int>(Constants::STAR_DURATION * 60.0f) + 30;
+    for (int i = 0; i < starFrames; ++i) mario.update(1.0f / 60.0f);
+    check(dynamic_cast<PlayerStateDecorator*>(mario.getCurrentState()) == nullptr,
+          "the Star wore off");
+    mario.setInvincible(0.0f);
+    mario.takeDamage(1);
+    check(!mario.canShootFireball(), "and powering down out of Fire closes the gate again");
+}
+
+void testFireballUsesItsAtlasArtAndBurns() {
+    section("gameplay  the fireball draws the art the atlas has always shipped");
+
+    auto sheet = loadAtlas("enemy_projectile");
+    if (!sheet) {
+        check(false, "enemy_projectile atlas loads");
+        return;
+    }
+    bool flight = true;
+    for (int i = 0; i < 4; ++i) {
+        if (!sheet->hasFrame("flower_fireball_" + std::to_string(i))) flight = false;
+    }
+    check(flight, "the four-frame spin exists — it was being drawn with CircleShapes");
+    bool burst = true;
+    for (int i = 0; i < 3; ++i) {
+        if (!sheet->hasFrame("flower_fireball_hit_" + std::to_string(i))) burst = false;
+    }
+    check(burst, "as does the three-frame impact burst, which nothing played");
+
+    // A spent fireball bursts before it disappears, rather than vanishing.
+    Fireball fireball({0.0f, 0.0f}, {200.0f, 0.0f});
+    check(!fireball.isImpacting(), "a fresh fireball is flying");
+    for (int i = 0; i < 4; ++i) fireball.bounce();
+    check(fireball.isImpacting(), "its last bounce starts the burst");
+    check(fireball.isActive(), "and it is still alive while the burst plays");
+    for (int i = 0; i < 30; ++i) fireball.update(1.0f / 60.0f);
+    check(!fireball.isActive(), "then it is gone");
+}
+
+void testFlagpoleFlagActuallyDescends() {
+    section("gameplay  the flag reports the descent it now plays");
+
+    Flagpole pole({100.0f, 100.0f}, 168.0f);
+    check(pole.getFlagY() == 0.0f, "the flag starts at the top of the pole");
+
+    Mario mario({100.0f, 200.0f});
+    pole.onPlayerCollision(mario, 150.0f);
+
+    for (int i = 0; i < 30; ++i) pole.update(1.0f / 60.0f);
+    const float midway = pole.getFlagY();
+    check(midway > 0.0f, "it slides once the player touches it — m_flagY was never "
+                         "written at all, so it always read as still at the top");
+
+    for (int i = 0; i < 90; ++i) pole.update(1.0f / 60.0f);
+    check(pole.getFlagY() > midway, "and keeps going");
+    check(pole.getFlagY() <= 168.0f, "stopping at the foot of the pole, not past it");
+}
+
+
+void testEveryEnemyCarriesItsOwnSpeed() {
+    section("9.4  every enemy owns its speed, so the difficulty modifier reaches it");
+
+    // Nine of thirteen enemies left Character::speed at zero and every strategy
+    // substituted a literal of its own. getSpeed() answered 0 for enemies that
+    // were visibly moving, and `speed *= 1.3` on zero is still zero — so Hard
+    // only sped up four of them.
+    const std::vector<std::pair<std::string, EntityType>> roster = {
+        {"goomba", EntityType::Goomba}, {"koopa_troopa", EntityType::KoopaTroopa},
+        {"koopa_paratroopa", EntityType::KoopaParatroopa}, {"boo", EntityType::Boo},
+        {"piranha_plant", EntityType::PiranhaPlant}, {"bullet_bill", EntityType::BulletBill},
+        {"hammer_bro", EntityType::HammerBro}, {"thwomp", EntityType::Thwomp},
+        {"chain_chomp", EntityType::ChainChomp}, {"lakitu", EntityType::Lakitu},
+        {"spiny", EntityType::Spiny}, {"bowser", EntityType::Bowser},
+        {"boom_boom", EntityType::BoomBoom}
+    };
+
+    int zeroSpeed = 0;
+    for (const auto& [name, type] : roster) {
+        auto entity = EntityFactory::create(type, {100.0f, 100.0f});
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy) continue;
+        if (enemy->getSpeed() <= 0.0f) {
+            std::cout << "        speed is zero: " << name << "\n";
+            ++zeroSpeed;
+        }
+    }
+    check(zeroSpeed == 0, "no enemy reports a speed of zero");
+
+    // And the modifier actually moves all of them.
+    Game& game = Game::getInstance();
+    const std::string original = game.getDifficulty();
+    game.setDifficulty("hard");
+    const float scale = game.difficulty().enemySpeedScale();
+
+    int unscaled = 0;
+    for (const auto& [name, type] : roster) {
+        auto entity = EntityFactory::create(type, {100.0f, 100.0f});
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy) continue;
+        const float before = enemy->getSpeed();
+        enemy->applySpeedScale(scale);
+        if (enemy->getSpeed() <= before) {
+            std::cout << "        not scaled: " << name << "\n";
+            ++unscaled;
+        }
+    }
+    check(unscaled == 0, "and Hard speeds up every one of them, not just four");
+    game.setDifficulty(original);
+}
+
+void testMegaShrinksBackDown() {
+    section("gameplay  leaving Mega restores the previous size");
+
+    Mario mario({100.0f, 100.0f});
+    const sf::Vector2f smallSize = mario.getTargetSize();
+
+    mario.powerUp(0); // Super
+    const sf::Vector2f superSize = mario.getTargetSize();
+    check(superSize.y > smallSize.y, "Super is taller than Small");
+
+    mario.powerUp(5); // Mega
+    check(mario.getTargetSize().y > superSize.y, "Mega is bigger again");
+    check(mario.getBoundingBox().height == mario.getTargetSize().y,
+          "and the collision box grew with the sprite, not just the sprite");
+
+    // The existing Mega test only checked the state type — a size that never
+    // came back down would have passed it.
+    for (int i = 0; i < 12 * 60; ++i) mario.update(1.0f / 60.0f);
+    check(dynamic_cast<PlayerStateDecorator*>(mario.getCurrentState()) == nullptr,
+          "the decorator retires");
+    check(mario.getTargetSize() == superSize, "and the size comes back down to Super");
+    check(mario.getBoundingBox().height == superSize.y, "collision box too");
+}
+
+void testRebindingCannotStrandThePlayer() {
+    section("7.8  a rebind swaps controls rather than orphaning one");
+
+    InputManager& input = InputManager::getInstance();
+    input.resetBindingsToDefaults(0);
+    check(input.getBoundKeyName("left") == "A", "defaults put left on A");
+    check(input.getBoundKeyName("jump") == "W", "and jump on W");
+
+    // Binding jump to A used to silently unbind left, and the only way back was
+    // editing config.json by hand.
+    input.applyBindings({{"jump", "A"}}, 0);
+    check(input.getBoundKeyName("jump") == "A", "jump takes A");
+    check(input.getBoundKeyName("left") == "W",
+          "and left takes the key jump vacated instead of being left unbound");
+    check(input.getActionForKey("A") == "jump", "the key reports its new owner");
+
+    const auto defaults = input.resetBindingsToDefaults(0);
+    check(input.getBoundKeyName("left") == "A" && input.getBoundKeyName("jump") == "W",
+          "and RESET CONTROLS puts everything back");
+    check(defaults.size() >= 7, "returning the map so the caller can persist what it applied");
+}
+
+void testSavesResolveToOneDirectory() {
+    section("persistence  every save file resolves to the same directory");
+
+    const std::string dir = Serializer::saveDirectory();
+    check(!dir.empty(), "a save directory is chosen");
+
+    // Bare relative paths meant the file you got depended on the working
+    // directory: launching from build/ read build/saves/config.json while
+    // launching from the source root read saves/config.json. A key rebind saved
+    // in one was invisible from the other, which is how a player ends up unable
+    // to move with a config file that looks correct.
+    check(!std::filesystem::exists(std::filesystem::path(dir).parent_path() / "CMakeCache.txt"),
+          "and it is never inside a CMake build tree");
+}
+
 } // namespace
 
 int main() {
@@ -1171,6 +1384,13 @@ int main() {
     testThwompRunsItsStateMachine();
     testEveryStrategyIdentifiesItself();
     testCampaignProgressUnlocksSequentially();
+    testOnlyFireMarioCanShoot();
+    testFireballUsesItsAtlasArtAndBurns();
+    testFlagpoleFlagActuallyDescends();
+    testEveryEnemyCarriesItsOwnSpeed();
+    testMegaShrinksBackDown();
+    testRebindingCannotStrandThePlayer();
+    testSavesResolveToOneDirectory();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

@@ -26,6 +26,11 @@ public:
     virtual void slide();
     virtual void shootFireball();
 
+    // True only in the Fire state (through any decorator) and off cooldown.
+    // shootFireball() had NO state check at all: Small, Super, Cape and Mini
+    // Mario could all throw fireballs, which made the Fire Flower pointless.
+    bool canShootFireball() const;
+
     // Powerup state transitions
     void powerUp(int itemType);
     void powerDown();

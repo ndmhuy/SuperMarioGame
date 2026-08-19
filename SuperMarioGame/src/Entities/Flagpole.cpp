@@ -13,6 +13,16 @@ Flagpole::Flagpole(sf::Vector2f position, float poleHeight)
 
 void Flagpole::update(float dt) {
     Block::update(dt);
+
+    // Track the descent so getFlagY() means something. The five-frame animation
+    // runs at 0.18s a frame, so the flag reaches the bottom in 0.9s and the
+    // reported position stays in step with what is drawn.
+    if (!m_triggered || m_flagY >= m_targetFlagY) return;
+
+    constexpr float DESCENT_SECONDS = 0.9f;
+    m_animTimer += dt;
+    const float progress = std::min(1.0f, m_animTimer / DESCENT_SECONDS);
+    m_flagY = m_targetFlagY * progress;
 }
 
 void Flagpole::onHitFromBelow(Player& player) {
@@ -45,6 +55,10 @@ void Flagpole::onPlayerCollision(Player& player, float collisionY) {
     player.addScore(points);
     SoundManager::getInstance().playSound("flagpole");
     EventBus::getInstance().publish({EventType::LevelComplete, points});
+
+    // Slide the flag from the top of the pole to the bottom over the animation.
+    m_targetFlagY = m_poleHeight;
+    m_animTimer = 0.0f;
 
     // Swap to the descent animation so the flag visibly slides down the pole.
     m_animation = m_descentAnimation;

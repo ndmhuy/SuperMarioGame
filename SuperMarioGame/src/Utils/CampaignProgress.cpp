@@ -1,5 +1,6 @@
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/LevelCatalog.hpp"
+#include "Utils/Serializer.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -14,7 +15,9 @@ int LevelProgress::starCoinCount() const {
 }
 
 std::string CampaignProgress::filePath() {
-    return "saves/progress.json";
+    // Shares Serializer's resolved directory, so progress cannot end up in a
+    // different saves/ than the settings and the save slots.
+    return Serializer::saveDirectory() + "/progress.json";
 }
 
 std::vector<LevelProgress> CampaignProgress::load() {

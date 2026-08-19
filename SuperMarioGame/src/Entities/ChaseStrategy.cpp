@@ -27,7 +27,7 @@ void ChaseStrategy::calculateTarget(Enemy& enemy, float dt) {
 
 void ChaseStrategy::applyMovement(Enemy& enemy, float dt) {
     if (m_shouldChase && m_targetDist > 0.01f) {
-        float chaseSpeed = enemy.speed > 0.0f ? enemy.speed : 80.0f;
+        const float chaseSpeed = enemy.speed;
         sf::Vector2f dir(m_targetDx / m_targetDist, m_targetDy / m_targetDist);
         enemy.velocity = dir * chaseSpeed;
         enemy.facingRight = (enemy.velocity.x > 0.0f);

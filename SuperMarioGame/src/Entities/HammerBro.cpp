@@ -1,4 +1,5 @@
 #include "Entities/HammerBro.hpp"
+#include "Utils/Constants.hpp"
 #include "Entities/HammerThrowStrategy.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
@@ -7,6 +8,10 @@
 
 HammerBro::HammerBro(sf::Vector2f position)
     : Enemy(position, 1000, {32.0f, 48.0f}) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_HAMMER_BRO_SPEED;
+
     auto strategy = std::make_unique<HammerThrowStrategy>();
 
     // HammerThrowStrategy has always had this hook and nothing ever set it, so

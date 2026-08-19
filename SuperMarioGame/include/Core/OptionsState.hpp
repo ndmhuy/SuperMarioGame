@@ -56,6 +56,11 @@ private:
     // Index of the row waiting for a key press, or -1 when not rebinding.
     int m_awaitingBindingRow = -1;
 
+    // Transient feedback line — a reset confirmation, or a warning that a
+    // rebind displaced another control.
+    std::string m_notice;
+    float m_noticeTimer = 0.0f;
+
     std::vector<HighScoreEntry> m_highScores;
     bool m_closing = false;
 };

@@ -25,6 +25,7 @@ constexpr float JUMP_INTERVAL = 2.6f;    // phase 2 only
 
 Bowser::Bowser(sf::Vector2f position)
     : Boss(position, "BOWSER", BOWSER_HEALTH, BOWSER_SCORE, {BOWSER_WIDTH, BOWSER_HEIGHT}) {
+    speed = Constants::BOSS_BOWSER_SPEED;
     facingRight = false;   // faces back down the level, towards the player
     m_fireTimer = fireInterval();
 }
@@ -35,7 +36,9 @@ float Bowser::fireInterval() const {
 }
 
 float Bowser::walkSpeed() const {
-    return (getPhase() >= 2) ? 90.0f : 55.0f;
+    // Phase 2 is "faster"; the base comes from Character::speed so the
+    // difficulty modifier reaches it like every other enemy.
+    return (getPhase() >= 2) ? speed * 1.6f : speed;
 }
 
 void Bowser::setupAnimations(const SpriteSheet* spriteSheet) {

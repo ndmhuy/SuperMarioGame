@@ -8,6 +8,9 @@
 
 Lakitu::Lakitu(sf::Vector2f position)
     : Enemy(position, 800) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_LAKITU_SPEED;
     setTargetSize({32.0f, 32.0f});
 
     // Lakitu hovers and follows player horizontally
