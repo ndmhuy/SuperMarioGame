@@ -2908,3 +2908,25 @@ Summary of Changes:
   * The two new -Wreorder-ctor warnings (MovingPlatform, HiddenBlock) were checked and are benign — the dependent member is declared before its dependency in both.
 - No code changes made this session beyond the merge; findings reported to the user for prioritisation.
 ---
+[2026-08-18 19:40:00] Branch: A/fix/member-b-findings -> dev
+Git Fingerprint: 75ba6f6 (before) → d22669e (after, merged and pushed)
+Fetched Remotes: yes, 18:22
+Prompt: There are still B's need to fix in the audit, do it all. (Member A fixing Member B's findings.)
+Files Modified:
+- SuperMarioGame/include/Entities/Hammer.hpp (NEW), src/Entities/Hammer.cpp (NEW)
+- SuperMarioGame/src/Entities/{HiddenBlock,Lakitu,HammerBro,Goomba,KoopaParatroopa,Enemy,KoopaTroopa,Spiny,FallingPlatform,EntityFactory}.cpp + headers
+- SuperMarioGame/src/Physics/{CollisionResolver,PhysicsEngine}.cpp + CollisionResolver.hpp
+- SuperMarioGame/src/Core/{InputManager,Game,PlayingState}.cpp + headers
+- SuperMarioGame/include/Core/{EventBus,GameSnapshot}.hpp
+- SuperMarioGame/CMakeLists.txt, tests/verify_regressions.cpp
+Reachable From Main: yes — all changes are on the live gameplay path; Hammer and Spiny are spawned by PlayingState's EntitySpawnRequested listener.
+Verified By: ctest verify_regressions (76/76 checks) + ran the game (8s smoke run, clean startup, no crash)
+Summary of Changes:
+- Closed all nine remaining Member B findings: B-3 (hidden blocks were unreachable by construction), B-5 (moving platforms static), B-6 (Hammer Bro never threw; added the missing Hammer projectile), B-7 (Lakitu spawned nothing), B-8 (no enemy-vs-enemy, so shell chains impossible), B-10 (LShift ran AND rewound), B-11 (persisted key bindings never applied — GitHub issue #9), B-12 (Paratroopa fly frames hardcoded green), B-14 (five classes used a zero-sized AABB to opt out of collision).
+- B-6 and B-7 share one new mechanism: EntitySpawnRequested + payload, mirroring the existing PowerUpRequested pattern, because entities have no handle on the world's entity list. Capped at 400 entities.
+- B-14 replaced the zero-AABB idiom with a virtual Entity::isCollidable() honoured by the broadphase, which also stopped polluting spatial-hash cell (0,0) every frame.
+- B-12 was already partly fixed on Member B's branch (KoopaTroopa honours m_isRed); only the Paratroopa fly frames remained. Goomba uses grey since the atlas has no red goomba.
+- Also fixed file(GLOB_RECURSE) lacking CONFIGURE_DEPENDS — adding Hammer.cpp failed to link until a manual reconfigure.
+- Earlier in the same session: merged the level-population work (35 enemies added, 21 question blocks given contents) and fixed a live runtime bug where build/assets was a stale hand-made copy holding only levels/, so the game read out-of-date level data and audio/textures only resolved via path fallback. A POST_BUILD step now syncs the whole assets tree.
+- Branch was initially created as B/fix/... and renamed to A/fix/member-b-findings: the work is Member A's even though the findings are Member B's.
+---
