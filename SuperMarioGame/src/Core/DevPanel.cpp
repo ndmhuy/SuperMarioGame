@@ -26,6 +26,8 @@
 #include "Utils/MapGenerator.hpp"
 
 #include <imgui.h>
+
+#include <cfloat>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -165,7 +167,8 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
     ImGui::Separator();
     ImGui::Text("Select Campaign Level:");
     int levelIdx = state.m_selectedLevelIndex;
-    if (ImGui::Combo("Select Level", &levelIdx, kCampaignLevels, kLevelCount)) {
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::Combo("##SelectLevel", &levelIdx, kCampaignLevels, kLevelCount)) {
         queue([levelIdx](PlayingState& s) {
             s.m_selectedLevelIndex = levelIdx;
             s.m_isProcedural = false;
@@ -196,7 +199,8 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
         pipeItems.reserve(pipeLabels.size());
         for (const auto& l : pipeLabels) pipeItems.push_back(l.c_str());
 
-        ImGui::Combo("Tube Dropdown", &m_selectedPipeIndex, pipeItems.data(), static_cast<int>(pipeItems.size()));
+        ImGui::SetNextItemWidth(-90.0f);
+        ImGui::Combo("##TubeDropdown", &m_selectedPipeIndex, pipeItems.data(), static_cast<int>(pipeItems.size()));
         ImGui::SameLine();
         if (ImGui::Button("Enter Tube")) {
             // Capture by value: the Pipe* may be destroyed by the very level load
@@ -217,12 +221,16 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Return to Main Menu")) {
-        queue([](PlayingState&) { Game::getInstance().changeState(std::make_unique<MenuState>()); });
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Toggle Map Editor (F1)")) {
-        queue([](PlayingState& s) { s.m_mapEditor.toggleActive(); });
+    if (state.m_mapEditor.isActive()) {
+        ImGui::TextDisabled("Editing. The level editor window owns navigation.");
+    } else {
+        if (ImGui::Button("Return to Main Menu")) {
+            queue([](PlayingState&) { Game::getInstance().changeState(std::make_unique<MenuState>()); });
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Toggle Map Editor (F1)")) {
+            queue([](PlayingState& s) { s.m_mapEditor.toggleActive(); });
+        }
     }
 
     ImGui::End();
@@ -231,7 +239,8 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawGeneratorPanel(PlayingState& state) {
-    ImGui::SetNextWindowPos(ImVec2(8.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(8.0f, 316.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 300.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Procedural Level Generator Tuning");
     ImGui::Text("Live tuning parameters:");

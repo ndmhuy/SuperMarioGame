@@ -7,6 +7,7 @@
 #include "Core/MenuState.hpp"
 #include <imgui.h>
 #include <iostream>
+#include <cfloat>
 #include <cmath>
 
 MapEditor::MapEditor() {
@@ -205,6 +206,11 @@ void MapEditor::render(sf::RenderTarget& target, const TileMap& tileMap, const s
 void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities) {
     if (!m_active) return;
 
+    // Right-hand column, clear of the navigation and generator panels on the
+    // left. With no position of its own this window opened at ImGui's default
+    // spot and sat underneath "Gameplay Controls & Navigation".
+    ImGui::SetNextWindowPos(ImVec2(912.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 600.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin("Mario Maker - In-Game Level Editor (F1)");
 
     ImGui::Checkbox("Show Grid Overlay Layout", &m_showGrid);
@@ -231,7 +237,8 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
             if (m_selectedTileType == tileTypes[i]) activeIdx = i;
         }
 
-        if (ImGui::Combo("Tile Brush", &activeIdx, tileNames, 9)) {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::Combo("##TileBrush", &activeIdx, tileNames, 9)) {
             m_selectedTileType = tileTypes[activeIdx];
         }
     } else {
@@ -244,7 +251,8 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
             if (m_selectedEntityType == entityKeys[i]) activeIdx = i;
         }
 
-        if (ImGui::Combo("Entity Brush", &activeIdx, entityLabels, 16)) {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::Combo("##EntityBrush", &activeIdx, entityLabels, 16)) {
             m_selectedEntityType = entityKeys[activeIdx];
         }
     }
@@ -267,7 +275,9 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
     ImGui::Separator();
 
     // File Import / Export
-    ImGui::InputText("Map File Name", m_levelNameInput, sizeof(m_levelNameInput));
+    ImGui::Text("Map File Name (saves/<name>.json):");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##MapFileName", m_levelNameInput, sizeof(m_levelNameInput));
     
     if (ImGui::Button("Export Level JSON")) {
         saveLevel(tileMap, entities);
@@ -285,11 +295,11 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
     }
 
     ImGui::Separator();
-    if (ImGui::Button("🎮 Switch to Play Mode (F1)")) {
+    if (ImGui::Button("Switch to Play Mode (F1)")) {
         toggleActive();
     }
     ImGui::SameLine();
-    if (ImGui::Button("🏠 Return to Main Menu")) {
+    if (ImGui::Button("Return to Main Menu")) {
         toggleActive();
         Game::getInstance().changeState(std::make_unique<MenuState>());
     }

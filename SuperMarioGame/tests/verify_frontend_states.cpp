@@ -13,6 +13,8 @@
 // Victory / GameOver, which is checked by playing the game.
 
 #include "Core/CharacterSelectState.hpp"
+#include "Core/PlayingState.hpp"
+#include "Utils/MapGenerator.hpp"
 #include "Core/Game.hpp"
 #include "Core/GameOverState.hpp"
 #include "Core/MenuState.hpp"
@@ -24,10 +26,15 @@
 #include "Core/SoundManager.hpp"
 #include "Utils/Serializer.hpp"
 
+#include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/RenderTexture.hpp>
 #include <SFML/Window/Event.hpp>
 
+#include <imgui.h>
+
+#include <cstdint>
 #include <filesystem>
+#include <map>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -392,6 +399,108 @@ void testMenuNavigatesWithoutImGui(sf::RenderTexture* target) {
 
 } // namespace
 
+
+// The single most common colour on screen. Sampling one corner pixel is not
+// enough: underground and castle levels put a solid tile ceiling across the top
+// of the frame, so the sky has to be found rather than assumed to be at (8,8).
+sf::Color dominantColour(const sf::RenderTexture& target) {
+    const sf::Image image = target.getTexture().copyToImage();
+    std::map<std::uint32_t, int> histogram;
+    for (unsigned y = 0; y < 720u; y += 4u) {
+        for (unsigned x = 0; x < 1280u; x += 4u) {
+            ++histogram[image.getPixel({x, y}).toInteger()];
+        }
+    }
+    std::uint32_t best = 0;
+    int bestCount = -1;
+    for (const auto& [colour, count] : histogram) {
+        if (count > bestCount) { bestCount = count; best = colour; }
+    }
+    return sf::Color(best);
+}
+
+// --- The level editor must not be left sitting under the entry fade ---------
+//
+// PlayingState::enter() starts a 0.45s fade-in; PlayingState::render() draws
+// that overlay after the world. The editor branch of update() returned before
+// ScreenTransitionManager::update(), so the fade never advanced and a
+// full-screen black rectangle stayed pinned over the level. Entering the editor
+// straight from the menu ("Level Editor", "Generate & Edit") therefore showed
+// nothing but the editor grid; pressing F1 mid-level looked fine because the
+// fade had already finished.
+//
+// Checked by rendering: the assertion is the colour of a sky pixel, which also
+// covers the second half of the bug — the generator's theme never reached the
+// parallax backdrop, so a castle or ice level was drawn against overworld blue.
+void testEditorIsNotStuckBehindTheEntryFade(sf::RenderTexture* target) {
+    section("map editor  the entry fade finishes, and the generated theme reaches the sky");
+    if (!target) {
+        std::cout << "  [note] no graphics context - skipped\n";
+        return;
+    }
+
+    ImGuiContext* context = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(1280.0f, 720.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    unsigned char* fontPixels = nullptr;
+    int fontW = 0, fontH = 0;
+    io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontW, &fontH);
+    io.Fonts->SetTexID(static_cast<ImTextureID>(1));
+
+    // One sky pixel per generator theme. Kept in step with
+    // BackgroundRenderer::getSkyColor by construction: if the theme never
+    // arrives, every one of these reads back as the overworld blue instead.
+    const struct { MapTheme theme; const char* name; sf::Color sky; } kCases[] = {
+        {MapTheme::Overworld,   "overworld",   sf::Color( 92, 148, 252)},
+        {MapTheme::Underground, "underground", sf::Color( 20,  16,  48)},
+        {MapTheme::Castle,      "castle",      sf::Color( 28,   8,  12)},
+        {MapTheme::Ice,         "ice",         sf::Color(148, 196, 236)},
+    };
+
+    for (const auto& testCase : kCases) {
+        MapGeneratorConfig config;
+        config.theme = testCase.theme;
+
+        PlayingState state(/*startInEditor=*/true, /*isProcedural=*/true, config);
+        state.enter();
+
+        // One frame: still deep in the fade, so the world must be hidden. This
+        // is the control — without it a test that only looks at the end state
+        // would pass even if the overlay had been deleted outright.
+        ImGui::NewFrame();
+        state.update(1.0f / 60.0f);
+        target->clear(sf::Color::Magenta);
+        state.render(*target);
+        target->display();
+        ImGui::EndFrame();
+        ImGui::Render();
+        const sf::Color early = dominantColour(*target);
+
+        // 40 more frames carries past the 0.45s fade.
+        for (int frame = 0; frame < 40; ++frame) {
+            ImGui::NewFrame();
+            state.update(1.0f / 60.0f);
+            target->clear(sf::Color::Magenta);
+            state.render(*target);
+            target->display();
+            ImGui::EndFrame();
+            ImGui::Render();
+        }
+        const sf::Color settled = dominantColour(*target);
+
+        check(early != settled,
+              std::string("the ") + testCase.name + " fade is actually animating");
+        check(settled == testCase.sky,
+              std::string("after the fade the ") + testCase.name +
+                  " editor shows its own sky, not a black overlay");
+
+        state.exit();
+    }
+
+    ImGui::DestroyContext(context);
+}
+
 int main() {
     std::cout << "Tier 1 front-end state harness\n";
 
@@ -424,6 +533,7 @@ int main() {
     testCharacterSelectGatesLockedSlots(target);
     testWorldMapRefusesLockedLevels(target);
     testMenuNavigatesWithoutImGui(target);
+    testEditorIsNotStuckBehindTheEntryFade(target);
 
     // These screens play sounds and load atlases, so both the audio device and a
     // GL context are live. Both singletons hold SFML resources that must be

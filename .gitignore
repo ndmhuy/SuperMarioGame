@@ -14,5 +14,6 @@ saves/
 # ImGui window layout, rewritten on every run. AGENTS.md already treats it as
 # machine-generated; tracking it just means every session has a dirty tree.
 imgui.ini
+imgui_layout_v*.ini
 .member_profile.json
 

@@ -62,6 +62,23 @@
 #include <unordered_map>
 
 
+namespace {
+
+// The generator picks a theme; the parallax backdrop needs the same one. Nothing
+// carried it across, so every generated level — castle, ice, underground — was
+// drawn against the overworld blue sky and green hills.
+BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
+    switch (theme) {
+        case MapTheme::Underground: return BackgroundTheme::Underground;
+        case MapTheme::Castle:      return BackgroundTheme::Castle;
+        case MapTheme::Ice:         return BackgroundTheme::Ice;
+        case MapTheme::Overworld:
+        default:                    return BackgroundTheme::Overworld;
+    }
+}
+
+} // namespace
+
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
                            int characterIndex, int levelIndex, bool twoPlayer)
     : m_selectedCharIndex(characterIndex),
@@ -105,6 +122,7 @@ void PlayingState::enter() {
     if (m_isProcedural) {
         cleanupTestScene();
         MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+        m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
 
         // Wire animations for all procedurally generated entities
         for (auto& entity : m_entities) {
@@ -413,6 +431,15 @@ void PlayingState::update(float dt) {
         sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(m_camera.getView());
         m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt, &m_camera);
         m_camera.update(dt);
+        // The editor skips the simulation, not the presentation layer. enter()
+        // starts a 0.45s fade-in, and render() draws that overlay after the
+        // world; returning here without advancing it pinned a full-screen black
+        // rectangle over the editor forever. Entering the editor straight from
+        // the menu ("Level Editor", "Generate & Edit") therefore showed nothing
+        // but the grid, while F1 mid-level looked fine because the fade had
+        // already finished.
+        m_background.update(dt);
+        ScreenTransitionManager::getInstance().update(dt);
         return;
     }
 
@@ -1079,6 +1106,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
 void PlayingState::regenerateProceduralLevel() {
     MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+    m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
     for (auto& entity : m_entities) {
         admitEntity(entity.get());
     }
@@ -1097,6 +1125,11 @@ void PlayingState::regenerateProceduralLevel() {
     m_camera.setBounds(AABB{0.0f, 0.0f,
                             m_tileMap.getWidth() * Constants::TILE_SIZE,
                             m_tileMap.getHeight() * Constants::TILE_SIZE});
+    // A regenerated level is a different level. Keeping the old spawn point and
+    // checkpoint would respawn the player into geometry that no longer exists.
+    m_levelSpawnPoint = m_player ? m_player->getPosition() : sf::Vector2f(96.0f, 64.0f);
+    m_checkpointPosition = m_levelSpawnPoint;
+    m_hasCheckpoint = false;
     if (m_minimap) m_minimap->initialize(m_tileMap);
 }
 

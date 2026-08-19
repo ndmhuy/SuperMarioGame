@@ -23,7 +23,7 @@ namespace {
 // Small helpers shared by the commands.
 Player* player() { return Game::getInstance().getPlayer(); }
 
-std::string requirePlayer() { return "no active player — start a level first"; }
+std::string requirePlayer() { return "no active player - start a level first"; }
 
 int parseInt(const std::string& text, int fallback) {
     try {

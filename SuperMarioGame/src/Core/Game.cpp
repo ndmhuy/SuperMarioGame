@@ -12,6 +12,7 @@
 #include <SFML/Window/Event.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
+#include <filesystem>
 #include <iostream>
 
 Game& Game::getInstance() {
@@ -130,7 +131,10 @@ void Game::run() {
         ImGui::SFML::Update(m_window, elapsed);
 
         // ImGui Dev Tools panel
-        ImGui::SetNextWindowPos(ImVec2(1000.0f, 8.0f), ImGuiCond_FirstUseEver);
+        // Bottom-right, below the map editor window (912,8 - 360x600) and clear
+        // of the AI overlay. At its old spot it landed on top of both.
+        ImGui::SetNextWindowPos(ImVec2(912.0f, 616.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(360.0f, 96.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
         ImGui::Begin("Super Mario Engine Dev Tools");
         ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)", 
@@ -157,6 +161,11 @@ void Game::quit() {
 }
 
 sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
+    // mapPixelToCoords divides by the viewport size, so it asserts on a window
+    // that has not been created yet. Head-less harnesses drive the map editor
+    // through exactly this path.
+    const sf::Vector2u windowSize = m_window.getSize();
+    if (windowSize.x == 0 || windowSize.y == 0) return {0.0f, 0.0f};
     return m_window.mapPixelToCoords(sf::Mouse::getPosition(m_window), view);
 }
 
@@ -196,6 +205,24 @@ void Game::initImGui() {
     if (!ImGui::SFML::Init(m_window)) {
         std::cerr << "Failed to initialize ImGui-SFML!" << std::endl;
     }
+
+    // The saved layout wins over every ImGuiCond_FirstUseEver in the code, so a
+    // stale imgui.ini pins windows wherever they last happened to be. On the
+    // machine this was reported from, that file held Pos=60,60 for all six
+    // panels, which is why they stacked on top of one another no matter what the
+    // defaults said.
+    //
+    // Versioning the filename is the standard answer: the positions below take
+    // effect, users can still drag windows and have that remembered, and bumping
+    // the version when the default layout changes retires the old file instead
+    // of fighting it.
+    static const char* const kIniFile = "imgui_layout_v2.ini";
+    ImGui::GetIO().IniFilename = kIniFile;
+
+    // Retire the unversioned file so it stops being written and stops shadowing
+    // the defaults. Best-effort: failing to remove it is cosmetic.
+    std::error_code ignored;
+    std::filesystem::remove("imgui.ini", ignored);
 }
 
 void Game::shutdown() {
