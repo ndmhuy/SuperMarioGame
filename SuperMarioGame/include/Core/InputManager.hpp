@@ -41,6 +41,11 @@ public:
 
     // Human-readable name for a key, and its inverse. Used for persistence and
     // for showing the current binding in the options UI.
+    // Key currently driving `action` for `playerIndex`, as a keyName() string,
+    // or "" when the action is not bound. The options screen needs this to show
+    // what a control is set to; Game only holds the bindings that were *changed*.
+    std::string getBoundKeyName(const std::string& action, int playerIndex = 0) const;
+
     static std::string keyName(sf::Keyboard::Key key);
     static bool parseKeyName(const std::string& name, sf::Keyboard::Key& out);
 

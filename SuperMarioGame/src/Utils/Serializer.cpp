@@ -14,6 +14,7 @@
 #include <sstream>
 #include <iostream>
 #include <ctime>
+#include <algorithm>
 
 // Helper to get active character name
 static std::string getCharacterName(const Player& player) {
@@ -66,6 +67,92 @@ std::string Serializer::getSaveFilePath(int slot) {
 
 std::string Serializer::getSettingsFilePath() {
     return "saves/config.json";
+}
+
+std::string Serializer::getHighScoresFilePath() {
+    return "saves/highscores.json";
+}
+
+std::vector<HighScoreEntry> Serializer::loadHighScores() {
+    std::vector<HighScoreEntry> scores;
+    try {
+        const std::string path = getHighScoresFilePath();
+        if (!std::filesystem::exists(path)) return scores;
+
+        std::ifstream file(path);
+        if (!file.is_open()) return scores;
+
+        nlohmann::json j;
+        file >> j;
+        if (!j.contains("scores") || !j["scores"].is_array()) return scores;
+
+        for (const auto& item : j["scores"]) {
+            HighScoreEntry entry;
+            entry.score      = item.value("score", 0);
+            entry.coins      = item.value("coins", 0);
+            entry.starCoins  = item.value("starCoins", 0);
+            entry.character  = item.value("character", std::string("mario"));
+            entry.levelName  = item.value("levelName", std::string("1-1"));
+            entry.timestamp  = item.value("timestamp", std::string(""));
+            scores.push_back(std::move(entry));
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Failed to read high scores: " << e.what() << std::endl;
+        scores.clear();
+    }
+    return scores;
+}
+
+bool Serializer::recordHighScore(const HighScoreEntry& entry) {
+    // A run worth nothing is not a high score; writing it would just push a real
+    // entry off the bottom of the table.
+    if (entry.score <= 0) return false;
+
+    try {
+        std::vector<HighScoreEntry> scores = loadHighScores();
+
+        HighScoreEntry stamped = entry;
+        if (stamped.timestamp.empty()) {
+            stamped.timestamp = getCurrentISOTimestamp();
+        }
+        scores.push_back(std::move(stamped));
+
+        std::stable_sort(scores.begin(), scores.end(),
+                         [](const HighScoreEntry& a, const HighScoreEntry& b) {
+                             return a.score > b.score;
+                         });
+        if (static_cast<int>(scores.size()) > MAX_HIGH_SCORES) {
+            scores.resize(static_cast<std::size_t>(MAX_HIGH_SCORES));
+        }
+
+        const std::string path = getHighScoresFilePath();
+        std::filesystem::path fsPath(path);
+        if (fsPath.has_parent_path()) {
+            std::filesystem::create_directories(fsPath.parent_path());
+        }
+
+        nlohmann::json j;
+        j["version"] = "1.0";
+        j["scores"] = nlohmann::json::array();
+        for (const auto& s : scores) {
+            nlohmann::json row;
+            row["score"]     = s.score;
+            row["coins"]     = s.coins;
+            row["starCoins"] = s.starCoins;
+            row["character"] = s.character;
+            row["levelName"] = s.levelName;
+            row["timestamp"] = s.timestamp;
+            j["scores"].push_back(std::move(row));
+        }
+
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << j.dump(4);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Failed to write high score: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 bool Serializer::saveGame(int slot, const Player& player, int levelId, const std::string& levelName, 

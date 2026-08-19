@@ -18,13 +18,19 @@
 #include <memory>
 
 #include "Utils/MapGenerator.hpp"
+#include "Core/GameOverState.hpp"
 
 class Entity;
 class Player;
 
 class PlayingState : public IGameState {
 public:
-    explicit PlayingState(bool startInEditor = false, bool isProcedural = false, const MapGeneratorConfig& genConfig = MapGeneratorConfig());
+    // `characterIndex` and `levelIndex` let the front-end states rebuild an exact
+    // run: character select picks the first, and Game Over's "Retry Level" needs
+    // both to restart what the player just lost.
+    explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
+                          const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
+                          int characterIndex = 0, int levelIndex = 0);
     ~PlayingState() override;
 
     void enter() override;
@@ -32,6 +38,13 @@ public:
     void handleInput(const sf::Event& event) override;
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
+
+    // Something has been pushed over the level (pause, victory, options). The
+    // level keeps rendering — it is what the overlay sits on — but its music
+    // stops and its ImGui dev surface goes quiet, because an ImGui window drawn
+    // underneath an overlay would still take the mouse.
+    void onSuspend() override;
+    void onResume() override;
 
 private:
     // DevPanel is an extension of this state's debug surface rather than an
@@ -79,6 +92,12 @@ private:
 
     // Advance to the next campaign level, or back to the menu after the last.
     void advanceToNextLevel();
+    // Reload the current level from scratch, keeping character and level index.
+    void restartLevel();
+    // Hand the flagpole result to VictoryState and award the time bonus.
+    void presentLevelSummary();
+    // Build the snapshot GameOverState needs to rebuild this run.
+    RunSummary buildRunSummary() const;
     // Kill the player: lose a life and respawn, or end the run.
     void killPlayer(const char* reason);
 
@@ -91,6 +110,12 @@ private:
     EventBus::SubscriptionId m_blockBrokenSubId   = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_coinParticleSubId  = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_playerDamagedSubId = static_cast<EventBus::SubscriptionId>(-1);
+
+    // True while an overlay state sits above this one.
+    bool m_suspended = false;
+    // Set once the victory screen has been pushed for this level, so the
+    // celebration timer cannot push a second one.
+    bool m_summaryShown = false;
 
     bool m_startInEditor = false;
     bool m_isProcedural = false;

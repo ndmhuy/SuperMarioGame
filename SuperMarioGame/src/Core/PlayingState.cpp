@@ -1,6 +1,10 @@
 #define NOMINMAX
 #include "Core/PlayingState.hpp"
 #include "Core/MenuState.hpp"
+#include "Core/PauseState.hpp"
+#include "Core/VictoryState.hpp"
+#include "Core/GameOverState.hpp"
+#include "Utils/LevelCatalog.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -49,8 +53,11 @@
 #include <unordered_map>
 
 
-PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig)
-    : m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
+PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
+                           int characterIndex, int levelIndex)
+    : m_selectedCharIndex(characterIndex),
+      m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
+      m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_genConfig(genConfig) {}
 
 PlayingState::~PlayingState() {
     exit();
@@ -325,6 +332,19 @@ void PlayingState::handleInput(const sf::Event& event) {
         }
 
         if (!m_mapEditor.isActive()) {
+            // Escape (or P) opens the pause overlay. Escape used to quit the
+            // whole process from Game::run(); the pause menu owns that choice now.
+            if (keyPressed->code == sf::Keyboard::Key::Escape ||
+                keyPressed->code == sf::Keyboard::Key::P) {
+                Game::getInstance().pushState(std::make_unique<PauseState>(
+                    [this]() { restartLevel(); },
+                    []() {
+                        ScreenTransitionManager::getInstance().reset();
+                        Game::getInstance().changeState(std::make_unique<MenuState>());
+                    }));
+                return;
+            }
+
             if (keyPressed->code == sf::Keyboard::Key::Backspace) {
                 Game::getInstance().changeState(std::make_unique<MenuState>());
             }
@@ -509,11 +529,13 @@ void PlayingState::update(float dt) {
         }
     }
 
-    // 3f. Level complete: hold briefly on the flag, then move on.
-    if (m_levelComplete) {
+    // 3f. Level complete: hold briefly on the flag, then show the summary.
+    // The victory screen is an overlay, so this level stays on screen behind it
+    // and the player sees the flag they just touched.
+    if (m_levelComplete && !m_summaryShown) {
         m_levelCompleteTimer += dt;
         if (m_levelCompleteTimer >= 3.0f) {
-            advanceToNextLevel();
+            presentLevelSummary();
             return;
         }
     }
@@ -797,7 +819,22 @@ void PlayingState::render(sf::RenderTarget& target) {
 
     // Dev/debug ImGui surface. Issues ImGui calls only — every requested change
     // is queued and applied by update(), so render() mutates no game state.
-    m_devPanel.draw(*this);
+    // Suppressed while an overlay is up: an ImGui window drawn underneath the
+    // pause menu still reacts to the mouse, which would let the player edit the
+    // level they just paused.
+    if (!m_suspended) {
+        m_devPanel.draw(*this);
+    }
+}
+
+void PlayingState::onSuspend() {
+    m_suspended = true;
+    SoundManager::getInstance().pauseMusic();
+}
+
+void PlayingState::onResume() {
+    m_suspended = false;
+    SoundManager::getInstance().resumeMusic();
 }
 
 void PlayingState::setupTestScene() {
@@ -805,14 +842,9 @@ void PlayingState::setupTestScene() {
 
     LevelLoader loader;
     LevelData levelData;
-    std::string levelPath = "assets/levels/level_1.json";
-    if (m_selectedLevelIndex == 0) levelPath = "assets/levels/level_1.json";
-    else if (m_selectedLevelIndex == 1) levelPath = "assets/levels/level_1_sub.json";
-    else if (m_selectedLevelIndex == 2) levelPath = "assets/levels/level_2.json";
-    else if (m_selectedLevelIndex == 3) levelPath = "assets/levels/level_2_sub.json";
-    else if (m_selectedLevelIndex == 4) levelPath = "assets/levels/level_3.json";
-    else if (m_selectedLevelIndex == 5) levelPath = "assets/levels/level_3_sub.json";
-    else if (m_selectedLevelIndex == 6) levelPath = "assets/levels/bonus_1.json";
+    // Campaign order lives in LevelCatalog — this used to be an if-chain here
+    // with a matching hardcoded level count in advanceToNextLevel().
+    std::string levelPath = LevelCatalog::pathFor(m_selectedLevelIndex);
 
 
     std::vector<std::string> pathCandidates = {
@@ -994,19 +1026,78 @@ void PlayingState::killPlayer(const char* reason) {
     } else {
         std::cout << "[PlayingState] Game Over — " << reason << "." << std::endl;
         EventBus::getInstance().publish({EventType::GameOver, 0});
-        ScreenTransitionManager::getInstance().fadeOut(0.6f, []() {
-            Game::getInstance().changeState(std::make_unique<MenuState>());
+
+        // The summary has to be taken *now*: by the time the fade completes the
+        // callback runs, this state is being replaced and m_player is gone.
+        RunSummary summary = buildRunSummary();
+        ScreenTransitionManager::getInstance().fadeOut(0.6f, [summary]() {
+            Game::getInstance().changeState(std::make_unique<GameOverState>(summary));
         });
     }
+}
+
+RunSummary PlayingState::buildRunSummary() const {
+    RunSummary summary;
+    summary.levelIndex      = m_selectedLevelIndex;
+    summary.characterIndex  = m_selectedCharIndex;
+    summary.isProcedural    = m_isProcedural;
+    summary.generatorConfig = m_genConfig;
+    summary.starCoins = static_cast<int>(std::count(m_starCoinsCollected.begin(),
+                                                    m_starCoinsCollected.end(), true));
+    if (m_player) {
+        summary.score         = m_player->getScore();
+        summary.coins         = m_player->getCoins();
+        summary.characterName = m_player->getCharacterName();
+    }
+    return summary;
+}
+
+void PlayingState::restartLevel() {
+    std::cout << "[PlayingState] Restarting level " << LevelCatalog::nameFor(m_selectedLevelIndex)
+              << std::endl;
+    m_levelComplete = false;
+    m_levelCompleteTimer = 0.0f;
+    m_summaryShown = false;
+    m_levelTimer = Constants::LEVEL_TIME;
+    m_timeWarningFired = false;
+    m_hasCheckpoint = false;
+    m_starCoinsCollected = {false, false, false};
+    setupTestScene();
+    SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
+    ScreenTransitionManager::getInstance().fadeIn(0.45f);
+}
+
+void PlayingState::presentLevelSummary() {
+    if (m_summaryShown) return;
+    m_summaryShown = true;
+
+    LevelSummary summary;
+    summary.levelName    = m_isProcedural ? "Procedural" : LevelCatalog::nameFor(m_selectedLevelIndex);
+    summary.timeRemaining = static_cast<int>(m_levelTimer);
+    summary.timeBonus     = summary.timeRemaining * 50;   // SPEC: 50 points per second left
+    summary.starCoins     = m_starCoinsCollected;
+    summary.isFinalLevel  = m_isProcedural || (m_selectedLevelIndex + 1 >= LevelCatalog::count());
+
+    if (m_player) {
+        summary.characterName   = m_player->getCharacterName();
+        summary.coins           = m_player->getCoins();
+        summary.scoreBeforeBonus = m_player->getScore();
+        // Award the bonus for real before the screen animates it, so the number
+        // the player watches tick up is the number they actually have.
+        m_player->addScore(summary.timeBonus);
+        summary.finalScore = m_player->getScore();
+    }
+
+    Game::getInstance().pushState(std::make_unique<VictoryState>(
+        summary, [this]() { advanceToNextLevel(); }));
 }
 
 void PlayingState::advanceToNextLevel() {
     // Campaign order matches the level dropdown: 1-1, 1-1 sub, 1-2, 1-2 sub,
     // 1-3, 1-3 sub, bonus. Finishing the last one returns to the menu.
     const int nextIndex = m_selectedLevelIndex + 1;
-    const int levelCount = 7;
 
-    if (m_isProcedural || nextIndex >= levelCount) {
+    if (m_isProcedural || nextIndex >= LevelCatalog::count()) {
         std::cout << "[PlayingState] Campaign complete — returning to menu." << std::endl;
         ScreenTransitionManager::getInstance().fadeOut(0.8f, []() {
             Game::getInstance().changeState(std::make_unique<MenuState>());
@@ -1018,6 +1109,8 @@ void PlayingState::advanceToNextLevel() {
     m_selectedLevelIndex = nextIndex;
     m_levelComplete = false;
     m_levelCompleteTimer = 0.0f;
+    m_summaryShown = false;
+    m_starCoinsCollected = {false, false, false};
     m_levelTimer = Constants::LEVEL_TIME;
     m_timeWarningFired = false;
     m_hasCheckpoint = false;

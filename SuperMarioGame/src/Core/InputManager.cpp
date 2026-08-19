@@ -154,6 +154,14 @@ const std::pair<const char*, sf::Keyboard::Key> kKeyNames[] = {
 };
 } // namespace
 
+std::string InputManager::getBoundKeyName(const std::string& action, int playerIndex) const {
+    if (playerIndex < 0 || playerIndex > 1) return "";
+    const auto& table = m_boundKey[playerIndex];
+    auto it = table.find(action);
+    if (it == table.end()) return "";
+    return keyName(it->second);
+}
+
 std::string InputManager::keyName(sf::Keyboard::Key key) {
     for (const auto& [name, value] : kKeyNames) {
         if (value == key) return name;
