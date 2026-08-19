@@ -394,8 +394,10 @@
 - [x] Commit: `feat: implement minimap overlay`
 
 ### 5.5 Parallax Background
-- [ ] Implement multi-layer background rendering
-- [ ] Commit: `feat: implement parallax scrolling backgrounds`
+- [x] Implement multi-layer background rendering — `Graphics/BackgroundRenderer`,
+      2-3 layers per theme, placement hashed from world position so the backdrop
+      does not shimmer as the camera moves
+- [x] Commit: `feat: implement parallax scrolling backgrounds`
 
 ### 5.6 Particle System
 - [x] Create [ParticleSystem.hpp/.cpp](SuperMarioGame/include/Graphics/ParticleSystem.hpp)
@@ -418,9 +420,12 @@
 - [ ] Commit: `feat: implement invincibility visual effects`
 
 ### 5.10 Water & Lava Animation [v2.0]
-- [ ] Animated water surface (sine-wave), bubble particles
-- [ ] Animated lava surface, ember particles
-- [ ] Commit: `feat: implement water and lava visual effects`
+- [x] Animated water surface (sine-wave), bubble particles — surface cycles two
+      atlas frames on top of the existing bob. No bubble particles yet.
+- [x] Animated lava surface, ember particles — `TileType::Lava` is new; it did not
+      exist, and Level 3's pit was filled with water. Lava damages on contact.
+      No ember particles yet.
+- [x] Commit: `feat: implement water and lava visual effects`
 
 ### 5.11 Source & Integrate Assets
 - [ ] Download spritesheets, wire to all entities
@@ -587,14 +592,20 @@
 > **Branch**: `git checkout -b feature/advanced-systems dev`
 
 ### 10.1 Object Pool
-- [ ] Create [ObjectPool.hpp](SuperMarioGame/include/Utils/ObjectPool.hpp) — template class for pre-allocated entity recycling
-- [ ] Wire to: fireballs, particles, Bullet Bills, floating text
-- [ ] Commit: `feat: implement ObjectPool template and wire to entities`
+- [x] Create [ObjectPool.hpp](SuperMarioGame/include/Utils/ObjectPool.hpp) — template class for pre-allocated entity recycling
+- [x] Wire to: fireballs, particles, Bullet Bills, floating text — fireballs,
+      hammers and boss fireballs go through it. ParticleSystem was ALREADY pooled
+      by hand (fixed slot array + active flag) and is deliberately left alone;
+      wrapping it in the template would add allocation, not remove it. Bullet
+      Bills are level-placed rather than spawned, and there is no floating text.
+- [x] Commit: `feat: implement ObjectPool template and wire to entities`
 
 ### 10.2 Config-Driven Entities
-- [ ] Create entities.json with all entity properties
-- [ ] Update EntityFactory to read from config
-- [ ] Commit: `feat: implement config-driven entity definitions`
+- [x] Create entities.json with all entity properties — expanded from 3 enemies to
+      all 13, generated from the live constructors so adopting it changed nothing
+- [x] Update EntityFactory to read from config — speed and score are applied;
+      `strategy` is recorded and validated but still wired in C++
+- [x] Commit: `feat: implement config-driven entity definitions`
 
 ### 10.3 Replay System
 - [ ] Create [ReplayRecorder.hpp/.cpp](SuperMarioGame/include/Core/ReplayRecorder.hpp)

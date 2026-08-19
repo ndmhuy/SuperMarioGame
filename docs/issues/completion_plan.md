@@ -125,7 +125,23 @@ Two more bugs fell out of the work, both pre-existing:
 
 `EntityFactory` already returns `nullptr` for `Bowser` and `BoomBoom`, and the HUD already carries boss health-bar fields with no producer — the sockets are cut, the classes are missing.
 
-### Tier 3 — Spec extras (~13 h)
+### Tier 3 — Spec extras (~13 h) — **groups A and B done** (`A/tier3-systems`)
+
+Done: 10.1 Object Pool, 10.2 Config-driven entities, 5.5 Parallax, 5.10 Water &
+lava, 4.3 Camera lookahead. Remaining: 11.4 Accessibility, 11.3 Meta-game, 11.1
+Two-Player, 10.3 Replay, 10.4 Debug Console.
+
+Four more pre-existing bugs surfaced while doing it:
+
+* Five entities never overrode `getTypeName()`, so they wrote `"unknown"` into
+  saved levels and came back as **Goombas** — silent data loss in the map editor.
+* All seven level files claimed `"theme": "overworld"`, including the ice cavern
+  and the castle.
+* Level 3's lava pit was filled with **water**, because no lava tile type existed.
+* The boss-arena camera was chasing the player while `clampToBounds` centred it,
+  so the two fought every frame.
+
+
 
 | # | Task | Owner | Est. |
 | :-- | :--- | :--- | ---: |
