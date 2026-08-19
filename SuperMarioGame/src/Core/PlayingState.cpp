@@ -10,6 +10,7 @@
 #include "Entities/Projectile.hpp"
 #include "Core/DifficultyStrategy.hpp"
 #include "Utils/MetaGame.hpp"
+#include "Core/DebugConsole.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -478,8 +479,12 @@ void PlayingState::update(float dt) {
     // physics has run. Recording here as well used to double the rate and halve
     // the effective rewind window.
 
-    // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run)
-    if (m_player) {
+    // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run).
+    //
+    // These are polled from the keyboard rather than driven by events, so the
+    // console's event filter does not cover them: typing "difficulty hard" would
+    // otherwise walk the player right on every "d".
+    if (m_player && !DebugConsole::getInstance().isVisible()) {
         InputManager::getInstance().update(*m_player);
     }
 

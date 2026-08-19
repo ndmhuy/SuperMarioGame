@@ -36,6 +36,7 @@
 #include "Graphics/BackgroundRenderer.hpp"
 #include "Graphics/ColorPalette.hpp"
 #include "Utils/MetaGame.hpp"
+#include "Core/DebugConsole.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1703,6 +1704,65 @@ void testDailyChallengeIsTheSameForEveryone() {
           "tomorrow is a different level");
 }
 
+
+void testDebugConsoleDispatchesCommands() {
+    section("10.4  the debug console parses and dispatches");
+
+    DebugConsole& console = DebugConsole::getInstance();
+    console.init();
+    console.clearOutput();
+
+    const std::vector<std::string> names = console.commandNames();
+    check(names.size() >= 8, "the built-in command set is registered");
+    check(std::find(names.begin(), names.end(), "help") != names.end(), "including help");
+
+    const std::string helpOutput = console.submit("help");
+    check(helpOutput.find("give") != std::string::npos, "help lists the other commands");
+
+    // A typo must report rather than do something surprising.
+    const std::string unknown = console.submit("flibbertigibbet");
+    check(unknown.find("unknown command") != std::string::npos, "an unknown command says so");
+
+    // Commands that need a player say so instead of dereferencing null.
+    Game::getInstance().setPlayer(nullptr);
+    check(console.submit("give star").find("no active player") != std::string::npos,
+          "and a command needing a player reports it rather than crashing");
+
+    // With a player, the effect is real.
+    Mario mario({100.0f, 100.0f});
+    Game::getInstance().setPlayer(&mario);
+
+    console.submit("give mushroom");
+    check(dynamic_cast<SuperState*>(mario.getBaseState()) != nullptr,
+          "give mushroom actually powers the player up");
+
+    console.submit("lives 7");
+    check(mario.getLives() == 7, "lives sets the life count");
+
+    console.submit("tp 640 320");
+    check(mario.getPosition().x == 640.0f && mario.getPosition().y == 320.0f, "tp moves the player");
+
+    const std::string godOn = console.submit("god");
+    check(godOn.find("on") != std::string::npos && mario.getInvincibilityTimer() > 9000.0f,
+          "god toggles invincibility on");
+    console.submit("god");
+    check(mario.getInvincibilityTimer() <= 0.0f, "and off again");
+
+    // parseEntityTypeName falls back to Goomba, so an unrecognised name would
+    // otherwise silently spawn one.
+    check(console.submit("spawn wumpus").find("unknown entity") != std::string::npos,
+          "spawn rejects an unknown entity rather than quietly making a goomba");
+
+    const std::string difficulty = console.submit("difficulty hard");
+    check(difficulty.find("hard") != std::string::npos, "difficulty takes effect");
+    console.submit("difficulty normal");
+
+    console.submit("clear");
+    check(console.getOutput().empty(), "clear empties the output");
+
+    Game::getInstance().setPlayer(nullptr);
+}
+
 } // namespace
 
 int main() {
@@ -1764,6 +1824,7 @@ int main() {
     testColorblindModeIsActuallyConsumed();
     testNewGamePlusEscalatesAndKeepsUnlocks();
     testDailyChallengeIsTheSameForEveryone();
+    testDebugConsoleDispatchesCommands();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

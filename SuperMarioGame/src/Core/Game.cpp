@@ -5,6 +5,7 @@
 #include "Core/ResourceManager.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
+#include "Core/DebugConsole.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
 #include <SFML/System/Clock.hpp>
@@ -42,6 +43,9 @@ void Game::run() {
     // Initialize tracking systems
     StatisticsTracker::getInstance().init();
     AchievementManager::getInstance().init();
+    // The console works through the public singletons, so it is available from
+    // every state rather than only from PlayingState (task 10.4).
+    DebugConsole::getInstance().init();
 
     // Ensure HUD font is loaded in ResourceManager before any state (and its Hud) is constructed
     ResourceManager& rm = ResourceManager::getInstance();
@@ -106,11 +110,31 @@ void Game::run() {
         // 1. Handle Events (SFML 3.0 style)
         while (const std::optional<sf::Event> event = m_window.pollEvent()) {
             ImGui::SFML::ProcessEvent(m_window, *event);
-            m_gsm.handleInput(*event);
 
             if (event->is<sf::Event::Closed>()) {
                 quit();
+                continue;
             }
+
+            // Backquote toggles the debug console, from any state. Handled here
+            // rather than in a state so nothing on top can shadow it, and
+            // *before* the states see the event so the key is genuinely
+            // consumed (task 10.4).
+            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+                if (keyPressed->code == sf::Keyboard::Key::Grave) {
+                    DebugConsole::getInstance().toggle();
+                    continue;
+                }
+            }
+
+            // While the console is open the keyboard belongs to it. Without
+            // this, typing "give star" would also walk, jump and fire.
+            if (DebugConsole::getInstance().isVisible()) {
+                continue;
+            }
+
+            m_gsm.handleInput(*event);
+
             // Escape used to quit the process from anywhere. It is now the
             // pause key, so quitting is a decision the states own: the pause
             // menu and the main menu both offer it explicitly.
@@ -129,7 +153,10 @@ void Game::run() {
         ImGui::Begin("Super Mario Engine Dev Tools");
         ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)", 
                     1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Text("Press ` to toggle the debug console.");
         ImGui::End();
+
+        DebugConsole::getInstance().draw();
 
         // 4. Render
         m_window.clear(sf::Color(100, 149, 237)); // Cornflower Blue
