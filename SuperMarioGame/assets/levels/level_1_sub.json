@@ -1,303 +1,313 @@
 {
-    "entities": [
-        {
-            "type": "coin",
-            "x": 11,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 15,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 19,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 23,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 27,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 31,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 35,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 39,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 43,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 47,
-            "y": 13
-        },
-        {
-            "type": "coin",
-            "x": 51,
-            "y": 13
-        },
-        {
-            "type": "pow_block",
-            "x": 25,
-            "y": 17
-        },
-        {
-            "type": "pswitch",
-            "x": 35,
-            "y": 17
-        },
-        {
-            "type": "star_coin",
-            "x": 30,
-            "y": 13
-        },
-        {
-            "type": "trampoline",
-            "x": 45,
-            "y": 17
-        },
-        {
-            "exitX": 92,
-            "exitY": 19,
-            "isEntrance": true,
-            "pipeId": 2,
-            "targetLevel": "assets/levels/level_1.json",
-            "type": "pipe",
-            "x": 59,
-            "y": 16
-        }
-    ],
-    "flagpole": {
-        "x": 63,
-        "y": 18
+  "entities": [
+    {
+      "type": "coin",
+      "x": 11,
+      "y": 13
     },
-    "height": 20,
-    "name": "World 1-1 Sub: Underground Coin Vault",
-    "spawnPoint": {
-        "x": 3,
-        "y": 16
+    {
+      "type": "coin",
+      "x": 15,
+      "y": 13
     },
-    "theme": "overworld",
-    "tileSize": 32.0,
-    "tiles": [
-        {
-            "type": "brick",
-            "w": 65,
-            "x": 0,
-            "y": 0
-        },
-        {
-            "type": "brick",
-            "w": 65,
-            "x": 0,
-            "y": 1
-        },
-        {
-            "type": "question_block",
-            "x": 10,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 11,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 12,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 14,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 15,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 16,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 18,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 19,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 20,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 22,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 23,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 24,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 26,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 27,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 28,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 30,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 31,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 32,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 34,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 35,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 36,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 38,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 39,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 40,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 42,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 43,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 44,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 46,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 47,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 48,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 50,
-            "y": 14
-        },
-        {
-            "type": "coin_tile",
-            "x": 51,
-            "y": 14
-        },
-        {
-            "type": "question_block",
-            "x": 52,
-            "y": 14
-        },
-        {
-            "type": "pipe",
-            "x": 3,
-            "y": 16
-        },
-        {
-            "type": "pipe",
-            "x": 3,
-            "y": 17
-        },
-        {
-            "type": "brick",
-            "w": 65,
-            "x": 0,
-            "y": 18
-        },
-        {
-            "type": "brick",
-            "w": 65,
-            "x": 0,
-            "y": 19
-        }
-    ],
-    "width": 65
+    {
+      "type": "coin",
+      "x": 19,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 23,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 27,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 31,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 35,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 39,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 43,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 47,
+      "y": 13
+    },
+    {
+      "type": "coin",
+      "x": 51,
+      "y": 13
+    },
+    {
+      "type": "pow_block",
+      "x": 25,
+      "y": 17
+    },
+    {
+      "type": "pswitch",
+      "x": 35,
+      "y": 17
+    },
+    {
+      "type": "star_coin",
+      "x": 30,
+      "y": 13
+    },
+    {
+      "type": "trampoline",
+      "x": 45,
+      "y": 17
+    },
+    {
+      "exitX": 92,
+      "exitY": 19,
+      "isEntrance": true,
+      "pipeId": 2,
+      "targetLevel": "assets/levels/level_1.json",
+      "type": "pipe",
+      "x": 59,
+      "y": 16
+    },
+    {
+      "type": "goomba",
+      "x": 13,
+      "y": 17
+    },
+    {
+      "type": "goomba",
+      "x": 39,
+      "y": 17
+    }
+  ],
+  "flagpole": {
+    "x": 63,
+    "y": 18
+  },
+  "height": 20,
+  "name": "World 1-1 Sub: Underground Coin Vault",
+  "spawnPoint": {
+    "x": 3,
+    "y": 16
+  },
+  "theme": "overworld",
+  "tileSize": 32.0,
+  "tiles": [
+    {
+      "type": "brick",
+      "w": 65,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "type": "brick",
+      "w": 65,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "type": "question_block",
+      "x": 10,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 11,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 12,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 14,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 15,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 16,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 18,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 19,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 20,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 22,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 23,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 24,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 26,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 27,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 28,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 30,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 31,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 32,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 34,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 35,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 36,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 38,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 39,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 40,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 42,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 43,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 44,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 46,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 47,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 48,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 50,
+      "y": 14
+    },
+    {
+      "type": "coin_tile",
+      "x": 51,
+      "y": 14
+    },
+    {
+      "type": "question_block",
+      "x": 52,
+      "y": 14
+    },
+    {
+      "type": "pipe",
+      "x": 3,
+      "y": 16
+    },
+    {
+      "type": "pipe",
+      "x": 3,
+      "y": 17
+    },
+    {
+      "type": "brick",
+      "w": 65,
+      "x": 0,
+      "y": 18
+    },
+    {
+      "type": "brick",
+      "w": 65,
+      "x": 0,
+      "y": 19
+    }
+  ],
+  "width": 65
 }

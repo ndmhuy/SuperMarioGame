@@ -22,6 +22,7 @@
 #include "Entities/POWBlock.hpp"
 #include "Entities/Trampoline.hpp"
 #include "Entities/Pipe.hpp"
+#include "Entities/QuestionBlock.hpp"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -123,7 +124,17 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
             sf::Vector2f position(tx * Constants::TILE_SIZE, ty * Constants::TILE_SIZE);
             std::unique_ptr<Entity> entity = nullptr;
 
-            if (typeStr == "pipe") {
+            if (typeStr == "question_block") {
+                // Question blocks carry what they contain. Without this the
+                // factory's default (0 = coin) applied to every block in the
+                // game, so no power-up was reachable even once the spawn was
+                // wired up (audit B-2 follow-up).
+                //   0 = coin, 1 = fire flower, 2 = cape feather,
+                //   3 = mini mushroom, 4 = star, 5 = mega mushroom
+                // A missing field keeps the historical coin behaviour.
+                const int itemType = entityJson.value("itemType", 0);
+                entity = std::make_unique<QuestionBlock>(position, itemType);
+            } else if (typeStr == "pipe") {
                 int pipeId = entityJson.value("pipeId", 0);
                 bool isEntrance = entityJson.value("isEntrance", false);
                 std::string targetLevel = entityJson.value("targetLevel", "");
@@ -210,6 +221,10 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
             entObj["type"] = typeStr;
             entObj["x"] = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
             entObj["y"] = static_cast<int>(entity->getPosition().y / Constants::TILE_SIZE);
+
+            if (auto qBlock = dynamic_cast<const QuestionBlock*>(entity.get())) {
+                entObj["itemType"] = qBlock->getContainedItemType();
+            }
 
             if (auto pipe = dynamic_cast<const Pipe*>(entity.get())) {
                 entObj["pipeId"] = pipe->getPipeId();

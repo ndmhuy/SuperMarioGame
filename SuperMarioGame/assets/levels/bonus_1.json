@@ -1,449 +1,487 @@
 {
-    "entities": [
-        {
-            "type": "falling_platform",
-            "x": 23,
-            "y": 18
-        },
-        {
-            "type": "star_coin",
-            "x": 30,
-            "y": 14
-        },
-        {
-            "type": "star_coin",
-            "x": 60,
-            "y": 16
-        },
-        {
-            "type": "star_coin",
-            "x": 90,
-            "y": 16
-        },
-        {
-            "exitX": 64,
-            "exitY": 20,
-            "isEntrance": true,
-            "pipeId": 1,
-            "targetLevel": "assets/levels/level_1_sub.json",
-            "type": "pipe",
-            "x": 58,
-            "y": 19
-        },
-        {
-            "type": "question_block",
-            "x": 60,
-            "y": 18
-        },
-        {
-            "type": "trampoline",
-            "x": 60,
-            "y": 20
-        },
-        {
-            "type": "question_block",
-            "x": 26,
-            "y": 15
-        },
-        {
-            "type": "question_block",
-            "x": 31,
-            "y": 15
-        },
-        {
-            "type": "question_block",
-            "x": 37,
-            "y": 16
-        },
-        {
-            "type": "question_block",
-            "x": 42,
-            "y": 16
-        },
-        {
-            "type": "question_block",
-            "x": 49,
-            "y": 16
-        },
-        {
-            "type": "question_block",
-            "x": 54,
-            "y": 16
-        },
-        {
-            "type": "goomba",
-            "x": 50,
-            "y": 19
-        },
-        {
-            "type": "piranha_plant",
-            "x": 70,
-            "y": 18
-        },
-        {
-            "type": "question_block",
-            "x": 78,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 79,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 85,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 86,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 92,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 95,
-            "y": 17
-        },
-        {
-            "type": "flagpole",
-            "x": 105,
-            "y": 12
-        }
-    ],
-    "flagpole": {
-        "x": 118,
-        "y": 18
+  "entities": [
+    {
+      "type": "falling_platform",
+      "x": 23,
+      "y": 18
     },
-    "height": 23,
-    "name": "Bonus Stage 1: Coin Paradise",
-    "spawnPoint": {
-        "x": 3,
-        "y": 19
+    {
+      "type": "star_coin",
+      "x": 30,
+      "y": 14
     },
-    "theme": "overworld",
-    "tileSize": 32.0,
-    "tiles": [
-        {
-            "type": "brick",
-            "x": 25,
-            "y": 15
-        },
-        {
-            "type": "brick",
-            "w": 3,
-            "x": 27,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 30,
-            "y": 15
-        },
-        {
-            "type": "brick",
-            "x": 31,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 32,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 36,
-            "y": 16
-        },
-        {
-            "type": "brick",
-            "x": 38,
-            "y": 16
-        },
-        {
-            "type": "coin_tile",
-            "x": 39,
-            "y": 16
-        },
-        {
-            "type": "brick",
-            "w": 2,
-            "x": 40,
-            "y": 16
-        },
-        {
-            "type": "coin_tile",
-            "x": 43,
-            "y": 16
-        },
-        {
-            "type": "coin_tile",
-            "x": 48,
-            "y": 16
-        },
-        {
-            "type": "coin_tile",
-            "x": 50,
-            "y": 16
-        },
-        {
-            "type": "brick",
-            "x": 51,
-            "y": 16
-        },
-        {
-            "type": "coin_tile",
-            "w": 2,
-            "x": 52,
-            "y": 16
-        },
-        {
-            "type": "brick",
-            "x": 55,
-            "y": 16
-        },
-        {
-            "type": "brick",
-            "x": 104,
-            "y": 16
-        },
-        {
-            "type": "ground",
-            "w": 5,
-            "x": 109,
-            "y": 16
-        },
-        {
-            "type": "brick",
-            "x": 77,
-            "y": 17
-        },
-        {
-            "type": "brick",
-            "x": 80,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 84,
-            "y": 17
-        },
-        {
-            "type": "brick",
-            "x": 87,
-            "y": 17
-        },
-        {
-            "type": "brick",
-            "w": 2,
-            "x": 89,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 91,
-            "y": 17
-        },
-        {
-            "type": "brick",
-            "w": 2,
-            "x": 93,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 96,
-            "y": 17
-        },
-        {
-            "type": "brick",
-            "w": 2,
-            "x": 103,
-            "y": 17
-        },
-        {
-            "type": "ground",
-            "w": 5,
-            "x": 109,
-            "y": 17
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 70,
-            "y": 18
-        },
-        {
-            "type": "brick",
-            "w": 3,
-            "x": 102,
-            "y": 18
-        },
-        {
-            "type": "ground",
-            "w": 5,
-            "x": 109,
-            "y": 18
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 20,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 6,
-            "x": 25,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 33,
-            "y": 19
-        },
-        {
-            "type": "pipe",
-            "x": 62,
-            "y": 19
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 66,
-            "y": 19
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 70,
-            "y": 19
-        },
-        {
-            "type": "brick",
-            "w": 4,
-            "x": 101,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 109,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 112,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 20,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 6,
-            "x": 25,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 22,
-            "x": 33,
-            "y": 20
-        },
-        {
-            "type": "pipe",
-            "x": 62,
-            "y": 20
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 66,
-            "y": 20
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 70,
-            "y": 20
-        },
-        {
-            "type": "brick",
-            "w": 5,
-            "x": 100,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 109,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 112,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 22,
-            "x": 0,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 6,
-            "x": 25,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 55,
-            "x": 33,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 30,
-            "x": 90,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 22,
-            "x": 0,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 6,
-            "x": 25,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 55,
-            "x": 33,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 30,
-            "x": 90,
-            "y": 22
-        }
-    ],
-    "width": 120
+    {
+      "type": "star_coin",
+      "x": 60,
+      "y": 16
+    },
+    {
+      "type": "star_coin",
+      "x": 90,
+      "y": 16
+    },
+    {
+      "exitX": 64,
+      "exitY": 20,
+      "isEntrance": true,
+      "pipeId": 1,
+      "targetLevel": "assets/levels/level_1_sub.json",
+      "type": "pipe",
+      "x": 58,
+      "y": 19
+    },
+    {
+      "type": "question_block",
+      "x": 60,
+      "y": 18,
+      "itemType": 1
+    },
+    {
+      "type": "trampoline",
+      "x": 60,
+      "y": 20
+    },
+    {
+      "type": "question_block",
+      "x": 26,
+      "y": 15,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 31,
+      "y": 15,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 37,
+      "y": 16,
+      "itemType": 1
+    },
+    {
+      "type": "question_block",
+      "x": 42,
+      "y": 16,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 49,
+      "y": 16,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 54,
+      "y": 16,
+      "itemType": 2
+    },
+    {
+      "type": "goomba",
+      "x": 50,
+      "y": 19
+    },
+    {
+      "type": "piranha_plant",
+      "x": 70,
+      "y": 18
+    },
+    {
+      "type": "question_block",
+      "x": 78,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 79,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 85,
+      "y": 17,
+      "itemType": 3
+    },
+    {
+      "type": "question_block",
+      "x": 86,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 92,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 95,
+      "y": 17,
+      "itemType": 4
+    },
+    {
+      "type": "flagpole",
+      "x": 105,
+      "y": 12
+    },
+    {
+      "type": "koopa_troopa",
+      "x": 12,
+      "y": 20
+    },
+    {
+      "type": "goomba",
+      "x": 39,
+      "y": 19
+    },
+    {
+      "type": "koopa_troopa",
+      "x": 58,
+      "y": 20
+    },
+    {
+      "type": "goomba",
+      "x": 75,
+      "y": 20
+    },
+    {
+      "type": "goomba",
+      "x": 95,
+      "y": 20
+    }
+  ],
+  "flagpole": {
+    "x": 118,
+    "y": 18
+  },
+  "height": 23,
+  "name": "Bonus Stage 1: Coin Paradise",
+  "spawnPoint": {
+    "x": 3,
+    "y": 19
+  },
+  "theme": "overworld",
+  "tileSize": 32.0,
+  "tiles": [
+    {
+      "type": "brick",
+      "x": 25,
+      "y": 15
+    },
+    {
+      "type": "brick",
+      "w": 3,
+      "x": 27,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 30,
+      "y": 15
+    },
+    {
+      "type": "brick",
+      "x": 31,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 32,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 36,
+      "y": 16
+    },
+    {
+      "type": "brick",
+      "x": 38,
+      "y": 16
+    },
+    {
+      "type": "coin_tile",
+      "x": 39,
+      "y": 16
+    },
+    {
+      "type": "brick",
+      "w": 2,
+      "x": 40,
+      "y": 16
+    },
+    {
+      "type": "coin_tile",
+      "x": 43,
+      "y": 16
+    },
+    {
+      "type": "coin_tile",
+      "x": 48,
+      "y": 16
+    },
+    {
+      "type": "coin_tile",
+      "x": 50,
+      "y": 16
+    },
+    {
+      "type": "brick",
+      "x": 51,
+      "y": 16
+    },
+    {
+      "type": "coin_tile",
+      "w": 2,
+      "x": 52,
+      "y": 16
+    },
+    {
+      "type": "brick",
+      "x": 55,
+      "y": 16
+    },
+    {
+      "type": "brick",
+      "x": 104,
+      "y": 16
+    },
+    {
+      "type": "ground",
+      "w": 5,
+      "x": 109,
+      "y": 16
+    },
+    {
+      "type": "brick",
+      "x": 77,
+      "y": 17
+    },
+    {
+      "type": "brick",
+      "x": 80,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 84,
+      "y": 17
+    },
+    {
+      "type": "brick",
+      "x": 87,
+      "y": 17
+    },
+    {
+      "type": "brick",
+      "w": 2,
+      "x": 89,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 91,
+      "y": 17
+    },
+    {
+      "type": "brick",
+      "w": 2,
+      "x": 93,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 96,
+      "y": 17
+    },
+    {
+      "type": "brick",
+      "w": 2,
+      "x": 103,
+      "y": 17
+    },
+    {
+      "type": "ground",
+      "w": 5,
+      "x": 109,
+      "y": 17
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 70,
+      "y": 18
+    },
+    {
+      "type": "brick",
+      "w": 3,
+      "x": 102,
+      "y": 18
+    },
+    {
+      "type": "ground",
+      "w": 5,
+      "x": 109,
+      "y": 18
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 20,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 6,
+      "x": 25,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 33,
+      "y": 19
+    },
+    {
+      "type": "pipe",
+      "x": 62,
+      "y": 19
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 66,
+      "y": 19
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 70,
+      "y": 19
+    },
+    {
+      "type": "brick",
+      "w": 4,
+      "x": 101,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 109,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 112,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 20,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 6,
+      "x": 25,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 22,
+      "x": 33,
+      "y": 20
+    },
+    {
+      "type": "pipe",
+      "x": 62,
+      "y": 20
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 66,
+      "y": 20
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 70,
+      "y": 20
+    },
+    {
+      "type": "brick",
+      "w": 5,
+      "x": 100,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 109,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 112,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 22,
+      "x": 0,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 6,
+      "x": 25,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 55,
+      "x": 33,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 30,
+      "x": 90,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 22,
+      "x": 0,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 6,
+      "x": 25,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 55,
+      "x": 33,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 30,
+      "x": 90,
+      "y": 22
+    }
+  ],
+  "width": 120
 }

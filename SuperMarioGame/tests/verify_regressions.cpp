@@ -20,6 +20,7 @@
 #include "Entities/Goomba.hpp"
 #include "Utils/SerializationUtils.hpp"
 #include "Graphics/Camera.hpp"
+#include "Entities/QuestionBlock.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -386,6 +387,46 @@ void testShakeCannotEscapeBounds() {
     check(!everOutside, "40 frames of Heavy shake at the corner never left the map");
 }
 
+// ---------------------------------------------------------------------------
+// Content regression — the shipped levels once held 2-3 enemies each and every
+// question block defaulted to a coin, so no power-up existed anywhere.
+// ---------------------------------------------------------------------------
+void testLevelsArePopulated() {
+    section("content  levels carry enemies and reachable power-ups");
+
+    const std::vector<std::string> mainLevels = {
+        "level_1.json", "level_2.json", "level_3.json", "bonus_1.json"
+    };
+
+    int totalPowerUpBlocks = 0;
+    for (const auto& name : mainLevels) {
+        const std::string path = levelPath(name);
+        if (!std::filesystem::exists(path)) { check(false, name + " exists"); continue; }
+
+        TileMap map; LevelData data; LevelLoader loader;
+        if (!loader.loadLevel(path, map, data)) { check(false, name + " loads"); continue; }
+
+        int enemies = 0, powerUpBlocks = 0;
+        for (const auto& e : data.entities) {
+            if (!e) continue;
+            if (e->getCategory() == EntityCategory::Enemy) ++enemies;
+            if (auto* qb = dynamic_cast<QuestionBlock*>(e.get())) {
+                if (qb->getContainedItemType() != QuestionBlock::Coin) ++powerUpBlocks;
+            }
+        }
+        totalPowerUpBlocks += powerUpBlocks;
+
+        const float perTile = static_cast<float>(map.getWidth()) / std::max(enemies, 1);
+        check(enemies >= 6,
+              name + " has a real enemy population (" + std::to_string(enemies) +
+              ", 1 per " + std::to_string(static_cast<int>(perTile)) + " tiles)");
+    }
+
+    check(totalPowerUpBlocks > 0,
+          "at least one question block in the campaign holds a power-up (" +
+          std::to_string(totalPowerUpBlocks) + " do)");
+}
+
 } // namespace
 
 int main() {
@@ -405,6 +446,7 @@ int main() {
     testCameraClampsToMap();
     testCameraOnShortMapKeepsGroundVisible();
     testShakeCannotEscapeBounds();
+    testLevelsArePopulated();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

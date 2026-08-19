@@ -1,707 +1,767 @@
 {
-    "entities": [
-        {
-            "type": "falling_platform",
-            "x": 41,
-            "y": 19
-        },
-        {
-            "type": "falling_platform",
-            "x": 53,
-            "y": 19
-        },
-        {
-            "type": "falling_platform",
-            "x": 72,
-            "y": 20
-        },
-        {
-            "type": "moving_platform",
-            "x": 112,
-            "y": 20
-        },
-        {
-            "type": "falling_platform",
-            "x": 157,
-            "y": 20
-        },
-        {
-            "type": "moving_platform",
-            "x": 179,
-            "y": 20
-        },
-        {
-            "type": "star_coin",
-            "x": 50,
-            "y": 15
-        },
-        {
-            "type": "star_coin",
-            "x": 100,
-            "y": 16
-        },
-        {
-            "type": "star_coin",
-            "x": 150,
-            "y": 16
-        },
-        {
-            "exitX": 104,
-            "exitY": 20,
-            "isEntrance": true,
-            "pipeId": 1,
-            "targetLevel": "assets/levels/level_3_sub.json",
-            "type": "pipe",
-            "x": 98,
-            "y": 19
-        },
-        {
-            "type": "question_block",
-            "x": 100,
-            "y": 18
-        },
-        {
-            "type": "trampoline",
-            "x": 100,
-            "y": 20
-        },
-        {
-            "type": "question_block",
-            "x": 26,
-            "y": 15
-        },
-        {
-            "type": "question_block",
-            "x": 30,
-            "y": 15
-        },
-        {
-            "type": "question_block",
-            "x": 36,
-            "y": 16
-        },
-        {
-            "type": "question_block",
-            "x": 40,
-            "y": 16
-        },
-        {
-            "type": "piranha_plant",
-            "x": 58,
-            "y": 19
-        },
-        {
-            "type": "question_block",
-            "x": 63,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 66,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 76,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 79,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 85,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 89,
-            "y": 17
-        },
-        {
-            "type": "piranha_plant",
-            "x": 119,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 146,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 151,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 162,
-            "y": 17
-        },
-        {
-            "type": "question_block",
-            "x": 167,
-            "y": 17
-        },
-        {
-            "type": "flagpole",
-            "x": 185,
-            "y": 12
-        }
-    ],
-    "flagpole": {
-        "x": 198,
-        "y": 18
+  "entities": [
+    {
+      "type": "falling_platform",
+      "x": 41,
+      "y": 19
     },
-    "height": 23,
-    "name": "World 1-3: Bowser's Castle Fortress",
-    "spawnPoint": {
-        "x": 3,
-        "y": 19
+    {
+      "type": "falling_platform",
+      "x": 53,
+      "y": 19
     },
-    "theme": "overworld",
-    "tileSize": 32.0,
-    "tiles": [
-        {
-            "type": "ground",
-            "w": 200,
-            "x": 0,
-            "y": 0
-        },
-        {
-            "type": "conveyor",
-            "w": 200,
-            "x": 0,
-            "y": 1
-        },
-        {
-            "type": "conveyor",
-            "x": 25,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 27,
-            "y": 15
-        },
-        {
-            "type": "conveyor",
-            "x": 28,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 29,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 31,
-            "y": 15
-        },
-        {
-            "type": "coin_tile",
-            "x": 35,
-            "y": 16
-        },
-        {
-            "type": "conveyor",
-            "x": 37,
-            "y": 16
-        },
-        {
-            "type": "coin_tile",
-            "x": 38,
-            "y": 16
-        },
-        {
-            "type": "conveyor",
-            "x": 39,
-            "y": 16
-        },
-        {
-            "type": "conveyor",
-            "x": 41,
-            "y": 16
-        },
-        {
-            "type": "ground",
-            "x": 46,
-            "y": 16
-        },
-        {
-            "type": "conveyor",
-            "w": 3,
-            "x": 49,
-            "y": 16
-        },
-        {
-            "type": "conveyor",
-            "x": 184,
-            "y": 16
-        },
-        {
-            "type": "ground",
-            "w": 5,
-            "x": 189,
-            "y": 16
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 46,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 62,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 64,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 65,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 67,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 75,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "w": 2,
-            "x": 77,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 80,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 84,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "w": 3,
-            "x": 86,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 90,
-            "y": 17
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 119,
-            "y": 17
-        },
-        {
-            "type": "ground",
-            "x": 130,
-            "y": 17
-        },
-        {
-            "type": "ground",
-            "x": 138,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 145,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "w": 2,
-            "x": 147,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "w": 2,
-            "x": 149,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 151,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 152,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 161,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "x": 163,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 164,
-            "y": 17
-        },
-        {
-            "type": "coin_tile",
-            "w": 2,
-            "x": 165,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "x": 168,
-            "y": 17
-        },
-        {
-            "type": "conveyor",
-            "w": 2,
-            "x": 183,
-            "y": 17
-        },
-        {
-            "type": "ground",
-            "w": 5,
-            "x": 189,
-            "y": 17
-        },
-        {
-            "type": "ground",
-            "w": 3,
-            "x": 46,
-            "y": 18
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 119,
-            "y": 18
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 130,
-            "y": 18
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 138,
-            "y": 18
-        },
-        {
-            "type": "conveyor",
-            "w": 3,
-            "x": 182,
-            "y": 18
-        },
-        {
-            "type": "ground",
-            "w": 5,
-            "x": 189,
-            "y": 18
-        },
-        {
-            "type": "ground",
-            "w": 15,
-            "x": 20,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 4,
-            "x": 46,
-            "y": 19
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 58,
-            "y": 19
-        },
-        {
-            "type": "pipe",
-            "x": 102,
-            "y": 19
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 119,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 3,
-            "x": 130,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 3,
-            "x": 138,
-            "y": 19
-        },
-        {
-            "type": "conveyor",
-            "w": 4,
-            "x": 181,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 189,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 192,
-            "y": 19
-        },
-        {
-            "type": "ground",
-            "w": 20,
-            "x": 20,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 9,
-            "x": 43,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "x": 55,
-            "y": 20
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 58,
-            "y": 20
-        },
-        {
-            "type": "pipe",
-            "x": 102,
-            "y": 20
-        },
-        {
-            "type": "pipe",
-            "w": 2,
-            "x": 119,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 4,
-            "x": 130,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 4,
-            "x": 138,
-            "y": 20
-        },
-        {
-            "type": "conveyor",
-            "w": 5,
-            "x": 180,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 189,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 2,
-            "x": 192,
-            "y": 20
-        },
-        {
-            "type": "ground",
-            "w": 40,
-            "x": 0,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 9,
-            "x": 43,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 15,
-            "x": 55,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 12,
-            "x": 74,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 22,
-            "x": 88,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 41,
-            "x": 114,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 9,
-            "x": 159,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 7,
-            "x": 170,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 19,
-            "x": 181,
-            "y": 21
-        },
-        {
-            "type": "ground",
-            "w": 40,
-            "x": 0,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 3,
-            "x": 40,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 9,
-            "x": 43,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 3,
-            "x": 52,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 15,
-            "x": 55,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 4,
-            "x": 70,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 12,
-            "x": 74,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 2,
-            "x": 86,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 22,
-            "x": 88,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 4,
-            "x": 110,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 41,
-            "x": 114,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 4,
-            "x": 155,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 9,
-            "x": 159,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 2,
-            "x": 168,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 7,
-            "x": 170,
-            "y": 22
-        },
-        {
-            "type": "water",
-            "w": 3,
-            "x": 177,
-            "y": 22
-        },
-        {
-            "type": "ground",
-            "w": 19,
-            "x": 181,
-            "y": 22
-        }
-    ],
-    "width": 200
+    {
+      "type": "falling_platform",
+      "x": 72,
+      "y": 20
+    },
+    {
+      "type": "moving_platform",
+      "x": 112,
+      "y": 20
+    },
+    {
+      "type": "falling_platform",
+      "x": 157,
+      "y": 20
+    },
+    {
+      "type": "moving_platform",
+      "x": 179,
+      "y": 20
+    },
+    {
+      "type": "star_coin",
+      "x": 50,
+      "y": 15
+    },
+    {
+      "type": "star_coin",
+      "x": 100,
+      "y": 16
+    },
+    {
+      "type": "star_coin",
+      "x": 150,
+      "y": 16
+    },
+    {
+      "exitX": 104,
+      "exitY": 20,
+      "isEntrance": true,
+      "pipeId": 1,
+      "targetLevel": "assets/levels/level_3_sub.json",
+      "type": "pipe",
+      "x": 98,
+      "y": 19
+    },
+    {
+      "type": "question_block",
+      "x": 100,
+      "y": 18,
+      "itemType": 1
+    },
+    {
+      "type": "trampoline",
+      "x": 100,
+      "y": 20
+    },
+    {
+      "type": "question_block",
+      "x": 26,
+      "y": 15,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 30,
+      "y": 15,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 36,
+      "y": 16,
+      "itemType": 1
+    },
+    {
+      "type": "question_block",
+      "x": 40,
+      "y": 16,
+      "itemType": 0
+    },
+    {
+      "type": "piranha_plant",
+      "x": 58,
+      "y": 19
+    },
+    {
+      "type": "question_block",
+      "x": 63,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 66,
+      "y": 17,
+      "itemType": 2
+    },
+    {
+      "type": "question_block",
+      "x": 76,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 79,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 85,
+      "y": 17,
+      "itemType": 3
+    },
+    {
+      "type": "question_block",
+      "x": 89,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "piranha_plant",
+      "x": 119,
+      "y": 17
+    },
+    {
+      "type": "question_block",
+      "x": 146,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 151,
+      "y": 17,
+      "itemType": 4
+    },
+    {
+      "type": "question_block",
+      "x": 162,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "question_block",
+      "x": 167,
+      "y": 17,
+      "itemType": 0
+    },
+    {
+      "type": "flagpole",
+      "x": 185,
+      "y": 12
+    },
+    {
+      "type": "goomba",
+      "x": 12,
+      "y": 20
+    },
+    {
+      "type": "koopa_troopa",
+      "x": 26,
+      "y": 18
+    },
+    {
+      "type": "koopa_troopa",
+      "x": 63,
+      "y": 20
+    },
+    {
+      "type": "goomba",
+      "x": 79,
+      "y": 20
+    },
+    {
+      "type": "koopa_troopa",
+      "x": 92,
+      "y": 20
+    },
+    {
+      "type": "koopa_troopa",
+      "x": 106,
+      "y": 20
+    },
+    {
+      "type": "hammer_bro",
+      "x": 124,
+      "y": 20
+    },
+    {
+      "type": "goomba",
+      "x": 146,
+      "y": 20
+    },
+    {
+      "type": "spiny",
+      "x": 162,
+      "y": 20
+    }
+  ],
+  "flagpole": {
+    "x": 198,
+    "y": 18
+  },
+  "height": 23,
+  "name": "World 1-3: Bowser's Castle Fortress",
+  "spawnPoint": {
+    "x": 3,
+    "y": 19
+  },
+  "theme": "overworld",
+  "tileSize": 32.0,
+  "tiles": [
+    {
+      "type": "ground",
+      "w": 200,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "type": "conveyor",
+      "w": 200,
+      "x": 0,
+      "y": 1
+    },
+    {
+      "type": "conveyor",
+      "x": 25,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 27,
+      "y": 15
+    },
+    {
+      "type": "conveyor",
+      "x": 28,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 29,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 31,
+      "y": 15
+    },
+    {
+      "type": "coin_tile",
+      "x": 35,
+      "y": 16
+    },
+    {
+      "type": "conveyor",
+      "x": 37,
+      "y": 16
+    },
+    {
+      "type": "coin_tile",
+      "x": 38,
+      "y": 16
+    },
+    {
+      "type": "conveyor",
+      "x": 39,
+      "y": 16
+    },
+    {
+      "type": "conveyor",
+      "x": 41,
+      "y": 16
+    },
+    {
+      "type": "ground",
+      "x": 46,
+      "y": 16
+    },
+    {
+      "type": "conveyor",
+      "w": 3,
+      "x": 49,
+      "y": 16
+    },
+    {
+      "type": "conveyor",
+      "x": 184,
+      "y": 16
+    },
+    {
+      "type": "ground",
+      "w": 5,
+      "x": 189,
+      "y": 16
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 46,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 62,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 64,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 65,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 67,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 75,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "w": 2,
+      "x": 77,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 80,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 84,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "w": 3,
+      "x": 86,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 90,
+      "y": 17
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 119,
+      "y": 17
+    },
+    {
+      "type": "ground",
+      "x": 130,
+      "y": 17
+    },
+    {
+      "type": "ground",
+      "x": 138,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 145,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "w": 2,
+      "x": 147,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "w": 2,
+      "x": 149,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 151,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 152,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 161,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "x": 163,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 164,
+      "y": 17
+    },
+    {
+      "type": "coin_tile",
+      "w": 2,
+      "x": 165,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "x": 168,
+      "y": 17
+    },
+    {
+      "type": "conveyor",
+      "w": 2,
+      "x": 183,
+      "y": 17
+    },
+    {
+      "type": "ground",
+      "w": 5,
+      "x": 189,
+      "y": 17
+    },
+    {
+      "type": "ground",
+      "w": 3,
+      "x": 46,
+      "y": 18
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 119,
+      "y": 18
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 130,
+      "y": 18
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 138,
+      "y": 18
+    },
+    {
+      "type": "conveyor",
+      "w": 3,
+      "x": 182,
+      "y": 18
+    },
+    {
+      "type": "ground",
+      "w": 5,
+      "x": 189,
+      "y": 18
+    },
+    {
+      "type": "ground",
+      "w": 15,
+      "x": 20,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 4,
+      "x": 46,
+      "y": 19
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 58,
+      "y": 19
+    },
+    {
+      "type": "pipe",
+      "x": 102,
+      "y": 19
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 119,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 3,
+      "x": 130,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 3,
+      "x": 138,
+      "y": 19
+    },
+    {
+      "type": "conveyor",
+      "w": 4,
+      "x": 181,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 189,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 192,
+      "y": 19
+    },
+    {
+      "type": "ground",
+      "w": 20,
+      "x": 20,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 9,
+      "x": 43,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "x": 55,
+      "y": 20
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 58,
+      "y": 20
+    },
+    {
+      "type": "pipe",
+      "x": 102,
+      "y": 20
+    },
+    {
+      "type": "pipe",
+      "w": 2,
+      "x": 119,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 4,
+      "x": 130,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 4,
+      "x": 138,
+      "y": 20
+    },
+    {
+      "type": "conveyor",
+      "w": 5,
+      "x": 180,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 189,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 2,
+      "x": 192,
+      "y": 20
+    },
+    {
+      "type": "ground",
+      "w": 40,
+      "x": 0,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 9,
+      "x": 43,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 15,
+      "x": 55,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 12,
+      "x": 74,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 22,
+      "x": 88,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 41,
+      "x": 114,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 9,
+      "x": 159,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 7,
+      "x": 170,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 19,
+      "x": 181,
+      "y": 21
+    },
+    {
+      "type": "ground",
+      "w": 40,
+      "x": 0,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 3,
+      "x": 40,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 9,
+      "x": 43,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 3,
+      "x": 52,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 15,
+      "x": 55,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 4,
+      "x": 70,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 12,
+      "x": 74,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 2,
+      "x": 86,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 22,
+      "x": 88,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 4,
+      "x": 110,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 41,
+      "x": 114,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 4,
+      "x": 155,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 9,
+      "x": 159,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 2,
+      "x": 168,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 7,
+      "x": 170,
+      "y": 22
+    },
+    {
+      "type": "water",
+      "w": 3,
+      "x": 177,
+      "y": 22
+    },
+    {
+      "type": "ground",
+      "w": 19,
+      "x": 181,
+      "y": 22
+    }
+  ],
+  "width": 200
 }
