@@ -32,6 +32,9 @@
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
 #include "Entities/BoomBoom.hpp"
+#include "Core/DifficultyStrategy.hpp"
+#include "Core/Game.hpp"
+#include "Entities/Goomba.hpp"
 #include "Entities/BossFireball.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/Fireball.hpp"
@@ -951,6 +954,67 @@ void testEveryBossTypeIsBuildable() {
           "likewise boom_boom");
 }
 
+
+void testDifficultyStrategyActuallyChangesTheGame() {
+    section("9.4  the difficulty setting is read by something at last");
+
+    Game& game = Game::getInstance();
+    const std::string original = game.getDifficulty();
+
+    game.setDifficulty("normal");
+    const float normalSpeed = game.difficulty().enemySpeedScale();
+    const int   normalLives = game.difficulty().startingLives();
+    const float normalTime  = game.difficulty().levelTimeScale();
+
+    game.setDifficulty("easy");
+    check(game.difficulty().getId() == "easy", "setDifficulty swaps the live strategy");
+    check(game.difficulty().enemySpeedScale() < normalSpeed, "easy slows enemies down");
+    check(game.difficulty().startingLives() > normalLives, "and hands out more lives");
+    check(game.difficulty().levelTimeScale() > normalTime, "and more time on the clock");
+
+    game.setDifficulty("hard");
+    check(game.difficulty().enemySpeedScale() > normalSpeed, "hard speeds enemies up");
+    check(game.difficulty().startingLives() < normalLives, "with fewer lives");
+    check(game.difficulty().levelTimeScale() < normalTime, "and less time");
+
+    // config.json is hand-editable, so a typo must not take the game down.
+    game.setDifficulty("bananas");
+    check(game.difficulty().getId() == "normal", "an unrecognised id falls back to normal");
+
+    game.setDifficulty(original);
+}
+
+void testDifficultyScalesEnemiesAndBosses() {
+    section("9.4  the modifiers reach enemies and boss health, not just a struct");
+
+    Game& game = Game::getInstance();
+    const std::string original = game.getDifficulty();
+
+    // Enemy speed is scaled once, as the entity enters the world.
+    Goomba goomba({0.0f, 0.0f});
+    const float baseSpeed = goomba.getSpeed();
+    goomba.applySpeedScale(2.0f);
+    const float scaledSpeed = goomba.getSpeed();
+    check(scaledSpeed > baseSpeed, "applySpeedScale moves an enemy's speed");
+    goomba.applySpeedScale(-1.0f);
+    check(goomba.getSpeed() == scaledSpeed, "and a nonsense scale is ignored, not applied");
+
+    // Boss health is scaled at construction.
+    game.setDifficulty("normal");
+    const int normalHealth = Bowser({0.0f, 0.0f}).getMaxHealth();
+    game.setDifficulty("easy");
+    const int easyHealth = Bowser({0.0f, 0.0f}).getMaxHealth();
+    game.setDifficulty("hard");
+    const int hardHealth = Bowser({0.0f, 0.0f}).getMaxHealth();
+
+    check(easyHealth < normalHealth, "easy shortens Bowser's bar (" +
+          std::to_string(easyHealth) + " vs " + std::to_string(normalHealth) + ")");
+    check(hardHealth > normalHealth, "hard lengthens it (" + std::to_string(hardHealth) + ")");
+    check(easyHealth >= 1, "and never below one hit, whatever the multiplier");
+
+    game.setDifficulty(original);
+}
+
 } // namespace
 
 int main() {
@@ -989,6 +1053,8 @@ int main() {
     testBoomBoomStaysInsideItsArena();
     testLevelTwoContainsItsMidBoss();
     testEveryBossTypeIsBuildable();
+    testDifficultyStrategyActuallyChangesTheGame();
+    testDifficultyScalesEnemiesAndBosses();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

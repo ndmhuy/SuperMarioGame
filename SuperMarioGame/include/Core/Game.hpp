@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <string>
 #include "Core/GameStateManager.hpp"
+#include "Core/DifficultyStrategy.hpp"
 
 class Player;
 class TileMap;
@@ -43,7 +44,13 @@ public:
     void setMusicVolume(float volume);
 
     const std::string& getDifficulty() const { return m_difficulty; }
-    void setDifficulty(const std::string& diff) { m_difficulty = diff; }
+    // Swaps the live strategy as well as the stored id, so the change applies to
+    // the next level load rather than only to config.json.
+    void setDifficulty(const std::string& diff);
+
+    // The numbers behind the current difficulty. Never null: the setter falls
+    // back to Normal for an unrecognised id.
+    const IDifficultyStrategy& difficulty() const;
 
     Player* getPlayer() const;
     void setPlayer(Player* player);
@@ -81,6 +88,7 @@ private:
     float m_sfxVolume = 80.0f;
     float m_musicVolume = 60.0f;
     std::string m_difficulty = "normal";
+    std::unique_ptr<IDifficultyStrategy> m_difficultyStrategy;
     std::unordered_map<std::string, std::string> m_keyBindings;
     bool m_colorblindMode = false;
 

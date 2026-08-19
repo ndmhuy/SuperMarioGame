@@ -7,6 +7,7 @@
 #include "Utils/LevelCatalog.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Projectile.hpp"
+#include "Core/DifficultyStrategy.hpp"
 #include "Core/Game.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Graphics/Hud.hpp"
@@ -99,7 +100,7 @@ void PlayingState::enter() {
 
     // Initialize HUD and Level Timer
     m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT), m_itemSheet.get(), m_playerSheet.get());
-    m_levelTimer = 300.0f;
+    m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
     m_tileAnimTimer = 0.0f;
 
     if (m_isProcedural) {
@@ -108,7 +109,7 @@ void PlayingState::enter() {
 
         // Wire animations for all procedurally generated entities
         for (auto& entity : m_entities) {
-            wireEntityAnimations(entity.get());
+            admitEntity(entity.get());
         }
         
         m_player = nullptr;
@@ -248,7 +249,7 @@ void PlayingState::enter() {
             case QuestionBlock::Mushroom:
             default:                          item = std::make_unique<Mushroom>(request.spawnPosition);     break;
         }
-        wireEntityAnimations(item.get());
+        admitEntity(item.get());
         m_entities.push_back(std::move(item));
     });
 
@@ -265,7 +266,7 @@ void PlayingState::enter() {
         auto spawned = EntityFactory::create(static_cast<EntityType>(request.type), request.position);
         if (!spawned) return;
         spawned->setVelocity(request.velocity);
-        wireEntityAnimations(spawned.get());
+        admitEntity(spawned.get());
         m_entities.push_back(std::move(spawned));
     });
 
@@ -876,7 +877,7 @@ void PlayingState::setupTestScene() {
         
         // Transfer all loaded items/entities and wire their animations
         for (auto& entity : levelData.entities) {
-            wireEntityAnimations(entity.get());
+            admitEntity(entity.get());
             m_entities.push_back(std::move(entity));
         }
 
@@ -939,7 +940,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     m_entities = std::move(levelData.entities);
 
     for (auto& entity : m_entities) {
-        wireEntityAnimations(entity.get());
+        admitEntity(entity.get());
     }
 
     sf::Vector2f spawnPos = (spawnOverride.x != 0.0f || spawnOverride.y != 0.0f) ? spawnOverride : levelData.spawnPoint;
@@ -965,7 +966,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 void PlayingState::regenerateProceduralLevel() {
     MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
     for (auto& entity : m_entities) {
-        wireEntityAnimations(entity.get());
+        admitEntity(entity.get());
     }
 
     m_player = nullptr;
@@ -1099,7 +1100,7 @@ void PlayingState::killPlayer(const char* reason) {
         m_camera.snapTo(respawn);
 
         // A fresh clock per life, so a timeout death is recoverable.
-        m_levelTimer = Constants::LEVEL_TIME;
+        m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
         m_timeWarningFired = false;
 
         std::cout << "[PlayingState] Player " << reason << ". Lives remaining: "
@@ -1139,7 +1140,7 @@ void PlayingState::restartLevel() {
     m_levelComplete = false;
     m_levelCompleteTimer = 0.0f;
     m_summaryShown = false;
-    m_levelTimer = Constants::LEVEL_TIME;
+    m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     m_starCoinsCollected = {false, false, false};
@@ -1192,7 +1193,7 @@ void PlayingState::advanceToNextLevel() {
     m_levelCompleteTimer = 0.0f;
     m_summaryShown = false;
     m_starCoinsCollected = {false, false, false};
-    m_levelTimer = Constants::LEVEL_TIME;
+    m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     setupTestScene();
@@ -1223,7 +1224,9 @@ void PlayingState::adoptPlayer(std::unique_ptr<Player> player) {
 void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     int oldCoins = 0;
     int oldScore = 0;
-    int oldLives = Constants::INITIAL_LIVES;
+    // First spawn of a run gets the difficulty's life count; later spawns carry
+    // whatever the player had, because this branch only runs when there is none.
+    int oldLives = Game::getInstance().difficulty().startingLives();
     if (m_player) {
         oldCoins = m_player->getCoins();
         oldScore = m_player->getScore();
@@ -1246,6 +1249,18 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     newPlayer->restoreStats(oldLives, oldCoins, oldScore);
 
     adoptPlayer(std::move(newPlayer));
+}
+
+void PlayingState::admitEntity(Entity* entity) {
+    if (!entity) return;
+    wireEntityAnimations(entity);
+
+    // Difficulty is applied here, at the single door every entity comes through,
+    // rather than in EntityFactory — the factory should not have to know that a
+    // Game singleton with a difficulty setting exists.
+    if (auto* enemy = dynamic_cast<Enemy*>(entity)) {
+        enemy->applySpeedScale(Game::getInstance().difficulty().enemySpeedScale());
+    }
 }
 
 void PlayingState::wireEntityAnimations(Entity* entity) {

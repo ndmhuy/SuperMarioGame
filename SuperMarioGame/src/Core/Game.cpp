@@ -25,6 +25,10 @@ void Game::run() {
     // Load settings from config
     Serializer::loadSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
     
+    // Build the difficulty strategy from what was just loaded. Without this the
+    // persisted setting stayed a string nothing consumed (task 9.4).
+    setDifficulty(m_difficulty);
+
     // Apply loaded volumes to SoundManager
     SoundManager::getInstance().setSFXVolume(m_sfxVolume);
     SoundManager::getInstance().setMusicVolume(m_musicVolume);
@@ -226,6 +230,21 @@ void Game::setSfxVolume(float volume) {
 void Game::setMusicVolume(float volume) {
     m_musicVolume = volume;
     SoundManager::getInstance().setMusicVolume(volume);
+}
+
+void Game::setDifficulty(const std::string& diff) {
+    m_difficulty = diff;
+    m_difficultyStrategy = IDifficultyStrategy::fromId(diff);
+}
+
+const IDifficultyStrategy& Game::difficulty() const {
+    // Lazily built so a Game that never had setDifficulty called — the tests, and
+    // the first frame before settings load — still gets Normal rather than a
+    // null dereference.
+    if (!m_difficultyStrategy) {
+        const_cast<Game*>(this)->m_difficultyStrategy = IDifficultyStrategy::fromId(m_difficulty);
+    }
+    return *m_difficultyStrategy;
 }
 
 void Game::setKeyBinding(const std::string& action, const std::string& key) {

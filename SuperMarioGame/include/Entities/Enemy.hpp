@@ -30,6 +30,11 @@ public:
     int getScoreValue() const;
     void setScoreValue(int value);
 
+    // Scales this enemy's movement speed once, as it enters the world. Used by
+    // the difficulty strategy (task 9.4); deliberately an action rather than a
+    // setSpeed(), so callers cannot reach in and overwrite tuned values.
+    void applySpeedScale(float scale);
+
     bool isFlipped() const { return m_isFlipped; }
     bool isDyingDownward() const { return m_isDyingDownward; }
     virtual bool isDeadOrDying() const { return !active || m_isFlipped || m_isDyingDownward; }

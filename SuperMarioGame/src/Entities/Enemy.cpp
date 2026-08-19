@@ -54,6 +54,11 @@ void Enemy::render(sf::RenderTarget& target) {
 }
 
 
+void Enemy::applySpeedScale(float scale) {
+    if (scale <= 0.0f) return;
+    speed *= scale;
+}
+
 void Enemy::setStrategy(std::unique_ptr<IMovementStrategy> strategy) {
     m_aiStrategy = std::move(strategy);
 }

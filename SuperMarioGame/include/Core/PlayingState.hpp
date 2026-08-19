@@ -168,6 +168,10 @@ private:
     void adoptPlayer(std::unique_ptr<Player> player);
     bool loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride = {0.0f, 0.0f});
 
+    // The single door every entity comes through on its way into the world:
+    // wires its animations and applies the difficulty modifiers.
+    void admitEntity(Entity* entity);
+
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet
     void wireEntityAnimations(Entity* entity);
 };
