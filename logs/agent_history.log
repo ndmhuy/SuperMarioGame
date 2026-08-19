@@ -3326,3 +3326,41 @@ Summary of Changes:
   A/complete-game-tiers-1-4, PR #12 into dev. 31 commits, 142 files,
   +13358/-1239. main and dev remain unpushed locally.
 ---
+[2026-08-20 06:20:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 7b1e75f (before) → c14da88 (after, 2 commits, pushed)
+Fetched Remotes: n/a — no repository state read or reported this session beyond the PR update.
+Prompt: can jump but cannot move left or right when A or D
+Files Modified:
+- SuperMarioGame/include/Core/InputManager.hpp + src/Core/InputManager.cpp
+- SuperMarioGame/src/Core/{Game,PlayingState}.cpp
+- SuperMarioGame/src/Utils/MapEditor.cpp, src/Entities/{Pipe,Peach}.cpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — this is the live input path for every held action.
+Verified By: ctest (2/2 — verify_regressions 321/321, verify_frontend_states
+24/24). The new case drives MoveRight through InputManager::update from a
+synthetic KeyPressed alone, which the old polling path could not do. NOT
+verified by playing — the reporter should confirm A/D now walk.
+Summary of Changes:
+- ROOT CAUSE FOUND, and the user's one-line report is what found it. "Can jump
+  but cannot move left or right" separates the two input paths exactly: jump is a
+  press mapping driven by events, left/right are hold mappings driven by polling
+  sf::Keyboard::isKeyPressed. The event path worked; the polling path did not.
+- isKeyPressed reads GLOBAL OS key state, not our window's, and on macOS needs
+  Input Monitoring permission. Without it it returns false forever and reports
+  nothing. That is why this looked intermittent and why no log ever showed it —
+  and why my two earlier investigations (bindings correct, MoveRightCommand
+  moves the player 140px/s through the real physics) both came back clean: they
+  tested everything EXCEPT the OS call.
+- Held-key state now comes from the event stream, recorded in InputManager.
+  Window-scoped by construction, no permission needed. FocusLost clears the set,
+  because a release that lands while another window has focus never reaches us.
+- FIVE more dead features found with the same cause: the time-rewind key, the map
+  editor's camera pan (all four arrows), Pipe's downward warp and Peach's float.
+  All of them silently did nothing. No isKeyPressed call remains.
+- Removed the window-focus guard added an hour earlier; it was guarding a symptom
+  of this root cause and the event model makes it redundant.
+- LESSON worth keeping: I twice investigated "movement is buggy" and twice
+  reported the code correct, because I tested the game's own logic and never the
+  platform call underneath it. The user's precise symptom did in one line what
+  two rounds of my probing did not.
+---
