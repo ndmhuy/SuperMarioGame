@@ -5,8 +5,11 @@
 #include <cmath>
 
 MovingPlatform::MovingPlatform(sf::Vector2f position, sf::Vector2f travelRange, float speed)
-    : Block(position, {64.0f, 16.0f}), m_startPos(position), m_travelRange(travelRange), m_speed(speed),
-      m_rangeLen(std::sqrt(m_travelRange.x * m_travelRange.x + m_travelRange.y * m_travelRange.y)) {
+    // Initialiser order must match the declaration order in the header, or
+    // m_rangeLen reads m_travelRange before it is set (-Wreorder-ctor).
+    : Block(position, {64.0f, 16.0f}), m_startPos(position), m_travelRange(travelRange),
+      m_rangeLen(std::sqrt(travelRange.x * travelRange.x + travelRange.y * travelRange.y)),
+      m_speed(speed) {
     m_breakable = false;
 }
 

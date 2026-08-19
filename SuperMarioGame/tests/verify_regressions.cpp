@@ -24,6 +24,11 @@
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/EntityFactory.hpp"
 #include "Core/InputManager.hpp"
+#include "Core/GameStateManager.hpp"
+#include "Core/IGameState.hpp"
+#include "Graphics/SpriteSheet.hpp"
+#include "Utils/LevelCatalog.hpp"
+#include "Utils/Serializer.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -33,6 +38,8 @@
 #include <unordered_map>
 #include <cstdint>
 #include <cmath>
+#include <algorithm>
+#include <SFML/Graphics/RenderTexture.hpp>
 
 namespace {
 
@@ -490,6 +497,256 @@ void testKeyBindingsApply() {
     check(true, "applyBindings accepts a valid rebind without throwing");
 }
 
+
+// --- Tier 1: front-end states ------------------------------------------------
+
+// A state that only records what the manager did to it. Deliberately trivial:
+// the thing under test is GameStateManager, not any real screen.
+class ProbeState : public IGameState {
+public:
+    ProbeState(std::string name, std::vector<std::string>* log, bool overlay)
+        : m_name(std::move(name)), m_log(log), m_overlay(overlay) {}
+
+    void enter() override      { m_log->push_back(m_name + ":enter"); }
+    void exit() override       { m_log->push_back(m_name + ":exit"); }
+    void handleInput(const sf::Event&) override { m_log->push_back(m_name + ":input"); }
+    void update(float) override { m_log->push_back(m_name + ":update"); }
+    void render(sf::RenderTarget&) override { m_log->push_back(m_name + ":render"); }
+    bool isOverlay() const override { return m_overlay; }
+    void onSuspend() override  { m_log->push_back(m_name + ":suspend"); }
+    void onResume() override   { m_log->push_back(m_name + ":resume"); }
+
+private:
+    std::string m_name;
+    std::vector<std::string>* m_log;
+    bool m_overlay;
+};
+
+// Pops itself from inside update(). Before push/pop were deferred this destroyed
+// the object whose update() was still on the stack.
+class SelfPoppingState : public IGameState {
+public:
+    SelfPoppingState(GameStateManager* gsm, std::vector<std::string>* log)
+        : m_gsm(gsm), m_log(log) {}
+
+    void enter() override { m_log->push_back("selfpop:enter"); }
+    void exit() override  { m_log->push_back("selfpop:exit"); }
+    void handleInput(const sf::Event&) override {}
+    void update(float) override {
+        m_log->push_back("selfpop:update");
+        m_gsm->popState();
+        // Touching a member after the pop request is the whole point: with an
+        // immediate pop this line ran on a destroyed object.
+        m_log->push_back("selfpop:still-alive");
+    }
+    void render(sf::RenderTarget&) override {}
+    bool isOverlay() const override { return true; }
+
+private:
+    GameStateManager* m_gsm;
+    std::vector<std::string>* m_log;
+};
+
+bool logContains(const std::vector<std::string>& log, const std::string& entry) {
+    return std::find(log.begin(), log.end(), entry) != log.end();
+}
+
+int indexOf(const std::vector<std::string>& log, const std::string& entry) {
+    auto it = std::find(log.begin(), log.end(), entry);
+    return (it == log.end()) ? -1 : static_cast<int>(std::distance(log.begin(), it));
+}
+
+void testOverlayStatesRenderTheStack() {
+    section("7.5 GameStateManager renders the whole stack, not just the top");
+
+    std::vector<std::string> log;
+    GameStateManager gsm;
+
+    gsm.pushState(std::make_unique<ProbeState>("base", &log, false));
+    gsm.update(0.016f);                    // applies the deferred push
+    check(gsm.getStateCount() == 1, "a pushed state is applied at the frame boundary");
+
+    log.clear();
+    gsm.pushState(std::make_unique<ProbeState>("overlay", &log, true));
+    gsm.update(0.016f);
+
+    check(logContains(log, "base:suspend"), "the covered state is told it was suspended");
+    check(indexOf(log, "base:suspend") < indexOf(log, "overlay:enter"),
+          "and it is told before the new state enters");
+    check(logContains(log, "overlay:update") && !logContains(log, "base:update"),
+          "only the top of the stack updates");
+
+    // render() needs a target. A RenderTexture needs a graphics context, which is
+    // not guaranteed on a headless runner, so this half is skipped if it fails.
+    log.clear();
+    bool haveTarget = false;
+    try {
+        sf::RenderTexture texture({64u, 64u});
+        haveTarget = true;
+        gsm.render(texture);
+    } catch (...) {
+        haveTarget = false;
+    }
+
+    if (haveTarget) {
+        check(logContains(log, "base:render") && logContains(log, "overlay:render"),
+              "an overlay does not hide the state beneath it");
+        check(indexOf(log, "base:render") < indexOf(log, "overlay:render"),
+              "and the overlay draws on top, not underneath");
+    } else {
+        std::cout << "  [skip] render-order checks (no graphics context)\n";
+    }
+
+    log.clear();
+    gsm.popState();
+    gsm.update(0.016f);
+    check(logContains(log, "overlay:exit") && logContains(log, "base:resume"),
+          "popping an overlay resumes the state below it");
+}
+
+void testStateOperationsAreDeferred() {
+    section("7.5 a state may pop itself from update() without self-destructing");
+
+    std::vector<std::string> log;
+    GameStateManager gsm;
+    gsm.pushState(std::make_unique<ProbeState>("base", &log, false));
+    gsm.update(0.016f);
+
+    log.clear();
+    gsm.pushState(std::make_unique<SelfPoppingState>(&gsm, &log));
+    // One update() applies the push, runs the new state's update() — in which it
+    // asks to be popped — and then applies that pop, all at frame boundaries.
+    gsm.update(0.016f);
+
+    check(logContains(log, "selfpop:still-alive"),
+          "the state survives its own popState() call");
+    check(logContains(log, "selfpop:exit"), "and the pop is applied afterwards");
+    check(gsm.getStateCount() == 1, "leaving only the state underneath");
+}
+
+void testLevelCatalogCoversTheCampaign() {
+    section("7.7 the campaign order is one list, and every level in it exists");
+
+    check(LevelCatalog::count() == 7, "seven levels, matching advanceToNextLevel()");
+    check(!LevelCatalog::isValidIndex(-1) && !LevelCatalog::isValidIndex(7),
+          "out-of-range indices are rejected, not clamped silently");
+
+    int found = 0;
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        const std::string& rel = LevelCatalog::pathFor(i);
+        const std::string name = rel.substr(rel.find_last_of('/') + 1);
+        if (std::filesystem::exists(levelPath(name))) ++found;
+    }
+    check(found == LevelCatalog::count(), "every catalogued level file is on disk");
+    check(LevelCatalog::nameFor(0) == "1-1", "display names are the ones the HUD uses");
+}
+
+void testHighScoreTableIsSortedAndBounded() {
+    section("7.8 the high-score table sorts, truncates and rejects empty runs");
+
+    // Work on a scratch copy so a developer's real table is not clobbered.
+    const std::string path = "saves/highscores.json";
+    const std::string backup = "saves/highscores.json.regressionbak";
+    const bool hadExisting = std::filesystem::exists(path);
+    if (hadExisting) std::filesystem::rename(path, backup);
+
+    for (int i = 1; i <= 14; ++i) {
+        HighScoreEntry entry;
+        entry.score = i * 1000;
+        entry.coins = i;
+        entry.levelName = "1-1";
+        Serializer::recordHighScore(entry);
+    }
+
+    HighScoreEntry empty;
+    empty.score = 0;
+    check(!Serializer::recordHighScore(empty), "a zero score is not recorded");
+
+    std::vector<HighScoreEntry> scores = Serializer::loadHighScores();
+    check(static_cast<int>(scores.size()) == Serializer::MAX_HIGH_SCORES,
+          "the table is capped at MAX_HIGH_SCORES");
+
+    bool descending = true;
+    for (std::size_t i = 1; i < scores.size(); ++i) {
+        if (scores[i - 1].score < scores[i].score) descending = false;
+    }
+    check(descending, "and stays sorted highest first");
+    check(!scores.empty() && scores.front().score == 14000, "the best run is at the top");
+
+    std::filesystem::remove(path);
+    if (hadExisting) std::filesystem::rename(backup, path);
+}
+
+// Atlas lookups the renderer performs by name. A missing frame is silent at
+// runtime — the sprite simply does not draw — which is exactly how the flagpole
+// shipped with no flag.
+std::unique_ptr<SpriteSheet> loadAtlas(const std::string& folder) {
+    const std::vector<std::string> roots = {
+        "assets/spriteSheet/", "../assets/spriteSheet/", "../../assets/spriteSheet/",
+        "SuperMarioGame/assets/spriteSheet/"
+    };
+    for (const auto& root : roots) {
+        if (std::filesystem::exists(root + folder)) {
+            try {
+                return std::make_unique<SpriteSheet>(root + folder);
+            } catch (...) {}
+        }
+    }
+    return nullptr;
+}
+
+void testFlagpoleFramesExist() {
+    section("Flagpole names frames that are actually in the atlas");
+
+    auto sheet = loadAtlas("world_scenery_item");
+    if (!sheet) {
+        check(false, "world_scenery_item atlas loads");
+        return;
+    }
+
+    check(sheet->hasFrame("pole_flag_green"), "the raised flag frame exists");
+    bool descent = true;
+    for (int i = 0; i < 5; ++i) {
+        if (!sheet->hasFrame("full_flag_pole_" + std::to_string(i))) descent = false;
+    }
+    check(descent, "and all five descent frames exist");
+    check(!sheet->hasFrame("flag_white") && !sheet->hasFrame("flag_reddish_white"),
+          "the names the old code asked for are still absent, confirming why nothing drew");
+}
+
+void testPowerUpFramesExistForEveryCharacter() {
+    section("Super / Fire / Cape have their own frames for all four characters");
+
+    auto sheet = loadAtlas("player");
+    if (!sheet) {
+        check(false, "player atlas loads");
+        return;
+    }
+
+    // The prefixes Player::refreshStateAnimations() asks for, per base state.
+    const std::vector<std::string> forms = {"small", "super", "fire", "cape", "tiny"};
+    const std::vector<std::string> characters = {"mario", "luigi", "toad", "peach"};
+
+    int missing = 0;
+    for (const auto& character : characters) {
+        for (const auto& form : forms) {
+            const std::string prefix = character + "_" + form;
+            const bool ok = sheet->hasFrame(prefix + "_idle") || sheet->hasFrame(prefix + "_walk_0");
+            if (!ok) {
+                std::cout << "        missing: " << prefix << "\n";
+                ++missing;
+            }
+        }
+    }
+    check(missing == 0, "every character has frames for every base player state");
+
+    // The derived forms must be visibly different from _small, or the power-up
+    // is invisible again in a new way.
+    check(sheet->hasFrame("mario_super_idle") && sheet->hasFrame("mario_fire_idle")
+          && sheet->hasFrame("mario_cape_idle"),
+          "and the derived Super/Fire/Cape frames are named as the mapping expects");
+}
+
 } // namespace
 
 int main() {
@@ -514,6 +771,12 @@ int main() {
     testMovingPlatformActuallyMoves();
     testNonCollidableEntitiesAreNotAtTheOrigin();
     testKeyBindingsApply();
+    testOverlayStatesRenderTheStack();
+    testStateOperationsAreDeferred();
+    testLevelCatalogCoversTheCampaign();
+    testHighScoreTableIsSortedAndBounded();
+    testFlagpoleFramesExist();
+    testPowerUpFramesExistForEveryCharacter();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

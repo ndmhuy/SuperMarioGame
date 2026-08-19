@@ -557,6 +557,7 @@ target_link_libraries(generate_game_levels PRIVATE
 # This target is the guard against that recurring. Keep it headless so CI can
 # run it without a display.
 add_verify_test(verify_regressions "tests/verify_regressions.cpp")
+add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 
 # ---------------------------------------------------------
 # 19. Asset synchronisation
