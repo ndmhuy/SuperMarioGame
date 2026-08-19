@@ -32,6 +32,9 @@ public:
     bool collidesWithTiles() const override { return false; }
     float getGravityMultiplier() const override { return 0.0f; }
 
+    // See Fireball::resetForPool.
+    void resetForPool(sf::Vector2f pos, sf::Vector2f vel);
+
 private:
     // Projectile derives from Entity, which has no facing — Character owns that.
     // The atlas ships a directional pair, so the travel direction is kept here.

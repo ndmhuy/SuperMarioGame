@@ -31,6 +31,7 @@
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/CampaignProgress.hpp"
+#include "Utils/ObjectPool.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
@@ -1357,6 +1358,67 @@ void testSavesResolveToOneDirectory() {
           "and it is never inside a CMake build tree");
 }
 
+
+void testObjectPoolRecyclesInsteadOfAllocating() {
+    section("10.1  the object pool stops allocating once its working set is reached");
+
+    ObjectPool<Fireball> pool;
+    check(pool.constructedCount() == 0 && pool.freeCount() == 0, "a fresh pool holds nothing");
+
+    // Two on screen at once is the cap PlayingState enforces, so the working set
+    // is two — however many shots are fired.
+    std::vector<std::unique_ptr<Fireball>> live;
+    for (int shot = 0; shot < 50; ++shot) {
+        live.push_back(pool.acquire(sf::Vector2f{0.0f, 0.0f}, sf::Vector2f{200.0f, 0.0f}));
+        if (live.size() > 2) {
+            pool.release(std::move(live.front()));
+            live.erase(live.begin());
+        }
+    }
+    for (auto& fireball : live) pool.release(std::move(fireball));
+
+    check(pool.constructedCount() <= 3,
+          "fifty shots built at most three objects (built " +
+          std::to_string(pool.constructedCount()) + ")");
+    check(pool.recycledCount() >= 45, "the rest came off the free list");
+    check(pool.freeCount() <= 3, "and the free list stays the size of the working set");
+}
+
+void testPooledObjectsComeBackFresh() {
+    section("10.1  a recycled object is reset, not handed back spent");
+
+    ObjectPool<Fireball> pool;
+    auto first = pool.acquire(sf::Vector2f{10.0f, 20.0f}, sf::Vector2f{200.0f, 0.0f});
+    Fireball* raw = first.get();
+
+    // Spend it completely: four bounces start the burst, and the burst ends it.
+    for (int i = 0; i < 4; ++i) first->bounce();
+    for (int i = 0; i < 30; ++i) first->update(1.0f / 60.0f);
+    check(!first->isActive() && first->getBouncesLeft() <= 0, "the first shot is spent");
+
+    pool.release(std::move(first));
+    auto second = pool.acquire(sf::Vector2f{99.0f, 5.0f}, sf::Vector2f{-200.0f, 0.0f});
+
+    check(second.get() == raw, "the same object comes back — that is the point");
+    check(second->isActive(), "and it is alive again");
+    check(second->getBouncesLeft() == 4, "with its bounces restored");
+    check(!second->isImpacting(),
+          "and not mid-burst — the animator survives recycling, so a shot that "
+          "was not rewound would spawn already exploding");
+    check(second->getPosition().x == 99.0f, "at the position it was asked for");
+}
+
+void testPoolWillNotGrowWithoutBound() {
+    section("10.1  the free list is capped — a pool that never frees is a leak");
+
+    ObjectPool<Fireball> pool;
+    pool.setMaxRetained(4);
+    for (int i = 0; i < 40; ++i) {
+        pool.release(pool.acquire(sf::Vector2f{0.0f, 0.0f}, sf::Vector2f{0.0f, 0.0f}));
+    }
+    check(pool.freeCount() <= 4, "the free list respects its cap");
+}
+
 } // namespace
 
 int main() {
@@ -1407,6 +1469,9 @@ int main() {
     testMegaShrinksBackDown();
     testRebindingCannotStrandThePlayer();
     testSavesResolveToOneDirectory();
+    testObjectPoolRecyclesInsteadOfAllocating();
+    testPooledObjectsComeBackFresh();
+    testPoolWillNotGrowWithoutBound();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

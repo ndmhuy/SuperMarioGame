@@ -16,6 +16,23 @@ Fireball::Fireball(sf::Vector2f pos, sf::Vector2f vel)
     velocity = vel;
 }
 
+void Fireball::resetForPool(sf::Vector2f pos, sf::Vector2f vel) {
+    position = pos;
+    velocity = vel;
+    boundingBox.x = pos.x;
+    boundingBox.y = pos.y;
+    m_lifetime = 3.0f;
+    m_bouncesLeft = 4;
+    m_animTimer = 0.0f;
+    m_impactTimer = 0.0f;
+    active = true;
+    // The animator survives recycling, but it is mid-burst; rewind it or the
+    // reused shot spawns already exploding.
+    if (m_animator && m_hasAnimation) {
+        m_animator->play(&m_flightAnim);
+    }
+}
+
 void Fireball::setupAnimations(const SpriteSheet* spriteSheet) {
     if (!spriteSheet) return;
     m_animator = std::make_unique<Animator>(spriteSheet);

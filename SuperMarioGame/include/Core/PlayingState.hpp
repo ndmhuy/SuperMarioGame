@@ -19,6 +19,10 @@
 
 #include "Utils/MapGenerator.hpp"
 #include "Core/GameOverState.hpp"
+#include "Utils/ObjectPool.hpp"
+#include "Entities/Fireball.hpp"
+#include "Entities/Hammer.hpp"
+#include "Entities/BossFireball.hpp"
 
 class Boss;
 
@@ -171,6 +175,24 @@ private:
     // The single door every entity comes through on its way into the world:
     // wires its animations and applies the difficulty modifiers.
     void admitEntity(Entity* entity);
+
+    // --- Object pooling (task 10.1) --------------------------------------
+    // Projectiles are the churn: every shot was a heap allocation on spawn and
+    // a free on despawn. ParticleSystem was already pooled by hand — it has
+    // always kept a fixed slot array with an active flag — so it is deliberately
+    // left alone; wrapping it in this template would add allocation, not remove
+    // it.
+    ObjectPool<Fireball> m_fireballPool;
+    ObjectPool<Hammer> m_hammerPool;
+    ObjectPool<BossFireball> m_bossFireballPool;
+
+    // Builds a projectile from its pool, or from the factory for anything not
+    // pooled. One entry point, so a caller never has to know which is which.
+    std::unique_ptr<Entity> spawnProjectile(int entityType, sf::Vector2f position,
+                                            sf::Vector2f velocity);
+    // Offers a spent entity back to whichever pool owns its type. Anything else
+    // is simply destroyed, exactly as before.
+    void recycleEntity(std::unique_ptr<Entity> entity);
 
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet
     void wireEntityAnimations(Entity* entity);

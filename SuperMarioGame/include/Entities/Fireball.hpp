@@ -29,6 +29,11 @@ public:
 
     void bounce();
 
+    // Puts a recycled fireball back into its just-constructed state. Required by
+    // ObjectPool<Fireball>; the pool has no idea what "fresh" means for a
+    // fireball, and getting this wrong means a reused shot arrives already spent.
+    void resetForPool(sf::Vector2f pos, sf::Vector2f vel);
+
 private:
     // Every way a fireball ends goes through here: it stops moving, plays the
     // burst, and destroys itself once the burst is done. Calling destroy()

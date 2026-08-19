@@ -9,6 +9,16 @@ Hammer::Hammer(sf::Vector2f pos, sf::Vector2f vel) : Projectile(pos, {16.0f, 16.
     velocity = vel;
 }
 
+void Hammer::resetForPool(sf::Vector2f pos, sf::Vector2f vel) {
+    position = pos;
+    velocity = vel;
+    boundingBox.x = pos.x;
+    boundingBox.y = pos.y;
+    m_lifetime = 6.0f;
+    m_spin = 0.0f;
+    active = true;
+}
+
 void Hammer::setupAnimations(const SpriteSheet* spriteSheet) {
     if (!spriteSheet) return;
     m_animator = std::make_unique<Animator>(spriteSheet);

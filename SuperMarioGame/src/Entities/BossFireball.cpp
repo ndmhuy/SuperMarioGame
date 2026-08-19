@@ -11,6 +11,23 @@ BossFireball::BossFireball(sf::Vector2f position, sf::Vector2f velocity)
     m_travellingRight = velocity.x > 0.0f;
 }
 
+void BossFireball::resetForPool(sf::Vector2f pos, sf::Vector2f vel) {
+    position = pos;
+    velocity = vel;
+    boundingBox.x = pos.x;
+    boundingBox.y = pos.y;
+    m_lifetime = 4.0f;
+    active = true;
+
+    // Direction decides which half of the atlas pair is drawn, so it has to be
+    // recomputed — a recycled shot fired the other way would face backwards.
+    const bool wasTravellingRight = m_travellingRight;
+    m_travellingRight = velocity.x > 0.0f;
+    if (m_animator && m_hasAnimation && wasTravellingRight != m_travellingRight) {
+        m_hasAnimation = false;   // rebuilt on the next setupAnimations
+    }
+}
+
 void BossFireball::setupAnimations(const SpriteSheet* spriteSheet) {
     if (!spriteSheet) return;
     m_animator = std::make_unique<Animator>(spriteSheet);

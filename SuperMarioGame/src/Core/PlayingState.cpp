@@ -177,7 +177,7 @@ void PlayingState::enter() {
             sf::Vector2f spawnPos = player->getPosition() + sf::Vector2f(dir * 16.0f, 8.0f);
             sf::Vector2f vel(dir * 350.0f, 50.0f);
 
-            auto fireball = EntityFactory::createFireball(spawnPos, vel);
+            auto fireball = m_fireballPool.acquire(spawnPos, vel);
             // Was pushed straight onto the list, so it never had its animations
             // wired and fell back to hand-drawn circles every time.
             admitEntity(fireball.get());
@@ -267,7 +267,7 @@ void PlayingState::enter() {
         // Keep a lid on projectiles so a long fight cannot flood the world.
         if (m_entities.size() >= 400) return;
 
-        auto spawned = EntityFactory::create(static_cast<EntityType>(request.type), request.position);
+        auto spawned = spawnProjectile(request.type, request.position, request.velocity);
         if (!spawned) return;
         spawned->setVelocity(request.velocity);
         admitEntity(spawned.get());
@@ -485,13 +485,21 @@ void PlayingState::update(float dt) {
     // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
 
-    // 3b. Prune inactive entities (keep m_player intact even if inactive)
-    m_entities.erase(
-        std::remove_if(m_entities.begin(), m_entities.end(), [this](const std::unique_ptr<Entity>& entity) {
-            return entity && !entity->isActive() && entity.get() != m_player;
-        }),
-        m_entities.end()
-    );
+    // 3b. Prune inactive entities (keep m_player intact even if inactive).
+    //
+    // stable_partition rather than remove_if: remove_if leaves the tail in a
+    // moved-from state, so the dead objects are already gone by the time we
+    // could offer them to a pool. Partitioning permutes instead, so the tail
+    // holds the real entities and pooled types can be recycled (task 10.1).
+    auto deadBegin = std::stable_partition(
+        m_entities.begin(), m_entities.end(), [this](const std::unique_ptr<Entity>& entity) {
+            const bool dead = entity && !entity->isActive() && entity.get() != m_player;
+            return !dead;
+        });
+    for (auto it = deadBegin; it != m_entities.end(); ++it) {
+        recycleEntity(std::move(*it));
+    }
+    m_entities.erase(deadBegin, m_entities.end());
 
     // 3c. Void fall — one shared death path, so the timer and the pit agree.
     const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
@@ -1260,6 +1268,42 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     newPlayer->restoreStats(oldLives, oldCoins, oldScore);
 
     adoptPlayer(std::move(newPlayer));
+}
+
+std::unique_ptr<Entity> PlayingState::spawnProjectile(int entityType, sf::Vector2f position,
+                                                      sf::Vector2f velocity) {
+    switch (static_cast<EntityType>(entityType)) {
+        case EntityType::Hammer:
+            return m_hammerPool.acquire(position, velocity);
+        case EntityType::BossFireball:
+            return m_bossFireballPool.acquire(position, velocity);
+        default:
+            // Not a pooled type — the factory stays the single construction
+            // point for everything else.
+            return EntityFactory::create(static_cast<EntityType>(entityType), position);
+    }
+}
+
+void PlayingState::recycleEntity(std::unique_ptr<Entity> entity) {
+    if (!entity) return;
+
+    // The cast has to happen before release(), and the raw pointer has to be
+    // re-wrapped in a typed unique_ptr: the pool stores concrete types so it can
+    // call resetForPool on them.
+    if (dynamic_cast<Fireball*>(entity.get())) {
+        m_fireballPool.release(std::unique_ptr<Fireball>(static_cast<Fireball*>(entity.release())));
+        return;
+    }
+    if (dynamic_cast<Hammer*>(entity.get())) {
+        m_hammerPool.release(std::unique_ptr<Hammer>(static_cast<Hammer*>(entity.release())));
+        return;
+    }
+    if (dynamic_cast<BossFireball*>(entity.get())) {
+        m_bossFireballPool.release(
+            std::unique_ptr<BossFireball>(static_cast<BossFireball*>(entity.release())));
+        return;
+    }
+    // Everything else dies here, exactly as it did before pooling existed.
 }
 
 void PlayingState::admitEntity(Entity* entity) {

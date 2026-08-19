@@ -35,6 +35,9 @@ public:
     // Hammers pass through terrain — they are thrown over gaps and platforms.
     bool collidesWithTiles() const override { return false; }
 
+    // See Fireball::resetForPool.
+    void resetForPool(sf::Vector2f pos, sf::Vector2f vel);
+
 private:
     float m_lifetime = 6.0f;
     float m_spin = 0.0f;
