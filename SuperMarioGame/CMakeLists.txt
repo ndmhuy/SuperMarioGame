@@ -555,3 +555,20 @@ target_link_libraries(generate_game_levels PRIVATE
 # This target is the guard against that recurring. Keep it headless so CI can
 # run it without a display.
 add_verify_test(verify_regressions "tests/verify_regressions.cpp")
+
+# ---------------------------------------------------------
+# 19. Asset synchronisation
+# ---------------------------------------------------------
+# The executable runs with the build directory as its working directory and
+# resolves "assets/..." relative to it. Without this step build/assets was a
+# stale hand-made copy holding only levels/: the game read out-of-date level
+# data, and audio and textures only loaded because ResourceManager::resolvePath
+# walks back up into the source tree. A packaged build would have been silent
+# and textureless.
+#
+# Copying after every build keeps one source of truth in the source tree.
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+    COMMENT "Syncing assets/ into the build directory")

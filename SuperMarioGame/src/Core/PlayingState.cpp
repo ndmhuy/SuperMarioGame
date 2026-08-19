@@ -31,6 +31,8 @@
 #include "Entities/CapeFeather.hpp"
 #include "Entities/MegaMushroom.hpp"
 #include "Entities/MiniMushroom.hpp"
+#include "Entities/OneUpMushroom.hpp"
+#include "Entities/QuestionBlock.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/EntityFactory.hpp"
 #include "Core/SoundManager.hpp"
@@ -225,14 +227,17 @@ void PlayingState::enter() {
         if (!ev.data.has_value() || ev.data.type() != typeid(PowerUpRequest)) return;
         const auto request = std::any_cast<PowerUpRequest>(ev.data);
 
+        // The one place QuestionBlock::Content is translated into an entity.
         std::unique_ptr<Entity> item;
         switch (request.itemType) {
-            case 1:  item = std::make_unique<FireFlower>(request.spawnPosition);   break;
-            case 2:  item = std::make_unique<CapeFeather>(request.spawnPosition);  break;
-            case 3:  item = std::make_unique<MiniMushroom>(request.spawnPosition); break;
-            case 4:  item = std::make_unique<Star>(request.spawnPosition);         break;
-            case 5:  item = std::make_unique<MegaMushroom>(request.spawnPosition); break;
-            default: item = std::make_unique<Mushroom>(request.spawnPosition);     break;
+            case QuestionBlock::FireFlower:   item = std::make_unique<FireFlower>(request.spawnPosition);   break;
+            case QuestionBlock::CapeFeather:  item = std::make_unique<CapeFeather>(request.spawnPosition);  break;
+            case QuestionBlock::Star:         item = std::make_unique<Star>(request.spawnPosition);         break;
+            case QuestionBlock::MiniMushroom: item = std::make_unique<MiniMushroom>(request.spawnPosition); break;
+            case QuestionBlock::MegaMushroom: item = std::make_unique<MegaMushroom>(request.spawnPosition); break;
+            case QuestionBlock::OneUp:        item = std::make_unique<OneUpMushroom>(request.spawnPosition);break;
+            case QuestionBlock::Mushroom:
+            default:                          item = std::make_unique<Mushroom>(request.spawnPosition);     break;
         }
         wireEntityAnimations(item.get());
         m_entities.push_back(std::move(item));

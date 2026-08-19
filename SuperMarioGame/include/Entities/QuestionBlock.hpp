@@ -6,8 +6,24 @@
 
 class QuestionBlock : public Block {
 public:
-    // itemType: 0 = Coin, 1 = Mushroom, 2 = FireFlower, 3 = Star, 4 = OneUp
-    explicit QuestionBlock(sf::Vector2f position, int itemType = 0);
+    // What a question block holds. These ids appear verbatim as "itemType" in the
+    // level JSON, so they are part of the save format — append, never renumber.
+    //
+    // Deliberately its own id space: Player::powerUp() uses a different set of
+    // ids and has no notion of a coin. PlayingState's spawn listener maps between
+    // them in exactly one place.
+    enum Content : int {
+        Coin        = 0,   // dispensed inline, no entity spawned
+        Mushroom    = 1,
+        FireFlower  = 2,
+        CapeFeather = 3,
+        Star        = 4,
+        MiniMushroom= 5,
+        MegaMushroom= 6,
+        OneUp       = 7
+    };
+
+    explicit QuestionBlock(sf::Vector2f position, int itemType = Content::Coin);
     ~QuestionBlock() override = default;
 
     std::string getTypeName() const override { return "question_block"; }
@@ -17,6 +33,7 @@ public:
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     int getItemType() const { return m_containedItemType; }
+    int getContainedItemType() const { return m_containedItemType; }
     bool isEmpty() const { return m_isEmpty; }
 
 private:
