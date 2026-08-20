@@ -379,6 +379,12 @@ def analyse(level: Level) -> dict:
         "hardestOptional": round(hardest_optional, 4),
         "slackAtGoal": round(1.0 - required, 4),
         "routeLength": len(route),
+        # The winning route itself, in WORLD tile coordinates (band offset
+        # already applied). Each node is a foothold the kindest route stands
+        # on, in order from spawn to goal. This is what the game feeds into
+        # the agent's goal channel: dxToGoal/dyToGoal point at the next node
+        # of a certified path instead of at the map's right edge.
+        "route": [[x, y + lt.BAND_TOP] for (x, y) in route],
         "bottleneck": _bottleneck(labels, parents, route),
     }
 
@@ -425,18 +431,51 @@ def render(level: Level) -> str:
     return "\n".join(out)
 
 
+def write_waypoints(level_path: str, report: dict) -> str:
+    """Write the certified route next to the level as `<stem>.waypoints.json`.
+
+    Pixel coordinates target the player's FEET: x is the tile centre, y is the
+    bottom edge of the foothold tile — the exact place a standing player's feet
+    rest. AIController compares these against its own feet position, so both
+    sides speak the same point on the body.
+    """
+    path = Path(level_path)
+    out = path.with_name(path.stem + ".waypoints.json")
+    waypoints = [{"x": (tx + 0.5) * TILE, "y": (ty + 1.0) * TILE}
+                 for tx, ty in report.get("route", [])]
+    out.write_text(json.dumps({
+        "version": 1,
+        "source": "tools/solvability.py",
+        "level": path.name,
+        "winnable": report["winnable"],
+        "requiredDifficulty": report["requiredDifficulty"],
+        "waypoints": waypoints,
+    }, indent=1) + "\n")
+    return str(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("levels", nargs="+")
     p.add_argument("--json", action="store_true", help="full report per level")
     p.add_argument("--render", action="store_true", help="ascii reachability map")
+    p.add_argument("--waypoints", action="store_true",
+                   help="write <level>.waypoints.json sidecar next to each level")
     args = p.parse_args(argv)
 
     failures = 0
     for path in args.levels:
         level = Level.load(path)
         report = analyse(level)
+        if args.waypoints:
+            if report["winnable"]:
+                print(f"  wrote {write_waypoints(path, report)}"
+                      f"  ({report['routeLength']} nodes)")
+            else:
+                failures += 1
+                print(f"  BROKEN — no sidecar for {path}")
+            continue
         if args.render:
             print(f"=== {path} ===")
             print(render(level))

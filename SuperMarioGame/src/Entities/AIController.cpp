@@ -113,8 +113,18 @@ const char* AIController::policyName() const {
     return m_policy ? m_policy->name() : "NONE";
 }
 
+void AIController::setWaypoints(std::vector<sf::Vector2f> waypoints) {
+    m_waypoints = std::move(waypoints);
+    m_waypointIndex = 0;
+}
+
 void AIController::reset() {
     m_decisionTimer = 0.0f;
+    // A respawn puts the agent back at the start of the route, and re-arms
+    // route guidance if the previous life lost it.
+    m_waypointIndex = 0;
+    m_waypointStallSeconds = 0.0f;
+    m_routeLost = false;
     m_action = AIAction{};
     m_reason = "idle";
     m_observation.grid.fill(AICellState::Unknown);
@@ -232,14 +242,67 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
     }
 
     // --- Scalars -------------------------------------------------------------
-    // The objective is the right-hand end of the level. Nothing in the level
-    // format marks the exit, and every campaign level runs left to right, so the
-    // map's right edge is the honest answer rather than a guess.
-    const float goalX = static_cast<float>(tileMap.getWidth()) * Constants::TILE_SIZE;
     const float normalizer = static_cast<float>(kAIVisionWidth / 2) * Constants::TILE_SIZE;
 
-    m_observation.dxToGoal = std::clamp((goalX - feet.x) / normalizer, -1.0f, 1.0f);
-    m_observation.dyToGoal = 0.0f;
+    // The objective. With no waypoints, it is the right-hand end of the level:
+    // nothing in the level format marks the exit, every campaign level runs
+    // left to right, and the right edge is the honest answer rather than a
+    // guess — but it is a DEGENERATE answer, "rightward, always", and it made
+    // dyToGoal a dead input for the network and the goal pull blind for the
+    // heuristic. With waypoints (the solvability oracle's certified route, see
+    // AIWaypoints.hpp), the goal is a node a few footholds ahead on a path
+    // that provably reaches the flag: dx can point LEFT when the route
+    // backtracks, and dy says "climb here" before the wall is in view.
+    sf::Vector2f goal{static_cast<float>(tileMap.getWidth()) * Constants::TILE_SIZE,
+                      feet.y};
+    if (!m_waypoints.empty() && !m_routeLost) {
+        // Consume nodes the agent has reached (within 1.25 tiles of the feet
+        // target) or passed (a full tile beyond it, in the direction the route
+        // is locally travelling — the guard matters because certified routes
+        // are allowed to backtrack, and an unguarded "x is beyond" would skip
+        // the whole leftward leg).
+        constexpr float kReachedPx = 40.0f;
+        while (m_waypointIndex + 1 < m_waypoints.size()) {
+            const sf::Vector2f& node = m_waypoints[m_waypointIndex];
+            const sf::Vector2f d{node.x - feet.x, node.y - feet.y};
+            const bool reached = d.x * d.x + d.y * d.y < kReachedPx * kReachedPx;
+            const bool rightward = m_waypoints[m_waypointIndex + 1].x >= node.x;
+            // Passing in x only counts if the agent is AT the node's height
+            // (or above it). Without the height check, walking along the
+            // ground under a hill "passed" every node on top of the hill —
+            // the index ran 10+ tiles ahead, dxToGoal saturated at 1.0, and
+            // the climb the route was trying to signal was consumed unseen.
+            const bool atHeight = node.y - feet.y > -1.5f * Constants::TILE_SIZE;
+            const bool passed = atHeight &&
+                                (rightward
+                                     ? feet.x > node.x + Constants::TILE_SIZE
+                                     : feet.x < node.x - Constants::TILE_SIZE);
+            if (!reached && !passed) break;
+            ++m_waypointIndex;
+            m_waypointStallSeconds = 0.0f;
+        }
+        // The goal is the first UNCONSUMED node — never a node beyond it. A
+        // lookahead was tried here (aim 3 nodes ahead, for a smoother pull)
+        // and it broke the one signal this channel exists to carry: a jump is
+        // a single route edge, so "3 nodes ahead" at a climb is the far side
+        // of the jump, 10+ tiles away — dx saturated at 1.0 exactly where dy
+        // was supposed to say "climb here". On flat walking the unconsumed
+        // node is only a tile ahead and dx is small; small-but-correct beats
+        // smooth-but-wrong.
+        goal = m_waypoints[m_waypointIndex];
+        constexpr float kRouteLostSeconds = 8.0f;
+        if (m_waypointStallSeconds > kRouteLostSeconds) {
+            m_routeLost = true;
+            goal = {static_cast<float>(tileMap.getWidth()) * Constants::TILE_SIZE,
+                    feet.y};
+        }
+    }
+
+    m_observation.dxToGoal = std::clamp((goal.x - feet.x) / normalizer, -1.0f, 1.0f);
+    m_observation.dyToGoal =
+        m_waypoints.empty()
+            ? 0.0f
+            : std::clamp((goal.y - feet.y) / normalizer, -1.0f, 1.0f);
 
     if (opponent) {
         const sf::Vector2f delta = opponent->getPosition() - m_player.getPosition();
@@ -329,6 +392,10 @@ void AIController::update(float dt, const Player* opponent, const TileMap& tileM
     // *consumed* when a decision is made, so a transition carries everything
     // that happened while the previous action was in effect.
     if (m_learning) m_reward.observe(m_player.getPosition());
+
+    // The route-lost clock: scanEnvironment() zeroes this whenever the route
+    // index advances, so it only accumulates while the plan is going nowhere.
+    if (!m_waypoints.empty() && !m_routeLost) m_waypointStallSeconds += dt;
 
     m_decisionTimer -= dt;
     if (m_decisionTimer <= 0.0f) {

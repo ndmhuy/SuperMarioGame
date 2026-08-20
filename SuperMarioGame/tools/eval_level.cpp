@@ -33,6 +33,7 @@
 #include "Core/GameMode.hpp"
 #include "Core/SoundManager.hpp"
 #include "Entities/AIController.hpp"
+#include "Entities/AIWaypoints.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/NeuralPolicy.hpp"
 #include "Entities/Player.hpp"
@@ -292,8 +293,12 @@ int main(int argc, char** argv) {
     // the controller is rebuilt around the new player, exactly as the game
     // rebuilds it on level load.
     std::optional<AIController> controller;
+    // Loaded once, applied on every (re)build — a respawned controller must
+    // not silently lose the route guidance the first one had.
+    const std::vector<sf::Vector2f> waypoints = loadAIWaypoints(opt.levelPath);
     const auto buildController = [&](Player& forPlayer) -> bool {
         controller.emplace(forPlayer, opt.difficulty, opt.archetype);
+        controller->setWaypoints(waypoints);
         if (!opt.weightsPath.empty()) {
             auto net = std::make_unique<NeuralPolicy>();
             if (!net->load(opt.weightsPath)) {
@@ -372,6 +377,7 @@ int main(int argc, char** argv) {
                       << " " << b.width << "x" << b.height
                       << "  up=" << tile(0, -1) << " right=" << tile(1, 0)
                       << " upright=" << tile(1, -1) << " down=" << tile(0, 1)
+                      << "  goal=" << obs.dxToGoal << "," << obs.dyToGoal
                       << "  " << controller->reason() << "\n";
         }
 
@@ -408,7 +414,14 @@ int main(int argc, char** argv) {
         const sf::Vector2f pos = player->getPosition();
         if (pos.x > furthestX) {
             furthestX = pos.x;
-            report.maxProgressX = furthestX;
+            // Max across ALL lives. furthestX itself resets on respawn (it has
+            // to — stall detection is per-life), and this line used to copy it
+            // straight in, so the report ended up describing whichever episode
+            // happened to be running when time expired — usually a truncated
+            // one. bonus_1 measured 9.2% while every one of its 89 full
+            // episodes reached 17.7%: the reported number was the 113-frame
+            // leftover after the last death, not the run.
+            report.maxProgressX = std::max(report.maxProgressX, furthestX);
             stallTime = 0.0f;
         } else {
             stallTime += kDt;

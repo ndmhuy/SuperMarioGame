@@ -90,6 +90,14 @@ public:
     // Forget per-episode state — called on respawn and on level load.
     void reset();
 
+    // Certified-route guidance (A/mapgen-gan-plan). When set, the observation's
+    // goal channel follows these waypoints — the footholds of the solvability
+    // oracle's proven route (see AIWaypoints.hpp) — instead of pointing at the
+    // map's right edge. dyToGoal becomes meaningful for the first time: it says
+    // "the route climbs here" before the wall is even in strike range.
+    // An empty vector restores the shipped right-edge behaviour.
+    void setWaypoints(std::vector<sf::Vector2f> waypoints);
+
     // --- Reinforcement learning (A/rl-neural-policy) ------------------------
     //
     // Off by default and inert until switched on, so an ordinary match pays
@@ -138,6 +146,19 @@ private:
 
     float m_decisionTimer = 0.0f;
     bool m_paused = false;
+
+    // The oracle's certified route, in feet-pixel coordinates, and how far
+    // along it the agent has got. Empty means no sidecar: right-edge goal.
+    std::vector<sf::Vector2f> m_waypoints;
+    std::size_t m_waypointIndex = 0;
+    // Seconds since the route index last advanced. A route is a plan, and a
+    // plan the agent has fallen off is worse than no plan: the unconsumed node
+    // hangs overhead, unreachable, and every goal-following behaviour turns
+    // into wall-bashing. After kRouteLostSeconds of zero route progress the
+    // controller abandons the route for THIS LIFE and reverts to the
+    // right-edge goal; reset() re-arms it.
+    float m_waypointStallSeconds = 0.0f;
+    bool m_routeLost = false;
 
     AIObservation m_observation;
     // The decision is held between decisions: at Easy's 400ms latency the bot

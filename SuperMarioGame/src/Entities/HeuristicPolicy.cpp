@@ -229,6 +229,28 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     if (m_escapeTicks > 0) {
         direction = m_escapeDirection;
         --m_escapeTicks;
+        // Escape overrides the utility sum — including its caution term — so
+        // an escaping bot walked blind. On level_3 that was fatal, repeatedly:
+        // pinned at the wall after the lava trough, it backed off LEFT, over
+        // the trough, and the hazard probes above only look one row down — a
+        // ledge with lava four tiles below it reads as safe. Scan the floor of
+        // the next two columns instead: if the first thing under either is
+        // Hazard, this escape ends at a cliff edge over lava, and continuing
+        // is not "backing off", it is drowning. End it and turn round.
+        auto lethalDropAhead = [&](int dir) {
+            for (int step = 1; step <= 2; ++step) {
+                for (int dy = 1; dy <= 5; ++dy) {
+                    const AICellState below = obs.at(dir * step, dy);
+                    if (below == AICellState::Hazard) return true;
+                    if (below == AICellState::Solid) break;   // safe floor first
+                }
+            }
+            return false;
+        };
+        if (lethalDropAhead(direction)) {
+            m_escapeTicks = 0;
+            direction = -direction;
+        }
     }
 
     if (direction != m_lastDirection) {
@@ -274,8 +296,18 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     // all the others, so it is gone; the walk-speed arc crosses every pit the
     // old policy crossed.
     const bool launchJump = gap && raisedGroundAhead(obs, direction);
+    // The certified route climbs here. dyToGoal is zero unless waypoints are
+    // loaded (AIController::setWaypoints), so this trigger is inert in the
+    // shipped game. With them, it fires when the next route node is more than
+    // a tile above and roughly overhead — which is knowledge the reactive
+    // triggers cannot have: a platform the route climbs onto may hold no wall,
+    // no gap and no reward, and every trigger above stays silent while the
+    // agent walks under it. One tile is dy = -0.1 at the vision normalizer, so
+    // -0.12 means "meaningfully above", not jitter.
+    const bool routeClimbs = obs.dyToGoal < -0.12f && std::abs(obs.dxToGoal) < 0.35f;
 
     if (obs.canJump && (climbableWall || gap || stompable || mustClear ||
+                        routeClimbs ||
                         (rewardAbove && m_weights.reward > 0.5f))) {
         action.jump = true;
     }
@@ -312,6 +344,8 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
         m_lastReason = "backing off";
     } else if (launchJump) {
         m_lastReason = "launch jump";
+    } else if (routeClimbs) {
+        m_lastReason = "route climbs";
     } else if (gap) {
         m_lastReason = "crossing gap";
     } else if (mustClear) {

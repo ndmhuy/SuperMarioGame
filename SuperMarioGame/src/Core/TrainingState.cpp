@@ -2,6 +2,7 @@
 
 #include "Core/Game.hpp"
 #include "Core/SoundManager.hpp"
+#include "Entities/AIWaypoints.hpp"
 #include "Entities/BorrowedPolicy.hpp"
 #include "Entities/HeuristicPolicy.hpp"
 #include "Entities/RewardTracker.hpp"
@@ -109,6 +110,8 @@ void TrainingState::startEpisode() {
 
     m_agent = std::make_unique<AIController>(*m_player, AIDifficulty::Hard,
                                              AIArchetype::Speedrunner);
+    // Route guidance from the solvability sidecar, if the level has one.
+    m_agent->setWaypoints(loadAIWaypoints(m_levelPath));
     // Who drives this episode. Early on the teacher does, so the learner sees
     // competent play; as beta decays the learner drives and the teacher is
     // demoted to labelling whatever states the learner blunders into — which is

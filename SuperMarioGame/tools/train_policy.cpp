@@ -20,6 +20,7 @@
 #include "Core/GameMode.hpp"
 #include "Core/SoundManager.hpp"
 #include "Entities/AIController.hpp"
+#include "Entities/AIWaypoints.hpp"
 #include "Entities/BorrowedPolicy.hpp"
 #include "Entities/HeuristicPolicy.hpp"
 #include "Entities/Mario.hpp"
@@ -111,6 +112,15 @@ int main(int argc, char** argv) {
     LevelLoader loader;
     PhysicsEngine physics;
 
+    // The oracle's certified route for this level, if the sidecar exists.
+    // Applied to every episode's controller; empty falls back to the
+    // right-edge goal, so a missing sidecar degrades rather than breaks.
+    const std::vector<sf::Vector2f> waypoints = loadAIWaypoints(opt.levelPath);
+    std::cerr << "[train] waypoints: "
+              << (waypoints.empty() ? "none (right-edge goal)"
+                                    : std::to_string(waypoints.size()) + " nodes")
+              << std::endl;
+
     const auto wallStart = std::chrono::steady_clock::now();
     int completions = 0;
     double progressSum = 0.0;
@@ -136,6 +146,7 @@ int main(int argc, char** argv) {
         Game::getInstance().setTileMap(&tileMap);
 
         AIController agent(*player, AIDifficulty::Hard, AIArchetype::Speedrunner);
+        agent.setWaypoints(waypoints);
         const bool teacherDrives = trainer.teacherDrives();
         IAIPolicy& driver = teacherDrives ? static_cast<IAIPolicy&>(teacherPolicy)
                                           : static_cast<IAIPolicy&>(policy);
