@@ -39,6 +39,11 @@ public:
 
     // Game State stack wrappers (Encapsulation of GameStateManager)
     void pushState(std::unique_ptr<IGameState> state);
+
+    // `--train [levelIndex]`: launch straight into TrainingState instead of the
+    // menu, so a training session can be started from a terminal (or by an
+    // agent) without clicking through the front end. -1 means a normal launch.
+    void setLaunchTraining(int levelIndex) { m_launchTrainingLevel = levelIndex; }
     void popState();
     void changeState(std::unique_ptr<IGameState> state);
 
@@ -150,6 +155,7 @@ private:
     int m_activeSlot = 1;
     float m_sfxVolume = 80.0f;
     float m_musicVolume = 60.0f;
+    int m_launchTrainingLevel = -1;
     std::string m_difficulty = "normal";
     std::unique_ptr<IDifficultyStrategy> m_difficultyStrategy;
     std::unordered_map<std::string, std::string> m_keyBindings;

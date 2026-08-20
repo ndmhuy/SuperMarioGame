@@ -84,6 +84,14 @@ private:
 
     // Episode bookkeeping
     float m_episodeTime = 0.0f;
+    // Level rotation: one campaign level per episode, in catalog order. The
+    // aggregation buffer then holds a MIX of levels, which is the domain
+    // randomization the single-level trainer could not provide — a policy
+    // trained on level_1 alone met its first Spiny at evaluation time.
+    int m_rotationIndex = 0;
+    // When the agent last chose to jump, for pricing a void death that
+    // followed a leap differently from one that followed a walk.
+    float m_lastJumpTime = -10.0f;
     float m_maxEpisodeSeconds = 60.0f;
     float m_furthestX = 0.0f;
     float m_stallTime = 0.0f;

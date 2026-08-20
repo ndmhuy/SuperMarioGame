@@ -31,9 +31,8 @@ constexpr float kStuckSeconds = 4.0f;
 }
 
 TrainingState::TrainingState(int levelIndex) {
-    m_levelPath = LevelCatalog::isValidIndex(levelIndex)
-                      ? LevelCatalog::pathFor(levelIndex)
-                      : LevelCatalog::pathFor(0);
+    m_rotationIndex = LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0;
+    m_levelPath = LevelCatalog::pathFor(m_rotationIndex);
 }
 
 TrainingState::~TrainingState() = default;
@@ -89,6 +88,11 @@ void TrainingState::exit() {
 }
 
 void TrainingState::startEpisode() {
+    // Next campaign level, round-robin. Every episode trains on a different
+    // level, so the replay buffer is never a monoculture.
+    m_levelPath = LevelCatalog::pathFor(m_rotationIndex);
+    m_rotationIndex = (m_rotationIndex + 1) % LevelCatalog::count();
+
     m_entities.clear();
     m_levelData = LevelData{};
     if (!m_loader.loadLevel(m_levelPath, m_tileMap, m_levelData)) {
@@ -129,6 +133,7 @@ void TrainingState::startEpisode() {
     m_camera.snapTo(m_player->getPosition());
 
     m_episodeTime = 0.0f;
+    m_lastJumpTime = -10.0f;
     m_furthestX = m_player->getPosition().x;
     m_stallTime = 0.0f;
 }
@@ -206,6 +211,7 @@ void TrainingState::update(float dt) {
             m_entities.end());
 
         m_episodeTime += h;
+        if (m_agent->lastAction().jump) m_lastJumpTime = m_episodeTime;
 
         const sf::Vector2f position = m_player->getPosition();
         if (position.x > m_furthestX) {
@@ -216,7 +222,18 @@ void TrainingState::update(float dt) {
         }
 
         const float bottomVoid = m_tileMap.getHeight() * Constants::TILE_SIZE + 32.0f;
-        if (position.y > bottomVoid || m_player->isDying() || m_player->getLives() <= 0) {
+        const bool inVoid = position.y > bottomVoid;
+        if (inVoid || m_player->isDying() || m_player->getLives() <= 0) {
+            // A void death that FOLLOWED a leap carries the extra fine: the
+            // jump was the mistake, and it should cost more than the same
+            // death arrived at by being cornered. Fed to the trainer before
+            // the episode closes, or the reinforcement return never sees it.
+            if (inVoid && m_episodeTime - m_lastJumpTime < 1.5f) {
+                m_reward.add(m_reward.weights().voidJumpDeath);
+                if (m_trainer->mode() == PolicyTrainer::Mode::Reinforce) {
+                    m_trainer->recordReward(m_reward.consume());
+                }
+            }
             finishEpisode("died");
             return;
         }

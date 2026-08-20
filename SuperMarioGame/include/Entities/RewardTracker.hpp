@@ -28,6 +28,12 @@ public:
         float levelComplete = 100.0f;
         float damaged = -10.0f;
         float died = -50.0f;
+        // Extra fine, ON TOP of `died`, for dying in the void off a JUMP —
+        // leaping into a pit is a chosen risk in a way that being caught by an
+        // enemy is not, and pricing it separately teaches "walk to the edge
+        // and look" without pricing exploration itself (which a bigger flat
+        // death penalty does — measured: it teaches standing still).
+        float voidJumpDeath = -8.0f;
         // Per pixel of rightward progress. Small, because it is paid every step
         // and would otherwise dwarf everything else — but non-zero, because
         // without it an agent that stands still is never told it is wrong.
@@ -60,8 +66,12 @@ public:
     Weights& weights() { return m_weights; }
     const Weights& weights() const { return m_weights; }
 
-private:
+    // Bank an out-of-band reward event — the trainer uses it for penalties
+    // only it can attribute, like the void-after-a-jump fine. Flows into the
+    // same accumulator the event subscriptions feed.
     void add(float amount);
+
+private:
 
     Weights m_weights;
     float m_pending = 0.0f;

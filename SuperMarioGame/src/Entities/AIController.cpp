@@ -398,6 +398,7 @@ void AIController::applyNoise(AIAction& action) {
 
 void AIController::overrideAction(const AIAction& action) {
     m_action = action;
+    m_lastDecided = action;
     actuate();
 }
 
@@ -466,6 +467,7 @@ void AIController::update(float dt, const Player* opponent, const TileMap& tileM
         // decided at the end of one window is not silently dropped by the next.
         decided.jump = decided.jump || m_action.jump;
         m_action = decided;
+        m_lastDecided = decided;
 
         if (auto* heuristic = dynamic_cast<HeuristicPolicy*>(m_policy.get())) {
             m_reason = heuristic->lastReason();

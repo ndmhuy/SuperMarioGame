@@ -1,5 +1,6 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
+#include "Core/TrainingState.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/InputManager.hpp"
 #include "Core/ResourceManager.hpp"
@@ -75,7 +76,11 @@ void Game::run() {
     // the load had been dead for a long time.
 
     // Push initial menu state
-    m_gsm.pushState(std::make_unique<MenuState>());
+    if (m_launchTrainingLevel >= 0) {
+        m_gsm.pushState(std::make_unique<TrainingState>(m_launchTrainingLevel));
+    } else {
+        m_gsm.pushState(std::make_unique<MenuState>());
+    }
 
     sf::Clock clock;
     float lag = 0.0f;

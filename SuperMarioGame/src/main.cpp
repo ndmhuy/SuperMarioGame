@@ -1,5 +1,6 @@
 #include "Core/Game.hpp"
 
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 
@@ -14,6 +15,12 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
             if (!Game::getInstance().loadInputScript(argv[++i])) return 1;
+        } else if (std::strcmp(argv[i], "--train") == 0) {
+            // Straight into the training view. Optional level index follows;
+            // episodes rotate through the whole campaign from there.
+            int level = 0;
+            if (i + 1 < argc && argv[i + 1][0] != '-') level = std::atoi(argv[++i]);
+            Game::getInstance().setLaunchTraining(level);
         } else {
             std::cerr << "[main] Ignoring unrecognised argument '" << argv[i] << "'."
                       << std::endl;

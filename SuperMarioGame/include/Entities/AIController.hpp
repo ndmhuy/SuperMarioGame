@@ -62,7 +62,12 @@ public:
     // without having to call decide() a second time — which would advance the
     // heuristic's internal commit/escape counters twice per decision and
     // quietly change its behaviour.
-    const AIAction& lastAction() const { return m_action; }
+    // Returns the decision as CHOSEN, not as consumed: actuate() zeroes the
+    // one-shot flags (jump, shoot, groundPound) inside m_action the frame they
+    // fire, and the trainer reads this after update() — returning m_action
+    // meant every teacher-driven imitation episode supervised "don't jump" on
+    // exactly the frames the teacher jumped.
+    const AIAction& lastAction() const { return m_lastDecided; }
 
     // Replace the decision for this frame and actuate it immediately.
     //
@@ -161,6 +166,7 @@ private:
     bool m_routeLost = false;
 
     AIObservation m_observation;
+    AIAction m_lastDecided;   // see lastAction()
     // The decision is held between decisions: at Easy's 400ms latency the bot
     // keeps holding whatever it last chose, which is what makes it feel slow to
     // react rather than paralysed.
