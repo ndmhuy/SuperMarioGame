@@ -300,6 +300,12 @@ set_source_files_properties(
 # window costs frame budget, pins the run to a visible desktop session, and caps
 # the simulation at whatever the renderer keeps up with — all wrong for a long
 # run, however right they are for watching one.
+add_executable(render_genome "tools/render_genome.cpp" ${APP_SOURCES})
+target_include_directories(render_genome PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(render_genome PRIVATE
+    SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
+    ImGui-SFML::ImGui-SFML nlohmann_json::nlohmann_json nn)
+
 add_executable(train_policy "tools/train_policy.cpp" ${APP_SOURCES})
 target_include_directories(train_policy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(train_policy PRIVATE

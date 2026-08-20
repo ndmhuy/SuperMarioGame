@@ -89,6 +89,7 @@ private:
     // randomization the single-level trainer could not provide — a policy
     // trained on level_1 alone met its first Spiny at evaluation time.
     int m_rotationIndex = 0;
+    std::vector<std::string> m_rotation;   // campaign + certified generated levels
     // When the agent last chose to jump, for pricing a void death that
     // followed a leap differently from one that followed a walk.
     float m_lastJumpTime = -10.0f;

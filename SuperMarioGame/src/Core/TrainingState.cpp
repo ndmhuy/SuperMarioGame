@@ -49,7 +49,13 @@ void TrainingState::enter() {
     if (m_policy->load(kImitationCheckpoint)) {
         std::cout << "[Training] Resumed from " << kImitationCheckpoint << std::endl;
     }
-    m_trainer = std::make_unique<PolicyTrainer>(*m_policy);
+    // Stay in DAgger imitation for the long haul. Imitation-with-aggregation
+    // is the algorithm with the positive result; REINFORCE here is a measured
+    // negative one, and the default 40-episode handoff would drop a freshly
+    // rotating 4-level run into it just as the buffer diversifies.
+    PolicyTrainer::Config trainerConfig;
+    trainerConfig.imitationEpisodes = 600;
+    m_trainer = std::make_unique<PolicyTrainer>(*m_policy, trainerConfig);
     m_trainer->openLog("saves/ai/training_log.csv");
     m_teacherPolicy = std::make_unique<HeuristicPolicy>(AIArchetype::Speedrunner);
 
@@ -66,6 +72,27 @@ void TrainingState::enter() {
     rewardWeights.timeStep = -0.02f;
 
     m_camera.setLookahead(140.0f);
+
+    // The rotation: every campaign level, plus every generated level the
+    // evolutionary pipeline kept (certified winnable by the oracle, sidecar
+    // present — tools/evolve.py writes both or neither). Generated levels are
+    // the domain randomization the campaign's four cannot provide.
+    m_rotation.clear();
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        m_rotation.push_back(LevelCatalog::pathFor(i));
+    }
+    std::error_code listError;
+    for (const auto& entry :
+         std::filesystem::directory_iterator("assets/levels/generated", listError)) {
+        const std::string path = entry.path().string();
+        if (entry.path().extension() != ".json") continue;
+        if (path.find(".waypoints.") != std::string::npos) continue;
+        if (entry.path().filename() == "manifest.json") continue;
+        m_rotation.push_back(path);
+    }
+    std::cout << "[Training] Rotating over " << m_rotation.size() << " levels."
+              << std::endl;
+
     startEpisode();
 }
 
@@ -88,10 +115,13 @@ void TrainingState::exit() {
 }
 
 void TrainingState::startEpisode() {
-    // Next campaign level, round-robin. Every episode trains on a different
-    // level, so the replay buffer is never a monoculture.
-    m_levelPath = LevelCatalog::pathFor(m_rotationIndex);
-    m_rotationIndex = (m_rotationIndex + 1) % LevelCatalog::count();
+    // Next level, round-robin. Every episode trains on a different level, so
+    // the replay buffer is never a monoculture.
+    if (!m_rotation.empty()) {
+        m_levelPath = m_rotation[static_cast<std::size_t>(m_rotationIndex)
+                                 % m_rotation.size()];
+        m_rotationIndex = (m_rotationIndex + 1) % static_cast<int>(m_rotation.size());
+    }
 
     m_entities.clear();
     m_levelData = LevelData{};

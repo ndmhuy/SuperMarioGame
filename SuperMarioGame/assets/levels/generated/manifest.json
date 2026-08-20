@@ -1,0 +1,110 @@
+[
+ {
+  "file": "evolved_00.json",
+  "fitness": 0.9566,
+  "genome": {
+   "pit": 0.2918601357412336,
+   "pipe": 0.1205117254623107,
+   "enemy": 0.15645080245484633,
+   "coin": 0.3597027894621398,
+   "rough": 0.22642613286066365,
+   "theme": "ice",
+   "difficulty": "hard",
+   "lava": false,
+   "moving": true,
+   "seed": 2124509219
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.7071
+ },
+ {
+  "file": "evolved_01.json",
+  "fitness": 0.808,
+  "genome": {
+   "pit": 0.14932036292204368,
+   "pipe": 0.08397258103045188,
+   "enemy": 0.13650101615227656,
+   "coin": 0.4,
+   "rough": 0.18161804444915639,
+   "theme": "castle",
+   "difficulty": "medium",
+   "lava": true,
+   "moving": false,
+   "seed": 946998794
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563
+ },
+ {
+  "file": "evolved_02.json",
+  "fitness": 0.793,
+  "genome": {
+   "pit": 0.2014104544932774,
+   "pipe": 0.0934272885755066,
+   "enemy": 0.3291121949072013,
+   "coin": 0.27714771764204416,
+   "rough": 0.30623564480370696,
+   "theme": "castle",
+   "difficulty": "easy",
+   "lava": true,
+   "moving": false,
+   "seed": 597619755
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563
+ },
+ {
+  "file": "evolved_03.json",
+  "fitness": 0.7855,
+  "genome": {
+   "pit": 0.1387267896787617,
+   "pipe": 0.057747415731558574,
+   "enemy": 0.36539117483363226,
+   "coin": 0.31097385415246004,
+   "rough": 0.38630678663821183,
+   "theme": "castle",
+   "difficulty": "easy",
+   "lava": true,
+   "moving": true,
+   "seed": 1353760741
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563
+ },
+ {
+  "file": "evolved_04.json",
+  "fitness": 0.772,
+  "genome": {
+   "pit": 0.1059149622346553,
+   "pipe": 0.07340426487158382,
+   "enemy": 0.07940217191184773,
+   "coin": 0.24004315844868307,
+   "rough": 0.2779576473122744,
+   "theme": "castle",
+   "difficulty": "medium",
+   "lava": true,
+   "moving": false,
+   "seed": 946998794
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563
+ },
+ {
+  "file": "evolved_05.json",
+  "fitness": 0.772,
+  "genome": {
+   "pit": 0.1723050290567235,
+   "pipe": 0.015016379155429582,
+   "enemy": 0.07672921422971579,
+   "coin": 0.3659080747504461,
+   "rough": 0.35255516482374016,
+   "theme": "castle",
+   "difficulty": "hard",
+   "lava": false,
+   "moving": false,
+   "seed": 1054413414
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563
+ }
+]

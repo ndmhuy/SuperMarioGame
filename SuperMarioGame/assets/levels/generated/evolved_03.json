@@ -1,0 +1,822 @@
+{
+    "entities": [
+        {
+            "type": "moving_platform",
+            "x": 22,
+            "y": 18
+        },
+        {
+            "type": "falling_platform",
+            "x": 71,
+            "y": 20
+        },
+        {
+            "type": "moving_platform",
+            "x": 79,
+            "y": 20
+        },
+        {
+            "type": "falling_platform",
+            "x": 90,
+            "y": 20
+        },
+        {
+            "type": "falling_platform",
+            "x": 112,
+            "y": 20
+        },
+        {
+            "type": "falling_platform",
+            "x": 153,
+            "y": 18
+        },
+        {
+            "type": "moving_platform",
+            "x": 172,
+            "y": 19
+        },
+        {
+            "type": "star_coin",
+            "x": 50,
+            "y": 16
+        },
+        {
+            "type": "star_coin",
+            "x": 100,
+            "y": 16
+        },
+        {
+            "type": "star_coin",
+            "x": 150,
+            "y": 14
+        },
+        {
+            "exitX": 104,
+            "exitY": 20,
+            "isEntrance": true,
+            "pipeId": 1,
+            "targetLevel": "assets/levels/level_3_sub.json",
+            "type": "pipe",
+            "x": 98,
+            "y": 19
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 100,
+            "y": 18
+        },
+        {
+            "type": "trampoline",
+            "x": 100,
+            "y": 20
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 31,
+            "y": 15
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 35,
+            "y": 15
+        },
+        {
+            "type": "piranha_plant",
+            "x": 43,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 52,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 57,
+            "y": 17
+        },
+        {
+            "type": "koopa_troopa",
+            "x": 53,
+            "y": 20
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 63,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 68,
+            "y": 17
+        },
+        {
+            "type": "piranha_plant",
+            "x": 73,
+            "y": 18
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 87,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 91,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 110,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 113,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 119,
+            "y": 17
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 122,
+            "y": 17
+        },
+        {
+            "type": "goomba",
+            "x": 120,
+            "y": 20
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 128,
+            "y": 16
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 129,
+            "y": 16
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 136,
+            "y": 16
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 140,
+            "y": 16
+        },
+        {
+            "type": "goomba",
+            "x": 137,
+            "y": 19
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 146,
+            "y": 16
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 150,
+            "y": 16
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 156,
+            "y": 15
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 160,
+            "y": 15
+        },
+        {
+            "type": "goomba",
+            "x": 157,
+            "y": 18
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 167,
+            "y": 16
+        },
+        {
+            "itemType": 1,
+            "type": "question_block",
+            "x": 168,
+            "y": 16
+        },
+        {
+            "type": "koopa_troopa",
+            "x": 178,
+            "y": 19
+        },
+        {
+            "type": "flagpole",
+            "x": 185,
+            "y": 12
+        }
+    ],
+    "flagpole": {
+        "x": 198,
+        "y": 18
+    },
+    "height": 23,
+    "name": "Evolved castle (741)",
+    "spawnPoint": {
+        "x": 3,
+        "y": 19
+    },
+    "theme": "overworld",
+    "tileSize": 32.0,
+    "tiles": [
+        {
+            "type": "ground",
+            "w": 200,
+            "x": 0,
+            "y": 0
+        },
+        {
+            "type": "brick",
+            "w": 200,
+            "x": 0,
+            "y": 1
+        },
+        {
+            "type": "brick",
+            "x": 30,
+            "y": 15
+        },
+        {
+            "type": "brick",
+            "x": 32,
+            "y": 15
+        },
+        {
+            "type": "coin_tile",
+            "x": 33,
+            "y": 15
+        },
+        {
+            "type": "brick",
+            "x": 34,
+            "y": 15
+        },
+        {
+            "type": "brick",
+            "x": 36,
+            "y": 15
+        },
+        {
+            "type": "brick",
+            "w": 3,
+            "x": 149,
+            "y": 15
+        },
+        {
+            "type": "coin_tile",
+            "x": 155,
+            "y": 15
+        },
+        {
+            "type": "coin_tile",
+            "w": 2,
+            "x": 157,
+            "y": 15
+        },
+        {
+            "type": "brick",
+            "x": 159,
+            "y": 15
+        },
+        {
+            "type": "coin_tile",
+            "x": 161,
+            "y": 15
+        },
+        {
+            "type": "brick",
+            "x": 127,
+            "y": 16
+        },
+        {
+            "type": "coin_tile",
+            "x": 130,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "x": 135,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "w": 3,
+            "x": 137,
+            "y": 16
+        },
+        {
+            "type": "coin_tile",
+            "x": 141,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "x": 145,
+            "y": 16
+        },
+        {
+            "type": "coin_tile",
+            "w": 2,
+            "x": 147,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "x": 149,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "x": 151,
+            "y": 16
+        },
+        {
+            "type": "coin_tile",
+            "x": 166,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "x": 169,
+            "y": 16
+        },
+        {
+            "type": "coin_tile",
+            "x": 176,
+            "y": 16
+        },
+        {
+            "type": "brick",
+            "x": 184,
+            "y": 16
+        },
+        {
+            "type": "ground",
+            "w": 5,
+            "x": 189,
+            "y": 16
+        },
+        {
+            "type": "pipe",
+            "w": 2,
+            "x": 43,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "w": 2,
+            "x": 49,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 51,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "w": 4,
+            "x": 53,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 58,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 62,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 64,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "w": 2,
+            "x": 65,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 67,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 69,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 86,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 88,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 89,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 90,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 92,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 109,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "w": 2,
+            "x": 111,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 114,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 118,
+            "y": 17
+        },
+        {
+            "type": "coin_tile",
+            "x": 120,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 121,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "x": 123,
+            "y": 17
+        },
+        {
+            "type": "brick",
+            "w": 2,
+            "x": 183,
+            "y": 17
+        },
+        {
+            "type": "ground",
+            "w": 5,
+            "x": 189,
+            "y": 17
+        },
+        {
+            "type": "pipe",
+            "w": 2,
+            "x": 43,
+            "y": 18
+        },
+        {
+            "type": "pipe",
+            "w": 2,
+            "x": 73,
+            "y": 18
+        },
+        {
+            "type": "brick",
+            "w": 3,
+            "x": 182,
+            "y": 18
+        },
+        {
+            "type": "ground",
+            "w": 5,
+            "x": 189,
+            "y": 18
+        },
+        {
+            "type": "ground",
+            "x": 20,
+            "y": 19
+        },
+        {
+            "type": "ground",
+            "w": 13,
+            "x": 24,
+            "y": 19
+        },
+        {
+            "type": "pipe",
+            "w": 2,
+            "x": 43,
+            "y": 19
+        },
+        {
+            "type": "pipe",
+            "w": 2,
+            "x": 73,
+            "y": 19
+        },
+        {
+            "type": "pipe",
+            "x": 102,
+            "y": 19
+        },
+        {
+            "type": "ground",
+            "w": 4,
+            "x": 148,
+            "y": 19
+        },
+        {
+            "type": "ground",
+            "w": 3,
+            "x": 155,
+            "y": 19
+        },
+        {
+            "type": "brick",
+            "w": 4,
+            "x": 181,
+            "y": 19
+        },
+        {
+            "type": "ground",
+            "w": 2,
+            "x": 189,
+            "y": 19
+        },
+        {
+            "type": "ground",
+            "w": 2,
+            "x": 192,
+            "y": 19
+        },
+        {
+            "type": "ground",
+            "x": 20,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 25,
+            "x": 24,
+            "y": 20
+        },
+        {
+            "type": "pipe",
+            "w": 2,
+            "x": 73,
+            "y": 20
+        },
+        {
+            "type": "pipe",
+            "x": 102,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 25,
+            "x": 127,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 16,
+            "x": 155,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 6,
+            "x": 174,
+            "y": 20
+        },
+        {
+            "type": "brick",
+            "w": 5,
+            "x": 180,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 2,
+            "x": 189,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 2,
+            "x": 192,
+            "y": 20
+        },
+        {
+            "type": "ground",
+            "w": 21,
+            "x": 0,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 36,
+            "x": 24,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 8,
+            "x": 62,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 5,
+            "x": 73,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 8,
+            "x": 81,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 19,
+            "x": 92,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 38,
+            "x": 114,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 16,
+            "x": 155,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 26,
+            "x": 174,
+            "y": 21
+        },
+        {
+            "type": "ground",
+            "w": 21,
+            "x": 0,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 21,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 36,
+            "x": 24,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 2,
+            "x": 60,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 8,
+            "x": 62,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 70,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 5,
+            "x": 73,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 78,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 8,
+            "x": 81,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 89,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 19,
+            "x": 92,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 111,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 38,
+            "x": 114,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 152,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 16,
+            "x": 155,
+            "y": 22
+        },
+        {
+            "type": "water",
+            "w": 3,
+            "x": 171,
+            "y": 22
+        },
+        {
+            "type": "ground",
+            "w": 26,
+            "x": 174,
+            "y": 22
+        }
+    ],
+    "width": 200
+}

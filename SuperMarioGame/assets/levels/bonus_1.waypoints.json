@@ -3,7 +3,7 @@
  "source": "tools/solvability.py",
  "level": "bonus_1.json",
  "winnable": true,
- "requiredDifficulty": 0.7071,
+ "requiredDifficulty": 0.4243,
  "waypoints": [
   {
    "x": 112.0,
@@ -198,19 +198,11 @@
    "y": 544.0
   },
   {
-   "x": 3344.0,
-   "y": 512.0
+   "x": 3408.0,
+   "y": 672.0
   },
   {
-   "x": 3504.0,
-   "y": 512.0
-  },
-  {
-   "x": 3600.0,
-   "y": 512.0
-  },
-  {
-   "x": 3760.0,
+   "x": 3472.0,
    "y": 672.0
   }
  ]

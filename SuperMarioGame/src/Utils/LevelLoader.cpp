@@ -242,6 +242,18 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
             entObj["x"] = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
             entObj["y"] = static_cast<int>(entity->getPosition().y / Constants::TILE_SIZE);
 
+            // The flagpole META must be where the flagpole IS. It was written
+            // as the default (width-2) above and never corrected, so every
+            // saved level claimed its goal was up to 13 tiles past the real
+            // flag — for generated levels that put the "goal" BEHIND the
+            // victory castle, and the solvability oracle dutifully proved
+            // that finishing required jumping the castle roof (a constant
+            // 0.7071 demand that drowned every difficulty gene).
+            if (typeStr == "flagpole") {
+                j["flagpole"]["x"] = entObj["x"];
+                j["flagpole"]["y"] = entObj["y"];
+            }
+
             if (auto qBlock = dynamic_cast<const QuestionBlock*>(entity.get())) {
                 entObj["itemType"] = qBlock->getContainedItemType();
             }

@@ -181,7 +181,13 @@ def encode(level: dict) -> tuple[list[list[int]], dict]:
         "theme": level.get("theme", "overworld"),
         "name": level.get("name", "Generated Level"),
         "spawnPoint": level.get("spawnPoint", {"x": 3, "y": 19}),
-        "flagpole": level.get("flagpole", {"x": width - 2, "y": 18}),
+        # Prefer the flagpole ENTITY: the meta key was written as a default
+        # (width - 2) by every saveLevel to date and can sit tiles past the
+        # real flag — the entity is what the game actually completes on.
+        "flagpole": next(
+            ({"x": int(e["x"]), "y": int(e["y"])}
+             for e in level.get("entities", []) if e.get("type") == "flagpole"),
+            level.get("flagpole", {"x": width - 2, "y": 18})),
     }
     return grid, meta
 
