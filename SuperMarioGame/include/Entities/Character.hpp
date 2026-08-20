@@ -56,6 +56,13 @@ protected:
     float speed = 0.0f;
     float jumpForce = 0.0f;
     bool onGround = false;
+    // What onGround was at the *start* of this frame.
+    //
+    // PhysicsEngine clears onGround before collision detection and only sets it
+    // again during the Y pass, so anything running in the X pass — which happens
+    // first — reads false for a character that is standing on solid ground. Code
+    // that needs to ask "am I airborne?" mid-frame must ask this instead.
+    bool wasOnGround = false;
     bool onWall = false;
     bool facingRight = true;
 
