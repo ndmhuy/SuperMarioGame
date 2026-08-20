@@ -81,14 +81,16 @@ void TrainingState::enter() {
     for (int i = 0; i < LevelCatalog::count(); ++i) {
         m_rotation.push_back(LevelCatalog::pathFor(i));
     }
-    std::error_code listError;
-    for (const auto& entry :
-         std::filesystem::directory_iterator("assets/levels/generated", listError)) {
-        const std::string path = entry.path().string();
-        if (entry.path().extension() != ".json") continue;
-        if (path.find(".waypoints.") != std::string::npos) continue;
-        if (entry.path().filename() == "manifest.json") continue;
-        m_rotation.push_back(path);
+    for (const char* dir : {"assets/levels/generated", "assets/levels/generated_easy"}) {
+        std::error_code listError;
+        for (const auto& entry :
+             std::filesystem::directory_iterator(dir, listError)) {
+            const std::string path = entry.path().string();
+            if (entry.path().extension() != ".json") continue;
+            if (path.find(".waypoints.") != std::string::npos) continue;
+            if (entry.path().filename() == "manifest.json") continue;
+            m_rotation.push_back(path);
+        }
     }
     std::cout << "[Training] Rotating over " << m_rotation.size() << " levels."
               << std::endl;
