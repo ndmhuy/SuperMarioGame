@@ -35,6 +35,7 @@ failure was visible only in behaviour measured against something the agent was
 | 9 | A FIFO buffer is not a dataset: forgetting returns at 10 levels | implementation |
 | 10 | A generator with a certified fitness, and the first completion | positive |
 | 11 | The argmax of a stochastic policy is a different policy | evaluation |
+| 12 | A quality gate closes the generator loop: 8/8 certified levels completed, 0 deaths | positive |
 
 Findings 1–5 were reported first (Part I); findings 6–10 (Part II) were made
 while acting on Part I's future-work list. Finding 6 is an erratum on Part I's
@@ -547,9 +548,50 @@ the learner generalised past it.
 
 ---
 
-## 13. Discussion
+## 13. Closing the loop — the gate passes
 
-### 13.1 Every failure was a specification failure
+"Make the maps better" does not terminate; an acceptance test does. The gate
+(`tools/map_quality_gate.py`) makes "the maps are best" an executable
+proposition — a batch passes when every level clears four bars:
+
+| Bar | Test | Basis for the number |
+| :--- | :--- | :--- |
+| CERTIFIED | winnable by the oracle, required difficulty in the declared band | non-negotiable |
+| FORGIVING | forgiveness ≥ 0.85 | the completed level measured 0.94; the six-lives-one-pit level 0.84 — the bar sits just above the observed failure |
+| FAIR | no tile takes more than half of an evaluated agent's deaths (6+) | a death monopoly is a trap, not a challenge |
+| DISTINCT | pairwise column-histogram distance ≥ 1.0 | three "different" levels were signature-distance-0.00 duplicates |
+
+The gate's first runs failed every existing batch and each failure named its
+repair: hard dedup at the keep-pool door (the duplicates), iterated **safety
+nets** under the oracle's punishing edges (a floor tile 4 below the edge turns
+death into a survivable drop while the jump's demand stays exactly — measured
+0.794 → 0.825 per pass), nets clamped into the map (a net below the bottom row
+protected nothing), and wipe-before-write (stale levels kept failing fresh
+batches). The FAIR bar then caught what static analysis cannot: three levels
+whose *observed* deaths all landed on one tile (9/9, 8/8, 11/11) — netted at
+the observed cluster, difficulty unchanged, and on re-evaluation all three
+went from all-deaths-at-one-tile to **completed with zero deaths**.
+
+Final state, seeded-stochastic student, single runs:
+
+| Batch | Gate | Student behaviour |
+| :--- | :--- | :--- |
+| easy v2 (2 levels, 0.283) | **PASS**, all four bars | **2/2 completed, 0 deaths** |
+| mid v3 (6 levels, 0.424–0.529) | **PASS**, all four bars | **6/6 completed, 0 deaths** |
+| campaign (hand-made, for reference) | not gated | level_1 **75.1 %** — above its teacher's 72.6 % |
+
+Every generated level that passes the gate is completed by the learned agent
+without dying. The training rotation now consists of exactly the gate-passing
+batches plus the campaign; earlier batches retire from rotation and stay in
+the repository for the record. The loop — evolve → certify → repair → train →
+evaluate paths → repair where the paths blame — is closed, and each stage's
+verdict is a number a script checks rather than an impression.
+
+---
+
+## 14. Discussion
+
+### 14.1 Every failure was a specification failure
 
 | Failure | Located in | Visible in the optimised metric? |
 | :--- | :--- | :--- |
@@ -570,7 +612,7 @@ every time was **behavioural evaluation against a measure the agent was not
 trained on** — jumps per 1800 frames, progress through the level — while
 training curves were uninformative or actively misleading.
 
-### 13.2 Capacity and framework are not the constraints
+### 14.2 Capacity and framework are not the constraints
 
 The network reaches 99.9 % agreement at 0.0010 loss, so it is not
 capacity-limited; scaling to 2844‑512‑256‑7 costs 6.3× the compute to fit a
@@ -578,7 +620,7 @@ function already fit. The network is 10.7 % of an inference step, so replacing
 the tensor library optimises the smaller part. The one framework-level change
 that mattered was a build flag, worth 42×.
 
-### 13.3 Limitations
+### 14.3 Limitations
 
 - **Field of view.** The agent sees 21 × 15 tiles = 672 × 480 px against the
   human's 1280 × 720 — **52 % of the screen width**, 10.5 % of a level. It is
@@ -589,7 +631,7 @@ that mattered was a build flag, worth 42×.
 - **Scale.** Hundreds of episodes, not millions. Negative results bound these
   hyperparameters here; they do not bound the methods in general.
 
-### 13.4 Future work, in priority order
+### 14.4 Future work, in priority order
 
 Items 1 and 4 of Part I's list are done (Findings 7 and 10); item 2's premise
 changed — the curriculum now exists, so exploration pressure comes from the
@@ -613,7 +655,7 @@ certified band rather than from noise shaping. The list as it stands:
 
 ---
 
-## 14. Reproduction
+## 15. Reproduction
 
 ```bash
 mkdir build && cd build && cmake .. && make -j8
@@ -640,7 +682,7 @@ run destroyed a working 22.2 % imitation policy by sharing a filename.
 
 ---
 
-## 15. Summary of measurements
+## 16. Summary of measurements
 
 | Configuration | level_1 | jumps/1800 | deaths |
 | :--- | ---: | ---: | ---: |
@@ -672,6 +714,14 @@ forgiveness metric validated on first contact (completed level highest at
 **Completions**: teacher on repair-descended `evolved_02`; student (as
 trained) on `evolved_02` and on campaign `bonus_1` — the latter with zero
 deaths, surpassing a teacher that never finished it.
+
+Final cycle (episode-400 checkpoint, certified batches): **8/8 gate-passing
+levels completed by the student, all with zero deaths**; campaign level_1 at
+75.1 % — above its teacher. Both batches pass all four gate bars, the FAIR
+bar measured on the student's own recorded paths. The three death monopolies
+the FAIR bar caught (9/9, 8/8, 11/11 deaths on one tile) were each netted at
+the observed cluster with required difficulty exactly unchanged, and each
+level flipped to a zero-death completion.
 
 ### References
 

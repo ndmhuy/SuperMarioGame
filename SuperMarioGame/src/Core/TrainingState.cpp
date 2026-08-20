@@ -81,8 +81,12 @@ void TrainingState::enter() {
     for (int i = 0; i < LevelCatalog::count(); ++i) {
         m_rotation.push_back(LevelCatalog::pathFor(i));
     }
-    for (const char* dir : {"assets/levels/generated", "assets/levels/generated_easy",
-                            "assets/levels/generated_v2"}) {
+    // Only GATE-PASSING batches train the agent (map_quality_gate.py: the
+    // four bars). Earlier batches — v1 mid (goal-lie era), v1 easy (contained
+    // duplicates), v2 mid (superseded) — retire from the rotation; their
+    // files stay for the record.
+    for (const char* dir : {"assets/levels/generated_easy_v2",
+                            "assets/levels/generated_v3"}) {
         std::error_code listError;
         for (const auto& entry :
              std::filesystem::directory_iterator(dir, listError)) {
