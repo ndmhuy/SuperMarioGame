@@ -3,8 +3,35 @@
 #include <filesystem>
 
 ResourceManager &ResourceManager::getInstance() {
-  static ResourceManager instance;
-  return instance;
+  // Deliberately never destroyed. Read the reasoning before "fixing" this.
+  //
+  // The maps below own sf::Texture and sf::Font objects, which are OpenGL
+  // resources: each holds a reference to SFML's shared GL context. Destroying
+  // one during static destruction is undefined, because SFML's own statics —
+  // including the mutex guarding that shared context — may already be gone. When
+  // that happens the context destructor throws
+  // std::system_error("mutex lock failed: Invalid argument"), and a throw during
+  // static destruction aborts the process.
+  //
+  // That is not hypothetical. It is why `verify_regressions` printed
+  // "403 / 403 checks passed  ALL PASS" and then exited 134: main() returned
+  // without a shutdown, so this singleton's texture map was torn down by
+  // __cxa_finalize, after SFML had already finished with itself.
+  //
+  // A static instance cannot be made safe here, because destruction order
+  // between this translation unit's statics and SFML's is not something we get
+  // to choose. Leaking one singleton at process exit is the standard remedy, and
+  // it is not a leak in the sense AGENTS.md's memory rule is about: it is a
+  // single fixed-size allocation that the OS reclaims microseconds later, not an
+  // unbounded or repeated one. Leak checkers report it as "still reachable",
+  // not as lost.
+  //
+  // The real run still frees everything deterministically: Game::shutdown()
+  // calls clear() while the window and the context are both still alive. This
+  // only changes what happens on paths that never shut down — the test
+  // harnesses, and any future entry point whose author forgets.
+  static ResourceManager *instance = new ResourceManager();
+  return *instance;
 }
 
 std::string ResourceManager::resolvePath(const std::string &relativePath) {
@@ -43,10 +70,27 @@ bool ResourceManager::hasSoundBuffer(const std::string &id) const {
   return m_soundBuffers.find(id) != m_soundBuffers.end();
 }
 
+sf::Texture &ResourceManager::placeholderTexture() {
+  // Reserved id, so it can never collide with an asset path, and no warning:
+  // asking for the placeholder is not a failure to find something.
+  return m_textures["__placeholder__"];
+}
+
 sf::Texture &ResourceManager::getTexture(const std::string &id) {
   auto it = m_textures.find(id);
   if (it != m_textures.end()) {
     return it->second;
+  }
+  // An empty id is a caller mistake rather than a missing asset, and reporting
+  // it as "Texture not found: " told nobody anything. Callers that just need
+  // something for an sf::Sprite to point at want placeholderTexture().
+  if (id.empty()) {
+    if (m_reportedMissing.insert("texture:<empty>").second) {
+      std::cerr << "[ResourceManager] getTexture() called with an empty id; "
+                   "use placeholderTexture() if you need a blank texture."
+                << std::endl;
+    }
+    return placeholderTexture();
   }
   if (m_reportedMissing.find("texture:" + id) == m_reportedMissing.end()) {
     std::cerr << "[ResourceManager] Texture not found: " << id << std::endl;

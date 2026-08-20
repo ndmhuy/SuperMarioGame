@@ -83,13 +83,13 @@ void Game::run() {
 
     m_isRunning = true;
 
-    while (m_isRunning && m_window.isOpen()) {
+    while (m_isRunning && m_window && m_window->isOpen()) {
         sf::Time elapsed = clock.restart();
         lag += elapsed.asSeconds();
 
         // 1. Handle Events (SFML 3.0 style)
-        while (const std::optional<sf::Event> event = m_window.pollEvent()) {
-            ImGui::SFML::ProcessEvent(m_window, *event);
+        while (const std::optional<sf::Event> event = m_window->pollEvent()) {
+            ImGui::SFML::ProcessEvent(*m_window, *event);
 
             // Held-key state is tracked from events rather than polled from the
             // OS. Recorded here, for every event, so presses and releases stay
@@ -158,7 +158,7 @@ void Game::run() {
         }
 
         // 3. Update ImGui
-        ImGui::SFML::Update(m_window, elapsed);
+        ImGui::SFML::Update(*m_window, elapsed);
 
         // ImGui Dev Tools panel
         // Bottom-right, below the map editor window (912,8 - 360x600) and clear
@@ -175,18 +175,18 @@ void Game::run() {
         DebugConsole::getInstance().draw();
 
         // 4. Render
-        m_window.clear(sf::Color(100, 149, 237)); // Cornflower Blue
+        m_window->clear(sf::Color(100, 149, 237)); // Cornflower Blue
         
-        m_gsm.render(m_window);
+        m_gsm.render(*m_window);
 
         // Above every state, below ImGui. An achievement can unlock during play,
         // on the victory tally or on the world map, and the popup should show in
         // all three.
-        m_window.setView(m_window.getDefaultView());
-        UiRenderer::drawAchievementToasts(m_window);
+        m_window->setView(m_window->getDefaultView());
+        UiRenderer::drawAchievementToasts(*m_window);
         
-        ImGui::SFML::Render(m_window);
-        m_window.display();
+        ImGui::SFML::Render(*m_window);
+        m_window->display();
 
         // After display(), so the capture is the frame the user would see —
         // including the ImGui overlays, which are drawn last.
@@ -208,12 +208,14 @@ bool Game::loadInputScript(const std::string& path) {
 }
 
 void Game::saveScreenshot(const std::string& name) {
+    if (!m_window) return;
+
     sf::Texture texture;
-    if (!texture.resize(m_window.getSize())) {
+    if (!texture.resize(m_window->getSize())) {
         std::cerr << "[Game] Could not allocate a texture for the screenshot." << std::endl;
         return;
     }
-    texture.update(m_window);
+    texture.update(*m_window);
 
     std::error_code ignored;
     std::filesystem::create_directories("saves/shots", ignored);
@@ -228,10 +230,12 @@ void Game::saveScreenshot(const std::string& name) {
 sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
     // mapPixelToCoords divides by the viewport size, so it asserts on a window
     // that has not been created yet. Head-less harnesses drive the map editor
-    // through exactly this path.
-    const sf::Vector2u windowSize = m_window.getSize();
+    // through exactly this path — and now that the window is an optional, they
+    // reach it before there is one to dereference at all.
+    if (!m_window) return {0.0f, 0.0f};
+    const sf::Vector2u windowSize = m_window->getSize();
     if (windowSize.x == 0 || windowSize.y == 0) return {0.0f, 0.0f};
-    return m_window.mapPixelToCoords(sf::Mouse::getPosition(m_window), view);
+    return m_window->mapPixelToCoords(sf::Mouse::getPosition(*m_window), view);
 }
 
 void Game::pushState(std::unique_ptr<IGameState> state) {
@@ -260,14 +264,14 @@ void Game::initWindow() {
     // untouched full window and would undo it. Making the layout
     // resolution-independent is the real fix and a much larger change; until
     // then, not distorting beats distorting.
-    m_window.create(sf::VideoMode({Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT}),
+    m_window.emplace(sf::VideoMode({Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT}),
                     Constants::WINDOW_TITLE,
                     sf::Style::Titlebar | sf::Style::Close);
-    m_window.setFramerateLimit(60);
+    m_window->setFramerateLimit(60);
 }
 
 void Game::initImGui() {
-    if (!ImGui::SFML::Init(m_window)) {
+    if (!ImGui::SFML::Init(*m_window)) {
         std::cerr << "Failed to initialize ImGui-SFML!" << std::endl;
     }
 
@@ -317,14 +321,31 @@ void Game::shutdown() {
 
     ImGui::SFML::Shutdown();
 
-    // Explicitly close window before static destructors run
-    if (m_window.isOpen()) {
-        m_window.close();
+    // DESTROY the window here, not merely close it.
+    //
+    // Closing was the previous attempt at this, and it was necessary but not
+    // sufficient: close() tears down the OS window and the render context, but
+    // sf::Window's GlResource base holds a shared_ptr to SFML's shared GL
+    // context until the sf::RenderWindow *object* is destroyed. As a plain
+    // member of a function-local static that happened during static destruction
+    // at exit(), by which point SFML's own statics were gone — so releasing the
+    // last reference ran SFContext::~SFContext(), which threw
+    // std::system_error("mutex lock failed: Invalid argument"). A throw during
+    // static destruction aborts, so every clean exit ended in SIGABRT with the
+    // whole shutdown already printed.
+    //
+    // reset() runs it here instead, while the rest of SFML is still alive.
+    if (m_window) {
+        if (m_window->isOpen()) m_window->close();
+        m_window.reset();
     }
 }
 
 bool Game::isWindowFocused() const {
-    return m_window.hasFocus();
+    // Answers false once the window is gone, rather than dereferencing an empty
+    // optional. Nothing should poll after shutdown, but "nothing should" is what
+    // the dangling-pointer bugs in this file all had in common.
+    return m_window && m_window->hasFocus();
 }
 
 Player* Game::getPlayer() const {

@@ -23,7 +23,10 @@ SpriteSheet::SpriteSheet(const std::string& sheetFolderPath) {
     ResourceManager& rm = ResourceManager::getInstance();
     if (!rm.loadTexture(textureFilepath, textureFilepath)) {
         std::cerr << "[SpriteSheet] Failed to load texture: " << textureFilepath << std::endl;
-        m_spriteSheet = &rm.getTexture("");
+        // A named blank, not getTexture(""): the atlas failing to load is
+        // already reported on the line above, and asking for an empty id only
+        // added a second, less informative warning about it.
+        m_spriteSheet = &rm.placeholderTexture();
         return;
     }
     m_spriteSheet = &rm.getTexture(textureFilepath);

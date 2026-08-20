@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <string>
 #include "Core/GameStateManager.hpp"
@@ -126,9 +127,23 @@ private:
     void initImGui();
     void shutdown();
 
-    // Window and loop state
+    // Window and loop state.
+    //
+    // The window is held in an optional so shutdown() can *destroy* it, not just
+    // close it. Game is a function-local static, so a plain sf::RenderWindow
+    // member is destroyed during static destruction at exit() — and by then
+    // SFML's own statics, including the mutex guarding the shared GL context,
+    // may already be gone. Destroying the window then made
+    // sf::GlResource::~GlResource release the last reference to the shared
+    // context, whose destructor threw std::system_error("mutex lock failed"),
+    // and a throw during static destruction aborts the process.
+    //
+    // Closing was not enough: close() tears down the OS window and the render
+    // context, but the GlResource base still holds its shared_ptr until the
+    // object itself is destroyed. Only reset() releases it, and reset() can be
+    // called while the rest of SFML is still alive.
     GameStateManager m_gsm;
-    sf::RenderWindow m_window;
+    std::optional<sf::RenderWindow> m_window;
     bool m_isRunning = false;
 
     // Persistent Settings & Slot State

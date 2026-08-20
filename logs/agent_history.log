@@ -3844,3 +3844,79 @@ Summary of Changes:
   Spawned as a separate task rather than fixed here.
 - Not pushed, per policy. dev remains 30 commits ahead of origin/dev locally.
 ---
+[2026-08-20 12:46:42] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: 0c9c173 (before) → see commit below (after)
+Fetched Remotes: yes, 12:46
+Prompt: The game aborts on every clean exit with "mutex lock failed: Invalid
+  argument". Confirm the cause with a stack trace, fix it so the process exits 0,
+  verify with tests/scripts/shadow_chase.txt, and make the stray empty-texture-id
+  warning honest.
+Files Modified: include/Core/Game.hpp, src/Core/Game.cpp,
+  include/Core/ResourceManager.hpp, src/Core/ResourceManager.cpp,
+  src/Graphics/Animator.cpp, src/Graphics/SpriteSheet.cpp
+Reachable From Main: yes — this is the exit path of main() itself, on every run.
+Verified By: ran the game (three scripts + the real menu QUIT row, all exit 0)
+  AND ctest 13/13. Cause confirmed from two macOS crash reports (.ips
+  backtraces), and the "pre-existing" claim re-confirmed against a59d435.
+Summary of Changes:
+- THE HYPOTHESIS IN THE TASK WAS WRONG, and the trace says so plainly. The
+  suspect was Animator's function-local `static sf::Sprite`. sf::Sprite is not a
+  GlResource — it is a transform, a texture pointer and a rect — so its
+  destruction cannot touch the GL context. The real chain, from the crash
+  report:
+      exit -> __cxa_finalize_ranges -> Game::~Game()
+           -> sf::RenderWindow::~RenderWindow() -> sf::Window::~Window()
+           -> sf::GlResource::~GlResource()
+           -> GlContext::SharedContext dtor -> SFContext::~SFContext() THROWS
+  Game is a function-local static, so its `sf::RenderWindow` member was
+  destroyed during static destruction — after SFML's own statics, including the
+  mutex guarding the shared GL context. Throwing during static destruction
+  aborts.
+- WHY THE PREVIOUS FIX WAS NECESSARY BUT NOT SUFFICIENT: shutdown() already
+  called ResourceManager::clear() and m_window.close(). close() tears down the OS
+  window and the render context, but sf::Window's GlResource base holds its
+  shared_ptr to the shared context until the OBJECT is destroyed. Only
+  destruction releases it, and destruction was happening at exit().
+- FIX 1: m_window is now std::optional<sf::RenderWindow>, and shutdown() calls
+  reset() — destroying it while the rest of SFML is still alive. 20 call sites in
+  Game.cpp updated; the member is private so nothing outside changed.
+  getMouseWorldPosition() and isWindowFocused() now answer for "no window",
+  which matters because headless harnesses reach the former before one exists.
+- FIX 2, and this one only appeared BECAUSE of fix 1: verify_regressions started
+  aborting — printing "403 / 403 checks passed  ALL PASS" and then exiting 134.
+  A second crash report gave the second chain:
+      exit -> __cxa_finalize_ranges -> ResourceManager::~ResourceManager()
+           -> ~unordered_map<string, sf::Texture> -> sf::Texture::~Texture()
+           -> sf::GlResource::~GlResource() -> ... -> SFContext dtor THROWS
+  Same root cause, different owner. Game's RenderWindow had been holding the
+  shared context alive past ResourceManager's destruction purely by construction
+  order — an accidental keep-alive that masked this for the harnesses, which
+  never call shutdown() and so never call clear(). Removing the window from the
+  static removed the mask. ResourceManager::getInstance() is now a deliberately
+  never-destroyed heap singleton, documented at length: destruction order between
+  our statics and SFML's is not ours to choose, the real run still frees
+  everything through clear() while the context is alive, and one fixed-size
+  allocation reclaimed by the OS at exit is not what AGENTS.md's memory rule is
+  about. It also fixes this for any future entry point whose author forgets.
+- FIX 3, the warning: the stray "[ResourceManager] Texture not found: " with an
+  empty id came from Animator::getSprite()'s static initialising itself with
+  getTexture(""). That static was also a latent bug in its own right — it held a
+  reference to a texture that clear() frees. Replaced with a per-call
+  sf::Sprite built from a new, named ResourceManager::placeholderTexture()
+  (reserved id, no warning, since asking for the placeholder is not a failure).
+  Kept deliberately zero-sized so drawSprite() still skips it and nothing changed
+  visually. SpriteSheet's getTexture("") fallback moved to the same call.
+  getTexture("") now reports an empty id as the caller mistake it is, and points
+  at placeholderTexture(). Zero occurrences of the old warning across all three
+  gameplay scripts.
+- VERIFIED: script quit, menu QUIT row, shadow_chase.txt, shadow_chase_run.txt
+  and versus_cpu.txt all exit 0. ctest 13/13. No new entries in
+  ~/Library/Logs/DiagnosticReports across a full build-and-test round, which is
+  the check that would catch an abort ctest reported as a pass.
+- NOT FIXED, and worth someone's attention: SoundManager holds sf::Music and
+  sf::Sound in a static singleton and has the same shape of problem (an audio
+  device with its own threads and mutexes). It does not currently abort and
+  Game::shutdown() calls its shutdown(), so I left it alone rather than change
+  something I cannot demonstrate is broken.
+- Not pushed, per policy.
+---
