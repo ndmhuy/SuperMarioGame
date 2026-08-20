@@ -4058,3 +4058,21 @@ Summary of Changes:
 - HONEST STATUS: agent still completes no level. Two regressions have named causes (reload honesty; deterministic first-death loop). Open items: RL training run, oracle rounding fix, determinism policy for eval, VGLC corpus (needs user go-ahead).
 - Nothing pushed.
 ---
+[2026-08-20 21:00:00] Branch: A/mapgen-gan-plan (side project, off A/rl-neural-policy)
+Git Fingerprint: 7316f2e (before) → a0879d4 (after)
+Fetched Remotes: no — continuation on the same branch, no repository-state reporting.
+Prompt: "Continue with AI development, I would like that when training, it should be visualized on the screen" — then, before code was written, "update the plan that I want to use my Neural Network C++ Framework" (told mid-search: "it's in another session").
+Files Modified: docs/mapgen_gan_rl_plan.md, docs/rl_training.md. No code changed this entry — user asked specifically to update the plan first.
+Reachable From Main: n/a — documentation only.
+Verified By: n/a — no code changed. Grounded the plan update by reading the actual framework source at /Users/huynguyen/Documents/CS200-Cpp (not assumed): confirmed a real Tensor/autograd engine, Sequential/Linear/Activation modules, SGD/Adam optimizers, CPUBackend (NEON SIMD + ThreadPool) and MetalBackend, and existing RL precedent (gaussian_rl.cpp = DQN, poker_rl.cpp = Deep CFR self-play). Confirmed it is not built as a library today (every demo links LIB_SRC_FILES directly into its own executable) — this shaped the vendoring decision below.
+Summary of Changes:
+- User's framework located by filesystem search after ListAgents found no reachable live session (the user said "it's in another session" mid-search; no session with that project was connectable, so proceeded from reading the code directly rather than waiting).
+- Updated docs/mapgen_gan_rl_plan.md §2d (new section): superseded rl_training.md's "train in Python, load a JSON weight file" design. Two independent reasons: user has CS200-Cpp's nn:: framework to build on instead of a second hand-rolled forward pass, and wants training visualized live, which is only possible if training runs inside the render loop.
+- Checked feasibility rather than assuming it: policy net is ~123K parameters (1899-wide observation x {64,32} hidden x 7 out) — small enough that CPU/NEON is sufficient and Metal GPU would be unneeded complexity (Objective-C++ build requirements) for no measured benefit at this size.
+- Integration shape decided: vendor nn:: CPU-backend sources (Tensor/Autograd/Module/Optim/Loss/Core/Compute, excluding MetalBackend.mm and .metal shaders) into SuperMarioGame/third_party/nn/ as a static library, NOT a path dependency on the sibling CS200-Cpp checkout — a path dependency would break the build on any machine (grader included) without that repo cloned alongside. NeuralPolicy rebuilt around nn::Sequential behind its existing public interface (decide/name/load/isTrained, kAIObservationVersion guard kept). New game state (not PlayingState reused, same reasoning as eval_level being a separate harness) runs episodes live with a rendered view plus a loss/reward/action-distribution overlay, entered from a menu item.
+- Corrected a stale "open question" in §2c: the heuristic's wall-jump stall (fixed two sessions ago) and its subsequent plateau (this session) are now cited as the measured evidence the learned policy is necessary, not optional.
+- Added a correction note atop docs/rl_training.md rather than rewriting it — its observation/action/reward contract is unaffected; only where training executes changed.
+- Order-of-work table split step 7 into 7a (vendor nn::) / 7b (NeuralPolicy rebuild) / 7c (training state + live overlay) / 7d (full training run).
+- NO CODE WRITTEN THIS ENTRY. Next session should implement 7a/7b before anything renders.
+- Nothing pushed.
+---
