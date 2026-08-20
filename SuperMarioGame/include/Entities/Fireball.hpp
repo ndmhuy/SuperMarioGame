@@ -11,6 +11,13 @@ class Enemy;
 // touches. Harmless to the player who threw it.
 class Fireball : public Projectile {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     Fireball(sf::Vector2f pos, sf::Vector2f vel);
     ~Fireball() override = default;
 

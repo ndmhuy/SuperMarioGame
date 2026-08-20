@@ -16,6 +16,13 @@ class Player;
 // by everything that touches it.
 class BossFireball : public Projectile {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     BossFireball(sf::Vector2f position, sf::Vector2f velocity);
     ~BossFireball() override = default;
 

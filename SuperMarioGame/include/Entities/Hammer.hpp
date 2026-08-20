@@ -18,6 +18,13 @@ class Player;
 // the world. Damages the player on contact; harmless to other enemies.
 class Hammer : public Projectile {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     Hammer(sf::Vector2f position, sf::Vector2f velocity);
     ~Hammer() override = default;
 

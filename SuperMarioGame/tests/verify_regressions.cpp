@@ -56,6 +56,9 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Physics/CollisionResolver.hpp"
 #include "Core/RunCommand.hpp"
+#include "Entities/StarCoin.hpp"
+#include "Entities/Item.hpp"
+#include "Entities/Block.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -2405,6 +2408,105 @@ void testCapeActuallyDoesSomething() {
     input.clearHeldKeys();
 }
 
+// Reported as "moving platform doesn't have the sprite — find them and fix".
+// Finding them by eye is the problem: setupAnimations() sets m_hasAnimation
+// whether or not the frames it names exist in the atlas, and drawSprite()
+// returns early on a zero-size sprite, so a wrong frame name draws *nothing* —
+// not even the placeholder rectangle that would make it obvious. This asks
+// every entity type in the factory what it would actually put on screen.
+void testEveryEntityTypeDrawsRealArt() {
+    section("playtest  every entity type draws real artwork, not nothing");
+
+    auto playerSheet  = SpriteSheet::loadAtlas("player");
+    auto enemySheet   = SpriteSheet::loadAtlas("enemy_projectile");
+    auto itemSheet    = SpriteSheet::loadAtlas("item");
+    auto scenerySheet = SpriteSheet::loadAtlas("world_scenery_item");
+    if (!playerSheet || !enemySheet || !itemSheet || !scenerySheet) {
+        check(false, "the four sprite atlases load");
+        return;
+    }
+
+    struct Case { EntityType type; const char* name; };
+    const Case kAll[] = {
+        {EntityType::Mario, "Mario"}, {EntityType::Luigi, "Luigi"},
+        {EntityType::Toad, "Toad"}, {EntityType::Peach, "Peach"},
+        {EntityType::Goomba, "Goomba"}, {EntityType::KoopaTroopa, "KoopaTroopa"},
+        {EntityType::KoopaParatroopa, "KoopaParatroopa"}, {EntityType::Boo, "Boo"},
+        {EntityType::PiranhaPlant, "PiranhaPlant"}, {EntityType::BulletBill, "BulletBill"},
+        {EntityType::HammerBro, "HammerBro"}, {EntityType::Thwomp, "Thwomp"},
+        {EntityType::ChainChomp, "ChainChomp"}, {EntityType::Lakitu, "Lakitu"},
+        {EntityType::Spiny, "Spiny"}, {EntityType::Hammer, "Hammer"},
+        {EntityType::BossFireball, "BossFireball"}, {EntityType::Bowser, "Bowser"},
+        {EntityType::BoomBoom, "BoomBoom"}, {EntityType::Mushroom, "Mushroom"},
+        {EntityType::FireFlower, "FireFlower"}, {EntityType::Coin, "Coin"},
+        {EntityType::Star, "Star"}, {EntityType::OneUpMushroom, "OneUpMushroom"},
+        {EntityType::CapeFeather, "CapeFeather"}, {EntityType::MegaMushroom, "MegaMushroom"},
+        {EntityType::MiniMushroom, "MiniMushroom"}, {EntityType::POWBlock, "POWBlock"},
+        {EntityType::PSwitch, "PSwitch"}, {EntityType::Trampoline, "Trampoline"},
+        {EntityType::StarCoin, "StarCoin"}, {EntityType::BrickBlock, "BrickBlock"},
+        {EntityType::QuestionBlock, "QuestionBlock"}, {EntityType::Pipe, "Pipe"},
+        {EntityType::Flagpole, "Flagpole"}, {EntityType::HiddenBlock, "HiddenBlock"},
+        {EntityType::MovingPlatform, "MovingPlatform"},
+        {EntityType::FallingPlatform, "FallingPlatform"},
+        {EntityType::IceBlock, "IceBlock"}, {EntityType::ConveyorBelt, "ConveyorBelt"},
+    };
+
+    std::vector<std::string> invisible;
+    for (const Case& c : kAll) {
+        auto entity = EntityFactory::create(c.type, {100.0f, 100.0f});
+        if (!entity) {
+            invisible.push_back(std::string(c.name) + " (factory returned null)");
+            continue;
+        }
+        Entity* e = entity.get();
+
+        // The same routing PlayingState::wireEntityAnimations uses.
+        if (auto* x = dynamic_cast<Player*>(e))          x->setupAnimations(playerSheet.get());
+        else if (auto* x = dynamic_cast<Enemy*>(e))      x->setupAnimations(enemySheet.get());
+        else if (auto* x = dynamic_cast<Projectile*>(e)) x->setupAnimations(enemySheet.get());
+        else if (dynamic_cast<StarCoin*>(e))             static_cast<Item*>(e)->setupAnimations(scenerySheet.get());
+        else if (auto* x = dynamic_cast<Item*>(e))       x->setupAnimations(itemSheet.get());
+        else if (auto* x = dynamic_cast<Block*>(e))      x->setupAnimations(scenerySheet.get());
+
+        const sf::Vector2f art = e->artworkSize();
+        if (!e->hasArtwork()) {
+            invisible.push_back(std::string(c.name) + " (no frame list installed)");
+        } else if (art.x <= 0.0f || art.y <= 0.0f) {
+            invisible.push_back(std::string(c.name) + " (names frames the atlas lacks)");
+        }
+    }
+
+    for (const std::string& bad : invisible) {
+        std::cout << "         -> " << bad << "\n";
+    }
+    check(invisible.empty(),
+          "all " + std::to_string(sizeof(kAll) / sizeof(kAll[0])) +
+              " entity types resolve to a real sprite");
+}
+
+// Defeating Bowser was a hard crash. His defeat sequence ends in destroy(); the
+// prune step in update() then deleted him; updateBossArena() read
+// m_activeBoss->isActive() through the freed pointer ninety lines later.
+void testDefeatingABossDoesNotDangle() {
+    section("playtest  a defeated boss does not leave a dangling pointer behind");
+
+    std::vector<std::unique_ptr<Entity>> entities;
+    entities.push_back(std::make_unique<BoomBoom>(sf::Vector2f{300.0f, 300.0f}));
+    Boss* boss = static_cast<Boss*>(entities[0].get());
+
+    // Beat it, then run past the defeat sequence.
+    for (int hit = 0; hit < boss->getMaxHealth() + 2; ++hit) {
+        boss->onStomped();
+        for (int i = 0; i < 70; ++i) boss->update(1.0f / 60.0f);
+    }
+    check(boss->isDefeated(), "the boss is defeated");
+
+    // The defeat sequence ends in destroy(), which is what the prune keys off.
+    for (int i = 0; i < 200 && boss->isActive(); ++i) boss->update(1.0f / 60.0f);
+    check(!boss->isActive(),
+          "and deactivates itself once the sequence finishes, so the prune takes it");
+}
+
 int main() {
     std::cout << "Audit regression suite\n";
 
@@ -2477,6 +2579,8 @@ int main() {
     testWarpPipesLandInsideTheirDestination();
     testCampaignPathContainsOnlyCompletableLevels();
     testCapeActuallyDoesSomething();
+    testEveryEntityTypeDrawsRealArt();
+    testDefeatingABossDoesNotDangle();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

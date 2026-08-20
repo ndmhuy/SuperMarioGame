@@ -76,6 +76,9 @@ private:
     EventBus::SubscriptionId m_levelCompleteSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_entitySpawnSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
+    // One press of the crouch key is one warp, not one per frame.
+    float m_warpCooldown = 0.0f;
+
     Player* m_player = nullptr;
 
     // --- Two-player versus (task 11.1) -----------------------------------
@@ -151,6 +154,10 @@ private:
     void applySnapshot(const GameSnapshot& snapshot);
 
     // Latch onto whatever boss the freshly loaded level contains.
+    // Drops every raw pointer this state holds into an entity that is about to
+    // be destroyed. Called from the prune, before the unique_ptr is released.
+    void forgetEntity(Entity* entity);
+    void releaseBossArena();
     void findActiveBoss();
     // Lock on arena entry, keep the player inside, release when the boss dies.
     void updateBossArena();

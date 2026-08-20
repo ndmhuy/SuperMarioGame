@@ -525,9 +525,19 @@ void PlayingState::update(float dt) {
     // holds the real entities and pooled types can be recycled (task 10.1).
     auto deadBegin = std::stable_partition(
         m_entities.begin(), m_entities.end(), [this](const std::unique_ptr<Entity>& entity) {
-            const bool dead = entity && !entity->isActive() && entity.get() != m_player;
+            const bool dead = entity && !entity->isActive() &&
+                              entity.get() != m_player && entity.get() != m_player2;
             return !dead;
         });
+    // Every raw pointer this state keeps into m_entities has to be dropped
+    // *before* the object behind it is freed. Defeating Bowser was a hard crash:
+    // his defeat sequence ends in destroy(), the prune below deleted him, and
+    // updateBossArena() then read m_activeBoss->isActive() through the dangling
+    // pointer ninety lines later. Clearing it there was always one frame too
+    // late — the free happens here.
+    for (auto it = deadBegin; it != m_entities.end(); ++it) {
+        if (*it) forgetEntity(it->get());
+    }
     for (auto it = deadBegin; it != m_entities.end(); ++it) {
         recycleEntity(std::move(*it));
     }
@@ -553,8 +563,14 @@ void PlayingState::update(float dt) {
     }
 
     // 3c. Void fall — one shared death path, so the timer and the pit agree.
+    // Sideways counts too: a bad warp exit could park the player past the edge
+    // of the map, where they were outside every tile, never fell, and never
+    // died. "In the void but not dying" was exactly that.
     const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
-    if (m_player && m_player->getPosition().y > bottomVoidY) {
+    const float rightVoidX  = (m_tileMap.getWidth()  * Constants::TILE_SIZE) + 64.0f;
+    if (m_player && (m_player->getPosition().y > bottomVoidY ||
+                     m_player->getPosition().x < -64.0f ||
+                     m_player->getPosition().x > rightVoidX)) {
         killPlayer("fell into the void");
         if (allPlayersOut()) return;
     }
@@ -571,20 +587,47 @@ void PlayingState::update(float dt) {
         }
     }
 
-    // 3d. Warp Pipe check for sub-level transitions or teleportation
-    for (const auto& entity : m_entities) {
-        if (auto pipe = dynamic_cast<Pipe*>(entity.get())) {
-            if (m_player && pipe->checkWarp(*m_player)) {
-                std::string target = pipe->getTargetLevel();
-                sf::Vector2f exitPos = pipe->getExitPosition();
-                if (!target.empty()) {
-                    loadLevelByPath(target, exitPos);
-                } else if (exitPos.x != 0.0f || exitPos.y != 0.0f) {
-                    m_player->setPosition(exitPos);
-                    m_player->setVelocity({0.0f, 0.0f});
+    // 3d. Warp Pipe check for sub-level transitions or teleportation.
+    //
+    // Two things this has to get right, both of which it used to get wrong:
+    //
+    //  - The decision is taken while iterating m_entities, but acting on it
+    //    replaces that whole vector. The intent is collected first and applied
+    //    after the loop, so nothing reads a destroyed Pipe.
+    //  - Holding the crouch key kept re-triggering the warp every frame. A
+    //    round trip that lands anywhere near another pipe then ping-pongs at
+    //    60Hz, reloading the level and stacking two sounds per frame. The
+    //    cooldown below makes one press mean one warp.
+    if (m_warpCooldown > 0.0f) m_warpCooldown -= dt;
+
+    if (m_player && m_warpCooldown <= 0.0f) {
+        std::string warpTarget;
+        sf::Vector2f warpExit{0.0f, 0.0f};
+        bool warping = false;
+
+        for (const auto& entity : m_entities) {
+            if (auto pipe = dynamic_cast<Pipe*>(entity.get())) {
+                if (pipe->checkWarp(*m_player)) {
+                    warpTarget = pipe->getTargetLevel();
+                    warpExit   = pipe->getExitPosition();
+                    warping    = true;
+                    break;
                 }
-                break;
             }
+        }
+
+        if (warping) {
+            m_warpCooldown = 0.75f;
+            SoundManager::getInstance().playSound("pipe");
+            EventBus::getInstance().publish({EventType::PlayerWarped, 0});
+
+            if (!warpTarget.empty()) {
+                loadLevelByPath(warpTarget, warpExit);
+            } else if (warpExit.x != 0.0f || warpExit.y != 0.0f) {
+                m_player->setPosition(warpExit);
+                m_player->setVelocity({0.0f, 0.0f});
+            }
+            return;   // the world just changed underneath us; resume next frame
         }
     }
 
@@ -1083,7 +1126,31 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
         admitEntity(entity.get());
     }
 
-    sf::Vector2f spawnPos = (spawnOverride.x != 0.0f || spawnOverride.y != 0.0f) ? spawnOverride : levelData.spawnPoint;
+    sf::Vector2f spawnPos = (spawnOverride.x != 0.0f || spawnOverride.y != 0.0f)
+                                ? spawnOverride : levelData.spawnPoint;
+
+    // A pipe exit is level data, and level data can be wrong: these used to name
+    // tile (104,20) of a 65-tile-wide level, which dropped the player outside
+    // the map into open air. Rather than trust it, check that the exit is inside
+    // the destination and has ground beneath it, and fall back to the level's
+    // own spawn point when it does not. Landing at the start of a room is a
+    // visible oddity; landing in the void is an unrecoverable one.
+    const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
+    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+    auto standableBelow = [this, mapBottom](sf::Vector2f p) {
+        for (float y = p.y; y < mapBottom; y += 8.0f) {
+            if (TileMap::getInfo(m_tileMap.getTileAt(p.x, y)).isSolid) return true;
+        }
+        return false;
+    };
+    const bool insideMap = spawnPos.x >= 0.0f && spawnPos.x < mapRight &&
+                           spawnPos.y >= 0.0f && spawnPos.y < mapBottom;
+    if (!insideMap || !standableBelow(spawnPos)) {
+        std::cerr << "[PlayingState] Spawn (" << spawnPos.x << ", " << spawnPos.y
+                  << ") is outside " << chosenPath
+                  << " or has no floor; using the level's own spawn point." << std::endl;
+        spawnPos = levelData.spawnPoint;
+    }
 
     // cleanupTestScene() nulled m_player, so spawnSelectedPlayer cannot carry the
     // stats itself — apply them here, through the same silent path.
@@ -1260,6 +1327,30 @@ void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
     }
 }
 
+void PlayingState::forgetEntity(Entity* entity) {
+    if (!entity) return;
+
+    if (entity == m_activeBoss) {
+        releaseBossArena();
+        m_activeBoss = nullptr;
+    }
+    // A carried shell that expires while held would leave the player animating
+    // a carry forever, and throwHeldEntity() would dereference freed memory.
+    if (m_player && m_player->getHeldEntity() == entity)  m_player->releaseHeldEntity();
+    if (m_player2 && m_player2->getHeldEntity() == entity) m_player2->releaseHeldEntity();
+}
+
+void PlayingState::releaseBossArena() {
+    if (!m_arenaLocked) return;
+    m_camera.setBounds(m_preArenaCameraBounds);
+    m_camera.setScrollMode(Camera::ScrollMode::Free);
+    m_arenaLocked = false;
+    // Back to the level's own music: the fight track kept playing over the
+    // victory tally otherwise.
+    SoundManager::getInstance().restoreLevelBGM();
+    std::cout << "[PlayingState] Boss arena released." << std::endl;
+}
+
 void PlayingState::findActiveBoss() {
     m_activeBoss = nullptr;
     m_arenaLocked = false;
@@ -1279,12 +1370,7 @@ void PlayingState::updateBossArena() {
     // The boss entity is owned by m_entities and pruned when it deactivates, so
     // the pointer has to be dropped in the same frame it stops being active.
     if (m_activeBoss && !m_activeBoss->isActive()) {
-        if (m_arenaLocked) {
-            m_camera.setBounds(m_preArenaCameraBounds);
-            m_camera.setScrollMode(Camera::ScrollMode::Free);
-            m_arenaLocked = false;
-            std::cout << "[PlayingState] Boss arena released." << std::endl;
-        }
+        releaseBossArena();
         m_activeBoss = nullptr;
     }
 
@@ -1352,7 +1438,17 @@ void PlayingState::killPlayer(const char* reason) {
     if (m_player->getLives() > 0) {
         // Respawn at the last checkpoint if one was reached, otherwise at the
         // level's own spawn point — never at a hardcoded corner.
-        const sf::Vector2f respawn = m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint;
+        sf::Vector2f respawn = m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint;
+        // If the spawn point is itself in the void, respawning there is an
+        // infinite death loop that drains every life in a second — and plays the
+        // death sound every frame while it does.
+        const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+        const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
+        if (respawn.y > mapBottom || respawn.x < 0.0f || respawn.x > mapRight) {
+            respawn = {Constants::TILE_SIZE * 3.0f, Constants::TILE_SIZE * 2.0f};
+            std::cerr << "[PlayingState] Respawn point was outside the map; "
+                         "using the top-left of the level instead." << std::endl;
+        }
         m_player->setPosition(respawn);
         m_player->setVelocity({0.0f, 0.0f});
         m_camera.snapTo(respawn);

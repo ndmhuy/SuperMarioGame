@@ -40,7 +40,11 @@ void ConveyorBelt::update(float dt) {
 void ConveyorBelt::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
     m_animation = Animation("conveyor_belt");
-    m_animation.frameList = {{"platform_long", 0.15f}};
+    // This named "platform_long", which world_scenery_item does not contain.
+    // setupAnimations() sets m_hasAnimation whether or not the frames exist,
+    // and drawSprite() returns early on a zero-size sprite, so the conveyor belt
+    // drew nothing at all — not even the placeholder rectangle.
+    m_animation.frameList = {{"conveyor_belt_green", 0.12f}, {"conveyor_belt_white", 0.12f}};
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;

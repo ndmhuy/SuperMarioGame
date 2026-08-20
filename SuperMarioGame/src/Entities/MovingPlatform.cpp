@@ -72,7 +72,11 @@ void MovingPlatform::update(float dt) {
 void MovingPlatform::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
     m_animation = Animation("moving_platform");
-    m_animation.frameList = {{"platform_medium", 0.15f}};
+    // This named "platform_medium", which world_scenery_item does not contain.
+    // setupAnimations() sets m_hasAnimation whether or not the frames exist,
+    // and drawSprite() returns early on a zero-size sprite, so the moving platform
+    // drew nothing at all — not even the placeholder rectangle.
+    m_animation.frameList = {{"half_platform_long", 0.15f}};
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;

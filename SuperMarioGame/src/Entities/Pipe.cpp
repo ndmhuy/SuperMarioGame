@@ -16,36 +16,31 @@ void Pipe::onHitFromBelow(Player& player) {
     // Solid block, does nothing from below except play normal bump sound if necessary
 }
 
-bool Pipe::checkWarp(Player& player) const {
+bool Pipe::checkWarp(const Player& player) const {
+    // Deliberately side-effect free.
+    //
+    // This used to play the pipe sound, teleport the player and publish an event
+    // from inside a const query that PlayingState called once per pipe per
+    // frame. Holding Down on a pipe re-fired all of it every frame, and the
+    // event it published was CheckpointActivated — so every trip down a pipe
+    // also set a respawn point, ran an auto-save and played the checkpoint
+    // jingle. Two overlapping sounds a frame is what "a madness of music" was.
     if (!m_isEntrance) return false;
 
-    // Check if player is standing on top of the pipe horizontally
-    float playerCenterX = player.getBoundingBox().x + player.getBoundingBox().width / 2.0f;
-    bool withinHorizontalBounds = (playerCenterX >= position.x && playerCenterX <= position.x + boundingBox.width);
+    // Standing on top of the pipe, horizontally over it...
+    const float playerCenterX = player.getBoundingBox().x + player.getBoundingBox().width / 2.0f;
+    const bool withinHorizontalBounds =
+        (playerCenterX >= position.x && playerCenterX <= position.x + boundingBox.width);
 
-    // Check if player is on top of the pipe vertically
-    float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
-    bool onTop = (std::abs(playerFeetY - position.y) <= 4.0f);
+    // ...and with their feet on its rim.
+    const float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
+    const bool onTop = (std::abs(playerFeetY - position.y) <= 4.0f);
+    if (!withinHorizontalBounds || !onTop) return false;
 
-    if (withinHorizontalBounds && onTop) {
-        // In real gameplay, warp is triggered by pressing down (S or Down key)
-        bool downPressed = InputManager::getInstance().isHeld(sf::Keyboard::Key::Down) || 
-                           InputManager::getInstance().isHeld(sf::Keyboard::Key::S);
-        if (downPressed) {
-            // Trigger warp!
-            SoundManager::getInstance().playSound("pipe");
-            if (m_targetLevel.empty()) {
-                // Same level teleportation
-                player.setPosition(m_exitPosition);
-                player.setVelocity({0.0f, 0.0f});
-            } else {
-                // Publish warp event for level switching
-                EventBus::getInstance().publish({EventType::CheckpointActivated, m_pipeId}); // Warp event type mapping
-            }
-            return true;
-        }
-    }
-    return false;
+    // Asks for the bound crouch key rather than naming S and Down.
+    InputManager& input = InputManager::getInstance();
+    const int pad = player.getPlayerIndex();
+    return input.isActionHeld("crouch", pad) || input.isActionHeld("groundpound", pad);
 }
 
 void Pipe::setupAnimations(const SpriteSheet* spriteSheet) {

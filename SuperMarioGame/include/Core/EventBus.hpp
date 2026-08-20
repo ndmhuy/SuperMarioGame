@@ -19,6 +19,7 @@ enum class EventType {
   PSwitchActivated,
   BossDefeated,
   CheckpointActivated,
+  PlayerWarped,
   PlayerDamaged,
   BlockBroken,
   TimeWarning,

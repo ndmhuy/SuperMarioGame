@@ -15,7 +15,16 @@ public:
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     // Checks if warp conditions (player standing on top and pressing down) are met
-    bool checkWarp(Player& player) const;
+    bool checkWarp(const Player& player) const;
+
+    // Pipes are drawn by PipeRenderer from several atlas frames rather than by
+    // the animator, so the inherited animator-based answers do not describe
+    // them. Reported honestly here so the artwork sweep is not lied to.
+    bool hasArtwork() const override { return m_spriteSheet != nullptr; }
+    sf::Vector2f artworkSize() const override {
+        return m_spriteSheet ? sf::Vector2f{boundingBox.width, boundingBox.height}
+                             : sf::Vector2f{0.0f, 0.0f};
+    }
 
     int getPipeId() const { return m_pipeId; }
     sf::Vector2f getExitPosition() const { return m_exitPosition; }
