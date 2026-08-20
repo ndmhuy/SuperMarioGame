@@ -105,10 +105,12 @@ footer { border-top:1px solid var(--line); padding-top:18px;
   <h1>Run Log, Step by Step</h1>
   <p class="lede">Every step with its knowledge base, the maths it rests on, the tech it touched,
   what was implemented, what was measured, and why the decision went the way it did.
-  Sessions 1–2 established the tooling and fixed the engine; session 3 works on the agent itself.</p>
+  Sessions 1–2 established the tooling and fixed the engine, session 3 the heuristic agent, and
+  session 4 puts a neural network on your own C++ framework and trains it live on screen.</p>
   <div class="chips">
     <span class="chip">branch A/mapgen-gan-plan</span>
     <span class="chip">obs contract v2</span>
+    <span class="chip">nn:: vendored</span>
     <span class="chip">14/14 ctest</span>
     <span class="chip">game run &amp; screenshotted</span>
   </div>
@@ -328,17 +330,119 @@ frozen baseline         24.9    75.3    21.4    13.1
   </div>
 </div>
 
+<div>
+  <div class="session-h"><h2>Session 4 · Neural network &amp; live training</h2><span>20 Aug · your framework, in-game, visualized</span></div>
+  <div class="steps" style="margin-top:14px">
+
+    <article class="step ok"><div class="step-head"><span class="n">13</span>
+      <h3>Vendor the <code>nn::</code> framework</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">Your CS200-Cpp library: Tensor + reverse-mode autograd, Sequential/Linear/Activation,
+          SGD/Adam, MSELoss, NEON CPU backend, Metal GPU backend, plus existing RL precedent (gaussian_rl DQN, poker_rl Deep CFR).</div></div>
+        <div class="field"><span class="k">Tech stack</span><div class="v">Copied <code>include/nn/**</code> and the CPU <code>src</code> trees into
+          <code>third_party/nn/</code>; <code>add_library(nn STATIC)</code>. No <code>MetalBackend.mm</code>, no <code>.metal</code> shaders — that would add an
+          Objective-C++ requirement to this project's CMake for a 123K-parameter network that does not need a GPU.</div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">Vendored rather than path-referenced: a relative dependency on a sibling checkout breaks
+          the build on any machine without CS200-Cpp beside it — a grader's included. <strong>C++ standards coexist</strong> instead of the game bumping to C++20:
+          <code>Tensor.hpp</code> uses concepts, AGENTS.md pins the game to C++17, so the <code>nn</code> target and the two files touching it compile as C++20 while
+          <code>NeuralPolicy.hpp</code> is PIMPL'd — no <code>nn/</code> header ever reaches C++17 code.</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">Two upstream defects found and patched in the vendored copy, both flagged for CS200-Cpp:
+          <code>Device.cpp</code> hard-includes MetalBackend; and <strong><code>Activation.cpp</code> does not compile at upstream HEAD</strong> — the header
+          declares LeakyReLU/GELU/SiLU factories and an <code>alpha</code> constructor parameter the source never implements. A stale <code>build/</code> hides it
+          until a clean rebuild.</div></div>
+      </div>
+    </article>
+
+    <article class="step key"><div class="step-head"><span class="n">14</span>
+      <h3>Optimisation flags — a 42× speedup</h3><span class="verdict key">Measured</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">Neither project set any optimisation flags, and this game builds Debug. NEON intrinsics
+          and expression templates are worth nothing without inlining.</div></div>
+        <div class="field"><span class="k">Maths</span><div class="v">One training step of the real shape (1899→64→32→7, forward + backward + SGD):
+          <pre class="math">no flags          <b>12.77 ms</b>   77% of a 60Hz frame
+-O2                 0.97 ms    6%
+-O3 -mcpu=native    <b>0.30 ms</b>   1.8%</pre></div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v"><code>target_compile_options(nn PRIVATE -O3)</code> plus a guarded <code>-mcpu=native</code>.
+          Game code stays at the project's build type so it remains debuggable; no <code>-ffast-math</code>, so float semantics and reproducibility are untouched.
+          The ctest suite also dropped from 14.6s to 4.2s.</div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">Unoptimised, live training is simply impossible — one step would eat three quarters of the
+          frame budget the renderer needs. This also explains upstream's <code>benchmark_results.md</code> reporting 0.01× vs PyTorch: those are <code>-O0</code> numbers.
+          Worth re-running that benchmark upstream with flags.</div></div>
+      </div>
+    </article>
+
+    <article class="step ok"><div class="step-head"><span class="n">15</span>
+      <h3>Live training state, on screen</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Implementation</span><div class="v"><strong>TRAIN AI</strong> on the main menu. Renders the episode plus an overlay:
+          loss, teacher agreement, both curves, the seven button outputs as bars, and who is driving. SPACE pauses, <code>+/-</code> winds to 64×, ESC checkpoints and exits.
+          Resumes from <code>saves/ai/policy.ckpt</code>; checkpoints every 25 episodes.</div></div>
+        <div class="field"><span class="k">Tech stack</span><div class="v">DAgger (Ross et al. 2011) — supervised imitation of the heuristic on states the
+          <em>learner</em> visits, β annealing control from teacher to learner. <code>BorrowedPolicy</code> lets the controller drive a policy it does not own;
+          <code>AIController::lastAction()</code> supplies the teacher's label without calling <code>decide()</code> twice (which would advance its escape counters).</div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">A state of its own, not PlayingState — same reason <code>eval_level</code> is a separate harness.
+          DAgger rather than plain cloning because cloning trains on states the <em>teacher</em> visits, so the learner has no idea what to do the moment it drifts.</div></div>
+      </div>
+    </article>
+
+    <article class="step bad"><div class="step-head"><span class="n">16</span>
+      <h3>Two bugs found by measuring, not assuming</h3><span class="verdict bad">Caught</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">first run: <span class="r">79,241 samples, loss frozen 0.13, agreement stuck 47%</span></pre>
+          <p style="margin-top:8px"><strong>Bug 1:</strong> <code>PolicyTrainer</code> called <code>nn::Loss::compute()</code>, which returns a bare value —
+          only <code>nn::Loss::forward()</code> attaches the GradFn. Every <code>backward()</code> was a no-op. It looked exactly like training.</p>
+          <p><strong>Bug 2:</strong> reusing one leaf tensor across backward passes grows its graph without bound — 200 steps took minutes, fresh tensors hold a flat 0.015 ms.</p></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">Isolated by testing the framework on a trivial 4→8→2 task rather than debugging inside the game.
+          Loss identical to 6 decimal places across 200 iterations is not slow learning, it is no learning — a distinction the on-screen curve alone would have hidden for hours.</div></div>
+      </div>
+    </article>
+
+    <article class="step ok"><div class="step-head"><span class="n">17</span>
+      <h3>After the fix: it genuinely learns</h3><span class="verdict ok">Verified</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">219 episodes, 88,968 samples
+agreement  96.6%  ->  <span class="g">99.9%</span>
+loss       0.0155 ->  <span class="g">0.0010</span>
+button outputs: mush around 0.5  ->  decisive</pre>
+          <p style="margin-top:8px">Every episode is appended to <code>saves/ai/training_log.csv</code> — the on-screen curves are transient and bounded.</p></div></div>
+      </div>
+    </article>
+
+    <article class="step key"><div class="step-head"><span class="n">18</span>
+      <h3>…and it plays three times worse than its teacher</h3><span class="verdict key">The finding</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">heuristic (teacher)   <span class="g">23.9%</span> of level_1,  7 deaths, timeout
+neural  (99.9% agree)  <span class="r">8.2%</span>,          0 deaths, <span class="r">STUCK</span>
+
+jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class="r">0</span></pre></div></div>
+        <div class="field"><span class="k">Maths</span><div class="v">Jump is pressed on a small minority of frames. A network that simply never jumps therefore scores
+          ~97% agreement <em>on that button</em>, and MSE is content — while missing precisely the rare presses platforming consists of. Class imbalance, and the missed
+          frames are not random: they are exactly the decisive ones.</div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v"><p><strong>Nothing here is reinforced.</strong> The gradient signal is MSE against the teacher's
+          buttons — a supervision label. <code>RewardTracker</code> exists and is deliberately <em>not</em> wired in, so this is imitation learning, not RL.</p>
+          <p>The metric that improved (per-button agreement) is not the metric that matters (finishing the level), and this is the measured proof of the gap.
+          It is also the empirical case for actual reward-weighted learning — which now has a baseline to beat rather than an assumption to defend.</p></div></div>
+      </div>
+    </article>
+
+  </div>
+</div>
+
 <section>
   <p class="eyebrow">Where to pick up</p>
   <div class="step" style="border-left-color:var(--info)">
     <div class="fields" style="border-top:none">
-      <div class="field"><span class="k">1 · RL training</span><div class="v">The plateau is measured; the seam, the v2 observations, the reward tracker and the
-        24×-realtime runner are all in place. Train on oracle-verified-reachable levels with reachability-graph progress as the dense reward.</div></div>
-      <div class="field"><span class="k">2 · Oracle fix</span><div class="v">Replace tile-rounding with floor-based box occupancy and normalize demand by the
-        discrete 122.4px envelope, restoring the lower-bound contract (level_3's direct wall must read impossible; its platform route becomes the honest answer).</div></div>
-      <div class="field"><span class="k">3 · Determinism</span><div class="v">Decide policy for evaluation: keep ε=0 (reproducible fitness, but groundhog-day
-        first deaths) or add per-life exploration noise. Affects the level-fitness pipeline's design, so decide before the corpus work.</div></div>
-      <div class="field"><span class="k">4 · Corpus</span><div class="v">VGLC download still awaits your go-ahead.</div></div>
+      <div class="field"><span class="k">1 · Real RL</span><div class="v">Wire <code>RewardTracker</code> into <code>PolicyTrainer</code>. Imitation has reached its
+        ceiling and the ceiling is below the teacher; reward-weighted updates (REINFORCE, or advantage-weighted regression on the existing labels) are what can value a jump
+        by its consequence instead of by its frequency.</div></div>
+      <div class="field"><span class="k">2 · Class imbalance</span><div class="v">Even staying supervised, weighting the jump button by inverse frequency — or reporting
+        per-button agreement rather than one average — would have made this failure visible in one episode instead of 219.</div></div>
+      <div class="field"><span class="k">3 · Upstream fixes</span><div class="v">Two patches to relay to CS200-Cpp: <code>Activation.cpp</code> not compiling at HEAD, and
+        the missing optimisation flags that make its published benchmarks 42× pessimistic.</div></div>
+      <div class="field"><span class="k">4 · Corpus</span><div class="v">VGLC download still awaits your go-ahead; Conv layers are only needed once the GAN starts, not before.</div></div>
     </div>
   </div>
 </section>
