@@ -1,0 +1,823 @@
+<title>Generator &amp; Agent Track</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ---- tokens: light is the bare :root ------------------------------------ */
+:root {
+  --paper:      #EDEEF3;
+  --surface:    #F7F8FB;
+  --surface-2:  #E3E5EC;
+  --line:       #CFD2DD;
+  --line-soft:  #DEE0E9;
+  --ink:        #171A26;
+  --ink-2:      #4A4F63;
+  --ink-3:      #767B8F;
+
+  --accent:     #C98A0C;   /* question-block yellow, darkened for light ground */
+  --accent-ink: #171A26;
+  --pipe:       #2E7D57;
+  --hazard:     #C23A36;
+  --terrain:    #8A5A3B;
+
+  /* tile classes — the level_tensor vocabulary, in order */
+  --t-empty:     #D8DAE3;
+  --t-solid:     #8A5A3B;
+  --t-breakable: #B9784A;
+  --t-question:  #E0A216;
+  --t-pipe:      #2E7D57;
+  --t-hazard:    #C23A36;
+  --t-coin:      #D9B441;
+  --t-enemy:     #7C4DBE;
+  --t-platform:  #3E7BB8;
+
+  --grid-bg:    #F7F8FB;
+  --shadow:     0 1px 2px rgba(23,26,38,.06), 0 8px 24px -12px rgba(23,26,38,.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0F111A;
+    --surface:    #171A26;
+    --surface-2:  #1F2331;
+    --line:       #2E3345;
+    --line-soft:  #252A39;
+    --ink:        #EEF0F6;
+    --ink-2:      #AAB0C4;
+    --ink-3:      #767D95;
+
+    --accent:     #F5B32C;
+    --accent-ink: #12141F;
+    --pipe:       #4FBE8B;
+    --hazard:     #E5615C;
+    --terrain:    #A9724E;
+
+    --t-empty:     #222735;
+    --t-solid:     #8A5A3B;
+    --t-breakable: #C0794B;
+    --t-question:  #F5B32C;
+    --t-pipe:      #3E9B6E;
+    --t-hazard:    #D64541;
+    --t-coin:      #EFC94C;
+    --t-enemy:     #9061E0;
+    --t-platform:  #4A90D9;
+
+    --grid-bg:    #12141F;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper:      #0F111A;
+  --surface:    #171A26;
+  --surface-2:  #1F2331;
+  --line:       #2E3345;
+  --line-soft:  #252A39;
+  --ink:        #EEF0F6;
+  --ink-2:      #AAB0C4;
+  --ink-3:      #767D95;
+
+  --accent:     #F5B32C;
+  --accent-ink: #12141F;
+  --pipe:       #4FBE8B;
+  --hazard:     #E5615C;
+  --terrain:    #A9724E;
+
+  --t-empty:     #222735;
+  --t-solid:     #8A5A3B;
+  --t-breakable: #C0794B;
+  --t-question:  #F5B32C;
+  --t-pipe:      #3E9B6E;
+  --t-hazard:    #D64541;
+  --t-coin:      #EFC94C;
+  --t-enemy:     #9061E0;
+  --t-platform:  #4A90D9;
+
+  --grid-bg:    #12141F;
+  --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+/* ---- base --------------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+.eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+code, .mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+code {
+  font-size: .88em;
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: .1em .34em;
+  color: var(--ink);
+}
+
+a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, .station:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---- masthead ----------------------------------------------------------- */
+.masthead { display: flex; flex-direction: column; gap: 18px; }
+
+.masthead h1 {
+  font-size: clamp(34px, 6vw, 58px);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  line-height: 1.02;
+}
+
+.masthead h1 .and { color: var(--accent); font-style: normal; }
+
+.standfirst {
+  max-width: 62ch;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+
+.branchbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 4px 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.chip.warn { border-color: var(--accent); color: var(--ink); }
+.chip .dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); margin-right: 6px; vertical-align: 1px;
+}
+
+/* ---- the level strip ---------------------------------------------------- */
+.stripcard {
+  background: var(--grid-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.striphead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.striphead .eyebrow { color: var(--ink-3); }
+
+.stripscroll { overflow-x: auto; padding: 18px; }
+
+#strip {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 1px;
+  width: max-content;
+  margin: 0 auto;
+}
+
+#strip .col { display: grid; grid-template-rows: repeat(14, 12px); gap: 1px; }
+#strip i { display: block; width: 12px; border-radius: 1px; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 0 18px 18px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend b { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+
+/* ---- summary tiles ------------------------------------------------------ */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tile .num {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.tile .cap { font-size: 13px; color: var(--ink-2); }
+.tile.is-live { border-color: var(--accent); }
+.tile.is-live .num { color: var(--accent); }
+
+/* ---- route -------------------------------------------------------------- */
+section { display: flex; flex-direction: column; gap: 20px; }
+
+.sechead { display: flex; flex-direction: column; gap: 7px; }
+.sechead h2 {
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+.sechead p { margin: 0; color: var(--ink-2); max-width: 64ch; font-size: 15px; }
+
+.route { display: flex; flex-direction: column; gap: 10px; }
+
+.station {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 18px;
+  align-items: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 8px;
+  padding: 15px 18px;
+}
+
+.station.done      { border-left-color: var(--pipe); }
+.station.active    { border-left-color: var(--accent); background: var(--surface); }
+.station.queued    { border-left-color: var(--line); }
+.station.stretch   { border-left-color: var(--line); border-style: dashed; }
+
+.station .idx {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  padding-top: 1px;
+}
+.station.done .idx   { color: var(--pipe); }
+.station.active .idx { color: var(--accent); }
+
+.station .body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.station h3 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.station p  { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+.station .meta {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.state {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  background: var(--surface-2);
+}
+.state.done   { background: var(--pipe);   color: #fff; border-color: transparent; }
+.state.active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+.track {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---- prose blocks ------------------------------------------------------- */
+.note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.note p { margin: 0; color: var(--ink-2); font-size: 15px; max-width: 68ch; }
+.note strong { color: var(--ink); font-weight: 600; }
+
+.rules { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.rules li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+.rules li::before {
+  content: "";
+  width: 9px; height: 9px;
+  margin-top: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.stack {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.85;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0;
+}
+.stack .hi { color: var(--accent); font-weight: 700; }
+.stack .ok { color: var(--pipe); }
+
+footer {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+}
+
+@media (max-width: 620px) {
+  .station { grid-template-columns: 30px 1fr; }
+  .station .state { grid-column: 2; justify-self: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">CS202 · Super Mario · side project · off the main line</p>
+    <h1>Generator <span class="and">&amp;</span> Agent</h1>
+    <p class="standfirst">
+      A learned level generator and a reinforcement-learning opponent, built as one
+      experiment because each is the other's missing half. The generator gives the agent
+      unlimited levels to train on; the agent is the only honest judge of whether a
+      generated level actually plays.
+    </p>
+    <div class="branchbar">
+      <span class="chip"><span class="dot"></span>A/mapgen-gan</span>
+      <span class="chip">stacked on A/rl-neural-policy</span>
+      <span class="chip">dev unaffected</span>
+      <span class="chip warn">C++ footprint: 1 flag + 1 optional mode</span>
+    </div>
+  </header>
+
+  <div class="stripcard">
+    <div class="striphead">
+      <p class="eyebrow">level_1 · columns 0–95 · as the generator sees it</p>
+      <p class="eyebrow">14 rows · 9 classes · contract v1</p>
+    </div>
+    <div class="stripscroll"><div id="strip"></div></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile">
+      <span class="num">3<span style="color:var(--ink-3);font-size:19px">/10</span></span>
+      <span class="cap">deliverables shipped</span>
+    </div>
+    <div class="tile is-live">
+      <span class="num">0<span style="color:var(--ink-3);font-size:19px">/4</span></span>
+      <span class="cap">shipped levels the agent can finish</span>
+    </div>
+    <div class="tile">
+      <span class="num">7/7</span>
+      <span class="cap">levels the geometric oracle proves winnable</span>
+    </div>
+    <div class="tile">
+      <span class="num">20×</span>
+      <span class="cap">faster to check a level than to play it</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Finding · 20 Aug</p>
+      <h2>The agent fails levels that are provably fine</h2>
+      <p>
+        The first thing the eval runner produced was a contradiction, and resolving it
+        is what separates this project from the papers it started as a reimplementation of.
+      </p>
+    </div>
+
+    <div class="note">
+      <p>
+        <strong>The heuristic agent finishes none of the four shipped campaign levels.</strong>
+        It stalls at 10.8%, 13.8%, 21.4% and 46.4% — in every archetype, having never died.
+        It simply stops making progress and stays stopped for the remaining ~145 seconds.
+      </p>
+      <p>
+        <strong>The geometric oracle says all seven levels are 100% reachable.</strong>
+        So the levels are fine and the player is not — but a fitness function built on
+        playthroughs, which is what every system in the bibliography uses, cannot tell those
+        two apart. Used naively, this agent rejects hand-vetted shipped levels as broken, and
+        in a curriculum loop it reports every level as too hard forever.
+      </p>
+      <p>
+        The oracle put <code>level_1</code>'s hardest forced move at column 26. The agent
+        stalls at column 24.25 — at the foot of it. The prediction was independent: the oracle
+        never runs an agent.
+      </p>
+    </div>
+
+    <div class="sechead" style="margin-top:14px">
+      <p class="eyebrow">Consequence</p>
+      <h2>Measure the level, not the player</h2>
+    </div>
+
+    <div class="note">
+      <p>
+        <code>solvability.py</code> floods a level with every jump the engine's own physics
+        constants permit — no policy, no learned search, no agent — and answers reachability
+        exactly in about a quarter of a second, against five seconds for one rollout. That
+        splits a single ambiguous signal into three unambiguous ones:
+      </p>
+      <ul class="rules">
+        <li><strong>Not reachable</strong> — broken. Reject it; no agent needed to know.</li>
+        <li><strong>Reachable, agent clears it</strong> — too easy for this agent.</li>
+        <li><strong>Reachable, agent fails</strong> — the useful case. Real difficulty, and the only rows worth training on.</li>
+      </ul>
+      <p>
+        PAIRED cancels this confound with regret, at the cost of a second trained agent;
+        Volz et al. sidestep it with A*, which is its own kind of competence and costs a
+        search per candidate. Neither removes it.
+      </p>
+    </div>
+
+    <div class="sechead" style="margin-top:14px">
+      <p class="eyebrow">Difficulty</p>
+      <h2>A bottleneck, not an average</h2>
+      <p>
+        Difficulty is the hardest single move on the <em>kindest</em> route to the goal — a
+        minimax over the reachability graph. Averaging along a path hides the one brutal jump
+        that makes players quit; taking the hardest move anywhere calls a level hard when an
+        easy detour exists.
+      </p>
+    </div>
+
+    <div class="stripcard">
+      <div class="striphead">
+        <p class="eyebrow">1.0 = at the limit of what the physics allows</p>
+        <p class="eyebrow">measured, not playtested</p>
+      </div>
+      <div class="stripscroll">
+        <table style="border-collapse:collapse;width:100%;font-size:14px">
+          <thead>
+            <tr style="text-align:left;color:var(--ink-3)">
+              <th style="padding:6px 14px 6px 0;font-weight:600">Level</th>
+              <th style="padding:6px 14px;font-weight:600">Required to finish</th>
+              <th style="padding:6px 14px;font-weight:600">Hardest optional</th>
+              <th style="padding:6px 0 6px 14px;font-weight:600">Reachable</th>
+            </tr>
+          </thead>
+          <tbody class="mono" style="font-variant-numeric:tabular-nums">
+            <tr><td style="padding:5px 14px 5px 0">level_1</td><td style="padding:5px 14px">0.71</td><td style="padding:5px 14px">0.96</td><td style="padding:5px 0 5px 14px;color:var(--pipe)">100%</td></tr>
+            <tr><td style="padding:5px 14px 5px 0">level_2</td><td style="padding:5px 14px;color:var(--hazard);font-weight:700">0.96</td><td style="padding:5px 14px">0.96</td><td style="padding:5px 0 5px 14px;color:var(--pipe)">100%</td></tr>
+            <tr><td style="padding:5px 14px 5px 0">level_3</td><td style="padding:5px 14px;color:var(--hazard);font-weight:700">0.96</td><td style="padding:5px 14px">0.96</td><td style="padding:5px 0 5px 14px;color:var(--pipe)">100%</td></tr>
+            <tr><td style="padding:5px 14px 5px 0">bonus_1</td><td style="padding:5px 14px">0.71</td><td style="padding:5px 14px">0.81</td><td style="padding:5px 0 5px 14px;color:var(--pipe)">100%</td></tr>
+            <tr><td style="padding:5px 14px 5px 0">level_*_sub</td><td style="padding:5px 14px">0.14</td><td style="padding:5px 14px">0.42</td><td style="padding:5px 0 5px 14px;color:var(--pipe)">100%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="note">
+      <p>
+        Two things fall out that no playtest had produced. <strong>level_2 and level_3 require
+        a jump at 96% of the physical maximum just to finish</strong> — there is no margin;
+        that is not difficulty, it is a level you clear by pixel luck. And <strong>there is no
+        difficulty curve, there is a cliff</strong>: 0.14 in the sub-levels, 0.71–0.96 in the
+        campaign, nothing in between. Both are direct consequences of a generator that rolls
+        step heights independently of what a player can clear.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Order of work</p>
+      <h2>The route</h2>
+      <p>
+        Numbered because it genuinely is a sequence: each item names what it needs before
+        it can start. The first three are shared substrate — after those, the map-generation
+        and reinforcement-learning tracks run independently and only rejoin at step 8.
+      </p>
+    </div>
+
+    <div class="route">
+
+      <article class="station done">
+        <span class="idx">01</span>
+        <div class="body">
+          <h3>Headless <code>eval_level</code> runner</h3>
+          <p>Loads a level, runs an AI player through it at fixed timestep with no window, GL
+             context or ImGui, and writes one versioned JSON report. A separate harness rather
+             than a reuse of <code>PlayingState</code>, which cannot run headless — it reads
+             <code>ImGui::GetIO()</code>, has no arbitrary-level entry point, and writes save
+             files from its update path.</p>
+          <p class="meta">tools/eval_level.cpp · 24× realtime · one CMake target, nothing on the default path</p>
+        </div>
+        <span class="state done">Shipped</span>
+      </article>
+
+      <article class="station done">
+        <span class="idx">2b</span>
+        <div class="body">
+          <h3>Solvability &amp; bottleneck-difficulty oracle</h3>
+          <p>The departure from the literature, added after the first eval runs contradicted
+             themselves. Answers reachability from the geometry alone, and derives difficulty
+             as the hardest forced move on the kindest route. Moved <em>ahead</em> of the agent
+             in the pipeline: a quarter-second check never wastes a five-second rollout.</p>
+          <p class="meta">tools/solvability.py · proves all 7 levels winnable · names the bottleneck tile</p>
+        </div>
+        <span class="state done">Shipped</span>
+      </article>
+
+      <article class="station done">
+        <span class="idx">02</span>
+        <div class="body">
+          <h3>Level tensor contract</h3>
+          <p>Level JSON to a 14-row band of nine semantic classes, and back. The band and
+             the vocabulary were measured against the shipped levels rather than assumed,
+             and the band height matches the VGLC corpus exactly so real Mario levels drop
+             in without rescaling.</p>
+          <p class="meta">tools/level_tensor.py + docs/level_tensor_contract.md · 7/7 levels roundtrip</p>
+        </div>
+        <span class="state done">Shipped</span>
+      </article>
+
+      <article class="station active">
+        <span class="idx">03</span>
+        <div class="body">
+          <h3>Training corpus</h3>
+          <p>The VGLC Super Mario corpus mapped through the contract, plus anything authored
+             in our level editor. Our own campaign levels cannot be training data — they are
+             <code>MapGenerator</code> output, so learning from them would reproduce exactly
+             the distribution we are trying to escape.</p>
+          <p class="meta">shared substrate · needs 02</p>
+        </div>
+        <span class="state active">Next up</span>
+      </article>
+
+      <article class="station queued">
+        <span class="idx">04</span>
+        <div class="body">
+          <h3>Baseline pipeline: generate → repair → oracle → agent → pool</h3>
+          <p>A Markov/WFC generator first, running the whole pipeline end to end with the
+             existing heuristic AI as the critic. Cheap, and it de-risks the deliverable:
+             if the GAN never converges, this still replaces today's map generator, and it
+             makes the GAN's improvement measurable rather than asserted.</p>
+          <p class="meta">map generation · needs 2b, 03</p>
+        </div>
+        <span class="state">Queued</span>
+      </article>
+
+      <article class="station queued">
+        <span class="idx">05</span>
+        <div class="body">
+          <h3>DCGAN generator</h3>
+          <p>Drops into the slot the baseline proved out. Trains on sliding-window chunks,
+             emits chunks, gets stitched and repaired by the same downstream stages. Levels
+             are pre-generated offline and committed as JSON — no generator inference ever
+             runs inside the game.</p>
+          <p class="meta">map generation · needs 04</p>
+        </div>
+        <span class="state">Queued</span>
+      </article>
+
+      <article class="station queued">
+        <span class="idx">06</span>
+        <div class="body">
+          <h3>Endless / Remix mode</h3>
+          <p>The one player-visible feature: a menu entry that draws from the vetted level
+             pool. Everything upstream of it is tooling.</p>
+          <p class="meta">map generation · needs 04 · the entire in-game surface of this project</p>
+        </div>
+        <span class="state">Queued</span>
+      </article>
+
+      <article class="station queued">
+        <span class="idx">07</span>
+        <div class="body">
+          <h3>RL training run</h3>
+          <p>Two amendments from what the oracle showed. Sample episodes from campaign levels
+             <em>and</em> the generated pool, as domain randomisation. And replace the reward's
+             rightward-progress term with progress along the reachability graph — in a level
+             where the route goes up or briefly back, rewarding rightward-x pays the agent for
+             pressing into the wall it is already stuck against.</p>
+          <p class="meta">reinforcement learning · needs 01, 2b · training only on reachable levels is what makes winning learnable</p>
+        </div>
+        <span class="state">Queued</span>
+      </article>
+
+      <article class="station queued">
+        <span class="idx">08</span>
+        <div class="body">
+          <h3>Curriculum loop</h3>
+          <p>Where the two tracks finally join. Search the generator's latent space for
+             levels the <em>current</em> agent clears 50–70% of the time, train on those,
+             repeat. The band tracks the agent, so yesterday's hard levels fall out of the
+             curriculum automatically as it improves.</p>
+          <p class="meta">joint · needs 05, 07 · one Python orchestrator, no new C++</p>
+        </div>
+        <span class="state">Queued</span>
+      </article>
+
+      <article class="station stretch">
+        <span class="idx">09</span>
+        <div class="body">
+          <h3>Adversarial generator fine-tuning</h3>
+          <p>PAIRED-style regret objective, updating the generator against the agent. This is
+             the genuinely unstable part — left unconstrained, the generator collapses to
+             impossible levels. Steps 8's search-and-filter gets most of the benefit without
+             the instability, so this stays a stretch goal and never a dependency.</p>
+          <p class="meta">stretch · needs 08</p>
+        </div>
+        <span class="state">Stretch</span>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">Containment</p>
+      <h2>How this stays a side project</h2>
+      <p>
+        The risk with two research-flavoured tracks on a coursework game is that they quietly
+        become load-bearing. The branch is stacked rather than merged so the whole experiment
+        stays one droppable unit.
+      </p>
+    </div>
+
+    <pre class="stack">main ── dev ──┬─ <span class="ok">campaign levels, heuristic AI — ships regardless</span>
+              └─ A/rl-neural-policy ── <span class="hi">A/mapgen-gan</span>   ← side project, both halves</pre>
+
+    <div class="note">
+      <ul class="rules">
+        <li>No behaviour change on the default path — nothing here runs unless a CLI flag or an explicitly chosen menu entry asks for it.</li>
+        <li>The C++ footprint stays at one flag plus one optional game mode. Training, generation and orchestration are Python, outside the game.</li>
+        <li>Generated levels are additive files, never replacements. <code>level_1</code> through <code>level_3</code> stay exactly as they are on <code>dev</code>.</li>
+        <li>The course deliverable never depends on a model training successfully.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sechead">
+      <p class="eyebrow">The premise</p>
+      <h2>Why the current generator plays badly</h2>
+    </div>
+    <div class="note">
+      <p>
+        <code>MapGenerator.cpp</code> is a single left-to-right pass of <strong>independent</strong>
+        probability rolls: a sine-wave elevation profile, a per-column pit dice roll, uniform
+        enemy and decoration rates. You can read the consequence straight off the strip at the
+        top of this page — long flat runs, isolated single enemies, and no composed obstacle
+        anywhere.
+      </p>
+      <p>
+        Structurally it cannot express rhythm (the setup–challenge–reward phrasing real levels
+        alternate), an intra-level difficulty curve (column 20 and column 180 are drawn from
+        the same distribution), or a composed challenge (a gap <em>and</em> an enemy
+        <em>and</em> a moving platform arranged as one obstacle). A learned generator attacks
+        all three, because it learns tile co-occurrence structure from real levels.
+      </p>
+      <p>
+        What it does <strong>not</strong> fix is solvability — a generator knows what levels look
+        like, never what they play like. That is permanently the agent's job, which is why the
+        agent-filter stage stays in the pipeline whichever generator wins.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <span>docs/mapgen_gan_rl_plan.md</span>
+    <span>docs/level_tensor_contract.md</span>
+    <span>docs/rl_training.md</span>
+    <span>docs/two_player_ai_plan.md §6</span>
+  </footer>
+
+</div>
+
+<script>
+// The strip is real data: level_1 columns 0-95, encoded by tools/level_tensor.py.
+const GRID = [
+"------------------------------------------------------------------------------------------------",
+"------------------------------------------------------------------------------------------------",
+"------------------------------------------------------------------------------------------------",
+"------------------------------------------------------------------------------------------------",
+"------------------------------------------------------------------------------------------------",
+"------------------------------------------------------------------------------------------------",
+"------------------------------------------------------------------------------------------------",
+"-------------------------X-----------------------SSS--------------------------------------------",
+"-------------------------XX--------------------X-----------------------SQSSQo-----oQQo----------",
+"-------------------------XXX-------------------XX---------------X-----------------------------X-",
+"--------------------XXXXXXXXXX--XXX------------XXX--------------XX----------------------------XX",
+"------------*-------XXXXXXXXXX--XXXXXXX--XXXXXXXXXX--XXX-----=--XXX---*------=-----*------=---XX",
+"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--XXXXXXX--XXXXXXXXXX--XXXXXXX---XXXXXXXXXXXXX---XXXXXXXXXX---XXXX",
+"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX--XXXXXXX--XXXXXXXXXX--XXXXXXX---XXXXXXXXXXXXX---XXXXXXXXXX---XXXX"
+];
+
+// glyph -> [css variable, legend label]; index matches the vocabulary order.
+const CLASSES = [
+  ["-", "--t-empty",     "empty"],
+  ["X", "--t-solid",     "solid"],
+  ["S", "--t-breakable", "breakable"],
+  ["Q", "--t-question",  "question"],
+  ["P", "--t-pipe",      "pipe"],
+  ["v", "--t-hazard",    "hazard"],
+  ["o", "--t-coin",      "coin"],
+  ["*", "--t-enemy",     "enemy"],
+  ["=", "--t-platform",  "platform"]
+];
+const BY_GLYPH = Object.fromEntries(CLASSES.map(c => [c[0], c[1]]));
+
+const strip = document.getElementById("strip");
+const width = GRID[0].length;
+for (let x = 0; x < width; x++) {
+  const col = document.createElement("div");
+  col.className = "col";
+  for (let y = 0; y < GRID.length; y++) {
+    const cell = document.createElement("i");
+    const v = BY_GLYPH[GRID[y][x]] || "--t-empty";
+    cell.style.background = `var(${v})`;
+    if (v === "--t-empty") cell.style.opacity = ".45";
+    col.appendChild(cell);
+  }
+  strip.appendChild(col);
+}
+
+const legend = document.getElementById("legend");
+for (const [glyph, cssVar, label] of CLASSES) {
+  const item = document.createElement("span");
+  const swatch = document.createElement("b");
+  swatch.style.background = `var(${cssVar})`;
+  item.appendChild(swatch);
+  item.appendChild(document.createTextNode(`${glyph}  ${label}`));
+  legend.appendChild(item);
+}
+</script>

@@ -83,6 +83,118 @@ A learned generator attacks the first three directly, because it learns tile
 *co-occurrence structure* from real levels. The fourth is attacked by the
 agent-as-critic, never by the generator itself.
 
+## 2b. The departure from the literature — measure the level, not the player
+
+*Added after the first eval runs. This is the part of the project that is not a
+reimplementation of something in `docs/rl_gan_pcg_literature.html`.*
+
+Every agent-in-the-loop generator in that bibliography — Volz et al.'s
+latent-space Mario GAN, PAIRED, EA SEED's adversarial RL, MAP-Elites over a GAN
+latent space — scores a candidate level by having something play it. That
+conflates two unrelated facts:
+
+```
+"this level cannot be finished"   ← a property of the level
+"this player cannot finish it"    ← a property of the player
+```
+
+A failed playthrough looks identical either way. This is not a hypothetical:
+
+> **The heuristic agent finishes none of the four shipped campaign levels.**
+> It stalls at 10.8% (`level_1`), 13.8% (`level_2`), 21.4% (`level_3`) and
+> 46.4% (`bonus_1`), in all three archetypes, having never died — it simply
+> stops making progress and stays stopped for the remaining ~145 seconds.
+
+Used naively as a fitness function, that agent rejects hand-vetted shipped
+levels as broken. In a curriculum loop it reports every level as "too hard"
+forever, and the 50–70% success band never has anything in it.
+
+The literature works around the confound rather than removing it: PAIRED cancels
+it with regret (protagonist minus antagonist, so shared incompetence subtracts
+out — at the cost of a second trained agent), Volz sidesteps it with A* (its own
+kind of competence, and a search per candidate).
+
+**`tools/solvability.py` removes it.** It floods the level with every jump the
+engine's own constants permit — no policy, no learned search, no agent — and
+answers reachability exactly, in ~0.25 s per level against ~5 s for one rollout.
+The three-way decomposition it enables is the project's actual contribution:
+
+| reachable? | agent clears it? | meaning |
+| :-- | :-- | :--- |
+| no | — | **broken.** Reject. No agent needed to know it. |
+| yes | yes | too easy for this agent |
+| yes | no | **the useful case** — real difficulty, or an agent gap |
+
+Only the third row is worth training on, and it is exactly the row an
+agent-only fitness cannot isolate.
+
+### Difficulty as a bottleneck, not an average
+
+Because reachability is computed as a graph, difficulty is available as a
+**minimax** quantity rather than a heuristic score: the hardest single move on
+the *kindest* route to the goal. That is what "how hard is this level" actually
+means, and both naive alternatives get it wrong — averaging along a path hides
+the one brutal jump that makes players quit behind a hundred trivial ones, and
+scoring the hardest move anywhere on the map calls a level hard when an easy
+detour exists.
+
+Measured on the shipped levels, with 1.0 meaning "at the limit of what the
+physics allows":
+
+| level | required | hardest optional | reachable |
+| :--- | ---: | ---: | ---: |
+| `level_1` | 0.71 | 0.96 | 100% |
+| `level_2` | **0.96** | 0.96 | 100% |
+| `level_3` | **0.96** | 0.96 | 100% |
+| `bonus_1` | 0.71 | 0.81 | 100% |
+| `level_*_sub` | 0.14 | 0.42 | 100% |
+
+Two findings drop straight out, neither of which any playtest had produced:
+
+1. **`level_2` and `level_3` require a jump at 96% of the physical maximum just
+   to finish.** There is no margin. That is not difficulty, it is a level you
+   clear by pixel luck — and it is a direct consequence of `MapGenerator`
+   rolling step heights independently of what a player can clear.
+2. **There is no difficulty curve, there is a cliff**: 0.14 in the sub-levels,
+   0.71–0.96 in the campaign. Nothing sits in between.
+
+This also answers the three requirements directly:
+
+- **Winnable maps** — guaranteed by construction. A generated level is checked
+  before an agent ever sees it, and when it fails, the reachability frontier
+  names the exact columns where progress stops, which is a repair instruction
+  rather than a verdict.
+- **Difficulty handling** — a target difficulty becomes a *filter and a search
+  objective* over the generator's output, and the reported bottleneck tile is
+  the knob to edit. Difficulty is set before generation, not sampled and hoped
+  for.
+- **An agent that can learn to win** — see §2c.
+
+## 2c. Making the agent learnable, not just present
+
+The stall finding is also a finding about the RL side, and it changes two things
+in `rl_training.md`:
+
+1. **The reward's progress term is wrong.** `RewardTracker` pays
+   `progressPerPixel` for rightward movement. In a level where the route goes up
+   a staircase or briefly back left, rightward-x rewards the agent for pressing
+   into the wall it is already stuck against. **Replace it with progress along
+   the reachability graph**: the solvability oracle already computes a distance
+   label for every foothold, so "how far along a known-good route am I" is
+   available as a dense, correctly-shaped signal that does not reward pushing
+   into geometry. This is a strictly better potential function and it costs one
+   precomputed field per level.
+2. **Training only on reachable levels is what makes winning learnable at all.**
+   An agent trained on levels that cannot be finished is being given an
+   unlearnable reward, and no amount of exploration fixes it. The oracle is the
+   admission filter.
+
+Open question, deliberately not answered yet: the heuristic policy's stall is
+also a **bug worth fixing on its own terms** — it stops dead at a 3-tile step
+that the oracle says is clearable. Whether to fix the heuristic or to let the
+learned policy supersede it is a decision for when the RL run actually trains.
+Either way, the finding is logged rather than papered over.
+
 ## 3. The data problem (decides whether a GAN is even trainable)
 
 **The campaign levels are themselves `MapGenerator` output** — fixed seeds in
@@ -275,14 +387,20 @@ fall out of the curriculum automatically.
 
 ## 9. Order of work
 
-| # | Deliverable | Track | Depends on |
-| :- | :--- | :--- | :--- |
-| 1 | `--eval` headless runner + stats report (versioned) | shared | — |
-| 2 | Level tensor contract doc + `level_tensor.py` | shared | — |
-| 3 | Corpus: VGLC mapping + editor levels | shared | 2 |
-| 4 | Markov baseline → repair → agent filter → pool | mapgen | 1, 3 |
-| 5 | DCGAN generator (replaces baseline in same pipeline) | mapgen | 4 |
-| 6 | "Endless/Remix" mode loading the vetted pool | mapgen | 4 |
-| 7 | RL training per `rl_training.md`, sampler = campaign ∪ pool | RL | 1 (pool optional) |
-| 8 | Curriculum loop (band-targeted level selection) | joint | 5, 7 |
-| 9 | PAIRED-style generator fine-tuning | stretch | 8 |
+| # | Deliverable | Track | Depends on | State |
+| :- | :--- | :--- | :--- | :--- |
+| 1 | `eval_level` headless runner + versioned stats report | shared | — | **done** |
+| 2 | Level tensor contract + `level_tensor.py` | shared | — | **done** |
+| 2b | Solvability + bottleneck-difficulty oracle | shared | 2 | **done** |
+| 3 | Corpus: VGLC mapping + editor levels | shared | 2 | next |
+| 4 | Baseline generator → repair → oracle filter → agent filter → pool | mapgen | 2b, 3 | |
+| 5 | DCGAN generator (replaces baseline in same pipeline) | mapgen | 4 | |
+| 6 | "Endless/Remix" mode loading the vetted pool | mapgen | 4 | |
+| 7 | RL training, reachability-shaped reward, sampler = campaign ∪ pool | RL | 1, 2b | |
+| 8 | Curriculum loop (difficulty-targeted level search) | joint | 5, 7 | |
+| 9 | PAIRED-style generator fine-tuning | stretch | 8 | |
+
+Note that 2b moved the oracle *ahead* of the agent in the pipeline at step 4:
+levels are now filtered geometrically first and played second. That ordering is
+what makes the agent filter affordable — it never wastes a 5-second rollout on a
+level a 0.25-second reachability check could have rejected.
