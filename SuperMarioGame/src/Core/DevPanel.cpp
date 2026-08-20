@@ -276,6 +276,9 @@ void DevPanel::drawMatchPanel(PlayingState& state) {
                         case AICellState::PowerUp:           row += '$'; break;
                         case AICellState::Hazard:            row += '!'; break;
                         case AICellState::FriendlyProjectile:row += '*'; break;
+                        case AICellState::ItemStar:          row += 'S'; break;
+                        case AICellState::ItemOneUp:         row += '1'; break;
+                        case AICellState::Bouncer:           row += 'T'; break;
                         case AICellState::Empty:             row += '.'; break;
                         case AICellState::Unknown:           row += '?'; break;
                     }

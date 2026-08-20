@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SFML/System/Vector2.hpp>
+
 #include <array>
 #include <cstddef>
 #include <vector>
@@ -47,7 +49,19 @@ enum class AICellState {
     // A projectile that cannot hurt the player — its own fireball, or a
     // team-mate's. Previously every Projectile encoded as Hazard, so an agent
     // that shot a fireball then fled from its own shot.
-    FriendlyProjectile
+    FriendlyProjectile,
+    // v4 splits. Star and 1-Up leave the PowerUp bucket because they change
+    // BEHAVIOUR, not just value: a star makes touching enemies safe for its
+    // duration (every avoidance rule inverts), and an extra life changes what
+    // a risk costs. A mushroom and a fire flower are both "collect if cheap",
+    // so they stay lumped.
+    ItemStar,
+    ItemOneUp,
+    // A trampoline: a launch DEVICE, not a pickup — the agent stands on it and
+    // is thrown. Encoded as Solid it was an invisible catapult: bonus_1's
+    // agent was launched over a pit by a surface it could not tell from
+    // ground.
+    Bouncer
 };
 
 // The vision grid is always this size — a full screen's worth of tiles, which is
@@ -58,11 +72,21 @@ inline constexpr int kAIVisionCells = kAIVisionWidth * kAIVisionHeight;
 // One-hot width per cell: the six AICellState values. Only the neural side needs
 // this, but it is stated here because it is a property of the observation, not of
 // whatever consumes it.
-inline constexpr int kAICellStateCount = 9;
+inline constexpr int kAICellStateCount = 12;
+
+// v4: two motion features per cell — the occupying entity's velocity,
+// normalized by run speed. Zero for tiles and still entities. This is what
+// makes a MOVING platform distinguishable from a fixed one: without it the
+// two are byte-identical in a single-frame observation and no memoryless
+// policy can time a jump onto one (the same information-theoretic wall the
+// Goomba/Spiny merge was). Enemy approach and projectile direction come free.
+inline constexpr int kAICellMotionFeatures = 2;
+inline constexpr int kAICellFeatures = kAICellStateCount + kAICellMotionFeatures;
 
 // Scalar features appended after the grid, in this order: dxToGoal, dyToGoal,
-// dxToOpponent, dyToOpponent, vx, vy, onGround, canJump, isPoweredUp.
-inline constexpr int kAIScalarFeatures = 9;
+// dxToOpponent, dyToOpponent, vx, vy, onGround, canJump, isPoweredUp,
+// onWall, powerTier, invincibility.
+inline constexpr int kAIScalarFeatures = 12;
 
 // Bumped whenever the feature layout OR its semantics change. Weight files
 // record the version they were trained against and are refused if it does not
@@ -77,12 +101,27 @@ inline constexpr int kAIScalarFeatures = 9;
 // agent's own fireballs separated from Hazard. This changes the FEATURE COUNT
 // (315 cells x 9 = 2835 + 9 scalars = 2844), so a v2 weight file is not merely
 // mis-scaled, it is the wrong shape.
-inline constexpr int kAIObservationVersion = 3;
+// v4: three additions, each closing a measured perception gap.
+//   - Motion planes: per-cell entity velocity (see kAICellMotionFeatures).
+//   - Cell vocabulary 9 -> 12: ItemStar, ItemOneUp, Bouncer.
+//   - Scalars 9 -> 12: onWall (wall-jump exists in the physics and was
+//     invisible to every policy), powerTier (Small 0 / Super 0.5 / Fire+Cape
+//     1 — isPoweredUp said "big", not "armed"), invincibility (a starred
+//     agent could not know it was starred).
+// Cell layout changes from [one-hot x9] to [one-hot x12, vx, vy] per cell,
+// so featureCount moves 2844 -> 4422 and every v3 weight file is refused.
+inline constexpr int kAIObservationVersion = 4;
 
 struct AIObservation {
     // Row-major, centred on the agent's own tile. grid[y * W + x], with the
     // agent at (kAIVisionWidth / 2, kAIVisionHeight / 2).
     std::array<AICellState, kAIVisionCells> grid{};
+
+    // Per-cell entity velocity, same indexing as `grid`, normalized by run
+    // speed and clamped to [-1, 1]. Zero for tiles, still entities, and
+    // Unknown/Empty cells.
+    std::array<float, kAIVisionCells> velX{};
+    std::array<float, kAIVisionCells> velY{};
 
     // Offset to the current objective, in tiles, clamped to [-1, 1] by dividing
     // through by the vision half-extent.
@@ -98,6 +137,9 @@ struct AIObservation {
     bool onGround = false;
     bool canJump = false;      // grounded, or inside the coyote-time window
     bool isPoweredUp = false;  // Super or better: can take a hit, may be able to shoot
+    bool onWall = false;       // pressed against a wall — a wall-jump is available
+    float powerTier = 0.0f;    // Small/Mini 0, Super 0.5, Fire/Cape 1
+    float invincibility = 0.0f;  // star seconds remaining / 10, clamped to [0,1]
 
     // Read one cell in agent-relative tile coordinates: (0, 0) is the agent's
     // own tile, +x is right, +y is down. Out-of-grid reads answer Unknown, so a
@@ -109,6 +151,18 @@ struct AIObservation {
             return AICellState::Unknown;
         }
         return grid[static_cast<std::size_t>(y) * kAIVisionWidth + x];
+    }
+
+    // Velocity of whatever occupies a cell, agent-relative coordinates as at().
+    // (0, 0) for out-of-grid reads and for anything that is not moving.
+    sf::Vector2f velocityAt(int dx, int dy) const {
+        const int x = dx + kAIVisionWidth / 2;
+        const int y = dy + kAIVisionHeight / 2;
+        if (x < 0 || x >= kAIVisionWidth || y < 0 || y >= kAIVisionHeight) {
+            return {0.0f, 0.0f};
+        }
+        const std::size_t i = static_cast<std::size_t>(y) * kAIVisionWidth + x;
+        return {velX[i], velY[i]};
     }
 
     // Flattened, normalized feature vector: the grid one-hot encoded cell by
@@ -123,7 +177,7 @@ struct AIObservation {
     std::vector<float> toFeatureVector() const;
 
     static constexpr std::size_t featureCount() {
-        return static_cast<std::size_t>(kAIVisionCells) * kAICellStateCount +
+        return static_cast<std::size_t>(kAIVisionCells) * kAICellFeatures +
                kAIScalarFeatures;
     }
 };

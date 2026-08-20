@@ -95,4 +95,8 @@ private:
     // about walls could see that. Two seconds without horizontal movement is
     // wrong in this game no matter what is causing it.
     int m_stuckTicks = 0;
+    // Wall-scaling (v4): when pinned at a wall too tall to jump, try to
+    // wall-jump up it for a while before conceding and backing off.
+    int m_wallScaleTicks = 0;
+    int m_wallScaleDirection = 0;
 };

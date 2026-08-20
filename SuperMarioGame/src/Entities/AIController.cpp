@@ -1,6 +1,10 @@
 #include "Entities/AIController.hpp"
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Coin.hpp"
+#include "Entities/OneUpMushroom.hpp"
+#include "Entities/Star.hpp"
+#include "Entities/StarCoin.hpp"
+#include "Entities/Trampoline.hpp"
 #include "Entities/Enemy.hpp"
 #include "Entities/Player.hpp"
 #include "Entities/Projectile.hpp"
@@ -45,6 +49,8 @@ AIController::AIController(Player& controlled, AIDifficulty difficulty, AIArchet
           static_cast<unsigned>(archetype) * 7u)) {
     applyDifficultyProfile();
     m_observation.grid.fill(AICellState::Unknown);
+    m_observation.velX.fill(0.0f);
+    m_observation.velY.fill(0.0f);
 }
 
 AIController::~AIController() = default;
@@ -128,6 +134,8 @@ void AIController::reset() {
     m_action = AIAction{};
     m_reason = "idle";
     m_observation.grid.fill(AICellState::Unknown);
+    m_observation.velX.fill(0.0f);
+    m_observation.velY.fill(0.0f);
     if (m_policy) m_policy->reset();
     // A respawn is a new episode: the progress mark has to move to where the
     // agent now is, or the first observe() after it credits the whole distance
@@ -144,6 +152,8 @@ void AIController::enableLearning(const std::string& logPath) {
 void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMap,
                                   const std::vector<std::unique_ptr<Entity>>& entities) {
     m_observation.grid.fill(AICellState::Unknown);
+    m_observation.velX.fill(0.0f);
+    m_observation.velY.fill(0.0f);
 
     const AABB box = m_player.getBoundingBox();
     // Sense from the tile the agent's feet are in: that is the row it walks
@@ -188,11 +198,23 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
                 break;
             }
             case EntityCategory::Item:
-                // A coin is a small, safe gain; anything else an Item can be —
-                // mushroom, flower, star, 1-up — changes the player's state and
-                // is worth more.
-                state = dynamic_cast<const Coin*>(entity.get()) ? AICellState::Coin
-                                                                : AICellState::PowerUp;
+                // v4 vocabulary: a coin (or star coin) is a small, safe gain; a
+                // star inverts every avoidance rule for its duration; a 1-up
+                // changes what a risk costs; a trampoline is terrain that
+                // throws you. Everything else — mushroom, flower, cape, mega,
+                // POW — is "collect if cheap" and stays PowerUp.
+                if (dynamic_cast<const Coin*>(entity.get()) ||
+                    dynamic_cast<const StarCoin*>(entity.get())) {
+                    state = AICellState::Coin;
+                } else if (dynamic_cast<const Star*>(entity.get())) {
+                    state = AICellState::ItemStar;
+                } else if (dynamic_cast<const OneUpMushroom*>(entity.get())) {
+                    state = AICellState::ItemOneUp;
+                } else if (dynamic_cast<const Trampoline*>(entity.get())) {
+                    state = AICellState::Bouncer;
+                } else {
+                    state = AICellState::PowerUp;
+                }
                 break;
             case EntityCategory::Projectile: {
                 // Ask the projectile who it can hurt rather than who threw it —
@@ -215,9 +237,13 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
             // pass classifies question TILES as Reward, so the entity form gets
             // the same answer.
             case EntityCategory::Block:
-                state = dynamic_cast<QuestionBlock*>(entity.get())
-                            ? AICellState::PowerUp
-                            : AICellState::Solid;
+                if (dynamic_cast<const Trampoline*>(entity.get())) {
+                    state = AICellState::Bouncer;
+                } else {
+                    state = dynamic_cast<QuestionBlock*>(entity.get())
+                                ? AICellState::PowerUp
+                                : AICellState::Solid;
+                }
                 break;
             default: continue;
         }
@@ -237,6 +263,14 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
                 const std::size_t index =
                     static_cast<std::size_t>(dy + halfH) * kAIVisionWidth + (dx + halfW);
                 m_observation.grid[index] = state;
+                // The occupant's velocity rides with it (v4 motion planes) —
+                // this is the only thing separating a moving platform from a
+                // parked one, and an approaching enemy from a retreating one.
+                const sf::Vector2f vel = entity->getVelocity();
+                m_observation.velX[index] =
+                    std::clamp(vel.x / Constants::RUN_SPEED, -1.0f, 1.0f);
+                m_observation.velY[index] =
+                    std::clamp(vel.y / Constants::RUN_SPEED, -1.0f, 1.0f);
             }
         }
     }
@@ -323,6 +357,18 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
         m_player.isOnGround() || m_player.getCoyoteFramesLeft() > 0;
     m_observation.isPoweredUp = m_player.getForm() != Player::Form::Small &&
                                 m_player.getForm() != Player::Form::Mini;
+    m_observation.onWall = m_player.isOnWall();
+    // Tiering: Small/Mini take one hit and can only jump; Super takes two;
+    // Fire and Cape add a ranged/aerial ability on top. isPoweredUp said
+    // "big"; this says "armed".
+    switch (m_player.getForm()) {
+        case Player::Form::Fire:
+        case Player::Form::Cape:  m_observation.powerTier = 1.0f;  break;
+        case Player::Form::Super: m_observation.powerTier = 0.5f;  break;
+        default:                  m_observation.powerTier = 0.0f;  break;
+    }
+    m_observation.invincibility =
+        std::clamp(m_player.getInvincibilityTimer() / 10.0f, 0.0f, 1.0f);
 }
 
 void AIController::applyNoise(AIAction& action) {
@@ -368,7 +414,15 @@ void AIController::actuate() {
     // it every frame would bunny-hop. Consuming the flag makes one decision to
     // jump mean one jump.
     if (m_action.jump) {
-        m_player.jump();
+        // The same button a human has: grounded (or in coyote time) it is a
+        // jump; airborne and pressed against a wall it is a wall-jump. No new
+        // action dimension — the policy's existing jump output gains the
+        // context meaning the physics already supports (Player::wallJump).
+        if (!m_player.isOnGround() && m_player.isOnWall()) {
+            m_player.wallJump();
+        } else {
+            m_player.jump();
+        }
         m_action.jump = false;
     }
     if (m_allowShoot && m_action.shoot) {

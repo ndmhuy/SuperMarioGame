@@ -63,11 +63,14 @@ void testFeatureVectorIsFixedWidthAndBounded() {
         assert(std::isfinite(value) && "Features must be finite");
     }
 
-    // One-hot really is one-hot: exactly one bit set per cell.
+    // One-hot really is one-hot: exactly one bit set per cell. v4 interleaves
+    // two motion floats after each cell's one-hot, so the stride is
+    // kAICellFeatures and only the first kAICellStateCount entries are class
+    // bits.
     for (int cell = 0; cell < kAIVisionCells; ++cell) {
         float sum = 0.0f;
         for (int state = 0; state < kAICellStateCount; ++state) {
-            sum += wideFeatures[static_cast<std::size_t>(cell) * kAICellStateCount + state];
+            sum += wideFeatures[static_cast<std::size_t>(cell) * kAICellFeatures + state];
         }
         assert(std::abs(sum - 1.0f) < 1e-5f && "Each cell must be exactly one-hot");
     }
@@ -94,7 +97,7 @@ void testObservationLayoutIsStable() {
     obs.isPoweredUp = true;
 
     const auto features = obs.toFeatureVector();
-    const std::size_t base = static_cast<std::size_t>(kAIVisionCells) * kAICellStateCount;
+    const std::size_t base = static_cast<std::size_t>(kAIVisionCells) * kAICellFeatures;
 
     assert(std::abs(features[base + 0] - 0.11f) < 1e-6f);
     assert(std::abs(features[base + 1] - 0.22f) < 1e-6f);

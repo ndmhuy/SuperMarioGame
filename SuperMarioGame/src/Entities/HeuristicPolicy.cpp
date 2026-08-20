@@ -27,6 +27,8 @@ void HeuristicPolicy::reset() {
     m_escapeTicks = 0;
     m_escapeDirection = 0;
     m_stuckTicks = 0;
+    m_wallScaleTicks = 0;
+    m_wallScaleDirection = 0;
 }
 
 const char* HeuristicPolicy::name() const {
@@ -100,7 +102,8 @@ bool HeuristicPolicy::isEnemy(AICellState state) {
 }
 
 bool HeuristicPolicy::isReward(AICellState state) {
-    return state == AICellState::Coin || state == AICellState::PowerUp;
+    return state == AICellState::Coin || state == AICellState::PowerUp ||
+           state == AICellState::ItemStar || state == AICellState::ItemOneUp;
 }
 
 int HeuristicPolicy::enemyAhead(const AIObservation& obs, int direction) {
@@ -221,7 +224,32 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     const bool pinned = std::abs(obs.vx) < 0.05f &&
                         obstacleAhead(obs, direction) &&
                         wallHeight(obs, direction) >= 4;
-    if ((pinned || m_stuckTicks >= kStuckDecisions) && m_escapeTicks == 0) {
+    // A 4-tile wall is unjumpable but it is not unclimbable: the physics has a
+    // wall-jump (press into the wall airborne, jump to kick off it), and the
+    // controller maps the jump button to it when airborne and onWall. So the
+    // first answer to "pinned at a tall wall" is now to try scaling it —
+    // hold into the wall, jump from the ground, then jump again each time the
+    // wall is touched — and only concede to the backing-off escape when a
+    // scaling budget runs out. Backing off remains the answer for walls the
+    // scaling cannot climb; it stops being the FIRST answer for all of them.
+    constexpr int kWallScaleDecisions = 60;
+    if (pinned && m_wallScaleTicks == 0 && m_escapeTicks == 0) {
+        m_wallScaleTicks = kWallScaleDecisions;
+        m_wallScaleDirection = direction;
+    }
+    bool wallScaling = false;
+    if (m_wallScaleTicks > 0 && m_escapeTicks == 0) {
+        --m_wallScaleTicks;
+        direction = m_wallScaleDirection;
+        wallScaling = true;
+        // Climbed it, or the wall is gone: back to normal control.
+        if (!obstacleAhead(obs, direction) && obs.onGround) {
+            m_wallScaleTicks = 0;
+            wallScaling = false;
+        }
+    }
+    if ((pinned || m_stuckTicks >= kStuckDecisions) && m_escapeTicks == 0 &&
+        m_wallScaleTicks == 0) {
         m_escapeTicks = kEscapeDecisions;
         m_escapeDirection = -direction;
         m_stuckTicks = 0;
@@ -306,9 +334,40 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     // -0.12 means "meaningfully above", not jitter.
     const bool routeClimbs = obs.dyToGoal < -0.12f && std::abs(obs.dxToGoal) < 0.35f;
 
-    if (obs.canJump && (climbableWall || gap || stompable || mustClear ||
-                        routeClimbs ||
-                        (rewardAbove && m_weights.reward > 0.5f))) {
+    // Waiting is an action (v4). A gap with no far side in reach used to force
+    // a choice between two bad options — jump anyway or turn around. If a
+    // MOVING solid is in view ahead (a platform on its way, visible in the
+    // motion planes), the right move is the one no trigger could express
+    // before: stand still and let it arrive. Board it when it is close.
+    bool waiting = false;
+    if (gap && obs.onGround && !raisedGroundAhead(obs, direction)) {
+        for (int step = 2; step <= 8 && !waiting; ++step) {
+            for (int dy = -3; dy <= 4 && !waiting; ++dy) {
+                const int dx = direction * step;
+                if (obs.at(dx, dy) != AICellState::Solid) continue;
+                const sf::Vector2f v = obs.velocityAt(dx, dy);
+                if (std::abs(v.x) > 0.03f || std::abs(v.y) > 0.03f) {
+                    waiting = true;
+                }
+            }
+        }
+    }
+    if (waiting) {
+        action.moveLeft = false;
+        action.moveRight = false;
+        action.run = false;
+    }
+
+    if (wallScaling) {
+        // Grounded at the wall: jump onto it. Airborne against it: the jump
+        // button is a wall-jump (AIController maps it), which kicks off and
+        // regains full jump speed — pressing back into the wall between kicks
+        // ratchets upward.
+        if (obs.canJump || obs.onWall) action.jump = true;
+    } else if (!waiting && obs.canJump &&
+               (climbableWall || gap || stompable || mustClear ||
+                routeClimbs ||
+                (rewardAbove && m_weights.reward > 0.5f))) {
         action.jump = true;
     }
 
@@ -340,6 +399,10 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     } else if (threat > 0 && threat <= kStrikeRange) {
         action.shoot = true;
         m_lastReason = stompable ? "stomping" : "clearing";
+    } else if (waiting) {
+        m_lastReason = "awaiting platform";
+    } else if (wallScaling) {
+        m_lastReason = "scaling wall";
     } else if (m_escapeTicks > 0) {
         m_lastReason = "backing off";
     } else if (launchJump) {
