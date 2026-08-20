@@ -24,7 +24,8 @@ jobs:
           sudo apt-get install -y \
             libxrandr-dev libxcursor-dev libxi-dev libudev-dev \
             libfreetype-dev libflac-dev libvorbis-dev libgl1-mesa-dev \
-            libegl1-mesa-dev libdrm-dev libgbm-dev
+            libegl1-mesa-dev libdrm-dev libgbm-dev \
+            xvfb
 
       # FetchContent pulls SFML, ImGui, ImGui-SFML and nlohmann/json every run
       # otherwise, which dominates the build time.
@@ -64,6 +65,11 @@ jobs:
           sudo modprobe snd-dummy || echo "snd-dummy unavailable, falling back to the null device"
           printf 'pcm.!default { type null }\nctl.!default { type null }\n' > "$HOME/.asoundrc"
 
+      # Four of the thirteen cases construct an sf::RenderWindow — verify_graphics,
+      # verify_fireball, verify_regressions and verify_frontend_states. A runner
+      # has no display, so SFML's "Failed to open X11 display" was followed by
+      # SIGABRT. xvfb-run gives them a virtual one; -a picks a free server number
+      # rather than colliding on :99.
       - name: Run tests
         working-directory: SuperMarioGame
-        run: ctest --test-dir build --output-on-failure
+        run: xvfb-run -a ctest --test-dir build --output-on-failure
