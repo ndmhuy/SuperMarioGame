@@ -1,9 +1,40 @@
 # 🗺️ GAN Level Generation × RL Agent — Joint Setup Plan
 
-> **Status**: proposal, for discussion. Companion to `docs/two_player_ai_plan.md`
-> §6 (the RL policy seam) and `docs/rl_training.md` (on `A/rl-neural-policy`).
-> Nothing here is implemented; this document exists so the two side projects
-> get pointed at the same foundation *before* either accumulates code.
+> **Branch**: `A/mapgen-gan`, stacked on `A/rl-neural-policy` and kept **off the
+> main line**, exactly as that branch is. This is the *second half of the same
+> side project*, not a main-path feature.
+>
+> **Nothing on `dev` depends on any of it.** `dev` ships the heuristic AI and
+> the hand-generated campaign levels and plays identically with this branch
+> dropped. The submission can include or drop the pair independently, and the
+> course deliverable never depends on a model training successfully.
+>
+> Companion to `docs/two_player_ai_plan.md` §6 (the RL policy seam) and
+> `docs/rl_training.md` (the RL training design, on `A/rl-neural-policy`).
+
+## 0. Why it is stacked on the RL branch, not on `dev`
+
+The two side projects share one substrate (§4). If the map generator branched
+off `dev` it would have to duplicate the evaluation runner, or the two would
+have to be merged to be used together — which is precisely the pressure that
+drags a side project onto the main line. Stacking keeps the whole experiment
+one droppable unit:
+
+```
+main ── dev ──┬─ (campaign levels, heuristic AI: ships regardless)
+              └─ A/rl-neural-policy ── A/mapgen-gan     ← side project, both halves
+```
+
+Rules this branch holds itself to, so the framing stays true and does not decay
+into a de-facto dependency:
+
+1. **No behaviour change on the default path.** Nothing added here runs unless
+   a CLI flag or an explicitly-chosen menu entry asks for it.
+2. **The C++ footprint stays at one flag plus one optional game mode.** All
+   training, generation and orchestration is Python outside the game — the same
+   split `rl_training.md` already committed to.
+3. **Generated levels are additive files**, never replacements. `level_1..3`
+   stay exactly as they are on `dev`.
 
 ---
 
@@ -100,16 +131,36 @@ The `--script` in-process runner is 80% of it. Extend it:
   trainer reads them as episode summaries; the GAN pipeline reads them as
   level fitness. Versioned like `kAIObservationVersion`.
 
-### 4.2 Level tensor contract
+### 4.2 Level tensor contract — **built**
 
-The GAN's world is a `H × W × C` one-hot tile grid; the game's world is
-level JSON. One documented, versioned mapping between them:
+`SuperMarioGame/tools/level_tensor.py`, with `docs/level_tensor_contract.md`
+as the prose half. Roundtrips all 7 shipped levels cleanly
+(`level_tensor.py check assets/levels/*.json`).
 
-- `docs/level_tensor_contract.md`: tile vocabulary ↔ channel index, entity
-  list encoding (entities live in JSON, not in the tile grid — the GAN
-  generates *tiles*; enemies/items are placed by a post-pass, see §5).
-- `tools/level_tensor.py`: JSON ↔ numpy converter (~100 lines; the level
-  format is already nlohmann JSON, trivially readable from Python).
+Three decisions it makes, all measured rather than assumed:
+
+- **A semantic vocabulary, not the `TileType` enum.** 9 classes: `empty,
+  solid, breakable, question, pipe, hazard, coin, enemy, platform`.
+  Ground/Ice/Conveyor collapse to one `solid` class because they are the same
+  thing to a player and to a generator — a surface you stand on. Which one is
+  emitted is the *theme's* decision, made at decode time. Learning the skins
+  would spend model capacity on what is already a config field.
+- **A 14-row band, y=9..22.** Measured across `level_1..3` and `bonus_1`:
+  every tile outside the two ceiling rows and every entity lives in rows
+  12..22, and rows 2..8 are empty sky in all of them. 14 is also exactly the
+  VGLC corpus height, so a VGLC level drops in with no rescaling. The ceiling
+  is re-emitted deterministically per theme on decode.
+- **Amendment to §5: enemies are IN the tensor, as one generic class.** The
+  original sketch placed all entities by rule afterwards. That is backwards —
+  *where* an enemy sits relative to a gap or a ledge is structural, and it is
+  the part worth learning (VGLC encodes enemies in-grid for the same reason).
+  The decoder still picks *which* species from the theme, which is the part a
+  rule does perfectly well. Bosses, star coins, the flagpole and power-ups
+  stay out: fixed count and authored intent, not sampled structure.
+
+Dependency-free by design: the canonical form is a label grid, so
+encode/decode/check need no numpy. numpy is imported lazily and only by the
+`corpus` command that writes the training `.npz`.
 
 ### 4.3 Corpus assembly
 
@@ -132,9 +183,10 @@ MarioGAN-shaped, offline, in Python:
    run through the existing MapGenerator guardrail rules): cap pit widths,
    ensure a standable start/exit zone, drop floating half-tiles, insert the
    flagpole/exit.
-4. **Entity placement pass**: rule-based, on top of generated geometry
-   (enemies on flat runs, coins over gaps, ? blocks at jump-reachable
-   height). Keeps the GAN's job small and the output game-legal.
+4. **Decode pass**: `level_tensor.decode` turns the class grid into level
+   JSON — theme skins for solid/breakable/hazard, a species per `enemy`
+   cell, the ceiling, and the fixed furniture (spawn, flagpole, star coins)
+   the tensor deliberately does not carry.
 5. **Agent filter**: every candidate runs through `--eval --policy
    heuristic`. Discard unfinishable levels; score the rest on the report
    fields (completion time, death count, stuck time) → keep the top slice.
