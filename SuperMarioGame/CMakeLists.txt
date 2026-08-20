@@ -228,11 +228,38 @@ target_include_directories(generate_game_levels PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(generate_game_levels PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
+target_link_libraries(generate_game_levels PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
+    SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+)
+
+# ---------------------------------------------------------
+# 17b. Headless Level Evaluation Target (eval_level)
+# ---------------------------------------------------------
+# Side project, off the main line — see docs/mapgen_gan_rl_plan.md. Plays a
+# level with an AI and writes a JSON report; no window, no GL, no ImGui. Built
+# like generate_game_levels because it is the same kind of thing: a windowless
+# main() over the game's own sources. Not registered with CTest — it takes a
+# level path and reports on it rather than asserting anything.
+add_executable(eval_level
+    "tools/eval_level.cpp"
+    ${APP_SOURCES}
+)
+
+target_include_directories(eval_level PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(eval_level PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
     SFML::Network
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json

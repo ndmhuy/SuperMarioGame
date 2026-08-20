@@ -113,7 +113,29 @@ it to the *first* deliverable, because it is the bottleneck for **both**
 projects: RL needs fast rollouts; the GAN needs solvability/fitness scores
 for thousands of candidate levels.
 
-The `--script` in-process runner is 80% of it. Extend it:
+**Correction to this document's first draft**: it said "the `--script` in-process
+runner is 80% of it." That is wrong. `--script` goes through `Game::run()`,
+which calls `initWindow()` and `initImGui()` — it is a *scripted* run, not a
+headless one. And `PlayingState` cannot be reused headlessly as-is either:
+`PlayingState.cpp:545` reads `ImGui::GetIO()` (a hard abort with no context),
+`loadLevelByPath` is private so there is no arbitrary-level entry point, an
+`AIController` can only ever be attached to a CPU *Player 2*, and its update
+path writes to disk (`CampaignProgress`, autosave), pushes states on death and
+victory, and takes a full-world Memento snapshot every frame.
+
+So the runner is a **separate lightweight harness** — `tools/eval_level.cpp`,
+built like `tools/generate_game_levels.cpp` — that reuses the real
+`LevelLoader`, `EntityFactory`, `PhysicsEngine`, `Entity::update` and
+`AIController`, and reimplements only the five self-contained gameplay rules it
+needs (lava, void-fall, level timer, warp pipes, boss arena). Zero window, zero
+GL, zero ImGui.
+
+One non-obvious requirement, which would have produced silently wrong fitness
+scores: **17 entity and strategy files call `Game::getInstance().getNearestPlayer()`
+or `getTileMap()`**. Without `Game::setPlayer()` and `setTileMap()`, every enemy
+in the level stands still and every generated level scores as easy.
+
+The interface:
 
 ```
 ./SuperMarioGame --eval assets/levels/gen_0042.json \
