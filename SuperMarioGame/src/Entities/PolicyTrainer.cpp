@@ -10,6 +10,7 @@
 #include "nn/Tensor/Tensor.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
@@ -244,8 +245,19 @@ void PolicyTrainer::openLog(const std::string& path) {
     if (out.has_parent_path()) {
         std::filesystem::create_directories(out.parent_path(), ignored);
     }
-    // Truncate and write a header: a run is one experiment, and appending a
-    // second run's rows onto the first produces a curve that means nothing.
+    // A run is one experiment — appending a second run's rows onto the first
+    // produces a curve that means nothing — but truncating DESTROYS the last
+    // experiment: a 664-episode reservoir log (the one holding the 33
+    // reached-the-end rollouts) was lost to exactly this line at a restart.
+    // Rotate instead: the previous log survives with a timestamped name.
+    if (std::filesystem::exists(out, ignored) &&
+        std::filesystem::file_size(out, ignored) > 0) {
+        const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        std::filesystem::path rotated = out;
+        rotated.replace_extension(".prev" + std::to_string(stamp) + ".csv");
+        std::filesystem::rename(out, rotated, ignored);
+    }
     std::ofstream file(path, std::ios::trunc);
     if (!file) return;
     // jump_agreement is broken out because the aggregate hid a total failure:
