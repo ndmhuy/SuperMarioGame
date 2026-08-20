@@ -1,4 +1,4 @@
-# Learning to Play a Platformer In-Engine: Three Specification Failures and What They Cost
+# Learning to Play a Platformer In-Engine: Specification Failures, Certified Curricula, and What They Cost
 
 **Super Mario Game — CS202 side project**
 **Branch:** `A/mapgen-gan-plan` (stacked on `A/rl-neural-policy`, off the main line)
@@ -29,6 +29,17 @@ failure was visible only in behaviour measured against something the agent was
 | 3 | An algorithm that was not the algorithm it was named after | implementation |
 | 4 | Imitation reaching, and locally exceeding, its teacher | positive |
 | 5 | Reinforcement learning converging on standing still | objective |
+| 6 | The instruments were lying: three measurement defects | measurement |
+| 7 | A certified route in the goal channel, and how plans fail | representation |
+| 8 | Motion is not optional: observation v4 | representation |
+| 9 | A FIFO buffer is not a dataset: forgetting returns at 10 levels | implementation |
+| 10 | A generator with a certified fitness, and the first completion | positive |
+
+Findings 1–5 were reported first (Part I); findings 6–10 (Part II) were made
+while acting on Part I's future-work list. Finding 6 is an erratum on Part I's
+absolute numbers: the *comparisons* in Part I survive (both sides of every A/B
+ran under the same defective instruments), but the absolute progress
+percentages there understate, and are superseded by §13's corrected table.
 
 ---
 
@@ -54,7 +65,7 @@ activation preserves the sign information distinguishing "wall to the left" from
 action is a *set* of simultaneous buttons — running right while jumping is three
 at once — which one-of-N cannot express.
 
-### 1.2 Observation (contract v3)
+### 1.2 Observation (contract v3; superseded by v4 — §11)
 
 ```
 315 cells (21 × 15, agent-centred) × 9 one-hot symbols = 2835
@@ -291,9 +302,213 @@ external measure revealed the agent had stopped playing.
 
 ---
 
-## 7. Discussion
+## Part II
 
-### 7.1 Every failure was a specification failure
+## 7. Finding 6 — The instruments were lying: three measurement defects
+
+Every experiment in Part I ran through two instruments: the evaluation harness
+(`eval_level`) and the level's own metadata. Acting on the future-work list
+exposed a defect in each, plus one in the trainer's data path. None was
+visible from inside training, which by now is this project's least surprising
+sentence.
+
+**(a) The harness reported the last life, not the run.** On respawn the
+per-life progress marker resets (it must — stall detection is per-life), and
+the report copied it straight in, so the reported number described whichever
+episode happened to be running when time expired — usually a truncated one.
+`bonus_1` reported 9.2 % while every one of its 89 full episodes reached
+17.7 %. Every absolute progress number in Part I understates. Corrected
+teacher baseline: level_1 37.8 %, level_2 75.3 %, level_3 21.4 %, bonus_1
+17.8 %.
+
+**(b) Every level lied about where its goal was.** `saveLevel` stamped the
+flagpole metadata at `width − 2` regardless of where the flagpole entity
+stood. level_1's real flag: x = 185; its metadata: x = 198 — *behind the
+victory castle*. The solvability oracle trusted the metadata, so every
+certified route ended by vaulting the castle roof: a constant 0.7071 demand (a
+5-tile gap against the 7.07-tile maximum run-jump) that appeared in every
+level, drowning every difficulty signal the generator emitted. Writer and
+reader are fixed; the oracle now prefers the entity, which is what the game
+actually completes on.
+
+**(c) Teacher-driven episodes supervised "don't jump" on jump frames.** The
+controller consumes one-shot buttons (jump, shoot) inside its action struct
+the frame they fire, and the trainer read that struct *after* the frame ran.
+The learner only ever saw honest jump labels in learner-driven DAgger
+episodes; behavioural cloning episodes were systematically corrupted. Fixed by
+returning the decision as chosen, not as consumed.
+
+The pattern of Part I holds and sharpens: specification failures extend to the
+**measurement layer**, and a defective instrument is worse than a missing one,
+because it returns plausible numbers.
+
+---
+
+## 8. Finding 7 — A certified route in the goal channel, and how plans fail
+
+Part I's first future-work item was the goal signal: `dxToGoal` pinned to the
+map's right edge, `dyToGoal` a hardcoded zero — a degenerate high-level policy
+reading *rightward, always*. The project's solvability oracle already computed
+the kindest winnable route through every level as a list of footholds, so the
+route now ships as a per-level sidecar (`<level>.waypoints.json`) and the
+controller's goal channel follows it. This tests the two-network hierarchical
+hypothesis with a **perfect** high-level policy before any second network is
+trained: the oracle plans, the executor executes.
+
+Three plan-following failure modes appeared immediately, each with a repair:
+
+1. **Lookahead destroys the signal it smooths.** Aiming three nodes ahead read
+   past jump edges (a jump is one edge spanning many tiles), saturating
+   `dxToGoal` at 1.0 exactly where `dyToGoal` was supposed to say "climb
+   here". The goal is now the first unconsumed node: small-but-correct beats
+   smooth-but-wrong.
+2. **Consumption needs height parity.** Walking under a hill "passed" every
+   node on top of it by x-comparison, running the route index ten tiles ahead.
+   A node may only be consumed by passing if the agent is at its height.
+3. **A plan you have fallen off is worse than no plan.** Off-route, the next
+   node hangs unreachable overhead and every goal-following behaviour becomes
+   wall-bashing — on level_3, the escape behaviour then walked the agent off a
+   ledge into lava it could not see (its hazard probe reads one row down; the
+   trough was four), every one of that level's 15 deaths. After 8 s of zero
+   route progress the route is abandoned for that life and the right-edge goal
+   returns.
+
+With guidance in place the teacher's honest numbers moved: level_1 37.8 → 38.0,
+bonus_1 17.8 → **74.1 %** (deaths 89 → 11). level_3 *fell* 43.0 → 21.4 with
+zero deaths — exposing that its old 43.0 % had been achieved *by* the lethal
+escape flinging the agent across the lava trough. The wall-jump (Finding 8)
+re-earned it honestly.
+
+---
+
+## 9. Finding 8 — Motion is not optional: observation v4
+
+Finding 1 established that byte-identical encodings of behaviourally different
+things are an information-theoretic wall. Observation v4 removes three more
+walls of the same kind:
+
+- **Motion planes.** Two floats per cell carry the occupying entity's velocity
+  (signed — direction rides with speed). A *moving* platform was
+  byte-identical to a parked one in a single-frame observation; no memoryless
+  policy could time boarding one. Enemy approach and projectile direction come
+  free.
+- **Item identity.** A star (inverts every avoidance rule while active), a
+  1-up (changes what a risk costs), and a trampoline (terrain that throws you
+  ~6 tiles — encoded as generic Solid it was an invisible catapult) leave the
+  `PowerUp` bucket. Vocabulary 9 → 12.
+- **Self state.** `onWall`, power tier, invincibility seconds. The physics has
+  had a wall-jump all along; no policy could see the wall it was pressed
+  against, and a starred agent could not know it was starred.
+
+Cell layout becomes `[one-hot ×12, vx, vy]`; feature count 2844 → 4422; the
+version gate refuses v3 weights (observed doing so at the first v4 launch).
+The jump button now means wall-jump when airborne and on a wall — no new
+action dimension; an existing output gains a context meaning the physics
+already supported.
+
+Two behaviours previously *inexpressible* were then written into the teacher
+in a few lines each: **scaling** a tall wall by ratcheting wall-jumps (tried
+before conceding to backing off), and **waiting** for a moving platform seen
+approaching in the motion planes — standing still was not an action the old
+teacher could choose. The oracle gained the matching moves (ride: a boarded
+platform's whole patrol for a 0.25 timing surcharge; bounce: 831.4 px/s
+against its own envelope) once the level schema learned to carry a platform's
+patrol at all — it had silently dropped it, flattening every placement to a
+4-tile default.
+
+Teacher, honest metric, cumulative through v4 + certified routes:
+
+| Level | Part I baseline | corrected baseline | + routes & v4 | deaths |
+| :--- | ---: | ---: | ---: | :--- |
+| `level_1` | "23.9 %" | 37.8 % | **72.6 %** | 18 → 6 |
+| `level_2` | "75.3 %" | 75.3 % | 75.3 % | 0 → 4 |
+| `level_3` | "15.2 %" | 21.4 % | **43.0 %** | 15 lethal-escape → 15 at the new frontier |
+| `bonus_1` | "14.9 %" | 17.8 % | **74.1 %** | 89 → 11 |
+
+level_1's final jump (53.4 → 72.6) came from re-certifying routes with the
+ride move: the route crosses on a moving platform, and the teacher waits for
+and boards it.
+
+---
+
+## 10. Finding 9 — A FIFO buffer is not a dataset: forgetting returns at 10 levels
+
+Part I's Finding 3 fixed catastrophic forgetting with a 12,000-sample
+aggregation ring buffer, and on one level it held. Scaled to a 10-level
+rotation, the ring held ~1.3 episodes per level and the forgetting signature
+returned on schedule: jump agreement 0.99 → 0.82 across 442 episodes while
+every loss curve looked healthy, and the student evaluated at a flat 8.2 %
+with zero deaths — the hesitate-and-stall attractor again.
+
+The defect is structural, not a size problem. DAgger's no-regret guarantee is
+about training on the **union of everything ever collected**; a FIFO ring is a
+recency window, which under a rotation is a monoculture of the last few
+levels. The buffer is now a **reservoir** (Vitter's Algorithm R): once full,
+the *n*-th sample replaces a uniformly random slot with probability
+capacity/*n*, keeping a uniform sample of all history in fixed memory. Since
+17.7 KB × more capacity does not fit the machine, features are stored
+quantized to int8 — the one-hots are exact, velocities get 1/127 steps —
+making 48,000 samples cost what 12,000 floats did.
+
+Artifacts of the decayed FIFO run are preserved
+(`saves/ai/*_fifo12k_drifted*`, `training_log_fifo12k.csv`).
+
+---
+
+## 11. Finding 10 — A generator with a certified fitness, and the first completion
+
+The generator half of this project exists to answer Finding 5. Reinforcement
+learning converged on standing still because completion is a sparse, distant
+reward: an agent that has never reached a flag gets no gradient toward one.
+The generator's job is to make levels on which winning is *reachable*, then
+ratchet difficulty — a curriculum with a certificate.
+
+**The loop.** `genome → render → oracle → fitness`, no agent in it. A genome
+is the map generator's nine knobs (pit rate, pipe rate, enemy rate, coin rate,
+roughness, theme, difficulty, hazard flags, seed); a thin tool renders it to a
+level; the solvability oracle scores the result. Fitness: *winnable* is a hard
+gate, closeness to a target required-difficulty band is the curriculum knob,
+column-histogram distance from already-kept levels is diversity pressure.
+Search is a small evolution: tournament selection, blend crossover, Gaussian
+mutation, seed rerolls for phenotype diversity.
+
+**Difficulty is quantized.** Required difficulty takes values n/7.07 (0.141,
+0.283, 0.424, …): the demand of an n-tile gap against the maximum run-jump.
+A band does not tune a continuum; it picks a quantum.
+
+**The grammar has a floor.** No genome produced a level below ~0.685: some
+standard chunk always demands a 3-up-4-across jump. Easy bands were therefore
+*unreachable by search* — a 6 × 16 run returned zero levels under 0.25. The
+oracle's bottleneck names both ends of the hardest edge, so a **repair
+descent** follows: place one stepping stone at the edge's midpoint (in height
+too — at takeoff height it splits distance but not climb), re-certify, and
+continue *while the bottleneck moves*, because a level is limited by many
+copies of its hardest chunk. Repair took the floor from 0.685 to 0.283 and
+produced six certified easy levels where search alone produced none.
+
+**External validation.** The oracle certifies **13 of 15** real Super Mario
+Bros levels (VGLC corpus) winnable under this engine's physics — and both
+failures are honest model gaps, not false alarms: mario-2-1's reachability
+stops at 93.3 % exactly at its spring, mario-3-1's at 35.9 % where its
+elevator platforms run. (The corpus's processed format does not encode either
+device, so these two cannot certify from that data at all.)
+
+**The milestone.** On the repair-descended easy band, the teacher
+**completed a level** — the first completion recorded in this project by any
+policy on any level. Four sibling levels certify at the same 0.2828 yet the
+teacher sticks at ~40 %: the oracle says those levels are easy, so what fails
+there is the agent. That is the decomposition doing its job — *reachable but
+failed* is the one row worth training on, and it is now machine-generatable
+at a chosen difficulty.
+
+Training now rotates over 16 levels: 4 campaign, 6 mid-band (0.35–0.55),
+6 easy-band (repair-descended to 0.283).
+
+---
+
+## 12. Discussion
+
+### 12.1 Every failure was a specification failure
 
 | Failure | Located in | Visible in the optimised metric? |
 | :--- | :--- | :--- |
@@ -301,13 +516,19 @@ external measure revealed the agent had stopped playing.
 | Never jumping | loss weighting | No — it *improved* the metric |
 | Forgetting | missing aggregation | Partly — agreement fell slightly |
 | Standing still | reward weighting | No — return rose monotonically |
+| Last-life metric | evaluation harness | It *was* the metric |
+| Goal behind the castle | level metadata | No — every route "worked" |
+| Consumed-action labels | trainer data path | No — loss fell on wrong labels |
+| Moving platform = parked platform | observation | No |
+| FIFO recency monoculture | buffer structure | Partly — jump agreement decayed |
+| Generator difficulty floor | generator grammar | No — every level "winnable" |
 
 None was a bug in the model, optimiser, or framework. The diagnostic that worked
 every time was **behavioural evaluation against a measure the agent was not
 trained on** — jumps per 1800 frames, progress through the level — while
 training curves were uninformative or actively misleading.
 
-### 7.2 Capacity and framework are not the constraints
+### 12.2 Capacity and framework are not the constraints
 
 The network reaches 99.9 % agreement at 0.0010 loss, so it is not
 capacity-limited; scaling to 2844‑512‑256‑7 costs 6.3× the compute to fit a
@@ -315,7 +536,7 @@ function already fit. The network is 10.7 % of an inference step, so replacing
 the tensor library optimises the smaller part. The one framework-level change
 that mattered was a build flag, worth 42×.
 
-### 7.3 Limitations
+### 12.3 Limitations
 
 - **Field of view.** The agent sees 21 × 15 tiles = 672 × 480 px against the
   human's 1280 × 720 — **52 % of the screen width**, 10.5 % of a level. It is
@@ -326,32 +547,44 @@ that mattered was a build flag, worth 42×.
 - **Scale.** Hundreds of episodes, not millions. Negative results bound these
   hyperparameters here; they do not bound the methods in general.
 
-### 7.4 Future work, in priority order
+### 12.4 Future work, in priority order
 
-1. **Correct the goal signal.** `AIController` hardcodes the goal to the map's
-   right edge and `dyToGoal` to zero, so the "where am I going" channel reads
-   *rightward, always*. A degenerate hierarchy already exists and is defective.
-   The project's solvability oracle computes an exact optimal waypoint path;
-   feeding those waypoints in tests the hierarchical hypothesis with a *perfect*
-   high-level policy before any second network is trained.
-2. **Directed exploration for RL.** Undirected Bernoulli noise does not escape
-   the standing-still optimum under either reward scaling. Entropy
-   regularisation, or an explicit progress-based curriculum, is the next thing
-   to try — not another reward constant.
-3. **Widen the field of view** to screen parity — information the agent lacks,
+Items 1 and 4 of Part I's list are done (Findings 7 and 10); item 2's premise
+changed — the curriculum now exists, so exploration pressure comes from the
+certified band rather than from noise shaping. The list as it stands:
+
+1. **Student completions on the easy band.** The reservoir run's success
+   criterion is binary and behavioural: does the *student* complete
+   repair-descended levels? Then ratchet the band.
+2. **Widen the field of view** to screen parity — information the agent lacks,
    in preference to hidden capacity, which restates what it has.
-4. **Expand the training distribution** — more hand-authored levels, then
-   generated ones, as domain randomisation.
+3. **Repair beyond stepping stones.** The descent stalls at 0.283 because one
+   stone cannot split a 2-tile hop; stone *removal* (widening a corridor,
+   lowering a wall) extends the same oracle-named-cell mechanism downward.
+4. **The GAN as the proposal distribution.** The corpus is imported and
+   certified; once convolutions land in the vendored framework, the GAN
+   replaces `genome → level` and the certified fitness stays exactly as is —
+   which was the design's point.
+5. **Evolution strategies over policy weights**, as the learning-from-
+   consequence method that needs only episode returns — the thing Finding 5
+   showed REINFORCE could not be trusted with here.
 
 ---
 
-## 8. Reproduction
+## 13. Reproduction
 
 ```bash
 mkdir build && cd build && cmake .. && make -j8
 ./train_policy --episodes 150 --imitation-only        # headless, no window
 ./eval_level assets/levels/level_1.json --policy saves/ai/policy_imitation.ckpt
 ./eval_level assets/levels/level_1.json --trace 0:1800   # per-frame agent state
+./SuperMarioGame --train                              # visual training, 16-level rotation
+
+# The generator pipeline (Finding 10):
+python3 tools/solvability.py --waypoints assets/levels/*.json   # certified routes
+python3 tools/evolve.py --band 0.35:0.55 --generations 6 \
+        --population 16 --keep 6 --out assets/levels/generated
+python3 tools/solvability.py corpus/TheVGLC/"Super Mario Bros"/Processed/mario-*.txt
 ```
 
 In-engine with live visualisation: main menu → **TRAIN AI**. `SPACE` pauses,
@@ -365,7 +598,7 @@ run destroyed a working 22.2 % imitation policy by sharing a filename.
 
 ---
 
-## 9. Summary of measurements
+## 14. Summary of measurements
 
 | Configuration | level_1 | jumps/1800 | deaths |
 | :--- | ---: | ---: | ---: |
@@ -376,6 +609,22 @@ run destroyed a working 22.2 % imitation policy by sharing a filename.
 | **Imitation, aggregated (final)** | **23.9 %** | **62** | **7** |
 | REINFORCE, default reward | 0.0 % | 80 | 0 (stuck) |
 | REINFORCE, rebalanced reward | 0.0 % | — | 0 (stuck) |
+
+Part I numbers above were measured under the last-life metric (Finding 6a) and
+are kept for internal comparison only. Part II, honest metric:
+
+| Configuration | level_1 | level_2 | level_3 | bonus_1 |
+| :--- | ---: | ---: | ---: | ---: |
+| Teacher, corrected baseline | 37.8 % | 75.3 % | 21.4 % | 17.8 % |
+| + certified routes | 38.0 % | 75.3 % | 21.4 % | **74.1 %** |
+| + observation v4 (wall-jump, waiting) | 53.4 % | 75.3 % | **43.0 %** | 74.1 % |
+| + ride/bounce-certified routes | **72.6 %** | 75.3 % | 43.0 % | 74.1 % |
+| Student, FIFO-12k, 442 ep (drifted) | 8.2 % | 8.2 % | 8.2 % | 13.9 % |
+| Student, reservoir-48k | *training at time of writing* | | | |
+
+Generator: 16/16 winnable by generation 1 in-band 0.35–0.55; easy band
+0 → 6 levels via repair descent (floor 0.685 → 0.283); VGLC 13/15 certified;
+**first completion**: teacher on repair-descended `evolved_02`.
 
 ### References
 
@@ -390,3 +639,9 @@ learning.* Nature, 518. (action repeat / frame skip)
 
 Amodei, D. et al. (2016). *Concrete Problems in AI Safety.* arXiv:1606.06565.
 (reward hacking)
+
+Vitter, J. S. (1985). *Random Sampling with a Reservoir.* ACM TOMS 11(1).
+(Algorithm R)
+
+Summerville, A. et al. (2016). *The VGLC: The Video Game Level Corpus.*
+arXiv:1606.07487.
