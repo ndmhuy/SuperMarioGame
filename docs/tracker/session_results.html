@@ -1,4 +1,4 @@
-<title>Wall-Jump Defect Log</title>
+<title>Generator &amp; Agent Run Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
@@ -9,7 +9,7 @@
   --line:#CFD2DD; --line-soft:#DEE0E9;
   --ink:#171A26; --ink-2:#4A4F63; --ink-3:#767B8F;
   --accent:#C98A0C; --accent-ink:#171A26;
-  --ok:#2E7D57; --bad:#C23A36;
+  --ok:#2E7D57; --bad:#C23A36; --info:#3E7BB8;
   --shadow:0 1px 2px rgba(23,26,38,.06), 0 8px 24px -12px rgba(23,26,38,.18);
 }
 @media (prefers-color-scheme: dark) {
@@ -18,7 +18,7 @@
     --line:#2E3345; --line-soft:#252A39;
     --ink:#EEF0F6; --ink-2:#AAB0C4; --ink-3:#767D95;
     --accent:#F5B32C; --accent-ink:#12141F;
-    --ok:#4FBE8B; --bad:#E5615C;
+    --ok:#4FBE8B; --bad:#E5615C; --info:#4A90D9;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
   }
 }
@@ -27,235 +27,326 @@
   --line:#2E3345; --line-soft:#252A39;
   --ink:#EEF0F6; --ink-2:#AAB0C4; --ink-3:#767D95;
   --accent:#F5B32C; --accent-ink:#12141F;
-  --ok:#4FBE8B; --bad:#E5615C;
+  --ok:#4FBE8B; --bad:#E5615C; --info:#4A90D9;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
 }
-
 * { box-sizing:border-box; }
 body { margin:0; background:var(--paper); color:var(--ink);
   font-family:Archivo,"Helvetica Neue",Arial,sans-serif; font-size:16px; line-height:1.55;
   -webkit-font-smoothing:antialiased; }
-.wrap { max-width:960px; margin:0 auto; padding:40px 24px 96px;
-  display:flex; flex-direction:column; gap:44px; }
+.wrap { max-width:980px; margin:0 auto; padding:40px 24px 96px; display:flex; flex-direction:column; gap:40px; }
 h1,h2,h3 { margin:0; text-wrap:balance; }
 .eyebrow { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:700;
   letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3); }
 code,.mono { font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace; }
 code { font-size:.88em; background:var(--surface-2); border-radius:3px; padding:.1em .34em; }
-
-header { display:flex; flex-direction:column; gap:16px; }
-header h1 { font-size:clamp(30px,5.4vw,50px); font-weight:800; letter-spacing:-.03em; line-height:1.04; }
-header p.lede { max-width:62ch; font-size:17px; color:var(--ink-2); margin:0; }
+header { display:flex; flex-direction:column; gap:14px; }
+header h1 { font-size:clamp(30px,5.4vw,48px); font-weight:800; letter-spacing:-.03em; line-height:1.04; }
+header p.lede { max-width:64ch; font-size:16.5px; color:var(--ink-2); margin:0; }
 .chips { display:flex; flex-wrap:wrap; gap:8px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
 .chip { border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:4px 11px; color:var(--ink-2); }
 
-.steps { display:flex; flex-direction:column; gap:14px; }
-.step { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--line);
-  border-radius:8px; padding:18px 20px; display:grid; grid-template-columns:38px 1fr; gap:16px; }
-.step.ok   { border-left-color:var(--ok); }
-.step.bad  { border-left-color:var(--bad); }
-.step.key  { border-left-color:var(--accent); }
-.step .n { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:18px; font-weight:700;
-  color:var(--ink-3); font-variant-numeric:tabular-nums; }
-.step.ok .n { color:var(--ok); } .step.bad .n { color:var(--bad); } .step.key .n { color:var(--accent); }
-.step .body { display:flex; flex-direction:column; gap:9px; min-width:0; }
-.step h3 { font-size:16.5px; font-weight:600; letter-spacing:-.01em; }
-.step p { margin:0; font-size:14.5px; color:var(--ink-2); }
-.result { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px;
-  background:var(--surface-2); border-radius:6px; padding:10px 13px; overflow-x:auto;
-  white-space:pre; margin:0; line-height:1.7; }
-.result .g { color:var(--ok); font-weight:700; }
-.result .r { color:var(--bad); font-weight:700; }
-.result .a { color:var(--accent); font-weight:700; }
-.verdict { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:700;
-  letter-spacing:.1em; text-transform:uppercase; align-self:flex-start;
-  padding:3px 9px; border-radius:4px; background:var(--surface-2); color:var(--ink-3); border:1px solid var(--line); }
-.verdict.ok  { background:var(--ok); color:#fff; border-color:transparent; }
-.verdict.bad { background:var(--bad); color:#fff; border-color:transparent; }
-.verdict.key { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+.session-h { display:flex; align-items:baseline; gap:14px; border-bottom:2px solid var(--line); padding-bottom:8px; }
+.session-h h2 { font-size:21px; font-weight:800; letter-spacing:-.02em; }
+.session-h span { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-3); }
 
-table { border-collapse:collapse; width:100%; font-size:14px; }
-th { text-align:left; color:var(--ink-3); font-weight:600; padding:6px 14px 6px 0; font-size:13px; }
-td { padding:5px 14px 5px 0; }
+.steps { display:flex; flex-direction:column; gap:16px; }
+.step { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--line);
+  border-radius:8px; padding:18px 20px; display:flex; flex-direction:column; gap:12px; }
+.step.ok{border-left-color:var(--ok);} .step.bad{border-left-color:var(--bad);}
+.step.key{border-left-color:var(--accent);} .step.info{border-left-color:var(--info);}
+.step-head { display:grid; grid-template-columns:40px 1fr auto; gap:14px; align-items:baseline; }
+.step-head .n { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:18px; font-weight:700;
+  color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.step.ok .n{color:var(--ok);} .step.bad .n{color:var(--bad);} .step.key .n{color:var(--accent);} .step.info .n{color:var(--info);}
+.step h3 { font-size:16.5px; font-weight:600; letter-spacing:-.01em; }
+.verdict { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; padding:3px 9px; border-radius:4px;
+  background:var(--surface-2); color:var(--ink-3); border:1px solid var(--line); white-space:nowrap; }
+.verdict.ok{background:var(--ok);color:#fff;border-color:transparent;}
+.verdict.bad{background:var(--bad);color:#fff;border-color:transparent;}
+.verdict.key{background:var(--accent);color:var(--accent-ink);border-color:transparent;}
+
+.fields { display:flex; flex-direction:column; gap:0; border-top:1px solid var(--line-soft); }
+.field { display:grid; grid-template-columns:130px 1fr; gap:14px; padding:9px 0; border-bottom:1px solid var(--line-soft); }
+.field:last-child { border-bottom:none; }
+.field .k { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); padding-top:3px; }
+.field .v { font-size:14.2px; color:var(--ink-2); min-width:0; }
+.field .v strong { color:var(--ink); font-weight:600; }
+.field .v p { margin:0 0 7px; } .field .v p:last-child { margin:0; }
+
+.result { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+  background:var(--surface-2); border-radius:6px; padding:9px 12px; overflow-x:auto;
+  white-space:pre; margin:6px 0 0; line-height:1.65; color:var(--ink-2); }
+.result .g{color:var(--ok);font-weight:700;} .result .r{color:var(--bad);font-weight:700;}
+.result .a{color:var(--accent);font-weight:700;}
+.math { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px; background:var(--surface-2);
+  border-left:3px solid var(--info); border-radius:0 6px 6px 0; padding:9px 12px; margin:6px 0 0;
+  overflow-x:auto; white-space:pre; line-height:1.8; color:var(--ink-2); }
+.math b { color:var(--ink); font-weight:700; }
+
+table { border-collapse:collapse; width:100%; font-size:13.5px; }
+th { text-align:left; color:var(--ink-3); font-weight:600; padding:5px 12px 5px 0; font-size:12.5px; }
+td { padding:4px 12px 4px 0; }
 tbody { font-family:"JetBrains Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
-.tblwrap { overflow-x:auto; background:var(--surface); border:1px solid var(--line);
-  border-radius:8px; padding:16px 18px; }
-.up { color:var(--ok); font-weight:700; } .flat { color:var(--ink-3); }
+.tblwrap { overflow-x:auto; }
+.up{color:var(--ok);font-weight:700;} .down{color:var(--bad);font-weight:700;} .flat{color:var(--ink-3);}
 footer { border-top:1px solid var(--line); padding-top:18px;
   font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3);
   display:flex; flex-wrap:wrap; gap:6px 22px; }
-@media (max-width:620px){ .step{grid-template-columns:26px 1fr;} }
+@media (max-width:560px){ .field{grid-template-columns:1fr;gap:3px;} .step-head{grid-template-columns:30px 1fr;} .step-head .verdict{grid-column:2;justify-self:start;} }
 @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
 </style>
 
 <div class="wrap">
 <header>
-  <p class="eyebrow">CS202 · Super Mario · run log · 20 Aug 2026</p>
-  <h1>You could not jump while walking into a wall</h1>
-  <p class="lede">Every step of the session, and what it actually measured. The tooling was
-  built to score generated levels; the first thing it scored was the engine.</p>
+  <p class="eyebrow">CS202 · Super Mario · generator &amp; agent side project · run log</p>
+  <h1>Run Log, Step by Step</h1>
+  <p class="lede">Every step with its knowledge base, the maths it rests on, the tech it touched,
+  what was implemented, what was measured, and why the decision went the way it did.
+  Sessions 1–2 established the tooling and fixed the engine; session 3 works on the agent itself.</p>
   <div class="chips">
     <span class="chip">branch A/mapgen-gan-plan</span>
-    <span class="chip">6 commits</span>
+    <span class="chip">obs contract v2</span>
     <span class="chip">14/14 ctest</span>
     <span class="chip">game run &amp; screenshotted</span>
   </div>
 </header>
 
-<div class="steps">
+<!-- ======================= SESSIONS 1-2 (condensed) ======================= -->
+<div>
+  <div class="session-h"><h2>Sessions 1–2 · Tooling &amp; the engine bug</h2><span>20 Aug · condensed — full detail in git log</span></div>
+  <div class="steps" style="margin-top:14px">
 
-  <article class="step ok"><span class="n">01</span><div class="body">
-    <h3>Re-based the side project off the RL branch</h3>
-    <p>Moved from <code>dev</code> onto <code>A/rl-neural-policy</code> so both halves of the
-    experiment are one droppable unit and <code>dev</code> depends on none of it.</p>
-    <pre class="result">bbada58 (on dev base)  ->  10c6ccd (stacked on A/rl-neural-policy)</pre>
-    <span class="verdict ok">Done</span>
-  </div></article>
+    <article class="step ok"><div class="step-head"><span class="n">01</span>
+      <h3>Foundations: tensor contract, headless runner, solvability oracle</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Implementation</span><div class="v">
+          <p><code>tools/level_tensor.py</code> (level JSON ↔ 14×W semantic grid, 7/7 roundtrip) ·
+          <code>tools/eval_level.cpp</code> (headless AI playthrough → versioned JSON report, 24× realtime) ·
+          <code>tools/solvability.py</code> (agent-free reachability + minimax difficulty).</p></div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">Oracle proved all 7 shipped levels 100% reachable while the agent finished none —
+          the level/player confound that playthrough-based fitness (Volz, PAIRED, EA SEED) cannot separate. Also found: level_2/3 require a
+          96%-of-maximum jump; difficulty is a cliff (0.14 sub-levels vs 0.71–0.96 campaign), not a curve.</div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">02</span><div class="body">
-    <h3>Level tensor contract — JSON ↔ semantic tile grid</h3>
-    <p>14-row band, 9 semantic classes. Band and vocabulary measured against the shipped
-    levels, not assumed; the band height matches the VGLC corpus exactly.</p>
-    <pre class="result">level_tensor.py check assets/levels/*.json
-<span class="g">7/7 levels roundtrip cleanly</span>   (bonus_1, level_1..3, level_*_sub)</pre>
-    <span class="verdict ok">Shipped</span>
-  </div></article>
+    <article class="step key"><div class="step-head"><span class="n">02</span>
+      <h3>Engine bug: you could not jump while walking into a wall</h3><span class="verdict ok">Fixed</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v"><code>CollisionResolver</code>'s wall-slide rule zeroed <em>vertical</em> velocity
+          on a purely <em>horizontal</em> collision (normal (−1, 0)), guarded by <code>onGround</code> — a flag the X pass always sees as false because
+          the Y pass that recomputes it runs later in the frame.</div></div>
+        <div class="field"><span class="k">Implementation</span><div class="v"><code>Character::wasOnGround</code> (frame-start state) as the airborne test;
+          upward-momentum kill removed; downward slide cap kept. Found via <code>--trace</code>: vy −678.8 applied → erased same frame, 8700 frames straight.</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">level_1 10.8→31.8%, level_2 13.8→47.8%. Agent went from frozen (0 deaths) to genuinely playing. 14/14 ctest, verified in the running game.</div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">03</span><div class="body">
-    <h3>Headless <code>eval_level</code> runner</h3>
-    <p>Plays a level with an AI, no window / GL / ImGui, writes a versioned JSON report.
-    A separate harness because <code>PlayingState</code> reads <code>ImGui::GetIO()</code> and
-    writes save files from its update path.</p>
-    <pre class="result">200s of gameplay simulated in 5.2s wall clock   <span class="g">24x realtime</span></pre>
-    <span class="verdict ok">Shipped</span>
-  </div></article>
+  </div>
+</div>
 
-  <article class="step bad"><span class="n">04</span><div class="body">
-    <h3>First sweep — 4 levels × 3 archetypes</h3>
-    <p>The agent finished nothing. Identical result in every archetype, and it never died —
-    it simply stopped and stayed stopped.</p>
-    <pre class="result">level_1   speedrunner  stuck-out-of-time  <span class="r">10.8%</span>  stall=146.6s  deaths=0
-level_1   hunter       stuck-out-of-time  <span class="r">10.8%</span>  stall=146.6s  deaths=0
-level_1   collector    stuck-out-of-time  <span class="r">10.8%</span>  stall=145.4s  deaths=0
-level_2   speedrunner  stuck-out-of-time  <span class="r">13.8%</span>  stall=145.0s  deaths=0
-level_3   speedrunner  stuck-out-of-time  <span class="r">21.4%</span>  stall=142.9s  deaths=0
-bonus_1   speedrunner  stuck-out-of-time  <span class="r">46.4%</span>  stall=138.8s  deaths=0</pre>
-    <span class="verdict bad">0 of 4 finished</span>
-  </div></article>
+<!-- ======================= SESSION 3 (full detail) ======================= -->
+<div>
+  <div class="session-h"><h2>Session 3 · The agent itself</h2><span>20 Aug · full tracking: knowledge · maths · stack · implementation · outcome · reasoning</span></div>
+  <div class="steps" style="margin-top:14px">
 
-  <article class="step key"><span class="n">05</span><div class="body">
-    <h3>Geometric solvability oracle — measure the level, not the player</h3>
-    <p>Floods a level with every jump the engine's own physics constants permit. No policy,
-    no agent. Difficulty as a bottleneck: the hardest forced move on the kindest route.</p>
-    <pre class="result">level                required  optional  reachable   0.25s/level
-level_1                 0.71      0.96    <span class="g">100%</span>
-level_2                 <span class="a">0.96</span>      0.96    <span class="g">100%</span>
-level_3                 <span class="a">0.96</span>      0.96    <span class="g">100%</span>
-bonus_1                 0.71      0.81    <span class="g">100%</span>
-level_*_sub             0.14      0.42    <span class="g">100%</span></pre>
-    <p>The levels are provably fine. So the agent was the problem — and a playthrough-based
-    fitness function, which is what every system in the literature uses, cannot tell those
-    apart. It also flagged two design faults no playtest had found: level_2 and level_3
-    require a jump at 96% of the physical maximum, and difficulty is a cliff, not a curve.</p>
-    <span class="verdict key">The contradiction</span>
-  </div></article>
+    <article class="step info"><div class="step-head"><span class="n">03</span>
+      <h3>Locate the two remaining stalls</h3><span class="verdict">Measured</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">After the engine fix, level_3 and bonus_1 were unchanged to the decimal —
+          the signature of a <em>different</em> blocker, not a residue of the old one.</div></div>
+        <div class="field"><span class="k">Tech stack</span><div class="v"><code>eval_level --report</code> (maxProgressX field) + level-JSON geometry dumps in Python.</div></div>
+        <div class="field"><span class="k">Implementation</span><div class="v">Read stall columns from the reports; dumped tile+entity geometry around each.</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">level_3  stalls at column 45.2 — the oracle's own bottleneck (x=46, demand 0.96)
+bonus_1  stalls at column 57.2 — box edge at exactly 1856 = 58·32</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">level_3 stopping at the oracle's predicted hardest move suggests physics-limit trouble;
+          bonus_1 stopping at a pixel-exact tile boundary with <em>no tile there</em> suggests an invisible obstacle. Two hypotheses, each testable by trace.</div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">06</span><div class="body">
-    <h3><code>--trace</code>: per-frame agent state</h3>
-    <p>Turned the stall from a guess into a measurement. The policy was doing the right thing
-    the whole time — it reported <code>climbing</code> on every frame.</p>
-    <pre class="result">frame      x       y     vx       vy  ground  canJump   reason
-  301   776.0   578.0   0.0  <span class="a">-678.8</span>      no     yes   climbing
-  302   776.0   578.0   0.0     0.0      no      no   climbing
-  303   776.0   578.0   0.0  <span class="a">-678.8</span>      no     yes   climbing
-                        <span class="r">position never changes; onGround always false</span></pre>
-    <span class="verdict ok">Localised</span>
-  </div></article>
+    <article class="step key"><div class="step-head"><span class="n">04</span>
+      <h3>level_3: the 4-tile wall is mathematically unclimbable</h3><span class="verdict key">Maths finding</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">The engine integrates with <strong>semi-implicit Euler</strong> at 60 Hz:
+          gravity is added to velocity <em>before</em> the position step. That loses exactly half a frame of launch velocity versus the continuous parabola.</div></div>
+        <div class="field"><span class="k">Maths</span><div class="v">
+          <pre class="math">v0        = √(2·g·h)  = √(2·1800·128)          = <b>678.82 px/s</b>
+continuous apex      = v0²/(2g)                = <b>128.0 px</b>  (exactly 4 tiles)
+discrete rise        = Σₖ (v0 − k·g·dt)·dt      k = 1..22, dt = 1/60
+                     = 128 − v0·dt/2 (+O(dt²))  = <b>122.4 px = 3.82 tiles</b>
+4-tile ledge (128px) > 122.4  →  <b>impossible</b>, misses by 5.6px every time
+3-tile ledge  (96px) &lt; 122.4  →  clears with 26.4px margin
+above-ledge window (3-tile): 678.8t − 900t² = 96 → t ∈ [0.19, 0.57] s</pre></div></div>
+        <div class="field"><span class="k">Tech stack</span><div class="v"><code>eval_level --trace</code> full jump cycle; <code>Constants.hpp</code> (GRAVITY 0.5 px/frame² × 3600, JUMP_HEIGHT 128).</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">apex box-bottom = 517.6px   ledge top = 512px   <span class="r">missed by 5.6px, deterministically</span>
+descent clamped to +50 px/s  (wall-slide cap — correct behaviour)</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v"><p>The trace matched the discrete formula to the pixel — the agent's jump is <em>perfect</em> and
+          <em>insufficient</em>. Consequences: (a) the oracle's tile-rounding (<code>round(y/32)</code>) grants up to half a tile of phantom height and violated
+          its own lower-bound contract — logged as its open defect; (b) the intended route must use the falling platform at (41,19) or the question blocks
+          at (36,16)/(40,16) — <strong>elevated launch points</strong>, which a purely reactive policy never routes through.</p></div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">07</span><div class="body">
-    <h3>Ruled out the obvious suspects</h3>
-    <p>Each checked rather than assumed: <code>AABB::intersects</code> uses strict comparisons,
-    so exact tangency is not a false collision. The 0.01px pushback at x=775.99 is ordinary
-    wall resolution. The cell above the agent is empty, and no entity sits within 96px.</p>
-    <span class="verdict ok">Narrowed</span>
-  </div></article>
+    <article class="step key"><div class="step-head"><span class="n">05</span>
+      <h3>bonus_1: the pipe the agent cannot see</h3><span class="verdict key">Root cause</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">Levels carry solid things two ways: tiles in the tile map, and <em>entities</em>
+          (pipes, question blocks, moving/falling platforms — all <code>EntityCategory::Block</code>). Physics collides with both.
+          <code>scanEnvironment</code>'s entity pass handled Enemy/Item/Projectile and skipped Block on the false belief the tile pass covered them.</div></div>
+        <div class="field"><span class="k">Tech stack</span><div class="v"><code>AIController::scanEnvironment</code> (vision grid),
+          <code>Entity::getCategory()</code>, level JSON (<code>{type: pipe, x:58, y:19}</code>).</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">agent box edge 1856.0 = 58·32, grid says right=Empty, reason=<span class="r">"advancing"</span>, 190s
+→ the wall it is pressing into does not exist in its perception</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">This is a perception bug, not a decision bug: the policy is behaving correctly
+          for the world it is shown. Fix perception, not the policy. It also matters beyond the heuristic — every logged RL observation had the same blindness,
+          so this is a data-quality fix for training too.</div></div>
+      </div>
+    </article>
 
-  <article class="step key"><span class="n">08</span><div class="body">
-    <h3>Instrumented the physics engine — root cause</h3>
-    <p>The jump velocity was already gone before the Y pass ran. The X pass was destroying it,
-    on a collision whose normal has no vertical component at all.</p>
-    <pre class="result">[physX] vy=<span class="a">-648.8</span>  tile(25,18)  n=(<span class="a">-1,0</span>)  ov=(0.27,0)  -> vy=<span class="r">0</span>
-[phys ] preVelY=<span class="r">0</span>  y 577.99 -> 577.99  collisions=0
+    <article class="step ok"><div class="step-head"><span class="n">06</span>
+      <h3>Fix: solid entities enter the vision grid · observation contract v2</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Implementation</span><div class="v"><p><code>EntityCategory::Block</code> → <code>Solid</code>
+          (question blocks → <code>Reward</code>, mirroring the tile pass), painted across the entity's <strong>full tile footprint</strong> —
+          a 2×2 pipe previously would have marked only its centre cell, leaving the face the agent collides with unmarked.</p>
+          <p><code>kAIObservationVersion</code> 1 → 2: layout unchanged, semantics extended. Cells that always read Unknown/Empty now carry information,
+          so v1-trained weights would misread every level with a pipe — the version gate refuses them by design.</p></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">Bumping the contract now is free (no trained weights exist yet); not bumping it
+          would have planted the hardest-to-diagnose failure the RL doc warns about — a policy acting confidently on misaligned inputs.</div></div>
+      </div>
+    </article>
 
-CollisionResolver.cpp:44   if (!character-&gt;onGround) {
-CollisionResolver.cpp:46       entity.velocity.y = 0.0f;   // upward momentum</pre>
-    <span class="verdict key">Root cause</span>
-  </div></article>
+    <article class="step ok"><div class="step-head"><span class="n">07</span>
+      <h3>Fix: the policy learns the physics envelope, and how to give up</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">From step 04: climbable ⇔ wall height ≤ 3 tiles. Jumping at a 4-tile wall is
+          provably futile; the only local move that changes anything is leaving.</div></div>
+        <div class="field"><span class="k">Maths</span><div class="v">
+          <pre class="math">escape   = 80 decisions @ 60 Hz ≈ 1.3s ≈ 6 tiles at walk speed
+stuck    = 120 decisions (2s) with |vx| &lt; 0.05·RUN_SPEED → escape regardless of cause</pre></div></div>
+        <div class="field"><span class="k">Implementation</span><div class="v"><code>wallHeight()</code> (consecutive solid cells above foot level, 0–4) gates the
+          wall-jump; <code>raisedGroundAhead()</code> labels edge-jumps toward higher ground; an escape state reverses direction when pinned at an
+          unclimbable wall; a generic stuck detector escapes after 2s of no horizontal motion whatever the cause. <code>reset()</code> clears all of it.</div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">The stuck detector is deliberately cause-blind: the wall trigger covers the trap
+          that was understood; the timer covers the ones that were not — which step 09 promptly proved necessary.</div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">09</span><div class="body">
-    <h3>The fix — two defects in one rule</h3>
-    <p><strong>One:</strong> the airborne test read <code>onGround</code>, which PhysicsEngine
-    clears at the start of each frame and only recomputes in the Y pass — which runs
-    <em>after</em> the X pass this code lives in. It read false for a character standing firmly
-    on the ground, so the rule fired for everyone touching a wall. <code>Character</code> now
-    keeps <code>wasOnGround</code>.</p>
-    <p><strong>Two:</strong> it cancelled <em>vertical</em> velocity because a <em>wall</em> was
-    touched. A wall is vertical; rising alongside one is ordinary platforming, and a real
-    ceiling is the Y pass's job. Only the downward slide cap survives.</p>
-    <pre class="result">include/Entities/Character.hpp     + wasOnGround
-src/Physics/PhysicsEngine.cpp      capture before clearing onGround
-src/Physics/CollisionResolver.cpp  the rule itself</pre>
-    <span class="verdict ok">Fixed</span>
-  </div></article>
+    <article class="step info"><div class="step-head"><span class="n">08</span>
+      <h3>Sweep: level_2 jumps to 75.3%</h3><span class="verdict">Measured</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">level_1  31.8 → 24.4%      level_2  47.8 → <span class="g">75.3%</span>
+level_3  21.4 → 21.4% (unfrozen: 11 deaths, 9 coins — actively routing)
+bonus_1  46.4 → 46.4% (still pinned at 57.2 — but now reads "climbing")</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">Entity visibility unlocked level_2's pipe section. bonus_1 seeing the pipe but not
+          passing it meant a further mechanism — traced next.</div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">10</span><div class="body">
-    <h3>Result — before and after</h3>
-    <div class="tblwrap"><table>
-      <thead><tr><th>Level</th><th>Before</th><th>After</th><th>Deaths</th><th>Coins</th><th>Kills</th></tr></thead>
-      <tbody>
-        <tr><td>level_1</td><td>10.8%</td><td class="up">31.8%</td><td>13</td><td>4</td><td>4</td></tr>
-        <tr><td>level_2</td><td>13.8%</td><td class="up">47.8%</td><td>0</td><td>4</td><td>2</td></tr>
-        <tr><td>level_3</td><td>21.4%</td><td class="flat">21.4%</td><td>0</td><td>2</td><td>0</td></tr>
-        <tr><td>bonus_1</td><td>46.4%</td><td class="flat">46.4%</td><td>0</td><td>5</td><td>1</td></tr>
-      </tbody>
-    </table></div>
-    <p>The agent is now genuinely playing — moving, dying, collecting, fighting — where before
-    it was frozen with zero deaths. It still finishes nothing, but that is now a policy
-    competence problem rather than a frozen simulation, which is exactly the distinction the
-    oracle was built to make. <strong>level_3 and bonus_1 are unchanged, so at least one
-    further blocker remains.</strong></p>
-    <span class="verdict ok">Unfrozen</span>
-  </div></article>
+    <article class="step key"><div class="step-head"><span class="n">09</span>
+      <h3>bonus_1 again: the koopa-shell bounce-lock</h3><span class="verdict key">Emergent trap</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">Stomping gives a fixed −300 px/s bounce and does not ground the player.
+          <code>Player::jump()</code> requires ground contact (or coyote frames).</div></div>
+        <div class="field"><span class="k">Maths</span><div class="v">
+          <pre class="math">bounce apex = Σₖ (300 − 30k)/60 , k=1..10  =  <b>22.5 px</b>
+pipe top    = 64 px above the floor        →  bounce can never clear it
+grounded    = never                        →  canJump never fires</pre></div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">vy: +240 → <span class="a">−300</span> → decay → +240 → <span class="a">−300</span> …  x = 1832.0 for 168 s
+a stationary shell wedged against the pipe; the agent bounces on it forever</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">No wall rule can see this — the obstacle is <em>kinematic</em>, not geometric.
+          Exactly the case the cause-blind stuck detector (step 07) exists for: 2s at x=constant → escape.</div></div>
+      </div>
+    </article>
 
-  <article class="step ok"><span class="n">11</span><div class="body">
-    <h3>Verification</h3>
-    <pre class="result">ctest                        <span class="g">100% tests passed, 0 failed out of 14</span>
-./SuperMarioGame --script tests/scripts/versus_cpu.txt
-                             <span class="g">runs, respawns, screenshots</span>
-                             VERSUS CPU: luigi (HARD HUNTER)</pre>
-    <p>Building is not verifying, so the game was launched and observed, not just compiled.</p>
-    <span class="verdict ok">Verified</span>
-  </div></article>
+    <article class="step ok"><div class="step-head"><span class="n">10</span>
+      <h3>Harness fidelity: death reloads the level, as the game does</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">The real game reloads the level on death. The harness respawned only the player —
+          so level_3's one-shot falling platforms stayed consumed and its trough became a lava-walled dead end the real game never presents.
+          Fitness was scoring a level that does not exist.</div></div>
+        <div class="field"><span class="k">Tech stack</span><div class="v"><code>eval_level.cpp</code>: <code>LevelLoader</code> re-load on death;
+          <code>AIController</code> binds the player by reference, so the controller is rebuilt via <code>std::optional::emplace</code> around the fresh player;
+          reward banked across lives so the report stays whole-run.</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">bonus_1: 46.4% → <span class="r">13.1%, 59 deaths</span> — one identical death every 3.4s</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v"><strong>The fidelity fix was correct and it exposed a truth:</strong> with ε=0 the
+          Hard agent is fully deterministic, and identical world + identical policy = the same first death repeated forever. The old 46.4% was partly luck
+          rented from a corrupted world (enemies staying dead between lives). Honest numbers got worse; the measurement got right.</div></div>
+      </div>
+    </article>
 
+    <article class="step bad"><div class="step-head"><span class="n">11</span>
+      <h3>Two speed gates, tried and reverted — with numbers</h3><span class="verdict bad">Reverted</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Knowledge</span><div class="v">The repeated death: the agent jumps at a 2-tile block <em>while at run speed</em> —
+          the 1-tile lookahead triggers at fixed distance, so at 300 px/s the arc peaks past the block and dives into the pit behind it.
+          Mid-air run acceleration (vx 150→300 during flight) stretches it further.</div></div>
+        <div class="field"><span class="k">Maths</span><div class="v">
+          <pre class="math">deceleration: 1000 px/s² normal ground,  <b>250 px/s² on ice</b>
+→ "jump only at walk speed" is unsatisfiable on ice: the agent can never slow down</pre></div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <pre class="result">                       lvl_1   lvl_2   lvl_3   bonus_1
+frozen baseline         24.9    75.3    21.4    13.1
++ jump-speed gate       14.3    <span class="r">12.4</span>    22.0    40.7   ← ice breaks it
++ no-run-in-mid-air      8.4     <span class="r">1.9</span>    <span class="g">39.7</span>    <span class="g">60.6</span>   ← reshuffles, not repairs</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v"><p>Each gate traded two levels for two others. That is not noise — it is the
+          signature of a <strong>chaotic plateau</strong>: a reactive policy rides knife-edge deterministic trajectories, and any parameter nudge reshuffles
+          which knife-edge fails. Both gates reverted; the measured numbers are recorded in-code so the loop is never re-walked.</p>
+          <p><strong>This plateau is the concrete, measured case for the RL policy</strong> — a learned policy trains on the distribution of situations
+          instead of hand-tuned trigger distances, which is precisely what the <code>IAIPolicy</code> seam exists to host.</p></div></div>
+      </div>
+    </article>
+
+    <article class="step ok"><div class="step-head"><span class="n">12</span>
+      <h3>Freeze, verify, commit</h3><span class="verdict ok">Verified</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Outcome</span><div class="v">
+          <div class="tblwrap"><table>
+            <thead><tr><th>Level</th><th>Session start</th><th>Frozen config</th><th>Note</th></tr></thead>
+            <tbody>
+              <tr><td>level_1</td><td>31.8%</td><td class="down">24.9%</td><td style="font-family:Archivo">honest world (reload) costs luck</td></tr>
+              <tr><td>level_2</td><td>47.8%</td><td class="up">75.3%</td><td style="font-family:Archivo">entity visibility unlocked pipes</td></tr>
+              <tr><td>level_3</td><td>21.4%</td><td class="flat">21.4%</td><td style="font-family:Archivo">4-tile wall: needs routed launch points</td></tr>
+              <tr><td>bonus_1</td><td>46.4%</td><td class="down">13.1%</td><td style="font-family:Archivo">deterministic first-death loop, now visible</td></tr>
+            </tbody>
+          </table></div>
+          <pre class="result">ctest: <span class="g">100% passed, 0 failed out of 14</span>   game: versus-CPU script runs, respawns, screenshots</pre></div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">The frozen config keeps every <em>correctness</em> change (perception, contract v2,
+          physics-envelope gating, escape/stuck, harness fidelity) and none of the speed tuning. Progress numbers are mixed <em>because the measurement got
+          more honest</em>, and the two regressions have named, understood causes rather than mysteries.</div></div>
+      </div>
+    </article>
+
+  </div>
 </div>
 
 <section>
   <p class="eyebrow">Where to pick up</p>
-  <div class="tblwrap">
-    <p style="margin:0 0 10px;color:var(--ink-2);font-size:15px"><strong>Next, in order:</strong></p>
-    <p style="margin:0 0 8px;color:var(--ink-2);font-size:15px">1. Trace <code>level_3</code> and <code>bonus_1</code> — both stalled at exactly the same
-    percentage after the fix, so a second, distinct blocker is still there.</p>
-    <p style="margin:0 0 8px;color:var(--ink-2);font-size:15px">2. Training corpus (VGLC mapping) — needs a download, so it needs your go-ahead.</p>
-    <p style="margin:0;color:var(--ink-2);font-size:15px">3. Replace the reward's rightward-progress term with progress along the reachability
-    graph, so the agent is not paid for pressing into walls.</p>
+  <div class="step" style="border-left-color:var(--info)">
+    <div class="fields" style="border-top:none">
+      <div class="field"><span class="k">1 · RL training</span><div class="v">The plateau is measured; the seam, the v2 observations, the reward tracker and the
+        24×-realtime runner are all in place. Train on oracle-verified-reachable levels with reachability-graph progress as the dense reward.</div></div>
+      <div class="field"><span class="k">2 · Oracle fix</span><div class="v">Replace tile-rounding with floor-based box occupancy and normalize demand by the
+        discrete 122.4px envelope, restoring the lower-bound contract (level_3's direct wall must read impossible; its platform route becomes the honest answer).</div></div>
+      <div class="field"><span class="k">3 · Determinism</span><div class="v">Decide policy for evaluation: keep ε=0 (reproducible fitness, but groundhog-day
+        first deaths) or add per-life exploration noise. Affects the level-fitness pipeline's design, so decide before the corpus work.</div></div>
+      <div class="field"><span class="k">4 · Corpus</span><div class="v">VGLC download still awaits your go-ahead.</div></div>
+    </div>
   </div>
 </section>
 
 <footer>
+  <span>commit bae81df (AI upgrades)</span>
+  <span>commit eda0e5d (wall-jump fix)</span>
   <span>docs/mapgen_gan_rl_plan.md</span>
-  <span>docs/level_tensor_contract.md</span>
-  <span>tools/eval_level.cpp</span>
-  <span>tools/solvability.py</span>
-  <span>commit eda0e5d</span>
+  <span>tools/eval_level.cpp · tools/solvability.py</span>
 </footer>
 </div>

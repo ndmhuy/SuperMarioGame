@@ -4040,3 +4040,21 @@ Summary of Changes:
 - Nothing pushed.
 NEXT: (1) trace level_3 / bonus_1 for the second blocker; (2) VGLC corpus — needs a download, so needs user go-ahead; (3) swap the reward's rightward-progress term for progress along the reachability graph.
 ---
+[2026-08-20 19:30:00] Branch: A/mapgen-gan-plan (side project, off A/rl-neural-policy)
+Git Fingerprint: 04b9241 (before) → bae81df (AI fix) → (docs commit after)
+Fetched Remotes: no — continuation on the same branch, no repository-state reporting.
+Prompt: "continue with the AI, track carefully the knowledge base (including maths), tech stack, implementation, outcome, reasoning in the log html". Mid-session: "stop when 5hour limit reach 95%" — honoured by freezing iteration and closing out with documentation.
+Files Modified: SuperMarioGame/src/Entities/AIController.cpp, src/Entities/HeuristicPolicy.cpp, include/Entities/HeuristicPolicy.hpp, include/Entities/IAIPolicy.hpp (obs v2), tools/eval_level.cpp, docs/tracker/session_results.html (rebuilt with per-step knowledge/maths/stack/implementation/outcome/reasoning)
+Reachable From Main: YES for AIController/HeuristicPolicy/IAIPolicy (game AI path, per standing user authorisation to fix on this branch); eval_level is tools-only.
+Verified By: ctest — 100% passed, 0 failed out of 14; ran the game (versus_cpu script: plays, respawns, screenshots); eval sweeps before/after every change (5 full sweeps this session).
+Summary of Changes:
+- MATHS FINDING: the engine's semi-implicit Euler jump tops out at v0^2/2g − v0·dt/2 = 122.4px = 3.82 tiles (vs 128px continuous). A 4-tile ledge is therefore unclimbable by ANY jump — level_3's stall column 45 is exactly such a wall, missing by a measured 5.6px per attempt. The solvability oracle's tile-rounding hid this (open defect logged; fix = floor-based box occupancy + 122.4px demand normalizer).
+- PERCEPTION FIX: scanEnvironment skipped EntityCategory::Block, so pipes/question-blocks/platforms were solid to physics but invisible to the AI — bonus_1's agent pressed against a pipe reading "advancing" for 190s. Blocks now paint Solid (question blocks Reward) across their FULL tile footprint. kAIObservationVersion 1→2 (semantics change; no trained weights existed, so free now, catastrophic later).
+- POLICY: wallHeight() gates jumps at >3-tile walls (futile by the maths above); escape state (80 decisions ≈ 1.3s) when pinned at unclimbable walls; generic stuck detector (2s no horizontal motion → escape, cause-blind) — needed for a discovered emergent trap: perpetual koopa-shell stomp-bounce (−300 impulse → 22.5px apex, never grounded, canJump never fires) against bonus_1's pipe.
+- HARNESS FIDELITY: eval_level death now reloads the level as the real game does (was player-only respawn; level_3's one-shot falling platforms stayed consumed, scoring a level the game never presents). AIController rebuilt via optional::emplace (binds player by reference); reward banked across lives.
+- TRIED AND REVERTED, with numbers recorded in-code: (1) jump-only-at-controlled-speed — broke level_2 because ice deceleration (250 px/s²) makes the condition unsatisfiable; (2) no-run-mid-air — traded level_3 +18/bonus_1 +47 for level_1 −16/level_2 −73.
+- MEASURED CONCLUSION: reactive-policy tuning has hit a chaotic plateau — deterministic (ε=0) trajectories are knife-edge, and every speed tweak reshuffles WHICH level fails. Frozen at the correctness-only config: level_1 24.9%, level_2 75.3% (was 47.8), level_3 21.4%, bonus_1 13.1% (honest post-reload number; the old 46.4% was luck rented from a corrupted world). This plateau is the measured case for the RL policy.
+- session_results.html rebuilt: every step now carries knowledge base, maths, tech stack, implementation, outcome, reasoning. Republished to the same artifact URL.
+- HONEST STATUS: agent still completes no level. Two regressions have named causes (reload honesty; deterministic first-death loop). Open items: RL training run, oracle rounding fix, determinism policy for eval, VGLC corpus (needs user go-ahead).
+- Nothing pushed.
+---
