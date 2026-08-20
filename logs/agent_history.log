@@ -4197,3 +4197,19 @@ Summary of Changes:
 - Training relaunched: rotation now 22 levels (4 campaign + 6 mid + 6 easy + 6 mid-v2); easy-band v2 evolution (forgiveness-aware) running at nice 19.
 NEXT: (1) student eval after the new cycle — target: completions beyond bonus_1; (2) swap in easy_v2 when done (easy_00/05 kill 21-22x — unforgiving, exactly what the new fitness penalizes); (3) ratchet a 0.55:0.75 band; (4) oracle spring/platform moves are DONE — remaining oracle gap is wall-jump edges; (5) GAN once Conv2d lands upstream.
 ---
+[2026-08-21 05:20:00] Branch: A/mapgen-gan-plan (side project — stays off dev/main)
+Git Fingerprint: a026da4 (before) → 0ea8193 (quality gate) → e9896f1 (gate-passing batches) → 4e47663 (gate closes; HEAD)
+Fetched Remotes: yes earlier this session; continuation. Nothing pushed.
+Prompt: /goal "until the map is best, keep evaluating, training, tracking the path of the agent, documenting as scientific report" (continuation of the same goal loop).
+Files Modified: tools/{map_quality_gate.py(new),evolve.py}, src/Core/TrainingState.cpp, assets/levels/{generated_easy_v2,generated_v3}/*, docs/{ai_research_report.md,tracker/session_results.html}
+Reachable From Main: YES — TrainingState rotation on the game path; gate/evolve are tools/ by design. Trainer OBSERVED RUNNING after each of three relaunches (startup log lines checked: "Rotating over 22/12 levels", "Resumed from ...").
+Verified By: gate runs before/after each repair (exit codes checked); seeded-stochastic student evals on every certified level with path recordings; per-level FAIR verdicts from live death data; oracle re-certification after every net (band membership guarded).
+Summary of Changes:
+- MAP QUALITY GATE (tools/map_quality_gate.py): 'the maps are best' is now an executable proposition — CERTIFIED, FORGIVING>=0.85, FAIR (no death-monopoly tile), DISTINCT>=1.0. First runs failed every batch and each failure named a repair.
+- Repairs: hard dedup at the keep-pool door (three 'different' levels were distance-0.00 duplicates — their identical evals were one level measured thrice); iterated safety nets under oracle-named punishing edges (0.794->0.825/pass, demand exactly preserved); nets clamped into the map (bottom-pit nets fell OUT of the level and protected nothing); wipe-before-write (stale files failed fresh batches).
+- FAIR caught what statics cannot: three death monopolies (9/9, 8/8, 11/11 deaths on one tile in live student paths). Netted at the observed cluster; all three flipped to ZERO-DEATH COMPLETIONS.
+- CONVERGED: both batches PASS all four bars. Student (ep-400 reservoir checkpoint, seeded-stochastic): 8/8 certified levels COMPLETED, all zero deaths; campaign level_1 75.1% — ABOVE its teacher (72.6%). Rotation now = certified batches + campaign (12 levels); training relaunched and observed running on it.
+- Report: Finding 12 + closing section; 744 lines, Findings 1-12.
+- Honest limits stated in the report: single seeded runs (bonus_1 regressed 86.6->73.8 across cycles — run variance is real); easy band holds only 2 levels (doors are hard); campaign levels are NOT gated (hand-made, kept as reference).
+NEXT (if the loop continues): top up easy band to 6 via more seeds; gate the campaign levels themselves (level_1's pit-under-climb would fail FAIR); ratchet a 0.55-0.75 band; GAN as proposal distribution once Conv2d lands upstream.
+---

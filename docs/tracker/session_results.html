@@ -570,6 +570,20 @@ jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class=
           Path maps in <code>docs/tracker/paths/</code>: the bonus_1 completion used only <strong>16 % of the certified route</strong> — the student found its own line;
           the route is a proof of existence, not a prescription.</div></div>
       </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">10</span>
+      <h3>🏁 The gate closes: 8/8 certified levels completed, zero deaths</h3><span class="verdict ok">Converged</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">The definition of "best"</span><div class="v"><code>map_quality_gate.py</code>: CERTIFIED (winnable, in band) ·
+          FORGIVING ≥ 0.85 · FAIR (no tile takes &gt;half of 6+ observed deaths) · DISTINCT (pairwise ≥ 1.0). Every number sits on a measurement, not a taste.</div></div>
+        <div class="field"><span class="k">What the bars caught</span><div class="v">Three literal duplicate levels (distance 0.00) whose "three" eval results were one
+          level measured thrice · endemic unforgiveness, repaired by iterated safety nets under the oracle's punishing edges (demand exactly preserved) · three
+          <strong>death monopolies</strong> visible only in live paths (9/9, 8/8, 11/11 deaths on one tile), netted at the observed cluster — each flipped to a
+          zero-death completion.</div></div>
+        <div class="field"><span class="k">Final state</span><div class="v">Both batches <strong>PASS all four bars</strong>. Student (seeded-stochastic, episode-400
+          checkpoint): <strong>8/8 certified levels completed, all zero deaths</strong>; campaign level_1 at <strong>75.1 %, above its teacher's 72.6 %</strong>.
+          Training continues on exactly the certified rotation (12 levels). Report: Findings 1–12, 744 lines.</div></div>
+      </div></article>
   </div>
 </div>
 
