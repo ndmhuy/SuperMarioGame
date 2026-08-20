@@ -123,7 +123,11 @@ class Level:
         if path.endswith(".json"):
             grid, meta = lt.encode(json.loads(text))
         else:
-            grid, meta = lt.text_to_grid(text)
+            try:
+                grid, meta = lt.text_to_grid(text)
+            except ValueError:
+                # Not our glyph alphabet — try the corpus's.
+                grid, meta = lt.vglc_to_grid(text)
         return cls(grid, meta)
 
     def cell(self, tx: int, ty: int) -> int:

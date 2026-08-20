@@ -315,6 +315,49 @@ def text_to_grid(text: str) -> tuple[list[list[int]], dict]:
 
 # --- commands --------------------------------------------------------------
 
+
+# --- VGLC import ------------------------------------------------------------
+# The Video Game Level Corpus (github.com/TheVGLC/TheVGLC) ships SMB levels as
+# 14-row glyph grids — the same 14 rows this module's band keeps, which is not
+# a coincidence: the band was measured against the engine and matched the
+# corpus. Its alphabet differs from ours, so this maps it:
+#   -    sky            X    ground         S    breakable brick
+#   ?, Q question block E    enemy          o, O coin
+#   <, >, [, ] pipe parts   B, b cannon (other SMB variants) -> solid
+_VGLC_TO_CLASS = {
+    "-": EMPTY, "X": SOLID, "S": BREAKABLE, "?": QUESTION, "Q": QUESTION,
+    "E": ENEMY, "o": COIN, "O": COIN,
+    "<": PIPE, ">": PIPE, "[": PIPE, "]": PIPE,
+    "B": SOLID, "b": SOLID,
+}
+
+
+def vglc_to_grid(text: str):
+    """VGLC glyph text -> (label grid, metadata), same contract as encode()."""
+    rows = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        rows.append([_VGLC_TO_CLASS.get(ch, EMPTY) for ch in line])
+    if not rows:
+        raise ValueError("empty VGLC level")
+    width = max(len(r) for r in rows)
+    for r in rows:
+        r.extend([EMPTY] * (width - len(r)))
+    # Pad/crop to the band height, anchored at the BOTTOM: VGLC rows are
+    # ground-up the same way ours are, and any extra sky is disposable.
+    if len(rows) < BAND_HEIGHT:
+        rows = [[EMPTY] * width] * (BAND_HEIGHT - len(rows)) + rows
+    elif len(rows) > BAND_HEIGHT:
+        rows = rows[-BAND_HEIGHT:]
+    meta = {
+        "width": width,
+        "spawnPoint": {"x": 2, "y": BAND_TOP + BAND_HEIGHT - 3},
+        "flagpole": {"x": width - 2, "y": 18},
+        "source": "vglc",
+    }
+    return rows, meta
+
 def cmd_encode(args) -> int:
     level = json.loads(Path(args.level).read_text())
     grid, meta = encode(level)
