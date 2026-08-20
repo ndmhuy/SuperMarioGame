@@ -13,7 +13,7 @@
 ### 1.1 Topology
 
 ```
-input  1899  ──[Linear]──▶  64  ──[tanh]──▶  64
+input  2844  ──[Linear]──▶  64  ──[tanh]──▶  64
                              │
         64  ──[Linear]──▶   32  ──[tanh]──▶  32
                              │
@@ -22,25 +22,45 @@ input  1899  ──[Linear]──▶  64  ──[tanh]──▶  64
 
 | Layer | Shape | Weights | Biases | Parameters | Share |
 | :--- | :--- | ---: | ---: | ---: | ---: |
-| Linear 1 | 1899 × 64 | 121,536 | 64 | **121,600** | **98.1 %** |
-| Linear 2 | 64 × 32 | 2,048 | 32 | 2,080 | 1.7 % |
-| Linear 3 | 32 × 7 | 224 | 7 | 231 | 0.2 % |
-| | | | | **123,911** | 100 % |
+| Linear 1 | 2844 × 64 | 182,016 | 64 | **182,080** | **98.7 %** |
+| Linear 2 | 64 × 32 | 2,048 | 32 | 2,080 | 1.1 % |
+| Linear 3 | 32 × 7 | 224 | 7 | 231 | 0.1 % |
+| | | | | **184,391** | 100 % |
+
+*(At observation v2's 1899 inputs this was 123,911 parameters; the v3 vocabulary
+widened the input by 1.5×, and measured cost rose only 1.30× — 216 → 281 µs per
+training step — because fixed per-op cost is a meaningful share at batch 1.)*
 
 Weight initialisation is Xavier (`nn::Linear`); biases are zero-initialised.
 
 ### 1.2 Input encoding (1899 features)
 
 Defined by `AIObservation::toFeatureVector()`; the layout is a versioned
-contract (`kAIObservationVersion`, currently **2**).
+contract (`kAIObservationVersion`, currently **3**).
 
 ```
-315 grid cells (21 wide × 15 tall, agent-centred) × 6 one-hot states = 1890
+315 grid cells (21 wide × 15 tall, agent-centred) × 9 one-hot states = 2835
 + 9 scalars                                                          =    9
-                                                                     = 1899
+                                                                     = 2844
 ```
 
-Cell states, in fixed order: `Unknown, Empty, Solid, Hazard, Reward, Enemy`.
+Cell states, in fixed order: `Unknown, Empty, Solid, Hazard, Coin, PowerUp,
+EnemyStompable, EnemyDangerous, FriendlyProjectile`.
+
+**Version 3 (current).** The vocabulary was 6 states through v2, and that
+encoding made correct play impossible rather than merely hard:
+`Goomba::onStomped()` squashes the enemy, `Spiny::onStomped()` calls
+`player->takeDamage(1)`, and both encoded as a single `Enemy` cell. No policy at
+any capacity can distinguish "jump on this for reward" from "jump on this and
+get hurt" when the two are byte-identical in its input — an information-theoretic
+limit. Stompability is now derived from behaviour (`Enemy::isStompSafe()`),
+false in exactly the five enemies whose `onStomped()` damages the player or
+ignores the stomp (Spiny, PiranhaPlant, Thwomp, ChainChomp, Boo).
+
+`FriendlyProjectile` fixes a related defect: every `Projectile` encoded as
+`Hazard`, so an agent that shot a fireball then fled from its own shot.
+Discriminated on `Projectile::damagesPlayer()` — "does this hurt me" is the
+question the policy needs, and the class already answers it.
 
 Scalars, in fixed order: `dxToGoal, dyToGoal, dxToOpponent, dyToOpponent,
 vx, vy, onGround, canJump, isPoweredUp`. All values lie in [−1, 1].
@@ -74,6 +94,27 @@ data with no translation layer.
 | :--- | :--- | :--- |
 | Hidden | `tanh` | The input is normalised to [−1, 1]; a zero-centred activation keeps hidden representations in the same regime. ReLU would discard the sign information that distinguishes "wall to the left" from "wall to the right" in the scalar block. |
 | Output | `sigmoid` | Each output is an independent Bernoulli parameter — the probability that a button is pressed. Bounded [0, 1] and directly thresholdable. |
+
+### 1.5 Field of view — a known deficiency, not yet addressed
+
+| | tiles | pixels |
+| :--- | ---: | ---: |
+| Agent vision | 21 × 15 | 672 × 480 |
+| Player screen | 40 × 22 | 1280 × 720 |
+
+**The agent sees 52 % of the screen width and 67 % of its height** — strictly
+less than the human it is imitating, and 10.5 % of a 200-tile level at once.
+Any obstacle the player can see and plan around, the agent may not yet know
+exists.
+
+Widening to at least screen parity (41 × 23) is the recommended next
+representational change, and it should be preferred over adding hidden capacity:
+a wider field supplies information the agent does not have, whereas wider hidden
+layers only restate information it already has. The cost is a further ~2×
+increase in the input layer, which §4's scaling table shows is affordable.
+
+Deferred deliberately until the objective is fixed (§7): a policy that never
+jumps will not jump further ahead merely because it can see further ahead.
 
 ---
 
