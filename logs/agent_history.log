@@ -4003,3 +4003,20 @@ Summary of Changes:
 - HTML tracker published as an Artifact for the user; source kept in docs/tracker/.
 - Nothing pushed (per directive: never push without being asked).
 ---
+[2026-08-20 15:30:00] Branch: A/mapgen-gan-plan (side project, off A/rl-neural-policy)
+Git Fingerprint: 23b7c28 (before) → 2d103b9 (after)
+Fetched Remotes: no — no repository-state reporting in this session; continuation of the prior session's work on the same branch.
+Prompt: "it seems there was a crash, continue if there is"
+Files Modified: SuperMarioGame/tools/eval_level.cpp (added --trace)
+Reachable From Main: no — tools/ target only, nothing on the default game path.
+Verified By: ran the tools — rebuilt eval_level, traced level_1 frames 300-330; re-ran level_tensor check (7/7) and solvability (7/7 winnable). The GAME was not run.
+Summary of Changes:
+- Checked for crash damage: none. All 4 prior commits intact, no stashes, working tree clean apart from the pre-existing saves/config.json change. Rebuilt and re-ran every tool successfully.
+- Added --trace <a>:<b> to eval_level: per-frame position, velocity, ground flag, bounding box and neighbouring tile types.
+- DIAGNOSED THE AGENT STALL. It is NOT an AI defect. On level_1 the agent is pinned at x=775.99 against the 3-tile step at column 25 (correct wall behaviour), and the heuristic policy correctly and continuously decides to jump — reason reads "climbing" every frame, and the jump velocity is visibly applied (vy = -678.8 on alternate frames).
+- The position never changes, and onGround reads FALSE for the entire stall despite tile (24,19) directly below being Ground and the 24x30 box bottom sitting flush on it at y=608. canJump is therefore only ever true via flickering coyote frames.
+- Confirmed NOT causes: AABB::intersects uses strict < / >, so exact tangency is not a false collision; the 0.01px pushback at x=775.99 is ordinary wall resolution; there is no entity or tile ceiling above the agent — (24,17) is Empty.
+- Remaining unknown: what cancels the applied upward velocity between the jump call and the next frame. onGround being false while standing on solid ground is the prime suspect, since the engine's jump validation depends on it.
+- NOT FIXED, DELIBERATELY. The fix is in PhysicsEngine/CollisionResolver, which is main-path code; this branch is contained as a side project and AGENTS.md directive 4 requires discussing a deviation first. Flagged to the user for a decision on which branch should carry the fix.
+- Nothing pushed.
+---
