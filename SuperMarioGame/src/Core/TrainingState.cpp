@@ -81,7 +81,8 @@ void TrainingState::enter() {
     for (int i = 0; i < LevelCatalog::count(); ++i) {
         m_rotation.push_back(LevelCatalog::pathFor(i));
     }
-    for (const char* dir : {"assets/levels/generated", "assets/levels/generated_easy"}) {
+    for (const char* dir : {"assets/levels/generated", "assets/levels/generated_easy",
+                            "assets/levels/generated_v2"}) {
         std::error_code listError;
         for (const auto& entry :
              std::filesystem::directory_iterator(dir, listError)) {

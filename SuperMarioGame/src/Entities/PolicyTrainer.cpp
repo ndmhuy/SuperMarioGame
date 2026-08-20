@@ -57,6 +57,8 @@ PolicyTrainer::PolicyTrainer(NeuralPolicy& policy, const Config& config)
     // Seeded at 0.5 rather than 0: an unseen button starts neutral and the
     // running estimate moves it, instead of starting at an extreme weight.
     m_pressRate.assign(NeuralPolicy::kActionBits, 0.5f);
+    m_predWhenPressed.assign(static_cast<std::size_t>(NeuralPolicy::kActionBits), 0.7f);
+    m_predWhenNot.assign(static_cast<std::size_t>(NeuralPolicy::kActionBits), 0.3f);
     m_buttonCorrect.assign(NeuralPolicy::kActionBits, 0);
     m_buttonTotal.assign(NeuralPolicy::kActionBits, 0);
 }
@@ -169,6 +171,13 @@ float PolicyTrainer::learn(const AIObservation& observation,
         // however small its contribution to the loss.
         const bool predicted = p > 0.5f;
         const bool expected = target[static_cast<std::size_t>(i)] > 0.5f;
+        // Threshold calibration data: the running mean prediction on each
+        // side of the label. Slow EMA — thresholds should drift with the
+        // policy, not chase one episode.
+        constexpr float kCalibrationRate = 0.002f;
+        float& classMean = expected ? m_predWhenPressed[static_cast<std::size_t>(i)]
+                                    : m_predWhenNot[static_cast<std::size_t>(i)];
+        classMean += kCalibrationRate * (p - classMean);
         if (predicted == expected) {
             ++m_episodeButtonsCorrect;
             ++m_buttonCorrect[static_cast<std::size_t>(i)];
@@ -397,6 +406,18 @@ std::vector<float> PolicyTrainer::buttonAgreement() const {
 
 void PolicyTrainer::endEpisode(const char* outcome) {
     if (m_mode == Mode::Reinforce) runReinforceUpdate();
+
+    // Calibrated per-button thresholds: the midpoint between what the network
+    // says on pressed frames and on unpressed frames. Clamped away from the
+    // rails so a button can always fire and always rest.
+    if (m_policy) {
+        std::vector<float> thresholds(static_cast<std::size_t>(NeuralPolicy::kActionBits));
+        for (std::size_t i = 0; i < thresholds.size(); ++i) {
+            thresholds[i] = std::clamp(
+                0.5f * (m_predWhenPressed[i] + m_predWhenNot[i]), 0.05f, 0.95f);
+        }
+        m_policy->setThresholds(thresholds);
+    }
 
     // Index 2 is the jump button, per AIAction declaration order.
     const std::vector<float> perButton = buttonAgreement();

@@ -557,6 +557,19 @@ jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class=
           failure is survivable (scan down from each demanding edge — does a muffed jump find floor, or hazard/void?). First contact validates it: the one completed level
           scores highest (0.94), the six-lives-in-one-pit level lowest (0.84). Now the third term of the generator's fitness.</div></div>
       </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">09</span>
+      <h3>🚩 The learned policy completes levels — and beats its teacher once</h3><span class="verdict ok">Milestone</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Finding 11</span><div class="v">The reservoir checkpoint reached flags <strong>33×</strong> in training and evaluated at a
+          frozen 8.2 % deterministically. Trace pinned it: jump head at 0.24 against the wall the route says to climb, forever. The trained object is a
+          <em>distribution</em>; its argmax is a policy that was never trained. Seeded sampling (<code>eval_level --stochastic</code>) evaluates the real one,
+          reproducibly. Per-button calibrated thresholds now ship in the checkpoint sidecar too.</div></div>
+        <div class="field"><span class="k">Results</span><div class="v">Student as trained: level_1 44.8 % · level_2 38.6 % · level_3 34.7 % ·
+          <strong>bonus_1 86.6 % COMPLETED with zero deaths</strong> — surpassing a teacher that spent 11 lives never finishing it — and easy evolved_02 completed.
+          Path maps in <code>docs/tracker/paths/</code>: the bonus_1 completion used only <strong>16 % of the certified route</strong> — the student found its own line;
+          the route is a proof of existence, not a prescription.</div></div>
+      </div></article>
   </div>
 </div>
 

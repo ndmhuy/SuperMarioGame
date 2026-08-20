@@ -98,14 +98,21 @@ AIAction NeuralPolicy::decide(const AIObservation& observation) {
         m_lastOutputs[static_cast<std::size_t>(i)] = output.flat(i);
     }
 
-    // Multi-label: each button is its own independent decision.
-    action.moveLeft    = m_lastOutputs[0] > 0.5f;
-    action.moveRight   = m_lastOutputs[1] > 0.5f;
-    action.jump        = m_lastOutputs[2] > 0.5f;
-    action.run         = m_lastOutputs[3] > 0.5f;
-    action.crouch      = m_lastOutputs[4] > 0.5f;
-    action.shoot       = m_lastOutputs[5] > 0.5f;
-    action.groundPound = m_lastOutputs[6] > 0.5f;
+    // Multi-label: each button is its own independent decision — sampled from
+    // its probability when stochastic acting is on (the policy as trained),
+    // thresholded against its calibrated cut otherwise (see setStochastic and
+    // setThresholds).
+    auto press = [&](std::size_t i) {
+        return m_stochastic ? m_unit(m_sampleRng) < m_lastOutputs[i]
+                            : m_lastOutputs[i] > m_thresholds[i];
+    };
+    action.moveLeft    = press(0);
+    action.moveRight   = press(1);
+    action.jump        = press(2);
+    action.run         = press(3);
+    action.crouch      = press(4);
+    action.shoot       = press(5);
+    action.groundPound = press(6);
 
     // Left and right together is a real thing a human can press and it resolves
     // to standing still, but it also lets an undertrained network sit motionless
@@ -115,6 +122,17 @@ AIAction NeuralPolicy::decide(const AIObservation& observation) {
         else                                      action.moveLeft = false;
     }
     return action;
+}
+
+void NeuralPolicy::setStochastic(bool enabled, unsigned seed) {
+    m_stochastic = enabled;
+    m_sampleRng.seed(seed);
+}
+
+void NeuralPolicy::setThresholds(const std::vector<float>& thresholds) {
+    if (thresholds.size() == static_cast<std::size_t>(kActionBits)) {
+        m_thresholds = thresholds;
+    }
 }
 
 bool NeuralPolicy::saveCheckpoint(const std::string& path) const {
@@ -131,6 +149,7 @@ bool NeuralPolicy::saveCheckpoint(const std::string& path) const {
     meta["featureCount"] = AIObservation::featureCount();
     meta["hiddenLayers"] = m_hiddenLayers;
     meta["actionBits"] = kActionBits;
+    meta["thresholds"] = m_thresholds;
 
     std::ofstream file(sidecarPath(path));
     if (!file) {
@@ -176,6 +195,11 @@ bool NeuralPolicy::load(const std::string& path) {
             return false;
         }
         hidden = meta.value("hiddenLayers", std::vector<int>{64, 32});
+        m_thresholds = meta.value("thresholds",
+                                  std::vector<float>(static_cast<std::size_t>(kActionBits), 0.5f));
+        if (m_thresholds.size() != static_cast<std::size_t>(kActionBits)) {
+            m_thresholds.assign(static_cast<std::size_t>(kActionBits), 0.5f);
+        }
     } catch (const std::exception& error) {
         std::cerr << "[NeuralPolicy] Malformed metadata for '" << path << "': "
                   << error.what() << std::endl;

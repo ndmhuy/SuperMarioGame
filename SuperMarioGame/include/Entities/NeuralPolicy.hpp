@@ -3,6 +3,7 @@
 #include "Entities/IAIPolicy.hpp"
 
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -67,6 +68,26 @@ public:
     // the last layer's output width must be kActionBits.
     bool load(const std::string& path);
 
+    // Per-button decision thresholds. 0.5 is the right cut only for balanced
+    // classes; jump is pressed on ~3% of frames, and its calibrated
+    // probability can sit entirely below 0.5 — a policy that completed levels
+    // when SAMPLED stalled at the first obstacle when THRESHOLDED, on every
+    // level, at the same x. The trainer calibrates these (midpoint between
+    // the running mean prediction on positive and on negative labels) and
+    // they persist in the checkpoint sidecar.
+    void setThresholds(const std::vector<float>& thresholds);
+    const std::vector<float>& thresholds() const { return m_thresholds; }
+
+    // Stochastic acting: sample each button ~ Bernoulli(p) instead of
+    // thresholding. The trained object IS a distribution over button sets —
+    // during training the learner acted by sampling, and the same checkpoint
+    // that reached flags 33 times when sampled froze at the first staircase
+    // when argmaxed (jump output 0.24, threshold forever unmet, zero noise to
+    // break the loop). Deterministic projection of a stochastic policy is a
+    // different policy; this evaluates the one that was trained. Seeded, so
+    // evaluations reproduce.
+    void setStochastic(bool enabled, unsigned seed = 1234u);
+
     // True once load() has succeeded. The HUD and the dev panel say so, because
     // "the network is playing" and "random weights are playing" look identical
     // from the outside for the first few seconds and completely different after.
@@ -111,6 +132,10 @@ private:
 
     std::unique_ptr<Net, NetDeleter> m_net;
     std::vector<float> m_lastOutputs;
+    std::vector<float> m_thresholds = std::vector<float>(7, 0.5f);
+    bool m_stochastic = false;
+    std::mt19937 m_sampleRng{1234u};
+    std::uniform_real_distribution<float> m_unit{0.0f, 1.0f};
     std::vector<int> m_hiddenLayers;
     bool m_trained = false;
 };

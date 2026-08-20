@@ -68,6 +68,9 @@ public:
     // meant every teacher-driven imitation episode supervised "don't jump" on
     // exactly the frames the teacher jumped.
     const AIAction& lastAction() const { return m_lastDecided; }
+    // The installed brain, read-only — the eval tool casts it to print a
+    // neural policy's raw outputs in traces.
+    const IAIPolicy* policy() const { return m_policy.get(); }
 
     // Replace the decision for this frame and actuate it immediately.
     //

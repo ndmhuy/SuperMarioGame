@@ -209,6 +209,13 @@ private:
     std::vector<float> m_agreementHistory;
     std::vector<float> m_lastPrediction;
     std::vector<float> m_pressRate;             // running teacher press frequency
+    // Class-conditional prediction means, per button (EMA): what the network
+    // outputs when the label is pressed vs not-pressed. Their midpoint is the
+    // calibrated decision threshold — 0.5 is only right for balanced classes,
+    // and thresholding jump at 0.5 froze a policy that completed levels when
+    // sampled.
+    std::vector<float> m_predWhenPressed;
+    std::vector<float> m_predWhenNot;
     std::vector<std::size_t> m_buttonCorrect;   // per-button, this episode
     std::vector<std::size_t> m_buttonTotal;
     std::unique_ptr<class WeightedBernoulliLoss> m_loss;

@@ -73,6 +73,7 @@ struct Options {
     std::string levelPath;
     std::string reportPath;
     std::string weightsPath;          // empty = heuristic policy
+    bool stochastic = false;          // sample buttons ~ Bernoulli(p), seeded
     AIDifficulty difficulty = AIDifficulty::Hard;
     AIArchetype archetype = AIArchetype::Speedrunner;
     float maxSeconds = 300.0f;        // in-game seconds, not wall clock
@@ -173,6 +174,8 @@ bool parseArgs(int argc, char** argv, Options& opt) {
                 std::cerr << "[eval] --max-seconds must be positive.\n";
                 return false;
             }
+        } else if (arg == "--stochastic") {
+            opt.stochastic = true;
         } else if (arg == "--path") {
             const char* v = next("an output path like saves/eval/path.json");
             if (!v) return false;
@@ -319,6 +322,7 @@ int main(int argc, char** argv) {
                              "is worse than no report.\n";
                 return false;
             }
+            if (opt.stochastic) net->setStochastic(true, 0x5EEDu);
             controller->setPolicy(std::move(net));
         }
         // Scores the run without writing a dataset. The reward is a useful
@@ -393,8 +397,15 @@ int main(int argc, char** argv) {
                       << " " << b.width << "x" << b.height
                       << "  up=" << tile(0, -1) << " right=" << tile(1, 0)
                       << " upright=" << tile(1, -1) << " down=" << tile(0, 1)
-                      << "  goal=" << obs.dxToGoal << "," << obs.dyToGoal
-                      << "  " << controller->reason() << "\n";
+                      << "  goal=" << obs.dxToGoal << "," << obs.dyToGoal;
+            if (const auto* neural =
+                    dynamic_cast<const NeuralPolicy*>(controller->policy())) {
+                std::cout << "  out=";
+                for (float o : neural->lastOutputs()) {
+                    std::cout << std::setprecision(2) << o << ",";
+                }
+            }
+            std::cout << "  " << controller->reason() << "\n";
         }
 
         for (auto& e : entities) {
