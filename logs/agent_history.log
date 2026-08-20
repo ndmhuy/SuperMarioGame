@@ -3425,3 +3425,73 @@ Summary of Changes:
   failed for underground and castle — those levels have a solid tile ceiling
   across the top of the frame. The test was wrong, not the fix.
 ---
+[2026-08-20 08:40:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: d529f25 (before) → 61c5b19 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin/A/complete-game-tiers-1-4
+was 0/0 before this commit.
+Prompt: "The position of the boss is not inside the map, so it keep falling. Many
+entities tend to move to the void. I see that if putting the sub level (warped by
+the pipe) into the path, then it diverge and weird. The fireball must kill the
+enemy. What will happen after kill the koopa troopa that the character hold the
+shells, what to do with it" + mid-turn: "about the cape state, it seems that we
+haven't done the logic"
+Files Modified:
+- SuperMarioGame/assets/levels/*.json (all seven)
+- SuperMarioGame/include/Entities/{Goomba,KoopaTroopa,Spiny,Player,IPlayerState}.hpp
+- SuperMarioGame/include/{Core/InputManager,Utils/LevelCatalog}.hpp
+- SuperMarioGame/src/Entities/{Goomba,KoopaTroopa,KoopaParatroopa,Spiny,Player,Peach,PatrolStrategy,IPlayerState}.cpp
+- SuperMarioGame/src/{Physics/CollisionResolver,Core/InputManager,Core/DevPanel,Core/PlayingState,Utils/LevelCatalog}.cpp
+- SuperMarioGame/tests/verify_regressions.cpp, tests/verify_frontend_states.cpp
+Reachable From Main: yes — all six are on the normal play path.
+Verified By: ctest (2/2 — verify_regressions 374/374, up from 321;
+verify_frontend_states 34/34). Level geometry checked by loading each JSON
+through the real LevelLoader and asserting against the loaded TileMap. NOT
+verified by playing the built game.
+Summary of Changes:
+- ROOT CAUSE, fireballs: Goomba, KoopaTroopa and Spiny each redeclared
+  `bool m_isFlipped`, SHADOWING Enemy::m_isFlipped. onHitByFireball() set the
+  derived copy; Enemy::isDeadOrDying() and Enemy::collidesWithTiles() read the
+  base one. So the hit registered, the enemy was launched into the air, and then
+  it landed and walked on. Deleted the three shadow members and their shadowing
+  isFlipped() accessors.
+- WHY IT SURVIVED A PASSING TEST: verify_fireball's "Test 4: Fireball vs Enemy
+  Collision Impact" called resolveFireballVsEnemy directly (bypassing the
+  category dispatch the game uses) and asserted only that the FIREBALL died. It
+  never looked at the enemy. A test that names the thing it is testing and then
+  checks the other object is worth nothing. The replacement drives
+  PhysicsEngine -> broadphase -> resolveEntityVsEntity -> onHitEnemy and asserts
+  the Goomba dies, with a hammer as the negative control.
+- CapeState had enter/exit/handleInput/update as EMPTY BODIES — the one power-up
+  whose entire point is a behaviour had none. Implemented glide (hold jump while
+  falling -> 90px/s against a 600 terminal velocity) and the cape spin (fire
+  button, 0.35s, defeats enemies on contact). P-meter flight deliberately left
+  out: it needs a run-charge meter, not a state behaviour.
+- Bosses: both were authored INSIDE a solid 5x5 pillar with a one-tile slot;
+  the audit script confirmed Bowser was inside a ground tile. Pillar removed,
+  both stand on the arena floor, arena narrowed to 185..195 so the flagpole at
+  197 is outside the boss lock.
+- METHOD NOTE, and a mistake worth recording: my first level audit reported
+  "BOTTOMLESS SPANS" and floorless entities in every level, which would have
+  been catastrophic. It was wrong — the script read the tile-run key as "width"
+  when LevelLoader reads "w", so every full-width floor row was invisible to it.
+  Re-ran with the right key and the real defect list was four embedded entities.
+  Check the schema against the loader before believing a scary audit.
+- Enemies into the void: only red variants were ledge-aware, because the call
+  sites passed `m_isRed` as the ledgeAware argument. All ground patrols are
+  ledge-aware now; the check is gated on onGround (it flipped every frame of a
+  fall) and tests TileInfo::isSolid rather than != Empty (the old test walked
+  patrols into lava, which is "not Empty" but not standable).
+- Sub-levels: three faults compounding. Entrance pipes exited to tile (104,20)
+  of a 65-tile-wide level — off the map entirely. Return pipes landed at tile 92,
+  six tiles BEHIND the entrance at 98. And LevelCatalog listed the *_sub rooms as
+  ordinary campaign stages even though none carries a flagpole, so completing 1-1
+  advanced the campaign into a level with no exit. Campaign is now the four main
+  levels; subs are pipe-only, and the pipes land inside their target.
+- Shells: touching ANY unflipped Koopa picked it up, so Koopas could not hurt the
+  player at all and a sliding shell was harmless to its own kicker; and nothing
+  ever cleared Player::m_heldEntity, so a carried shell was carried for the rest
+  of the level. Contact now follows the series rules and the fire button throws.
+- Two stale test assertions were corrected rather than the code: one asserted a
+  seven-level campaign, the other hardcoded "1-2" for level index 2. The second
+  now asks LevelCatalog so it cannot go stale again.
+---
