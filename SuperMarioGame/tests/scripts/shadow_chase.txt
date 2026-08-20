@@ -1,0 +1,46 @@
+# Shadow Chase verification run.
+#
+# Drives the real menu with in-process events — no OS keyboard involvement, so
+# this can run while someone else is using the machine. Play it with:
+#   ./build/SuperMarioGame --script tests/scripts/shadow_chase.txt
+#
+# What it proves, in order: the multiplayer page opens, the mode cycles to Shadow
+# Chase, the level starts, the shadow spawns inert, and it begins replaying the
+# player's path three seconds behind them.
+
+wait 2.0                 # let the menu finish entering and the music start
+shot 01_menu
+
+press Down               # START GAME -> MULTIPLAYER
+wait 0.4
+press Enter              # open the multiplayer page
+wait 0.6
+shot 02_multiplayer_page
+
+press Right              # VERSUS -> VERSUS CPU
+wait 0.3
+press Right              # -> CO-OP
+wait 0.3
+press Right              # -> SHADOW CHASE
+wait 0.5
+shot 03_shadow_selected
+
+press Down               # skips the three disabled AI rows -> START
+wait 0.4
+press Enter
+wait 1.5
+shot 04_level_start      # shadow spawned, standing at the spawn point, inert
+
+# Walk right. Two seconds is far enough to lay down a real path but stops short
+# of 1-1's first Goomba, so what the shot shows is the shadow rather than a death.
+hold D 2.0
+wait 2.4
+shot 05_walking          # shadow still filling its buffer
+
+wait 1.2
+shot 06_shadow_replaying # past the 3s delay: the shadow is now retracing the walk
+
+wait 1.5
+shot 07_shadow_closing   # player standing still, so their own past catches up
+
+quit

@@ -1,6 +1,7 @@
-#include <iostream>
 #include <cassert>
+#include <cstdlib>
 #include <filesystem>
+#include <iostream>
 #include <SFML/System/Vector2.hpp>
 #include "Graphics/SpriteSheet.hpp"
 #include "Graphics/Animation.hpp"

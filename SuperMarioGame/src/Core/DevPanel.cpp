@@ -9,6 +9,8 @@
 #include "Entities/Player.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
+#include "Entities/ShadowMario.hpp"
+#include "Entities/AIController.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Mushroom.hpp"
 #include "Entities/FireFlower.hpp"
@@ -18,11 +20,17 @@
 #include "Entities/MegaMushroom.hpp"
 #include "Entities/MiniMushroom.hpp"
 #include "Entities/IPlayerState.hpp"
+#include "Entities/Enemy.hpp"
+#include "Entities/Boss.hpp"
+#include "Entities/IMovementStrategy.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
+#include "Utils/LevelCatalog.hpp"
 #include "Utils/MapGenerator.hpp"
 
 #include <imgui.h>
+
+#include <cfloat>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -31,18 +39,9 @@
 
 namespace {
 
-// Shared by both level dropdowns so they cannot drift apart — they were two
-// identical literal arrays before.
-const char* const kCampaignLevels[] = {
-    "World 1-1: Grassland Overworld",
-    "World 1-1 Sub: Underground Vault",
-    "World 1-2: Ice Cavern Path",
-    "World 1-2 Sub: Sky Platform Canopy",
-    "World 1-3: Bowser's Castle Fortress",
-    "World 1-3 Sub: Secret Castle Vault",
-    "Bonus Stage 1: Coin Paradise"
-};
-constexpr int kLevelCount = 7;
+// The campaign order lives in LevelCatalog. This file used to hold its own copy
+// of it, which is how the dropdown kept offering seven levels after the campaign
+// dropped to four.
 
 const char* const kCharacters[] = { "Mario (Red)", "Luigi (Green)", "Toad (Blue)", "Peach (Pink)" };
 
@@ -71,12 +70,196 @@ void DevPanel::draw(PlayingState& state) {
         drawPlaygroundPanel(state);
         drawPersistencePanel(state);
         drawAchievementToasts();
+        if (m_showAiOverlay) {
+            drawAiOverlay(state);
+        }
+        // Not behind the overlay toggle: this one appears only in the modes it
+        // applies to, so it cannot clutter an ordinary run.
+        drawMatchPanel(state);
     }
 }
 
 // ---------------------------------------------------------------------------
 
+void DevPanel::drawAiOverlay(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(744.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(520.0f, 300.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("AI Debug Overlay");
+
+    ImGui::Text("Live enemies: what each one is running, and what state it is in.");
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("ai_overlay", 6,
+                          ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                          ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp)) {
+        ImGui::TableSetupColumn("Enemy");
+        ImGui::TableSetupColumn("Strategy");
+        ImGui::TableSetupColumn("State");
+        ImGui::TableSetupColumn("Position");
+        ImGui::TableSetupColumn("Velocity");
+        ImGui::TableSetupColumn("Status");
+        ImGui::TableHeadersRow();
+
+        int shown = 0;
+        for (const auto& entity : state.m_entities) {
+            auto* enemy = dynamic_cast<Enemy*>(entity.get());
+            if (!enemy || !enemy->isActive()) continue;
+
+            const IMovementStrategy* strategy = enemy->getStrategy();
+            const std::string strategyName = strategy ? strategy->getName() : "-- none --";
+            const std::string debugState = strategy ? strategy->getDebugState() : "";
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", enemy->getTypeName().c_str());
+            ImGui::TableNextColumn();
+            // A strategy-less enemy is worth spotting: it will never move.
+            if (strategy) ImGui::Text("%s", strategyName.c_str());
+            else          ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "%s", strategyName.c_str());
+            ImGui::TableNextColumn();
+            ImGui::Text("%s", debugState.empty() ? "-" : debugState.c_str());
+            ImGui::TableNextColumn();
+            ImGui::Text("%.0f, %.0f", enemy->getPosition().x, enemy->getPosition().y);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.0f, %.0f", enemy->getVelocity().x, enemy->getVelocity().y);
+            ImGui::TableNextColumn();
+            if (auto* boss = dynamic_cast<Boss*>(enemy)) {
+                ImGui::Text("BOSS %d/%d p%d", boss->getHealth(), boss->getMaxHealth(), boss->getPhase());
+            } else if (enemy->isDeadOrDying()) {
+                ImGui::Text("dying");
+            } else {
+                ImGui::Text("%s", enemy->isFacingRight() ? "-> right" : "left <-");
+            }
+            ++shown;
+        }
+        ImGui::EndTable();
+
+        if (shown == 0) {
+            ImGui::TextDisabled("No live enemies in this level.");
+        }
+    }
+
+    ImGui::End();
+}
+
+void DevPanel::drawMatchPanel(PlayingState& state) {
+    // Only present when there is a match to tune. In a single-player run every
+    // control here would be dead, and a window full of greyed-out sliders is
+    // worse than no window.
+    if (!state.m_aiController && !state.m_shadow) return;
+
+    ImGui::SetNextWindowPos(ImVec2(744.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(520.0f, 360.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Match: Shadow & CPU");
+
+    if (state.m_shadow) {
+        ImGui::TextColored(ImVec4(0.75f, 0.5f, 1.0f, 1.0f), "Shadow Mario");
+        ImGui::Text("Replaying: %s", state.m_shadow->hasStarted() ? "yes" : "filling buffer");
+        ImGui::Text("Spatial gap: %.2fs", state.shadowProximitySeconds());
+
+        // The delay is the single number that decides whether the mode is tense
+        // or trivial, so it is tunable while the game runs rather than a
+        // recompile away.
+        float delay = state.m_shadow->getDelay();
+        if (ImGui::SliderFloat("Delay (s)", &delay, 0.5f, 8.0f, "%.2f")) {
+            const float requested = delay;
+            queue([requested](PlayingState& s) {
+                if (s.m_shadow) s.m_shadow->setDelay(requested);
+            });
+        }
+
+        static float correctionThreshold = 4.0f;
+        static float correctionFactor = 0.1f;
+        bool changed = ImGui::SliderFloat("Drift threshold (px)", &correctionThreshold, 0.0f, 32.0f, "%.1f");
+        changed |= ImGui::SliderFloat("Drift correction", &correctionFactor, 0.0f, 1.0f, "%.2f");
+        if (changed) {
+            const float threshold = correctionThreshold;
+            const float factor = correctionFactor;
+            queue([threshold, factor](PlayingState& s) {
+                if (s.m_shadow) s.m_shadow->setCorrection(threshold, factor);
+            });
+        }
+        ImGui::TextDisabled("Inputs drive the shadow; the recorded position is the leash.");
+        ImGui::Separator();
+    }
+
+    if (state.m_aiController) {
+        AIController& ai = *state.m_aiController;
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "CPU opponent");
+        ImGui::Text("Policy: %s   Doing: %s", ai.policyName(), ai.reason());
+        ImGui::Text("Vision radius: %d tiles", ai.getVisionRadius());
+
+        int difficulty = static_cast<int>(ai.getDifficulty());
+        if (ImGui::Combo("Skill", &difficulty, "Easy\0Normal\0Hard\0")) {
+            const auto requested = static_cast<AIDifficulty>(difficulty);
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setDifficulty(requested);
+            });
+        }
+        int archetype = static_cast<int>(ai.getArchetype());
+        if (ImGui::Combo("Style", &archetype, "Speedrunner\0Hunter\0Collector\0")) {
+            const auto requested = static_cast<AIArchetype>(archetype);
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setArchetype(requested);
+            });
+        }
+
+        // Both of these are set by the skill preset above; overriding them
+        // afterwards is how the difficulty table's numbers get felt rather than
+        // argued about.
+        float latency = ai.getReactionLatency();
+        if (ImGui::SliderFloat("Reaction (s)", &latency, 0.0f, 1.0f, "%.3f")) {
+            const float requested = latency;
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setReactionLatency(requested);
+            });
+        }
+        float noise = ai.getActionNoise();
+        if (ImGui::SliderFloat("Action noise", &noise, 0.0f, 1.0f, "%.2f")) {
+            const float requested = noise;
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setActionNoise(requested);
+            });
+        }
+
+        ImGui::Checkbox("Draw vision grid", &m_showAiVision);
+        if (m_showAiVision) {
+            // The grid as the bot sees it, one character per cell. A bot walking
+            // into a wall is much easier to diagnose when you can see that it
+            // believed the wall was empty.
+            ImGui::TextDisabled("# solid  ^ enemy  $ reward  ! hazard  . empty  ? unseen");
+            const AIObservation& obs = ai.lastObservation();
+            const int halfW = kAIVisionWidth / 2;
+            const int halfH = kAIVisionHeight / 2;
+            for (int dy = -halfH; dy <= halfH; ++dy) {
+                std::string row;
+                row.reserve(static_cast<std::size_t>(kAIVisionWidth) + 1);
+                for (int dx = -halfW; dx <= halfW; ++dx) {
+                    if (dx == 0 && dy == 0) { row += '@'; continue; }
+                    switch (obs.at(dx, dy)) {
+                        case AICellState::Solid:   row += '#'; break;
+                        case AICellState::Enemy:   row += '^'; break;
+                        case AICellState::Reward:  row += '$'; break;
+                        case AICellState::Hazard:  row += '!'; break;
+                        case AICellState::Empty:   row += '.'; break;
+                        case AICellState::Unknown: row += '?'; break;
+                    }
+                }
+                ImGui::TextUnformatted(row.c_str());
+            }
+        }
+    }
+
+    ImGui::End();
+}
+
 void DevPanel::drawNavigationPanel(PlayingState& state) {
+    // Placed and collapsed by default. Every dev window opened at ImGui's
+    // default position, so they stacked on top of one another and covered the
+    // left half of the screen — including the player.
+    ImGui::SetNextWindowPos(ImVec2(8.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 300.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Gameplay Controls & Navigation");
 
     ImGui::Text("Simulation State:");
@@ -92,7 +275,10 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
     ImGui::Separator();
     ImGui::Text("Select Campaign Level:");
     int levelIdx = state.m_selectedLevelIndex;
-    if (ImGui::Combo("Select Level", &levelIdx, kCampaignLevels, kLevelCount)) {
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    const auto& levelItems = LevelCatalog::longNameItems();
+    if (ImGui::Combo("##SelectLevel", &levelIdx, levelItems.data(),
+                     static_cast<int>(levelItems.size()))) {
         queue([levelIdx](PlayingState& s) {
             s.m_selectedLevelIndex = levelIdx;
             s.m_isProcedural = false;
@@ -123,7 +309,8 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
         pipeItems.reserve(pipeLabels.size());
         for (const auto& l : pipeLabels) pipeItems.push_back(l.c_str());
 
-        ImGui::Combo("Tube Dropdown", &m_selectedPipeIndex, pipeItems.data(), static_cast<int>(pipeItems.size()));
+        ImGui::SetNextItemWidth(-90.0f);
+        ImGui::Combo("##TubeDropdown", &m_selectedPipeIndex, pipeItems.data(), static_cast<int>(pipeItems.size()));
         ImGui::SameLine();
         if (ImGui::Button("Enter Tube")) {
             // Capture by value: the Pipe* may be destroyed by the very level load
@@ -144,12 +331,16 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Return to Main Menu")) {
-        queue([](PlayingState&) { Game::getInstance().changeState(std::make_unique<MenuState>()); });
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Toggle Map Editor (F1)")) {
-        queue([](PlayingState& s) { s.m_mapEditor.toggleActive(); });
+    if (state.m_mapEditor.isActive()) {
+        ImGui::TextDisabled("Editing. The level editor window owns navigation.");
+    } else {
+        if (ImGui::Button("Return to Main Menu")) {
+            queue([](PlayingState&) { Game::getInstance().changeState(std::make_unique<MenuState>()); });
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Toggle Map Editor (F1)")) {
+            queue([](PlayingState& s) { s.m_mapEditor.toggleActive(); });
+        }
     }
 
     ImGui::End();
@@ -158,6 +349,9 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawGeneratorPanel(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(8.0f, 316.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 300.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Procedural Level Generator Tuning");
     ImGui::Text("Live tuning parameters:");
 
@@ -202,6 +396,8 @@ void DevPanel::drawGeneratorPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawPlaygroundPanel(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(376.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Physics & Input Test Playground (Phase 2 & 3)");
 
     ImGui::Text("Select Active Character:");
@@ -215,7 +411,9 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
 
     ImGui::Text("Select Active Level:");
     int levelIdx = state.m_selectedLevelIndex;
-    if (ImGui::Combo("Level", &levelIdx, kCampaignLevels, kLevelCount)) {
+    const auto& playgroundLevelItems = LevelCatalog::longNameItems();
+    if (ImGui::Combo("Level", &levelIdx, playgroundLevelItems.data(),
+                     static_cast<int>(playgroundLevelItems.size()))) {
         queue([levelIdx](PlayingState& s) {
             s.m_selectedLevelIndex = levelIdx;
             s.m_isProcedural = false;
@@ -306,6 +504,7 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
 
     ImGui::Separator();
     ImGui::Checkbox("Show Physics AABB Overlays", &m_showAABB);
+    ImGui::Checkbox("Show AI Debug Overlay", &m_showAiOverlay);
 
     ImGui::Separator();
     if (ImGui::Button("Reset Simulation")) {
@@ -318,6 +517,8 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
 // ---------------------------------------------------------------------------
 
 void DevPanel::drawPersistencePanel(PlayingState& state) {
+    ImGui::SetNextWindowPos(ImVec2(376.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Save/Load & Persistence (Phase 8)");
 
     Player* player = state.m_player;

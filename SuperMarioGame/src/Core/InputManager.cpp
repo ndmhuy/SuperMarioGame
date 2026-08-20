@@ -1,4 +1,5 @@
 #include "Core/InputManager.hpp"
+#include <string>
 #include "Entities/Player.hpp"
 
 // Include all commands
@@ -80,6 +81,10 @@ void InputManager::loadDefaultBindings() {
     // --- PLAYER 2 BINDINGS (Arrow keys) ---
     // Press mappings (one-shot actions)
     m_pressMappings[1][sf::Keyboard::Key::Up] = compositeJumpCmd;
+    // RShift is Player 2's second jump key, mirroring Player 1's Space above.
+    // Player 1 had two and Player 2 had one, which on a shared keyboard reads as
+    // Player 2's controls being incomplete — the arrow cluster has no thumb key.
+    m_pressMappings[1][sf::Keyboard::Key::RShift] = compositeJumpCmd;
     m_pressMappings[1][sf::Keyboard::Key::M] = fireCmd;
     m_pressMappings[1][sf::Keyboard::Key::Down] = gpCmd; // Press Down arrow to ground pound
 
@@ -120,6 +125,24 @@ void InputManager::handleInput(const sf::Event& event, Character& character) {
     }
 }
 
+void InputManager::noteKeyEvent(const sf::Event& event) {
+    if (const auto* pressed = event.getIf<sf::Event::KeyPressed>()) {
+        m_heldKeys.insert(pressed->code);
+    } else if (const auto* released = event.getIf<sf::Event::KeyReleased>()) {
+        m_heldKeys.erase(released->code);
+    } else if (event.is<sf::Event::FocusLost>()) {
+        clearHeldKeys();
+    }
+}
+
+bool InputManager::isHeld(sf::Keyboard::Key key) const {
+    return m_heldKeys.count(key) > 0;
+}
+
+void InputManager::clearHeldKeys() {
+    m_heldKeys.clear();
+}
+
 void InputManager::update(Character& character) {
     int pIdx = 0;
     if (&character == m_players[1]) {
@@ -127,7 +150,7 @@ void InputManager::update(Character& character) {
     }
 
     for (auto& pair : m_holdMappings[pIdx]) {
-        if (sf::Keyboard::isKeyPressed(pair.first)) {
+        if (isHeld(pair.first)) {
             pair.second->execute(character);
         }
     }
@@ -154,6 +177,33 @@ const std::pair<const char*, sf::Keyboard::Key> kKeyNames[] = {
 };
 } // namespace
 
+std::string InputManager::getActionForKey(const std::string& key, int playerIndex) const {
+    if (playerIndex < 0 || playerIndex > 1) return "";
+    sf::Keyboard::Key code;
+    if (!parseKeyName(key, code)) return "";
+
+    for (const auto& [action, bound] : m_boundKey[playerIndex]) {
+        if (bound == code) return action;
+    }
+    return "";
+}
+
+bool InputManager::isActionHeld(const std::string& action, int playerIndex) const {
+    if (playerIndex < 0 || playerIndex > 1) return false;
+    const auto& table = m_boundKey[playerIndex];
+    auto it = table.find(action);
+    if (it == table.end()) return false;
+    return isHeld(it->second);
+}
+
+std::string InputManager::getBoundKeyName(const std::string& action, int playerIndex) const {
+    if (playerIndex < 0 || playerIndex > 1) return "";
+    const auto& table = m_boundKey[playerIndex];
+    auto it = table.find(action);
+    if (it == table.end()) return "";
+    return keyName(it->second);
+}
+
 std::string InputManager::keyName(sf::Keyboard::Key key) {
     for (const auto& [name, value] : kKeyNames) {
         if (value == key) return name;
@@ -166,6 +216,14 @@ bool InputManager::parseKeyName(const std::string& name, sf::Keyboard::Key& out)
         if (name == text) { out = value; return true; }
     }
     return false;
+}
+
+namespace {
+// keyName() is static on the class; this keeps the log line readable.
+std::string key_name_for_log(sf::Keyboard::Key key) {
+    const std::string name = InputManager::keyName(key);
+    return name.empty() ? "?" : name;
+}
 }
 
 void InputManager::applyBindings(const std::unordered_map<std::string, std::string>& bindings,
@@ -192,7 +250,57 @@ void InputManager::applyBindings(const std::unordered_map<std::string, std::stri
             mappings.erase(boundIt->second);
         }
 
+        // If another action already owns this key, hand it the key we are about
+        // to vacate instead of leaving it dead. Binding "jump" to A used to
+        // silently unbind "left", and the only way back was editing config.json.
+        std::string displaced;
+        for (const auto& [otherAction, otherKey] : m_boundKey[playerIndex]) {
+            if (otherAction != action && otherKey == key) {
+                displaced = otherAction;
+                break;
+            }
+        }
+
+        const bool haveOldKey = (boundIt != m_boundKey[playerIndex].end());
+        // Re-applying the key an action already holds is not a conflict. Crouch
+        // and ground pound ship on the same key deliberately — holding and
+        // tapping are different gestures — so a default re-apply would otherwise
+        // "swap" S onto S and log a conflict that does not exist.
+        if (!displaced.empty() && haveOldKey && boundIt->second != key) {
+            const sf::Keyboard::Key vacated = boundIt->second;
+            const bool displacedHeld = m_heldActions.count(displaced) > 0;
+            auto& displacedMappings = displacedHeld ? m_holdMappings[playerIndex]
+                                                    : m_pressMappings[playerIndex];
+            auto displacedCmd = m_commandsByAction.find(displaced);
+            if (displacedCmd != m_commandsByAction.end()) {
+                displacedMappings.erase(key);
+                displacedMappings[vacated] = displacedCmd->second;
+                m_boundKey[playerIndex][displaced] = vacated;
+                std::cout << "[InputManager] \"" << key_name_for_log(key) << "\" was on \""
+                          << displaced << "\"; swapped it onto \"" << key_name_for_log(vacated)
+                          << "\" rather than leaving it unbound." << std::endl;
+            }
+        }
+
         mappings[key] = cmdIt->second;
         m_boundKey[playerIndex][action] = key;
     }
+}
+
+std::unordered_map<std::string, std::string> InputManager::resetBindingsToDefaults(int playerIndex) {
+    std::unordered_map<std::string, std::string> defaults;
+    if (playerIndex < 0 || playerIndex > 1) return defaults;
+
+    // The built-in layout, named once here and applied through the same path a
+    // user rebind takes, so defaults cannot drift from what applyBindings does.
+    if (playerIndex == 0) {
+        defaults = {{"left", "A"}, {"right", "D"}, {"jump", "W"}, {"run", "LShift"},
+                    {"crouch", "S"}, {"fire", "F"}, {"groundpound", "S"}};
+    } else {
+        defaults = {{"left", "Left"}, {"right", "Right"}, {"jump", "Up"}, {"run", "N"},
+                    {"crouch", "Down"}, {"fire", "M"}, {"groundpound", "Down"}};
+    }
+
+    applyBindings(defaults, playerIndex);
+    return defaults;
 }

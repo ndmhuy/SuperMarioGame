@@ -1,0 +1,38 @@
+# Versus CPU verification run.
+#
+# Player 1 is left standing still on purpose: everything that moves on screen
+# after the level loads is the AIController driving Player 2, which is the point
+# being verified. The dev panel reports the policy and what it currently thinks
+# it is doing.
+#
+#   ./build/SuperMarioGame --script tests/scripts/versus_cpu.txt
+
+wait 2.0
+press Down
+wait 0.4
+press Enter               # multiplayer page
+wait 0.6
+press Right               # VERSUS -> VERSUS CPU
+wait 0.5
+shot 50_cpu_selected      # AI skill and style rows are now live
+press Down                # -> OPPONENT
+wait 0.3
+press Down                # -> AI SKILL
+wait 0.3
+press Right               # NORMAL -> HARD
+wait 0.3
+press Down                # -> AI STYLE
+wait 0.3
+press Right               # SPEEDRUNNER -> HUNTER
+wait 0.4
+shot 51_hard_hunter
+press Down                # -> START
+wait 0.4
+press Enter
+wait 2.0
+shot 52_match_start
+wait 3.0
+shot 53_bot_moving        # the bot has left the spawn under its own steam
+wait 3.0
+shot 54_bot_progress
+quit

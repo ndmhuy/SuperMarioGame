@@ -2,12 +2,13 @@
 #include <SFML/Window.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <map>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "Core/ResourceManager.hpp"
 #include "Core/SoundManager.hpp"

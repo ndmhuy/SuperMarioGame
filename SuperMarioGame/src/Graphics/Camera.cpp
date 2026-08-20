@@ -24,8 +24,35 @@ Camera::~Camera() {
 }
 
 void Camera::follow(const sf::Vector2f& target, float dt) {
-    m_position.x += (target.x - m_position.x) * 5.0f * dt;
-    m_position.y += (target.y - m_position.y) * 5.0f * dt;
+    follow(target, sf::Vector2f{0.0f, 0.0f}, dt);
+}
+
+void Camera::follow(const sf::Vector2f& target, const sf::Vector2f& targetVelocity, float dt) {
+    if (m_scrollMode == ScrollMode::Locked) {
+        // The bounds are doing the work — a boss arena narrower than the view
+        // centres itself through clampToBounds — so the camera must not chase.
+        return;
+    }
+
+    // Lookahead: bias the camera in the direction of travel, so the player sees
+    // where they are going rather than where they have been. Scaled by how fast
+    // they are actually moving, and eased rather than snapped — an offset that
+    // flicks across on every turn is unreadable.
+    float desiredLookahead = 0.0f;
+    if (m_lookaheadStrength > 0.0f && Constants::RUN_SPEED > 0.0f) {
+        const float normalised =
+            MathUtils::clamp(targetVelocity.x / Constants::RUN_SPEED, -1.0f, 1.0f);
+        desiredLookahead = normalised * m_lookaheadStrength;
+    }
+    m_lookaheadOffset += (desiredLookahead - m_lookaheadOffset) * 2.0f * dt;
+
+    m_position.x += ((target.x + m_lookaheadOffset) - m_position.x) * 5.0f * dt;
+
+    if (m_scrollMode == ScrollMode::Free) {
+        m_position.y += (target.y - m_position.y) * 5.0f * dt;
+    }
+    // Horizontal mode leaves y where it is; clampToBounds still anchors the
+    // ground line, which is what keeps a short sub-level looking right (C-1).
 }
 
 void Camera::setPosition(const sf::Vector2f& pos) {
@@ -52,6 +79,10 @@ bool Camera::isBoundsEnabled() const {
 
 void Camera::setBounds(const AABB& bounds) {
     m_bounds = bounds;
+}
+
+const AABB& Camera::getBounds() const {
+    return m_bounds;
 }
 
 sf::View& Camera::getView() {

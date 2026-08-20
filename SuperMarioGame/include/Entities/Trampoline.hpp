@@ -16,6 +16,10 @@ public:
     void activate(Player& player) override;
     void collect() override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
+
+    // Mid-bounce, i.e. compressed and springing back. The harness used to call
+    // isCompressed(), which disappeared when this became a timed bounce.
+    bool isBouncing() const { return m_isBouncing; }
 private:
     Animation m_idleAnim;
     Animation m_squishAnim;

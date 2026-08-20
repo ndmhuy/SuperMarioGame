@@ -38,7 +38,7 @@ void FlyStrategy::applyMovement(Enemy& enemy, float dt) {
     m_timer += dt;
 
     if (m_flyMode == FlyMode::SinusoidalPatrol) {
-        float speed = enemy.speed > 0.0f ? enemy.speed : 60.0f;
+        const float speed = enemy.speed;
         enemy.velocity.x = (m_movingRight ? 1.0f : -1.0f) * speed;
         enemy.velocity.y = m_amplitude * m_frequency * std::cos(m_frequency * m_timer);
         enemy.facingRight = m_movingRight;
@@ -48,10 +48,10 @@ void FlyStrategy::applyMovement(Enemy& enemy, float dt) {
         enemy.velocity.y = m_amplitude * m_frequency * std::cos(m_frequency * m_timer);
     }
     else if (m_flyMode == FlyMode::FollowPlayer) {
-        Player* player = Game::getInstance().getPlayer();
+        Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
         if (player) {
             float dx = player->position.x - enemy.position.x;
-            float trackSpeed = enemy.speed > 0.0f ? enemy.speed : 100.0f;
+            const float trackSpeed = enemy.speed;
 
             if (std::abs(dx) > 10.0f) {
                 enemy.velocity.x = (dx > 0.0f ? 1.0f : -1.0f) * trackSpeed;

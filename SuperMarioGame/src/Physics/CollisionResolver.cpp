@@ -8,9 +8,13 @@
 #include "Entities/Trampoline.hpp"
 #include "Entities/PSwitch.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/KoopaTroopa.hpp"
-#include "Entities/KoopaTroopa.hpp"
+#include "Entities/Boss.hpp"
+#include "Core/SoundManager.hpp"
+#include "Core/InputManager.hpp"
+#include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -37,12 +41,33 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
         if (character) {
             character->onWall = true;
 
-            // Air wall friction & sliding mechanics
-            if (!character->onGround) {
-                if (entity.velocity.y < 0.0f) {
-                    entity.velocity.y = 0.0f; // Eliminate upward momentum on wall impact
-                } else if (entity.velocity.y > Constants::WALL_SLIDE_SPEED) {
-                    entity.velocity.y = Constants::WALL_SLIDE_SPEED; // Cap downward slide velocity
+            // Wall slide: falling slowly while pressed against a wall.
+            //
+            // Two things here were wrong, and together they made it impossible
+            // to jump while walking into a wall — so no character could climb
+            // any step it was touching.
+            //
+            //  1. The airborne test asked onGround, which PhysicsEngine has
+            //     already cleared for this frame and does not set again until
+            //     the Y pass, *after* this one. It therefore read false for a
+            //     character standing firmly on the ground, and the rule fired
+            //     every time anyone walked into a wall. wasOnGround is the
+            //     state this frame started in, which is the real question.
+            //
+            //  2. It cancelled *vertical* velocity on a purely *horizontal*
+            //     collision. A wall is vertical; touching one says nothing
+            //     about upward motion, and moving up alongside a wall is
+            //     ordinary platforming. A genuine ceiling is what the Y pass's
+            //     normal.y == 1 case is for, and it already handles it.
+            //
+            // So only the downward cap survives, and only when genuinely
+            // airborne. Found by tools/eval_level.cpp: an AI walked into the
+            // 3-tile step at column 25 of level_1, jumped correctly every other
+            // frame for 145 seconds, and never moved a pixel, because the jump
+            // velocity was erased here before it could ever be integrated.
+            if (!character->onGround && !character->wasOnGround) {
+                if (entity.velocity.y > Constants::WALL_SLIDE_SPEED) {
+                    entity.velocity.y = Constants::WALL_SLIDE_SPEED;
                 }
             }
         }
@@ -69,6 +94,15 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
     // collision normal flipped, because the normal points from e1 towards e2.
     const EntityCategory c1 = e1.getCategory();
     const EntityCategory c2 = e2.getCategory();
+
+    // A contact hazard — Shadow Mario — takes part in exactly one pairing: the
+    // one where it touches a real player. Anything else passes straight through
+    // it, so it cannot farm the level for the human it is chasing.
+    if (e1.isContactHazard() || e2.isContactHazard()) {
+        const bool bothPlayers = (c1 == EntityCategory::Player && c2 == EntityCategory::Player);
+        // Two hazards cannot meaningfully collide, and there is only ever one.
+        if (!bothPlayers || (e1.isContactHazard() && e2.isContactHazard())) return;
+    }
 
     auto flipped = [&info] {
         CollisionInfo f = info;
@@ -117,23 +151,25 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
             resolveItemVsBlock(static_cast<Item&>(e2), static_cast<Block&>(e1), flipped());
             return;
 
+        // Every Projectile answers for itself who it may hurt, so these four
+        // cases name no concrete projectile type. They used to static_cast
+        // straight to Fireball, which meant a thrown hammer killed enemies.
         case (static_cast<int>(EntityCategory::Projectile) << 8) | static_cast<int>(EntityCategory::Enemy):
-            resolveFireballVsEnemy(static_cast<Fireball&>(e1), static_cast<Enemy&>(e2), info);
+            resolveProjectileVsEnemy(static_cast<Projectile&>(e1), static_cast<Enemy&>(e2));
             return;
         case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Projectile):
-            resolveFireballVsEnemy(static_cast<Fireball&>(e2), static_cast<Enemy&>(e1), flipped());
+            resolveProjectileVsEnemy(static_cast<Projectile&>(e2), static_cast<Enemy&>(e1));
             return;
 
         case (static_cast<int>(EntityCategory::Enemy) << 8) | static_cast<int>(EntityCategory::Enemy):
             resolveEnemyVsEnemy(static_cast<Enemy&>(e1), static_cast<Enemy&>(e2));
             return;
 
-        // A thrown hammer damages the player; it passes through everything else.
         case (static_cast<int>(EntityCategory::Projectile) << 8) | static_cast<int>(EntityCategory::Player):
-            if (auto* hammer = dynamic_cast<Hammer*>(&e1)) hammer->onHitPlayer(static_cast<Player&>(e2));
+            resolveProjectileVsPlayer(static_cast<Projectile&>(e1), static_cast<Player&>(e2));
             return;
         case (static_cast<int>(EntityCategory::Player) << 8) | static_cast<int>(EntityCategory::Projectile):
-            if (auto* hammer = dynamic_cast<Hammer*>(&e2)) hammer->onHitPlayer(static_cast<Player&>(e1));
+            resolveProjectileVsPlayer(static_cast<Projectile&>(e2), static_cast<Player&>(e1));
             return;
 
         default:
@@ -146,6 +182,15 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
     if (!enemy.isActive() || enemy.isDeadOrDying()) return;
     if (player.getInvincibilityTimer() > 0.0f) return; // Ignore all enemy contact (damage & stomp) during hurt i-frames
 
+    // A cape swing clears whatever it reaches. Checked before the stomp test so
+    // a spin connects from any direction, which is the point of having it.
+    if (player.isSpinningCape() && !enemy.isDeadOrDying()) {
+        enemy.onHitByFireball();   // the existing "knocked out sideways" path
+        player.incrementCombo();
+        player.addScore(enemy.getScoreValue() * player.getComboCounter());
+        return;
+    }
+
     // A stomp is any contact where the player is descending onto the enemy's upper band.
     // The feet-vs-top test is more forgiving than the raw collision normal at high speed.
     float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
@@ -153,23 +198,113 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
     bool isStomp = (player.getVelocity().y > -50.0f && playerFeetY <= enemyTopY) ||
                    (info.normal.y == -1.0f && player.getVelocity().y >= 0.0f);
 
-    // Touching any unflipped Koopa picks it up and prevents damage
+    // --- Koopa Troopas and their shells ------------------------------------
+    //
+    // This branch used to pick up ANY unflipped Koopa on any non-stomp contact.
+    // Walking into a live, patrolling Koopa handed you the Koopa instead of
+    // hurting you, and running into a shell someone had just kicked did the
+    // same — so Koopas were the one enemy in the game that could not hurt you
+    // at all, and a kicked shell was harmless to its own kicker.
+    //
+    // The rules below are the ones the series has always used:
+    //   walking Koopa   stomp -> shell;      side/below -> damage
+    //   idle shell      stomp -> kick;       side  -> kick, or carry if running
+    //   sliding shell   stomp -> stop;       side  -> damage
     if (auto koopa = dynamic_cast<KoopaTroopa*>(&enemy)) {
         if (!koopa->isFlipped() && koopa->getState() != KoopaState::ShellHeld) {
-            if (isStomp && koopa->getState() == KoopaState::Walking) {
-                // Stomping a walking Koopa from above executes the standard stomp bounce
+            const KoopaState koopaState = koopa->getState();
+
+            if (isStomp) {
+                // onStomped() already knows all three cases: shell a walker,
+                // kick an idle shell, stop a sliding one.
                 player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
                 koopa->onStomped();
-                player.incrementCombo();
-                player.addScore(enemy.getScoreValue() * player.getComboCounter());
-                return;
-            } else {
-                // Touching sideways/below (or touching an idle/kicked shell from any angle) picks it up
-                koopa->pickUp(&player);
-                player.holdEntity(koopa);
+                if (koopaState == KoopaState::Walking) {
+                    player.incrementCombo();
+                    player.addScore(enemy.getScoreValue() * player.getComboCounter());
+                }
                 return;
             }
+
+            // A shell you just launched slides out from under you. Without
+            // this, kicking or throwing one hurt you on the very next frame.
+            if (koopaState == KoopaState::ShellKicked && koopa->isHarmlessToKicker()) {
+                return;
+            }
+
+            if (koopaState == KoopaState::ShellIdle) {
+                // Side contact with a resting shell. Holding run picks it up to
+                // carry; otherwise it is kicked away, which is what happens if
+                // you simply walk into one.
+                const float dx = player.getBoundingBox().getCenter().x -
+                                 koopa->getBoundingBox().getCenter().x;
+                const float away = (dx >= 0.0f) ? -1.0f : 1.0f;
+
+                // Either "B button". The originals use one button for run and
+                // fire; this game splits them, and requiring specifically the
+                // run key made carrying a shell feel like it did not work.
+                InputManager& input = InputManager::getInstance();
+                const int pad = player.getPlayerIndex();
+                const bool grabHeld = player.isRunRequested() ||
+                                      input.isActionHeld("run", pad) ||
+                                      input.isActionHeld("fire", pad);
+                if (grabHeld && !player.getHeldEntity()) {
+                    koopa->pickUp(&player);
+                    player.holdEntity(koopa);
+                } else {
+                    koopa->kick({away * Constants::KOOPA_SHELL_KICK_SPEED,
+                                 koopa->getVelocity().y});
+                    SoundManager::getInstance().playSound("kick");
+                }
+                return;
+            }
+
+            // A walking Koopa or a shell already sliding: falls through to the
+            // ordinary side-contact damage path below, like every other enemy.
         }
+    }
+
+    // --- Bosses ------------------------------------------------------------
+    //
+    // A boss cannot reuse the generic stomp path, which is written as if contact
+    // were transient. `isStomp` is a *positional* test, true on every frame the
+    // player's feet are near the enemy's top, and the branch never separates the
+    // two boxes — so standing on BoomBoom held it true indefinitely. That paid
+    // score and combo every frame, landed a real hit every time the boss's
+    // one-second i-frames lapsed, and never hurt the player, because takeDamage
+    // is only in the else branch. Three seconds of standing still won the fight.
+    if (auto* boss = dynamic_cast<Boss*>(&enemy)) {
+        const bool descending = player.getVelocity().y > Boss::STOMP_MIN_DESCENT_SPEED;
+
+        // Resting on the boss is not an attack. While its i-frames run, or while
+        // the player is not actually falling onto it, contact is contact — it
+        // hurts, exactly as touching its side does.
+        if (!descending || boss->isInvulnerable()) {
+            const float dx = player.getBoundingBox().getCenter().x -
+                             boss->getBoundingBox().getCenter().x;
+            const float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
+            player.velocity.x = direction * Constants::KNOCKBACK_FORCE_X;
+            player.velocity.y = -Constants::KNOCKBACK_FORCE_Y;
+            player.takeDamage(1);
+            return;
+        }
+
+        // A genuine descending impact. Pay out only if the hit actually landed —
+        // takeHit() reports that, and it was being ignored.
+        const bool landed = boss->tryStomp();
+        player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
+        // Bounced clear of the boss's box either way, so the next frame is not
+        // another contact frame. Without this the player never leaves and the
+        // whole cycle repeats.
+        const AABB bossBox = boss->getBoundingBox();
+        player.position.y = bossBox.y - player.getBoundingBox().height - 1.0f;
+        player.boundingBox.y = player.position.y;
+
+        if (landed) {
+            player.incrementCombo();
+            player.addScore(boss->getScoreValue() * player.getComboCounter());
+        }
+        return;
     }
 
     if (isStomp) {
@@ -228,6 +363,38 @@ void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const Co
 }
 
 void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const CollisionInfo& info) {
+    // Shadow Mario. Touching your own past costs you: no pushback, no stomp, no
+    // bounce — the shadow is unmoved by the collision because it is replaying a
+    // path, and shoving it off that path would desync it from the recording it
+    // is driven by.
+    if (p1.isContactHazard() != p2.isContactHazard()) {
+        Player& hazard = p1.isContactHazard() ? p1 : p2;
+        Player& victim = p1.isContactHazard() ? p2 : p1;
+        if (victim.getInvincibilityTimer() <= 0.0f) {
+            victim.takeDamage(1);
+            SoundManager::getInstance().playSound("damage");
+            // The hazard is told it was the cause. Whoever reports the death
+            // then has a fact to report rather than a guess.
+            hazard.onContactWithPlayer();
+        }
+        return;
+    }
+
+    // Co-op: jumping on your partner is a boost, not an attack. The bounce is
+    // taller than the versus stomp — it is the mode's traversal mechanic, meant
+    // to get a partner onto ledges they cannot reach alone — and the player
+    // underneath is not pushed down or stunned.
+    if (Game::getInstance().matchConfig().isCoop() && info.normal.y != 0.0f) {
+        Player& upper = (info.normal.y == -1.0f) ? p1 : p2;
+        Player& lower = (info.normal.y == -1.0f) ? p2 : p1;
+        upper.position.y += info.normal.y * info.overlap.y;
+        upper.boundingBox.y = upper.position.y;
+        upper.velocity.y = -Constants::PLAYER_BOUNCE_FORCE * 1.6f;
+        lower.velocity.y = 0.0f;
+        SoundManager::getInstance().playSound("boing");
+        return;
+    }
+
     // Both are dynamic characters; resolve collision by pushing both back by 50% of the overlap
     p1.position.x += info.normal.x * info.overlap.x * 0.5f;
     p1.position.y += info.normal.y * info.overlap.y * 0.5f;
@@ -328,11 +495,16 @@ void CollisionResolver::resolveEnemyVsEnemy(Enemy& a, Enemy& b) {
     // Two ordinary walkers just ignore each other, as in the original games.
 }
 
-void CollisionResolver::resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy, const CollisionInfo& info) {
-    if (fireball.isActive() && enemy.isActive()) {
-        enemy.onHitByFireball();
-        fireball.destroy();
-    }
+void CollisionResolver::resolveProjectileVsEnemy(Projectile& projectile, Enemy& enemy) {
+    if (!projectile.isActive() || !enemy.isActive()) return;
+    if (!projectile.damagesEnemies()) return;   // a thrown hammer passes through
+    projectile.onHitEnemy(enemy);
+}
+
+void CollisionResolver::resolveProjectileVsPlayer(Projectile& projectile, Player& player) {
+    if (!projectile.isActive() || !player.isActive()) return;
+    if (!projectile.damagesPlayer()) return;    // the player's own fireball
+    projectile.onHitPlayer(player);
 }
 
 void CollisionResolver::resolveItemVsBlock(Item& item, Block& block, const CollisionInfo& info) {

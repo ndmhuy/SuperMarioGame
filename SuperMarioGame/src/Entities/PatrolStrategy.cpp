@@ -29,7 +29,9 @@ void PatrolStrategy::calculateTarget(Enemy& enemy, float dt) {
         enemy.facingRight = m_movingRight;
     }
 
-    if (m_ledgeAware) {
+    // Airborne enemies have nothing under them by definition; testing the tile
+    // below a falling enemy would flip it every frame of the fall.
+    if (m_ledgeAware && enemy.onGround) {
         TileMap* tileMap = Game::getInstance().getTileMap();
         if (tileMap) {
             float checkOffset = m_movingRight ? (enemy.boundingBox.width + 4.0f) : -4.0f;
@@ -37,11 +39,18 @@ void PatrolStrategy::calculateTarget(Enemy& enemy, float dt) {
             // Check just below the bottom of the bounding box
             float checkY = enemy.position.y + enemy.boundingBox.height + 4.0f;
 
-            TileType currentUnderTile = tileMap->getTileAt(enemy.position.x + enemy.boundingBox.width / 2.0f, checkY);
-            TileType nextTile = tileMap->getTileAt(nextX, checkY);
+            const TileType currentUnderTile =
+                tileMap->getTileAt(enemy.position.x + enemy.boundingBox.width / 2.0f, checkY);
+            const TileType nextTile = tileMap->getTileAt(nextX, checkY);
 
-            // If we are currently on a solid tile but the next step is empty, reverse
-            if (currentUnderTile != TileType::Empty && nextTile == TileType::Empty) {
+            // Only solid ground counts as somewhere to stand. Water, lava and a
+            // coin tile are all "not Empty" but none of them holds an enemy up,
+            // so the old != Empty test walked patrols straight into lava.
+            auto standable = [](TileType tile) {
+                return TileMap::getInfo(tile).isSolid;
+            };
+
+            if (standable(currentUnderTile) && !standable(nextTile)) {
                 m_movingRight = !m_movingRight;
                 enemy.facingRight = m_movingRight;
             }
@@ -50,7 +59,9 @@ void PatrolStrategy::calculateTarget(Enemy& enemy, float dt) {
 }
 
 void PatrolStrategy::applyMovement(Enemy& enemy, float dt) {
-    float patrolSpeed = enemy.speed > 0.0f ? enemy.speed : 50.0f;
+    // enemy.speed is the single source of truth now; every enemy sets it in its
+    // constructor, so there is nothing to substitute for.
+    const float patrolSpeed = enemy.speed;
     enemy.velocity.x = (m_movingRight ? 1.0f : -1.0f) * patrolSpeed;
     enemy.facingRight = m_movingRight;
 }

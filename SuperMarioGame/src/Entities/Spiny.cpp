@@ -12,7 +12,7 @@ Spiny::Spiny(sf::Vector2f position, bool isEgg)
     boundingBox = AABB{ position.x, position.y, Constants::TILE_SIZE, Constants::TILE_SIZE };
 
     // PatrolStrategy: Spiny patrols back and forth on platforms/ground
-    setStrategy(std::make_unique<PatrolStrategy>(false, false));
+    setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
 }
 
 void Spiny::setupAnimations(const SpriteSheet* spriteSheet) {
@@ -56,7 +56,7 @@ void Spiny::onStomped() {
     if (m_isFlipped) return;
 
     // Spiky: Stomping deals damage to the player
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         player->takeDamage(1);
     }

@@ -1,10 +1,14 @@
 #include "Entities/ChainChomp.hpp"
+#include "Utils/Constants.hpp"
 #include "Entities/TetheredChaseStrategy.hpp"
 #include "Entities/Player.hpp"
 #include "Core/Game.hpp"
 
 ChainChomp::ChainChomp(sf::Vector2f position)
     : Enemy(position, 0) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_CHAIN_CHOMP_SPEED;
     setTargetSize({32.0f, 32.0f});
     
     // Set AI tethered chase strategy anchored at spawn post position
@@ -23,7 +27,7 @@ void ChainChomp::setupAnimations(const SpriteSheet* spriteSheet) {
 
 void ChainChomp::onStomped() {
     // Spiky/Iron ball: cannot be stomped, inflicts damage
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         player->takeDamage(1);
     }

@@ -8,6 +8,13 @@
 
 class Enemy : public Character {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     explicit Enemy(sf::Vector2f position, int scoreValue = 100, sf::Vector2f targetSize = {32.0f, 32.0f});
     virtual ~Enemy() override = default;
 
@@ -29,6 +36,15 @@ public:
     // Score properties
     int getScoreValue() const;
     void setScoreValue(int value);
+
+    // Scales this enemy's movement speed once, as it enters the world. Used by
+    // the difficulty strategy (task 9.4); deliberately an action rather than a
+    // setSpeed(), so callers cannot reach in and overwrite tuned values.
+    void applySpeedScale(float scale);
+
+    // Sets the tuned base speed. Used only by EntityFactory when applying
+    // assets/config/entities.json; gameplay code scales, it does not assign.
+    void setSpeed(float newSpeed);
 
     bool isFlipped() const { return m_isFlipped; }
     bool isDyingDownward() const { return m_isDyingDownward; }

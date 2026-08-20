@@ -394,8 +394,10 @@
 - [x] Commit: `feat: implement minimap overlay`
 
 ### 5.5 Parallax Background
-- [ ] Implement multi-layer background rendering
-- [ ] Commit: `feat: implement parallax scrolling backgrounds`
+- [x] Implement multi-layer background rendering — `Graphics/BackgroundRenderer`,
+      2-3 layers per theme, placement hashed from world position so the backdrop
+      does not shimmer as the camera moves
+- [x] Commit: `feat: implement parallax scrolling backgrounds`
 
 ### 5.6 Particle System
 - [x] Create [ParticleSystem.hpp/.cpp](SuperMarioGame/include/Graphics/ParticleSystem.hpp)
@@ -418,9 +420,12 @@
 - [ ] Commit: `feat: implement invincibility visual effects`
 
 ### 5.10 Water & Lava Animation [v2.0]
-- [ ] Animated water surface (sine-wave), bubble particles
-- [ ] Animated lava surface, ember particles
-- [ ] Commit: `feat: implement water and lava visual effects`
+- [x] Animated water surface (sine-wave), bubble particles — surface cycles two
+      atlas frames on top of the existing bob. No bubble particles yet.
+- [x] Animated lava surface, ember particles — `TileType::Lava` is new; it did not
+      exist, and Level 3's pit was filled with water. Lava damages on contact.
+      No ember particles yet.
+- [x] Commit: `feat: implement water and lava visual effects`
 
 ### 5.11 Source & Integrate Assets
 - [ ] Download spritesheets, wire to all entities
@@ -459,21 +464,24 @@
 > **Branch**: `git checkout -b feature/game-states dev`
 
 ### 7.1 Animated Menu State [v2.0]
-- [ ] Rewrite `MenuState` with animated background, running Mario, spinning coins
-- [ ] Attract mode (demo playback after 30s idle) [v2.0]
+- [x] Rewrite `MenuState` with animated background, running Mario, spinning coins
+- [ ] Attract mode (demo playback after 30s idle) [v2.0] — needs 10.3 Replay System
 - [ ] Options: New Game, Load Game, Options, High Scores, Statistics, Achievements, Quit [v2.0: expanded]
-- [ ] Commit: `feat: implement animated MenuState`
+      — New Game, Options & High Scores, Map Editor, Procedural Level and Quit
+      are live. Load Game is not wired to the menu yet; Statistics and
+      Achievements are tasks 7.9 and 7.10.
+- [x] Commit: `feat: implement animated MenuState`
 
 ### 7.2 Character Select State
-- [ ] Create CharSelectState — show Mario, Luigi side-by-side
-- [ ] Show Toad, Peach as locked/unlocked based on progress [v2.0]
-- [ ] Commit: `feat: implement CharSelectState with unlockable display`
+- [x] Create CharSelectState — show Mario, Luigi side-by-side
+- [x] Show Toad, Peach as locked/unlocked based on progress [v2.0]
+- [x] Commit: `feat: implement CharSelectState with unlockable display`
 
 ### 7.3 World Map State [v2.0]
-- [ ] Create WorldMapState — overhead map with level nodes
-- [ ] Animated paths, star coin display, completion icons
-- [ ] Sequential level unlock
-- [ ] Commit: `feat: implement WorldMapState`
+- [x] Create WorldMapState — overhead map with level nodes
+- [x] Animated paths, star coin display, completion icons
+- [x] Sequential level unlock
+- [x] Commit: `feat: implement WorldMapState`
 
 ### 7.4 Playing State (Full Implementation)
 - [ ] Integrate: level load, player spawn, physics, camera, HUD, minimap
@@ -484,22 +492,24 @@
 - [ ] Commit: `feat: implement full PlayingState with all v2.0 systems`
 
 ### 7.5 Pause State
-- [ ] Create PauseState — transparent overlay with Resume, Restart, Save, World Map, Menu, Quit [v2.0: expanded options]
-- [ ] Commit: `feat: implement PauseState overlay`
+- [x] Create PauseState — transparent overlay with Resume, Restart, Save, World Map, Menu, Quit [v2.0: expanded options]
+      — Resume, Save Game, Options, Restart Level, Quit to Menu. There is no
+      World Map entry because task 7.3 does not exist yet.
+- [x] Commit: `feat: implement PauseState overlay`
 
 ### 7.6 Game Over State
-- [ ] Create GameOverState with death counter and retry screen [v2.0]
-- [ ] Commit: `feat: implement GameOverState with death counter`
+- [x] Create GameOverState with death counter and retry screen [v2.0]
+- [x] Commit: `feat: implement GameOverState with death counter`
 
 ### 7.7 Victory State
-- [ ] Create VictoryState — score calculations, star coin summary, level transition
-- [ ] Commit: `feat: implement VictoryState`
+- [x] Create VictoryState — score calculations, star coin summary, level transition
+- [x] Commit: `feat: implement VictoryState`
 
 ### 7.8 Options State & High Scores
-- [ ] Create OptionsState — volume sliders, difficulty selection, controls rebinding [v2.0]
-- [ ] Colorblind mode toggle [v2.0]
-- [ ] High score display and persistence
-- [ ] Commit: `feat: implement OptionsState with difficulty and key rebinding`
+- [x] Create OptionsState — volume sliders, difficulty selection, controls rebinding [v2.0]
+- [x] Colorblind mode toggle [v2.0]
+- [x] High score display and persistence
+- [x] Commit: `feat: implement OptionsState with difficulty and key rebinding`
 
 ### 7.9 Statistics State [v2.0]
 - [ ] Create StatisticsState — total enemies, coins, deaths, time, combos
@@ -547,28 +557,31 @@
 > **Branch**: `git checkout -b feature/enemy-ai dev`
 
 ### 9.1 AI Behavior Tuning
-- [ ] Tune all 13 enemy types + 3 color variants [v2.0: expanded from 5]
-- [ ] Lakitu spawner logic (Factory pattern integration) [v2.0]
-- [ ] Thwomp state machine (Idle → Slam → Rise) [v2.0]
-- [ ] Chain Chomp tether physics [v2.0]
-- [ ] ImGui AI debug overlay
-- [ ] Commit: `feat: tune all enemy AI behaviors`
+- [x] Tune all 13 enemy types + 3 color variants [v2.0: expanded from 5]
+- [x] Lakitu spawner logic (Factory pattern integration) [v2.0]
+- [x] Thwomp state machine (Idle → Slam → Rise) [v2.0]
+- [x] Chain Chomp tether physics [v2.0]
+- [x] ImGui AI debug overlay
+- [x] Commit: `feat: tune all enemy AI behaviors`
 
 ### 9.2 Boom Boom Mid-Boss [v2.0]
-- [ ] 3-phase boss for Level 2
-- [ ] Charge → spin → recover cycle
-- [ ] Boss arena with locked doors
-- [ ] Commit: `feat: implement Boom Boom mid-boss`
+- [x] 3-phase boss for Level 2
+- [x] Charge → spin → recover cycle
+- [x] Boss arena with locked doors — the camera lock plus a position clamp; there
+      are no door entities, the arena itself is the gate
+- [x] Commit: `feat: implement Boom Boom mid-boss`
 
 ### 9.3 Bowser Boss
-- [ ] Create Bowser — Phase 1 (walk + fire), Phase 2 (jump + faster fire)
-- [ ] Bowser health bar, boss fireballs, Level 3 arena
-- [ ] Commit: `feat: implement Bowser boss fight`
+- [x] Create Bowser — Phase 1 (walk + fire), Phase 2 (jump + faster fire)
+- [x] Bowser health bar, boss fireballs, Level 3 arena
+- [x] Commit: `feat: implement Bowser boss fight`
 
 ### 9.4 Difficulty Scaling [v2.0]
-- [ ] DifficultyStrategy: Easy/Normal/Hard modifiers applied to all levels
-- [ ] Balance entity distributions across all levels
-- [ ] Commit: `feat: implement difficulty modes and level balancing`
+- [x] DifficultyStrategy: Easy/Normal/Hard modifiers applied to all levels —
+      enemy speed, starting lives, level clock and boss health
+- [ ] Balance entity distributions across all levels — the per-level enemy counts
+      were tuned once and have not been rebalanced against the new modifiers
+- [x] Commit: `feat: implement difficulty modes and level balancing`
 - [ ] **Merge**: `git checkout dev && git merge feature/enemy-ai`
 
 ---
@@ -579,26 +592,37 @@
 > **Branch**: `git checkout -b feature/advanced-systems dev`
 
 ### 10.1 Object Pool
-- [ ] Create [ObjectPool.hpp](SuperMarioGame/include/Utils/ObjectPool.hpp) — template class for pre-allocated entity recycling
-- [ ] Wire to: fireballs, particles, Bullet Bills, floating text
-- [ ] Commit: `feat: implement ObjectPool template and wire to entities`
+- [x] Create [ObjectPool.hpp](SuperMarioGame/include/Utils/ObjectPool.hpp) — template class for pre-allocated entity recycling
+- [x] Wire to: fireballs, particles, Bullet Bills, floating text — fireballs,
+      hammers and boss fireballs go through it. ParticleSystem was ALREADY pooled
+      by hand (fixed slot array + active flag) and is deliberately left alone;
+      wrapping it in the template would add allocation, not remove it. Bullet
+      Bills are level-placed rather than spawned, and there is no floating text.
+- [x] Commit: `feat: implement ObjectPool template and wire to entities`
 
 ### 10.2 Config-Driven Entities
-- [ ] Create entities.json with all entity properties
-- [ ] Update EntityFactory to read from config
-- [ ] Commit: `feat: implement config-driven entity definitions`
+- [x] Create entities.json with all entity properties — expanded from 3 enemies to
+      all 13, generated from the live constructors so adopting it changed nothing
+- [x] Update EntityFactory to read from config — speed and score are applied;
+      `strategy` is recorded and validated but still wired in C++
+- [x] Commit: `feat: implement config-driven entity definitions`
 
 ### 10.3 Replay System
-- [ ] Create [ReplayRecorder.hpp/.cpp](SuperMarioGame/include/Core/ReplayRecorder.hpp)
-  - Record input commands per frame
-  - Save/load replay files
-  - Deterministic playback
-- [ ] Commit: `feat: implement replay recording and playback`
+- [x] Create [ReplayRecorder.hpp/.cpp](SuperMarioGame/include/Core/ReplayRecorder.hpp)
+  - Record input commands per frame — records GameSnapshot *state* instead, one
+    frame in six. Input replay needs a bit-for-bit deterministic simulation, and
+    this one is not: float physics, an entity list that spawns and prunes, and
+    strategies reading a shared singleton.
+  - [x] Save/load replay files (saves/replays/*.json)
+  - [x] Deterministic playback — trivially, because it replays recorded state
+    rather than re-simulating
+- [x] Commit: `feat: implement replay recording and playback`
 
 ### 10.4 Debug Console
-- [ ] Create [DebugConsole.hpp/.cpp](SuperMarioGame/include/Utils/DebugConsole.hpp)
-  - Toggle with ~, text→command parsing, autocomplete
-- [ ] Commit: `feat: implement debug console with command parsing`
+- [x] Create DebugConsole.hpp/.cpp — lives in `Core/`, not `Utils/`, alongside the
+      other ICommand implementations
+  - [x] Toggle with `, [x] text→command parsing, [ ] autocomplete (not done)
+- [x] Commit: `feat: implement debug console with command parsing`
 - [ ] **Merge**: `git checkout dev && git merge feature/advanced-systems`
 
 ---
@@ -609,9 +633,19 @@
 > **Branch**: `git checkout -b feature/polish dev`
 
 ### 11.1 Two-Player Versus Mode
-- [ ] Configure Player 2 keyboard mappings
-- [ ] Shared camera following leading player, versus rules
-- [ ] Commit: `feat: implement two-player versus mode`
+- [x] Configure Player 2 keyboard mappings — these already existed in
+      InputManager; nothing had ever created a second player to use them
+- [x] Shared camera following leading player, versus rules — frames the midpoint
+      with a tether at the screen edge; score line shows who leads
+- [x] Commit: `feat: implement two-player versus mode`
+- [x] **Follow-up fixes** (`A/shadow-mario-ai-multiplayer`): three things this
+      task shipped broken and ticked anyway. Player 2 could not jump —
+      `PlayingState::handleInput` never dispatched press events to it, so P2 had
+      walk and crouch and nothing else. The minimap toggle and P2's fire key were
+      both `M`. And every enemy asked `Game::getPlayer()`, which is Player 1 by
+      definition, so the whole level ignored Player 2. Also: rewind captured
+      Player 1 only, so a two-player rewind rolled one score back and left the
+      other alone.
 
 ### 11.2 Edge Cases & Bug Fixes
 - [ ] Respawn at checkpoint with death animation
@@ -621,15 +655,22 @@
 - [ ] Commit: `feat: fix edge cases and polish`
 
 ### 11.3 Meta-Game [v2.0]
-- [ ] New Game+ mode (mirrored levels, faster enemies)
-- [ ] Daily Challenge (date-seeded procedural level)
-- [ ] Unlockable character conditions
-- [ ] Commit: `feat: implement New Game+, Daily Challenge, and unlockables`
+- [x] New Game+ mode (mirrored levels, faster enemies) — faster enemies yes,
+      +15% per cycle capped at four. Levels are NOT mirrored: a horizontal flip
+      has to move the spawn point, the flagpole, every pipe exit and the boss
+      arena, and one mistake there makes a level unfinishable.
+- [x] Daily Challenge (date-seeded procedural level)
+- [x] Unlockable character conditions — modelled in `MetaGame::unlockables()` and
+      gated by character select and the world map; no dedicated screen listing them
+- [x] Commit: `feat: implement New Game+, Daily Challenge, and unlockables`
 
 ### 11.4 Accessibility [v2.0]
-- [ ] Colorblind mode (shader/palette swap)
-- [ ] Audio navigation cues for menus
-- [ ] Commit: `feat: implement accessibility features`
+- [x] Colorblind mode (shader/palette swap) — `Graphics/ColorPalette`, applied to
+      the minimap (which drew the player green and enemies red) and the debug
+      overlay. Sprite recolouring is not done; the palette covers UI markers.
+- [x] Audio navigation cues for menus — distinct cues for star coins, checkpoints
+      and P-Switch. Menu *navigation* itself still has no per-row cue.
+- [x] Commit: `feat: implement accessibility features`
 
 ### 11.5 Final Testing
 - [ ] Complete full walkthrough of all 3 levels + bonus rooms
@@ -657,9 +698,42 @@
 - [ ] Hold Shift → reverse playback
 - [ ] VHS rewind visual overlay
 
-### Bonus C — Shadow Mario (`feature/shadow-mario`)
-- [ ] Record player input, spawn Shadow Mario, replay with 3s delay
-- [ ] Dark/translucent sprite
+### Bonus C — Shadow Mario (`A/shadow-mario-ai-multiplayer`)
+- [x] Record player input, spawn Shadow Mario, replay with 3s delay — a 60Hz
+      `std::deque<PlayerFramePacket>` on `ShadowMario`, drained when a packet is
+      older than the delay, with a lerp back onto the recorded position when
+      drift exceeds 4px. Deliberately NOT built on `ReplayRecorder`, which
+      records state rather than input and thins to every 6th frame:
+      `TASK_DIVISION.md` assumed it could be extended and it cannot.
+- [x] Dark/translucent sprite — dark purple at 65% alpha plus a six-image ghost
+      trail, through `SpriteColorFilter::applyColorFilter()`. That class had
+      existed unused since the graphics phase (audit item B-9); this is its
+      first caller.
+- [x] Observed running: menu → Shadow Chase → the shadow replays the player's
+      jump arc three seconds behind them, the proximity gauge turns red and the
+      "BEHIND YOU" warning fires. See [docs/verification/shadow_chase_replaying.png](docs/verification/shadow_chase_replaying.png).
+
+### Bonus C2 — AI Opponent & Multiplayer Modes (`A/shadow-mario-ai-multiplayer`)
+- [x] `IAIPolicy` seam: `AIController` senses and actuates, the policy decides,
+      so a trained network can replace the heuristic without touching the loop
+- [x] `HeuristicPolicy` — utility-scored direction, obstacle/gap/threat jumping,
+      three archetypes as reward weightings
+- [x] Difficulty table from the plan: vision radius, reaction latency and
+      epsilon noise per tier, with the allowed-controls gating
+- [x] Four modes selectable from a multiplayer menu page: Versus (human or CPU),
+      Co-op, Shadow Chase. Split-screen deliberately absent rather than shown
+      disabled — `Camera` holds one non-movable `sf::View` and every screen-space
+      overlay would need to learn about viewports first.
+- [x] Per-mode GUI: mode-aware HUD, mode-aware game-over headline, both pads on
+      a Controls page with P2 bindings persisted, minimap rival/shadow markers,
+      ImGui panel for every new tunable
+- [x] Observed running: a Hard Hunter abandons the route and comes back for
+      Player 1 while a Normal Speedrunner climbs away to the right.
+      See [docs/verification/versus_cpu_hunter.png](docs/verification/versus_cpu_hunter.png).
+- [ ] A\* pathfinding on `TileMap` — not done, and not needed yet: the policy
+      reasons locally off its vision grid. Deliberately left unwritten rather
+      than shipped inert.
+- [ ] Split-screen Speedrun mode (plan §1.2) — its own proposal; see above.
 
 ### Bonus D — Dynamic Lighting (`feature/dynamic-lighting`)
 - [ ] GLSL fragment shader for radial light

@@ -1,3 +1,4 @@
+#include "Core/InputManager.hpp"
 #include "Utils/MapEditor.hpp"
 #include "Utils/Constants.hpp"
 #include "Entities/Entity.hpp"
@@ -5,8 +6,10 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include <imgui.h>
-#include <iostream>
+#include <algorithm>
+#include <cfloat>
 #include <cmath>
+#include <iostream>
 
 MapEditor::MapEditor() {
     m_active = false;
@@ -85,16 +88,16 @@ void MapEditor::update(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& e
     if (camera) {
         camera->setBoundsEnabled(false); // PlayingState re-enables on exit
         float panSpeed = 650.0f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::A) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Left)) {
             camera->move(sf::Vector2f(-panSpeed * dt, 0.0f));
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::D) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Right)) {
             camera->move(sf::Vector2f(panSpeed * dt, 0.0f));
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::W) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Up)) {
             camera->move(sf::Vector2f(0.0f, -panSpeed * dt));
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+        if (InputManager::getInstance().isHeld(sf::Keyboard::Key::S) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Down)) {
             camera->move(sf::Vector2f(0.0f, panSpeed * dt));
         }
 
@@ -204,6 +207,11 @@ void MapEditor::render(sf::RenderTarget& target, const TileMap& tileMap, const s
 void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities) {
     if (!m_active) return;
 
+    // Right-hand column, clear of the navigation and generator panels on the
+    // left. With no position of its own this window opened at ImGui's default
+    // spot and sat underneath "Gameplay Controls & Navigation".
+    ImGui::SetNextWindowPos(ImVec2(912.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 600.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin("Mario Maker - In-Game Level Editor (F1)");
 
     ImGui::Checkbox("Show Grid Overlay Layout", &m_showGrid);
@@ -230,7 +238,8 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
             if (m_selectedTileType == tileTypes[i]) activeIdx = i;
         }
 
-        if (ImGui::Combo("Tile Brush", &activeIdx, tileNames, 9)) {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::Combo("##TileBrush", &activeIdx, tileNames, 9)) {
             m_selectedTileType = tileTypes[activeIdx];
         }
     } else {
@@ -243,7 +252,8 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
             if (m_selectedEntityType == entityKeys[i]) activeIdx = i;
         }
 
-        if (ImGui::Combo("Entity Brush", &activeIdx, entityLabels, 16)) {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::Combo("##EntityBrush", &activeIdx, entityLabels, 16)) {
             m_selectedEntityType = entityKeys[activeIdx];
         }
     }
@@ -266,7 +276,9 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
     ImGui::Separator();
 
     // File Import / Export
-    ImGui::InputText("Map File Name", m_levelNameInput, sizeof(m_levelNameInput));
+    ImGui::Text("Map File Name (saves/<name>.json):");
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputText("##MapFileName", m_levelNameInput, sizeof(m_levelNameInput));
     
     if (ImGui::Button("Export Level JSON")) {
         saveLevel(tileMap, entities);
@@ -284,11 +296,11 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
     }
 
     ImGui::Separator();
-    if (ImGui::Button("🎮 Switch to Play Mode (F1)")) {
+    if (ImGui::Button("Switch to Play Mode (F1)")) {
         toggleActive();
     }
     ImGui::SameLine();
-    if (ImGui::Button("🏠 Return to Main Menu")) {
+    if (ImGui::Button("Return to Main Menu")) {
         toggleActive();
         Game::getInstance().changeState(std::make_unique<MenuState>());
     }

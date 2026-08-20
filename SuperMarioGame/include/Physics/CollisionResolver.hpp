@@ -9,6 +9,7 @@ class Player;
 class Item;
 class Block;
 class Fireball;
+class Projectile;
 
 class CollisionResolver {
 public:
@@ -26,6 +27,9 @@ public:
     void resolveCharacterVsBlock(Character& character, Block& block, const CollisionInfo& info);
     void resolveItemVsBlock(Item& item, Block& block, const CollisionInfo& info);
     void resolveEnemyVsEnemy(Enemy& a, Enemy& b);
-    void resolveFireballVsEnemy(Fireball& fireball, Enemy& enemy, const CollisionInfo& info);
+    // Dispatched through the Projectile base, so a new projectile type needs no
+    // change here: it declares who it damages and what contact does.
+    void resolveProjectileVsEnemy(Projectile& projectile, Enemy& enemy);
+    void resolveProjectileVsPlayer(Projectile& projectile, Player& player);
 };
 

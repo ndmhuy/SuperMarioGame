@@ -2930,3 +2930,1122 @@ Summary of Changes:
 - Earlier in the same session: merged the level-population work (35 enemies added, 21 question blocks given contents) and fixed a live runtime bug where build/assets was a stale hand-made copy holding only levels/, so the game read out-of-date level data and audio/textures only resolved via path fallback. A POST_BUILD step now syncs the whole assets tree.
 - Branch was initially created as B/fix/... and renamed to A/fix/member-b-findings: the work is Member A's even though the findings are Member B's.
 ---
+[2026-08-19 21:05:00] Branch: A/tier1-game-loop
+Git Fingerprint: 2de9fac (before) → cd41764 (after, 4 commits, not pushed)
+Fetched Remotes: yes, 19:58 — dev was level with origin/dev (0/0)
+Prompt: Based on docs/issues/completion_plan.md, plan for the first tier and implement it.
+Files Modified:
+- NEW SuperMarioGame/include/Core/{PauseState,GameOverState,VictoryState,CharacterSelectState,OptionsState}.hpp + src/Core/*.cpp
+- NEW SuperMarioGame/include/Graphics/UiRenderer.hpp + src/Graphics/UiRenderer.cpp
+- NEW SuperMarioGame/include/Utils/LevelCatalog.hpp + src/Utils/LevelCatalog.cpp
+- NEW SuperMarioGame/tests/verify_frontend_states.cpp
+- NEW tools/powerup-frames/gen_powerup_frames.py
+- SuperMarioGame/include/Core/{IGameState,GameStateManager,MenuState,PlayingState,InputManager}.hpp + matching src/Core/*.cpp
+- SuperMarioGame/src/Core/{Game,ResourceManager}.cpp
+- SuperMarioGame/include/Entities/Flagpole.hpp, src/Entities/{Flagpole,Player,MovingPlatform}.cpp
+- SuperMarioGame/include/Utils/Serializer.hpp, src/Utils/Serializer.cpp
+- SuperMarioGame/assets/spriteSheet/player/{player.png,player.json} (regenerated: 92 base + 144 derived frames)
+- SuperMarioGame/CMakeLists.txt, tests/verify_regressions.cpp
+- TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — Game::run() pushes MenuState, which reaches
+CharacterSelectState and OptionsState; PlayingState pushes PauseState (Escape/P)
+and VictoryState (flagpole), and changes to GameOverState at zero lives.
+verify_frontend_states constructs the states directly, but it is not the only
+caller of any of them.
+Verified By: ctest (2/2 suites — verify_regressions 99/99, verify_frontend_states
+24/24) + ran the game (LAUNCH ONLY — reaches the new MenuState; this machine
+blocks both screencapture and osascript keystrokes, so pause/victory/game over
+have NOT been watched on screen. Do not tag the milestone before someone plays it.)
+Summary of Changes:
+- Tier 1 items 1-7 of docs/issues/completion_plan.md, in the order that document
+  specifies. Item 1's real blocker was GameStateManager::render drawing only the
+  top of the stack; it now walks down past overlays and draws bottom-to-top,
+  gated by a new IGameState::isOverlay(), with onSuspend/onResume for the state
+  that loses the top slot.
+- All push/pop/change are now deferred through one ordered pending-op queue.
+  Only changeState was deferred before, so a state popping itself from update()
+  was freed while its own member function was still executing — VictoryState does
+  exactly that. There is a regression case for it.
+- Six screens added/rebuilt: Pause (overlay, Resume/Save/Options/Restart/Quit),
+  Game Over (score, coins, stars, death counter, Retry Level), Victory (overlay,
+  time-bonus tally, star-coin summary, drives the existing advanceToNextLevel),
+  Character Select (Toad/Peach gated on the existing achievements), Menu
+  (SFML, keyboard, parallax backdrop) and Options & High Scores.
+- MenuState's rewrite closes X-1's neighbour X-5: the old screen made five
+  changeState calls from inside render(), because an ImGui button is a draw call.
+  Nothing in the new front-end touches ImGui.
+- Serializer gained a high-score table (saves/highscores.json, sorted, capped at
+  10, rejects zero-score runs). Escape no longer quits from Game::run — it is the
+  pause key, and quitting is an explicit menu choice.
+- Assets: the flagpole drew NOTHING because Flagpole named "flag_white" and
+  "flag_reddish_white", which are in no atlas. It now uses pole_flag_green plus
+  the five-frame full_flag_pole_0..4 descent that was already shipped. Super,
+  Fire and Cape had no art at all and rendered as small Mario; a new documented
+  generator derives 144 frames from the _small set (2x vertical for Super to
+  match the 24x30 -> 24x60 hitbox ratio, palette swaps for Fire and Cape) and
+  Player::refreshStateAnimations now selects them, with a hasFrame fallback.
+- FOUND AND FIXED A PRE-EXISTING BUG: the game aborted on exit with SIGABRT
+  (exit 134). Game::shutdown never released the ResourceManager's sf::Texture
+  and sf::Font objects, so they were destroyed during static destruction after
+  the graphics context. It printed its entire clean-shutdown log and *then* died,
+  which is why no session ever caught it. Confirmed pre-existing (Entity/Player
+  untouched by this work) and confirmed fixed with a probe of the real
+  startup/shutdown path. The three placeholder statics inside ResourceManager's
+  getters had the same defect and now live in the maps clear() empties.
+- ALSO PRE-EXISTING, NOT FIXED: tests/verify_enemies.cpp,
+  verify_enemies_new.cpp and verify_blocks_new.cpp do not compile — Entity's
+  members became protected in 72c53d6, long after d954a66 last touched those
+  files, and TestPlayer is abstract. They are not registered with ctest, so
+  `make` (all targets) fails while `make SuperMarioGame` and both ctest suites
+  are clean. Left alone as out of Tier 1 scope.
+- Left open deliberately: 7.1 attract mode (needs 10.3 Replay) and Load Game,
+  7.5 World Map entry (needs 7.3). Recorded next to the ledger checkboxes.
+- Branch was created as B/tier1-game-loop from the .member_profile.json in the
+  tree, which turned out to be the AGENTS.md example schema rather than a real
+  profile; renamed to A/tier1-game-loop when the user corrected it.
+---
+[2026-08-19 23:40:00] Branch: A/tier2-bosses (off A/tier1-game-loop)
+Git Fingerprint: cd41764 (before) → 8c7eccf (after, 6 commits, not pushed)
+Fetched Remotes: yes, 19:58 (same session as the Tier 1 entry; no remote activity since — dev was 0/0 against origin/dev)
+Prompt: Show me the diff, always; now plan for the next tier — then implement it (Boom Boom art from Boomerang Bro, arenas appended to existing levels, implement rather than stop at the plan).
+Files Modified:
+- NEW SuperMarioGame/include/Entities/{Projectile,Boss,Bowser,BossFireball,BoomBoom}.hpp + src/Entities/*.cpp
+- NEW SuperMarioGame/include/Core/{DifficultyStrategy,WorldMapState}.hpp + src/Core/*.cpp
+- NEW SuperMarioGame/include/Utils/CampaignProgress.hpp + src/Utils/CampaignProgress.cpp
+- NEW tools/boss-frames/gen_boomboom_frames.py
+- SuperMarioGame/include/Entities/{Fireball,Hammer,Enemy,EntityFactory,IMovementStrategy,ProximityTriggerStrategy,Thwomp}.hpp
+  + Patrol/Chase/Fly/Linear/HammerThrow/TetheredChase/TimerEmergence Strategy.hpp
+- SuperMarioGame/src/Entities/{Fireball,Hammer,Enemy,EntityFactory,ProximityTriggerStrategy,Thwomp}.cpp
+- SuperMarioGame/include/Physics/CollisionResolver.hpp + src/Physics/CollisionResolver.cpp
+- SuperMarioGame/include/Core/{Game,PlayingState,DevPanel}.hpp + src/Core/{Game,PlayingState,DevPanel,CharacterSelectState}.cpp
+- SuperMarioGame/include/Graphics/Camera.hpp + src/Graphics/Camera.cpp
+- SuperMarioGame/src/Utils/{LevelLoader,SerializationUtils}.cpp
+- SuperMarioGame/assets/levels/{level_2,level_3}.json (boss + arena, flagpole moved past it)
+- SuperMarioGame/assets/spriteSheet/enemy_projectile/{enemy_projectile.png,.json} (4 derived frames appended)
+- SuperMarioGame/tests/{verify_regressions,verify_frontend_states}.cpp
+- TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — Game::run() -> MenuState -> CharacterSelectState ->
+WorldMapState -> PlayingState, which loads level_2/level_3 and therefore
+constructs BoomBoom/Bowser through EntityFactory; the boss HUD, the arena lock
+and the difficulty modifiers all run inside PlayingState::update. The AI overlay
+is behind a DevPanel checkbox, which is also on the render path.
+Verified By: ctest (2/2 suites — verify_regressions 165/165, verify_frontend_states
+24/24) + ran the game (LAUNCH ONLY — reaches MenuState; this machine blocks
+screencapture and osascript keystrokes, so NEITHER BOSS HAS BEEN FOUGHT ON
+SCREEN. The fights were driven headlessly instead: a throwaway probe loaded
+level_3, stomped Bowser five times and watched the phase change, the fire breath
+and the BossDefeated publish. Play both before tagging.)
+Summary of Changes:
+- Tier 2 of docs/issues/completion_plan.md, all five items plus a foundation
+  step the plan did not list. Neither boss could be written until a boss could
+  exist: Boss (health, i-frames, phases, defeat sequence, arena) over Enemy, a
+  producer for the HUD's long-orphaned boss fields, and an arena lock built on
+  Camera::setBounds.
+- 9.3 Bowser: five hits, phase 2 at half health adding a leap and faster fire,
+  immune to fireballs, 5000 points, arena at the end of level_3 with the
+  flagpole moved past it so he cannot be walked around. Art already existed.
+- 9.2 Boom Boom: three stomps, one escalation step per hit (phaseForHealth
+  overridden — Boss's default half-health split cannot express three steps),
+  charge/spin/recover, arena at the end of level_2. No Boom Boom art exists, so
+  tools/boss-frames/ derives four frames from Boomerang Bro: scaled 1.75x and
+  recoloured, linework left alone. Append-only, unlike the player-atlas tool —
+  repacking a seventeen-enemy atlas to add one boss risks every other enemy.
+- 9.4 DifficultyStrategy: the difficulty string had NO consumer at all before
+  this. Now drives enemy speed, starting lives, the level clock and boss health
+  (Bowser is 4/5/7 stomps). Applied through a new PlayingState::admitEntity —
+  one door every entity passes through — rather than in EntityFactory, which
+  should not know a Game singleton exists.
+- 9.1 remainder: Thwomp chose its sprite from `position.y > 140.0f`, a world
+  coordinate, so one placed low in a level rendered as permanently slamming. The
+  strategy's states are now a named enum and Thwomp asks the machine. All eight
+  strategies name themselves for a new DevPanel AI overlay.
+- 7.3 World Map: needed a real progress model first. Serializer's progress block
+  FABRICATES levelsCompleted as [1..levelId-1] and only stores the current
+  level's star coins. CampaignProgress (saves/progress.json) records the real
+  thing; unlocking is derived from completion flags rather than stored, and star
+  coins merge on replay so a worse second run cannot take one away.
+- TWO MORE PRE-EXISTING BUGS FOUND AND FIXED: CollisionResolver static_cast
+  every Projectile to Fireball, so a Hammer Bro's hammer killed other enemies
+  (formally UB, and wrong behaviour either way) — now dispatched through a real
+  Projectile base that declares who it may damage, so a fourth projectile needs
+  no resolver change. And Hammer::setupAnimations was never called: the
+  animation dispatcher tested Player/Enemy/Item/Block and hammers fell through
+  to its "unknown entity type" branch, drawing a placeholder circle.
+- Left open deliberately: 9.4's "balance entity distributions across all levels"
+  (the per-level enemy counts have not been retuned against the new modifiers),
+  recorded unticked next to its checkbox.
+- Still open from Tier 1 and unrelated to this work: verify_enemies.cpp,
+  verify_enemies_new.cpp and verify_blocks_new.cpp do not compile (Entity's
+  members went protected in 72c53d6). Not registered with ctest, so `make
+  SuperMarioGame` and both suites are clean while `make` with no target is not.
+---
+[2026-08-20 01:20:00] Branch: A/tier3-systems (off A/tier2-bosses)
+Git Fingerprint: 2537126 (before) → e0bb734 (after, 6 commits, not pushed)
+Fetched Remotes: yes, 19:58 — no remote activity since; dev remains 0/0 against origin/dev
+Prompt: Four reported bugs (A/D dead, fireball aesthetics, fire-mode gate, Mega size), then plan Tier 3 and implement groups A and B.
+Files Modified:
+- NEW SuperMarioGame/include/Utils/{ObjectPool,EntityConfig}.hpp + src/Utils/EntityConfig.cpp
+- NEW SuperMarioGame/include/Graphics/BackgroundRenderer.hpp + src/Graphics/BackgroundRenderer.cpp
+- SuperMarioGame/include/Entities/{Fireball,Hammer,BossFireball,Enemy,BulletBill,ChainChomp,HiddenBlock,IceBlock,ConveyorBelt,EntityFactory}.hpp
+- SuperMarioGame/src/Entities/{Fireball,Hammer,BossFireball,Player,Mario,Enemy,Boss,Bowser,BoomBoom,IPlayerState,Flagpole,EntityFactory,HiddenBlock,Thwomp,PiranhaPlant,BulletBill,ChainChomp,Lakitu,KoopaParatroopa,HammerBro}.cpp
+- SuperMarioGame/src/Entities/{Patrol,Fly,Chase,Linear,TetheredChase,ProximityTrigger}Strategy.cpp
+- SuperMarioGame/include/Graphics/Camera.hpp + src/Graphics/Camera.cpp
+- SuperMarioGame/include/Core/{Game,PlayingState,OptionsState,InputManager}.hpp + matching src
+- SuperMarioGame/include/Utils/{TileMap,Serializer}.hpp + src/Utils/{TileMap,Serializer,SerializationUtils,LevelLoader,CampaignProgress}.cpp
+- SuperMarioGame/assets/config/entities.json (3 -> 13 entries, generated from code)
+- SuperMarioGame/assets/levels/*.json (themes corrected; level_3 water -> lava)
+- SuperMarioGame/tests/verify_regressions.cpp, TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — the pools, the config, the backdrop, lava and the
+camera lookahead all run inside PlayingState, which Game::run reaches through
+MenuState -> CharacterSelect -> WorldMap.
+Verified By: ctest (2/2 — verify_regressions 245/245, verify_frontend_states
+24/24) + ran the game (launch only, reaches MenuState) + rendered each backdrop
+theme to an off-screen RenderTexture and LOOKED at the PNGs. That last technique
+is new this session and caught a real defect the tests could not: the Ice theme
+was drawing green hills, because the layer tint is a multiply and multiply
+cannot whiten a green sprite. Use it for visual work — this machine blocks
+screen capture and keystroke injection, but off-screen rendering works fine.
+Summary of Changes:
+- FOUR REPORTED BUGS, all confirmed:
+  * A/D dead: TWO config files existed. Serializer used bare relative paths, so
+    launching from build/ read build/saves/config.json (left/right rebound to
+    arrows) while the source root had the correct one. All save files now
+    resolve through Serializer::saveDirectory(), which refuses a saves/ inside a
+    CMake build tree. Compounding it, my own Options screen armed a key capture
+    on Enter that swallowed the *next* key, so navigating away with an arrow
+    silently rebound it — now it reports the clash, applyBindings swaps the
+    displaced action onto the vacated key instead of orphaning it, and there is
+    a RESET CONTROLS row.
+  * Fire gate: Player::shootFireball had NO state check. Every form could shoot,
+    which made the Fire Flower pointless. Now gated on FireState through
+    getBaseState(), so a Star/Mega-wrapped Fire Mario keeps his shots.
+  * Fireball aesthetics: the atlas has shipped a 4-frame spin and a 3-frame
+    impact burst all along; Fireball drew hand-rolled CircleShapes, and
+    PlayingState pushed it onto the entity list bypassing admitEntity so it
+    never had an animator at all.
+  * Mega: MegaDecorator::getSize() returned a 128x128 SQUARE. Nothing the player
+    can be is square, so drawSprite aspect-fitted the sprite to ~39px inside a
+    128px box and the player collided ~45px either side of where they appeared.
+    Collecting a Fire Flower while giant is what made it visible. SPEC gives
+    Mega as "4 tiles (128px)" — a height — so it now scales the wrapped form.
+- ALSO FOUND: nine of thirteen enemies left Character::speed at zero and each
+  strategy substituted its own literal. getSpeed() reported 0 for enemies that
+  were visibly moving, and the difficulty modifier I shipped last session
+  multiplied zero by 1.3 — Hard only ever sped up four of thirteen. Fixed with
+  per-enemy displacement unchanged to four decimals.
+- TIER 3 GROUP A: ObjectPool<T> trading in unique_ptr so PlayingState's
+  ownership is untouched; 50 shots now construct 3 objects. entities.json
+  expanded 3 -> 13 and actually read.
+- TIER 3 GROUP B: parallax backdrop (there was none — a flat cornflower clear),
+  animated water, new TileType::Lava that burns, camera lookahead and scroll
+  modes.
+- FOUR MORE PRE-EXISTING BUGS surfaced by that work: five entities wrote
+  "unknown" as their type name and loaded back as Goombas (map-editor data
+  loss); every level file claimed theme "overworld"; Level 3's lava pit was
+  water; and the boss-arena camera chased while clampToBounds centred, so the
+  two fought each frame.
+- Still open and unrelated: verify_enemies.cpp, verify_enemies_new.cpp and
+  verify_blocks_new.cpp do not compile (Entity members went protected in
+  72c53d6). Not registered with ctest.
+---
+[2026-08-20 03:10:00] Branch: A/tier3-systems
+Git Fingerprint: e0bb734 (before) → a64691e (after, 6 further commits, not pushed)
+Fetched Remotes: yes, 19:58 — no remote activity since; dev remains 0/0 against origin/dev
+Prompt: Carry on (Tier 3 groups C and D).
+Files Modified:
+- NEW SuperMarioGame/include/Graphics/ColorPalette.hpp + src/Graphics/ColorPalette.cpp
+- NEW SuperMarioGame/include/Utils/MetaGame.hpp + src/Utils/MetaGame.cpp
+- NEW SuperMarioGame/include/Core/{ConsoleCommand,DebugConsole,ReplayRecorder}.hpp
+  + src/Core/{DebugConsole,ReplayRecorder}.cpp
+- SuperMarioGame/include/Core/PlayingState.hpp + src/Core/PlayingState.cpp
+- SuperMarioGame/src/Core/{Game,MenuState,SoundManager}.cpp
+- SuperMarioGame/include/Utils/CampaignProgress.hpp + src/Utils/CampaignProgress.cpp
+- SuperMarioGame/src/Graphics/Minimap.cpp
+- SuperMarioGame/tests/verify_regressions.cpp, TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — the console is toggled from Game::run so it works in
+every state; the palette is read by Minimap and the debug overlay; NG+ and the
+daily challenge are on the main menu; replays record from PlayingState's existing
+snapshot site; 2P versus is a main-menu row.
+Verified By: ctest (2/2 — verify_regressions 303/303, verify_frontend_states
+24/24) + ran the game (launch only, reaches MenuState). NOT verified by playing:
+nobody has driven two players, watched a replay play back, or typed into the
+console on screen. The console is covered by driving submit() directly, and the
+replay by recording, saving, loading and walking the frames headlessly.
+Summary of Changes:
+- 11.4 Accessibility: the colourblind flag had NO consumer — the same failure as
+  the difficulty setting. ColorPalette resolves colours by meaning, and the
+  minimap (player green, enemies red — the most common form of colour blindness
+  is exactly that pair) now uses it. Player is the *bright* sky blue and enemy
+  the darker vermilion: hue separation alone fails in greyscale, and the
+  regression case asserting a >20 luminance gap is what rejected my first
+  palette, which had a gap of 18. Audio cues: star coins sounded identical to
+  ordinary coins, checkpoints were silent.
+- 11.3 Meta-game: New Game+ (counter in the progress file, campaign resets, star
+  coins and achievements survive, enemies +15%/cycle capped at four so they
+  cannot outrun collision) and a date-seeded daily challenge. MapGeneratorConfig
+  had carried an unused `seed` field all along. Level mirroring NOT done — a flip
+  has to move the spawn, flagpole, every pipe exit and the boss arena, and one
+  mistake makes a level unfinishable.
+- 10.4 Debug console: ten commands over a second Command receiver. Two things
+  that would have made it unusable: the toggle is handled before states see the
+  event so it cannot be shadowed, and PlayingState stops polling held keys while
+  it is open — those are read from the keyboard, not delivered as events, so
+  typing "difficulty hard" would otherwise walk the player on every "d".
+- 10.3 Replay: extends the existing Memento rather than adding a second capture
+  path. Applying a snapshot was already written inside the rewind branch and is
+  now shared as PlayingState::applySnapshot, which carries audit A-5's
+  restore-by-id rule to the new caller for free. State rather than inputs,
+  because this simulation is not deterministic.
+- 11.1 Two-Player: InputManager has had two binding sets and registerPlayer(c,1)
+  since it was written with nothing ever using them. Shared camera on the
+  midpoint with an edge tether; P1 stays m_player so single-player paths are
+  untouched; one player running out no longer ends the run.
+- Tier 3 is complete. Not done inside it, all recorded next to the ledger boxes:
+  console autocomplete, NG+ mirroring, sprite recolouring, per-row menu cues,
+  bubble/ember particles.
+- Tier 4 (hygiene) is untouched: 207 tracked build artefacts, resolvePath in the
+  last 4 files, RAII EventBus tokens, and fast-forwarding main — which is 185
+  commits behind and is the user's call, not the agent's.
+---
+[2026-08-20 04:30:00] Branch: A/tier3-systems -> dev -> main
+Git Fingerprint: dev 2de9fac -> 679d301; main 53be790 -> 679d301 (both fast-forward, unpushed)
+Fetched Remotes: yes, 04:22 — dev and main were both level with their remotes before the merge
+Prompt: Do the rest (Tier 4 hygiene, including main).
+Files Modified:
+- .gitignore (.DS_Store, imgui.ini)
+- 208 build artefacts untracked via `git rm -r --cached` (205 clangd .idx, 3 .DS_Store) + imgui.ini
+- SuperMarioGame/include/Graphics/{SpriteSheet,Camera}.hpp + src/Graphics/{SpriteSheet,ParticleSystem}.cpp
+- SuperMarioGame/include/Core/EventBus.hpp + src/Core/EventBus.cpp
+- SuperMarioGame/src/Core/{Game,PlayingState,MenuState,CharacterSelectState,WorldMapState}.cpp
+- SuperMarioGame/src/Utils/LevelLoader.cpp, tests/verify_regressions.cpp
+- TASKS.md, docs/issues/completion_plan.md
+Reachable From Main: yes — literally: main now points at this work.
+Verified By: ctest (2/2 — verify_regressions 314/314, verify_frontend_states
+24/24) + rebuilt warning-clean and ran the game from main (launch only, reaches
+MenuState). The merge rule's "rebuild plus run the game afterwards" was done on
+main after the fast-forward, not before.
+Summary of Changes:
+- MERGE (user-directed, per Directive 1's exception): A/tier3-systems -> dev and
+  dev -> main, both --ff-only. NO CONFLICTS WERE POSSIBLE: the three task
+  branches are stacked, so tier1 and tier2 are ancestors of tier3, dev was an
+  ancestor of tier3 and main an ancestor of dev — all four checked with
+  `git merge-base --is-ancestor` before touching anything. main moved 206
+  commits and is now level with dev. Tagged v1.0-complete.
+- NOT PUSHED. Directive 1: "Never push without being asked." main and dev are
+  206 and 27 commits ahead of their remotes respectively, waiting for the user.
+- X-8: the count was 208, not 207 — 205 clangd index files, 3 .DS_Store. Note
+  for the record: .gitignore had listed .cache/ and build/ for a long time, which
+  does nothing for files already in the index. That is why adding the rule never
+  fixed it. imgui.ini untracked too; it is rewritten every run and made every
+  session start with a dirty tree.
+- A-13: the audit said four files guessed asset paths; it was SEVEN, and three of
+  those were screens I added in Tiers 1 and 3 that had each copied the same
+  three-candidate lambda. So this item got worse before it got better. Closed at
+  the source: SpriteSheet::loadAtlas replaces four copies, everything else goes
+  through ResourceManager::resolvePath. Converting Game's lists exposed a load
+  that had been dead for a long time — tileset_blocks pointed at a folder that
+  had been renamed to "[Deprecated] tileset", and the exists() guard on every
+  candidate meant it failed silently.
+- X-7: EventBus::publish deep-copied its subscriber vector on EVERY event — a
+  std::function heap allocation per subscriber, on a bus that fires for every
+  coin, stomp, block and jump. Unsubscribe now tombstones, so publish walks the
+  live vector. A handler subscribing during delivery no longer receives the event
+  it is handling. Camera's defaulted move operations are deleted: it registers
+  this-capturing lambdas, so a move left the callbacks pointing at the old
+  object. EventBus::ScopedSubscription is the RAII token the audit asked for.
+- ALL FOUR TIERS OF docs/issues/completion_plan.md ARE NOW COMPLETE.
+- STANDING CAVEAT, unchanged and important: none of Tiers 1-4 has been verified
+  by playing. This environment blocks screen capture and keystroke injection.
+  Nobody has fought Bowser or Boom Boom, driven two players, watched a replay,
+  typed in the console, or seen the pause/victory/game-over screens on screen.
+  Everything is covered by 338 headless checks and by rendering to off-screen
+  targets. Play it before relying on the tag.
+---
+[2026-08-20 04:45:00] Branch: main -> dev (correcting a rule violation)
+Git Fingerprint: main 59794fe (unchanged) → dev 679d301 → 59794fe
+Fetched Remotes: n/a — no repository state was read or reported; this entry
+corrects a mistake made in the entry above.
+Prompt: (self-correction, no new user prompt)
+Files Modified: none — branch pointer and tag only
+Reachable From Main: n/a — not runtime code
+Verified By: n/a — no code changed. The build and tests from the previous entry
+still stand; the tree is byte-identical.
+Summary of Changes:
+- I VIOLATED "NO DIRECT BRANCH COMMITS TO MAIN". After fast-forwarding main I was
+  still standing on it, and committed the Tier 4 documentation there (59794fe)
+  instead of making it on dev and fast-forwarding again. The rule exists so main
+  only ever receives delivery merges.
+- Remediation: `git branch -f dev 59794fe`, a fast-forward, so dev now contains
+  the commit and the two branches are level again. History was not rewritten —
+  the commit stays where it is, and this entry records why it is there.
+- The v1.0-complete tag was re-pointed from 679d301 to 59794fe so the milestone
+  includes its own documentation. Safe to re-tag: nothing is pushed.
+- Working on dev from here, not main.
+[2026-08-20 05:40:00] Branch: A/complete-game-tiers-1-4 (off main)
+Git Fingerprint: 4224b0a (before) → 7b1e75f (after, 1 commit, PUSHED)
+Fetched Remotes: yes, 05:12
+Prompt: (screenshots) not balanced / background arbitrary / movement buggy / generate & edit not working; then: create PR for all what we have done.
+Files Modified:
+- SuperMarioGame/src/Core/{MenuState,Game,PlayingState,DevPanel}.cpp
+- SuperMarioGame/include/Core/{MenuState,Game}.hpp
+- SuperMarioGame/include/Graphics/BackgroundRenderer.hpp + src/Graphics/BackgroundRenderer.cpp
+- SuperMarioGame/src/Utils/MetaGame.cpp
+Reachable From Main: yes — all of it is menu, window and input code on the live path.
+Verified By: ctest (2/2 — 314 + 24) + rendered the menu to an off-screen target
+and looked at it before and after. NOT verified by playing: the reporter's two
+remaining symptoms could not be reproduced here.
+Summary of Changes:
+- FIXED, confirmed from the screenshot: the main menu panel was a hardcoded
+  250px for what had become 7 rows, so the last two rendered outside it and on
+  top of the hint line. Height now derives from the row count. "DAILY CHALLENGE"
+  also printed through its own date; the panel is wider and the date no longer
+  repeats the word.
+- FIXED: the menu's backdrop was hand-drawn CircleShape blobs from before
+  BackgroundRenderer existed. It now uses the same parallax backdrop as the
+  levels, with a new opt-in ground band (levels have a tilemap to fill that area;
+  menus do not, which is why the hills floated).
+- FIXED: dev panels all opened at ImGui's default position, stacked on each
+  other over the player. Assigned positions, collapsed by default.
+- FIXED: the window was resizable with no Resized handler, so dragging it
+  stretched the fixed 1280x720 layout — the likely reason the HUD was clipped in
+  the screenshot. Made fixed-size; letterboxing cannot work while every state
+  resets to getDefaultView(), and resolution-independent layout is a much larger
+  change.
+- MOVEMENT: could NOT reproduce. I verified the persisted bindings load intact
+  (A/D/W/F) and drove MoveRightCommand through the real PhysicsEngine — 140px in
+  one second at walk speed 150. Both correct. The plausible remaining cause was
+  input capture, so held-key polling now requires the console closed, ImGui not
+  wanting the keyboard, and the window focused: sf::Keyboard::isKeyPressed reads
+  GLOBAL key state, so the player was walking while ImGui fields had focus and
+  while the game was in the background. Reported to the user as unconfirmed.
+- GENERATE & EDIT: could NOT reproduce. MapGenerator produces a winnable 200x23
+  level with a player for all four themes, and the menu routes GenerateEdit to
+  PlayingState(startInEditor=true, isProcedural=true). Asked the user what they
+  actually see.
+- PUSHED (first push of this work, user asked for a PR): branch
+  A/complete-game-tiers-1-4, PR #12 into dev. 31 commits, 142 files,
+  +13358/-1239. main and dev remain unpushed locally.
+---
+[2026-08-20 06:20:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 7b1e75f (before) → c14da88 (after, 2 commits, pushed)
+Fetched Remotes: n/a — no repository state read or reported this session beyond the PR update.
+Prompt: can jump but cannot move left or right when A or D
+Files Modified:
+- SuperMarioGame/include/Core/InputManager.hpp + src/Core/InputManager.cpp
+- SuperMarioGame/src/Core/{Game,PlayingState}.cpp
+- SuperMarioGame/src/Utils/MapEditor.cpp, src/Entities/{Pipe,Peach}.cpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — this is the live input path for every held action.
+Verified By: ctest (2/2 — verify_regressions 321/321, verify_frontend_states
+24/24). The new case drives MoveRight through InputManager::update from a
+synthetic KeyPressed alone, which the old polling path could not do. NOT
+verified by playing — the reporter should confirm A/D now walk.
+Summary of Changes:
+- ROOT CAUSE FOUND, and the user's one-line report is what found it. "Can jump
+  but cannot move left or right" separates the two input paths exactly: jump is a
+  press mapping driven by events, left/right are hold mappings driven by polling
+  sf::Keyboard::isKeyPressed. The event path worked; the polling path did not.
+- isKeyPressed reads GLOBAL OS key state, not our window's, and on macOS needs
+  Input Monitoring permission. Without it it returns false forever and reports
+  nothing. That is why this looked intermittent and why no log ever showed it —
+  and why my two earlier investigations (bindings correct, MoveRightCommand
+  moves the player 140px/s through the real physics) both came back clean: they
+  tested everything EXCEPT the OS call.
+- Held-key state now comes from the event stream, recorded in InputManager.
+  Window-scoped by construction, no permission needed. FocusLost clears the set,
+  because a release that lands while another window has focus never reaches us.
+- FIVE more dead features found with the same cause: the time-rewind key, the map
+  editor's camera pan (all four arrows), Pipe's downward warp and Peach's float.
+  All of them silently did nothing. No isKeyPressed call remains.
+- Removed the window-focus guard added an hour earlier; it was guarding a symptom
+  of this root cause and the event model makes it redundant.
+- LESSON worth keeping: I twice investigated "movement is buggy" and twice
+  reported the code correct, because I tested the game's own logic and never the
+  platform call underneath it. The user's precise symptom did in one line what
+  two rounds of my probing did not.
+---
+[2026-08-20 07:10:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: c41f221 (before) → a4e85dc (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin/A/complete-game-tiers-1-4
+was 0/0 before this commit.
+Prompt: [screenshot of the map editor: black screen with grid, two overlapping
+ImGui windows, duplicated navigation buttons, "?" glyphs] "fix this and
+everything else you observe above"
+Files Modified:
+- SuperMarioGame/src/Core/{PlayingState,Game,DevPanel,DebugConsole}.cpp
+- SuperMarioGame/src/Utils/MapEditor.cpp
+- SuperMarioGame/tests/verify_frontend_states.cpp
+- .gitignore
+Reachable From Main: yes — main() → Game::run → MenuState → "Level Editor" or
+"Generate & Edit" → PlayingState(startInEditor=true). This is the path that was
+broken; F1 from an already-running level was not.
+Verified By: ctest (2/2 — verify_regressions 321/321, verify_frontend_states
+34/34, up from 24) plus off-screen RenderTexture captures inspected as PNGs for
+all four generator themes. NOT verified by playing the built game.
+Summary of Changes:
+- ROOT CAUSE of "Generate & Edit is not working": not the generator. enter()
+  starts a 0.45s fade-in; render() draws that overlay after the world; the map
+  editor branch of update() returned before ScreenTransitionManager::update(),
+  so the fade sat at full black forever. The editor grid draws after the overlay
+  — hence black screen WITH grid, exactly as reported.
+- HOW IT WAS FOUND, and the method worth keeping: I built a throwaway harness
+  that rendered the real PlayingState in Generate&Edit mode to an off-screen
+  RenderTexture and printed a colour histogram. It came back with exactly two
+  colours: #000000 and #2D2D2D. 0x2D is 45, and the editor grid is white at
+  alpha 45 over black. That one number identified the entire remaining content
+  of the frame as "the grid, over nothing" and pointed straight at an opaque
+  overlay rather than a missing world. Speculating from the screenshot had me
+  looking at the generator and the camera, both of which were fine.
+- SECOND BUG, same report: MapGenerator's theme never reached BackgroundRenderer.
+  Castle/ice/underground generated levels were drawn against the overworld blue
+  sky and green hills. Both procedural paths (enter and regenerate) now set it.
+- THIRD BUG, and the reason my earlier panel-layout work had no visible effect:
+  a stale untracked imgui.ini at the repo root held Pos=60,60 for all six dev
+  windows. ImGui's saved layout beats every ImGuiCond_FirstUseEver in the code,
+  so the positions I set were being silently discarded on this machine. The ini
+  filename is now versioned (imgui_layout_v2.ini) and the unversioned file is
+  removed on startup, so a future default-layout change can retire the old file
+  instead of fighting it. Worth remembering: ImGuiCond_FirstUseEver is not a
+  default, it is a default *for a machine that has never run the program*.
+- Smaller fixes from the same screenshot: the editor window asked for no
+  position and opened under the navigation panel; two editor buttons carried
+  emoji that the ASCII default font drew as "?" (and one em-dash in a debug
+  console message did the same); the navigation panel duplicated the editor's
+  own two navigation actions under different names; combo previews were clipped
+  mid-word because the trailing label eats the window width.
+- Two bugs found while building the harness rather than from the report:
+  regenerateProceduralLevel kept the previous level's spawn point and
+  checkpoint, so death respawned into geometry that no longer existed; and
+  getMouseWorldPosition asserted on a zero-size window, which is what stopped
+  the editor being driveable headlessly at all.
+- NEW REGRESSION CASE covers the report end to end: render the editor for each
+  of the four generator themes and assert the dominant on-screen colour is that
+  theme's sky, with a control frame sampled mid-fade so deleting the overlay
+  outright could not pass it. First version of that test sampled pixel (8,8) and
+  failed for underground and castle — those levels have a solid tile ceiling
+  across the top of the frame. The test was wrong, not the fix.
+---
+[2026-08-20 08:40:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: d529f25 (before) → 61c5b19 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin/A/complete-game-tiers-1-4
+was 0/0 before this commit.
+Prompt: "The position of the boss is not inside the map, so it keep falling. Many
+entities tend to move to the void. I see that if putting the sub level (warped by
+the pipe) into the path, then it diverge and weird. The fireball must kill the
+enemy. What will happen after kill the koopa troopa that the character hold the
+shells, what to do with it" + mid-turn: "about the cape state, it seems that we
+haven't done the logic"
+Files Modified:
+- SuperMarioGame/assets/levels/*.json (all seven)
+- SuperMarioGame/include/Entities/{Goomba,KoopaTroopa,Spiny,Player,IPlayerState}.hpp
+- SuperMarioGame/include/{Core/InputManager,Utils/LevelCatalog}.hpp
+- SuperMarioGame/src/Entities/{Goomba,KoopaTroopa,KoopaParatroopa,Spiny,Player,Peach,PatrolStrategy,IPlayerState}.cpp
+- SuperMarioGame/src/{Physics/CollisionResolver,Core/InputManager,Core/DevPanel,Core/PlayingState,Utils/LevelCatalog}.cpp
+- SuperMarioGame/tests/verify_regressions.cpp, tests/verify_frontend_states.cpp
+Reachable From Main: yes — all six are on the normal play path.
+Verified By: ctest (2/2 — verify_regressions 374/374, up from 321;
+verify_frontend_states 34/34). Level geometry checked by loading each JSON
+through the real LevelLoader and asserting against the loaded TileMap. NOT
+verified by playing the built game.
+Summary of Changes:
+- ROOT CAUSE, fireballs: Goomba, KoopaTroopa and Spiny each redeclared
+  `bool m_isFlipped`, SHADOWING Enemy::m_isFlipped. onHitByFireball() set the
+  derived copy; Enemy::isDeadOrDying() and Enemy::collidesWithTiles() read the
+  base one. So the hit registered, the enemy was launched into the air, and then
+  it landed and walked on. Deleted the three shadow members and their shadowing
+  isFlipped() accessors.
+- WHY IT SURVIVED A PASSING TEST: verify_fireball's "Test 4: Fireball vs Enemy
+  Collision Impact" called resolveFireballVsEnemy directly (bypassing the
+  category dispatch the game uses) and asserted only that the FIREBALL died. It
+  never looked at the enemy. A test that names the thing it is testing and then
+  checks the other object is worth nothing. The replacement drives
+  PhysicsEngine -> broadphase -> resolveEntityVsEntity -> onHitEnemy and asserts
+  the Goomba dies, with a hammer as the negative control.
+- CapeState had enter/exit/handleInput/update as EMPTY BODIES — the one power-up
+  whose entire point is a behaviour had none. Implemented glide (hold jump while
+  falling -> 90px/s against a 600 terminal velocity) and the cape spin (fire
+  button, 0.35s, defeats enemies on contact). P-meter flight deliberately left
+  out: it needs a run-charge meter, not a state behaviour.
+- Bosses: both were authored INSIDE a solid 5x5 pillar with a one-tile slot;
+  the audit script confirmed Bowser was inside a ground tile. Pillar removed,
+  both stand on the arena floor, arena narrowed to 185..195 so the flagpole at
+  197 is outside the boss lock.
+- METHOD NOTE, and a mistake worth recording: my first level audit reported
+  "BOTTOMLESS SPANS" and floorless entities in every level, which would have
+  been catastrophic. It was wrong — the script read the tile-run key as "width"
+  when LevelLoader reads "w", so every full-width floor row was invisible to it.
+  Re-ran with the right key and the real defect list was four embedded entities.
+  Check the schema against the loader before believing a scary audit.
+- Enemies into the void: only red variants were ledge-aware, because the call
+  sites passed `m_isRed` as the ledgeAware argument. All ground patrols are
+  ledge-aware now; the check is gated on onGround (it flipped every frame of a
+  fall) and tests TileInfo::isSolid rather than != Empty (the old test walked
+  patrols into lava, which is "not Empty" but not standable).
+- Sub-levels: three faults compounding. Entrance pipes exited to tile (104,20)
+  of a 65-tile-wide level — off the map entirely. Return pipes landed at tile 92,
+  six tiles BEHIND the entrance at 98. And LevelCatalog listed the *_sub rooms as
+  ordinary campaign stages even though none carries a flagpole, so completing 1-1
+  advanced the campaign into a level with no exit. Campaign is now the four main
+  levels; subs are pipe-only, and the pipes land inside their target.
+- Shells: touching ANY unflipped Koopa picked it up, so Koopas could not hurt the
+  player at all and a sliding shell was harmless to its own kicker; and nothing
+  ever cleared Player::m_heldEntity, so a carried shell was carried for the rest
+  of the level. Contact now follows the series rules and the fire button throws.
+- Two stale test assertions were corrected rather than the code: one asserted a
+  seven-level campaign, the other hardcoded "1-2" for level index 2. The second
+  now asks LevelCatalog so it cannot go stale again.
+---
+[2026-08-20 09:55:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: c0e2e15 (before) → 9ef2e29 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin/A/complete-game-tiers-1-4
+was 0/0 before this commit.
+Prompt: "defeat bowser then segmentation fault. The koop troopa shell cannot be
+touched after it die so no pick up. The thwomper should not be visible when it is
+inside the pipe. The warp logic sometimes make player into the void but not
+dying, then a madness of music erases my ears. There are still things like moving
+platform don't have the sprite, find them and fix"
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp, include/Core/PlayingState.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Entities/{Pipe,PiranhaPlant,MovingPlatform,FallingPlatform,ConveyorBelt,Peach}.cpp
+- SuperMarioGame/include/Entities/{Entity,Block,Enemy,Item,Player,Fireball,Hammer,BossFireball,Pipe,PiranhaPlant}.hpp
+- SuperMarioGame/include/Core/EventBus.hpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — every one of these is on the normal play path; the
+first is a hard crash at the end of the campaign.
+Verified By: ctest (2/2 — verify_regressions 377/377, up from 374;
+verify_frontend_states 34/34). The shell and fireball paths were driven through
+the real PhysicsEngine in a throwaway harness before being written up as tests.
+NOT verified by playing the built game.
+Summary of Changes:
+- CRASH ROOT CAUSE: Boss::update ends the defeat sequence with destroy(). The
+  prune in PlayingState::update then frees the entity. updateBossArena(), ninety
+  lines later in the SAME function, does `m_activeBoss->isActive()`. The pointer
+  was cleared there, which is one frame too late — the free already happened.
+  Added forgetEntity(), called from inside the prune before the unique_ptr is
+  released, and it drops every observer pointer (boss, held shell, and m_player2,
+  which the prune had never excluded so a dead P2 dangled too).
+  LESSON: a raw observer pointer into an owning container must be cleared by the
+  code that does the removal, not by whoever happens to read it next.
+- SHELL PICKUP: PhysicsEngine::update cleared the movement intent flags in the
+  MIDDLE of update(), before the collision resolution at the END of the same
+  update() read them. isRunRequested() was therefore always false by the time
+  the resolver asked, so "hold run to carry" could never fire in the real game.
+  My own regression test passed because it called the resolver directly with the
+  flag freshly set — the same shape of mistake as the old fireball test. Fixed by
+  clearing the flags at the end of update().
+  LESSON: when a test drives one function directly, it is not testing the order
+  the game calls things in. Drive the pipeline.
+- PIRANHA PLANT (reported as "the thwomper"): "Retracted" positioned the plant at
+  its anchor, i.e. sitting on the pipe mouth in full view. Now drawn clipped to
+  the portion above the mouth, so it slides out, and non-collidable while inside.
+- "MADNESS OF MUSIC": Pipe::checkWarp was declared const and played a sound,
+  teleported the player and published an event. PlayingState called it once per
+  pipe per frame, so holding crouch re-fired everything every frame. And the
+  event it published was CheckpointActivated ("Warp event type mapping" in the
+  comment) — so every warp also set a respawn point, ran an auto-save and played
+  the checkpoint jingle. Two overlapping sounds a frame at 60Hz. checkWarp is a
+  pure query now; added a real PlayerWarped event; added a 0.75s cooldown; and
+  the level swap moved out of the loop over m_entities that it was replacing.
+- "VOID BUT NOT DYING": three gaps. The void check only tested Y, so a player
+  past the map edge never fell and never died. A pipe exit was trusted even when
+  outside its destination. And a spawn point in the void respawned you into it
+  repeatedly. All three closed, with a fallback to the level's own spawn point.
+- MISSING SPRITES: four entity types drew NOTHING — not the placeholder.
+  setupAnimations() sets m_hasAnimation whether or not the frames it names exist,
+  and drawSprite() returns early on a zero-size sprite, so a wrong frame name is
+  completely silent. Moving platform asked for "platform_medium", falling
+  platform for "falling_platform_medium", conveyor for "platform_long"; the
+  atlas has none of them. Rather than fix the reported one, added
+  Entity::hasArtwork()/artworkSize() and a suite case that asks all forty factory
+  types what they would actually draw. That found the other three and Pipe (a
+  false positive — it draws via PipeRenderer, now reports honestly).
+  METHOD NOTE: the first version of the sweep only checked m_hasAnimation and
+  reported 0/40 clean. The flag is set unconditionally, so it proved nothing.
+  Checking the resolved sprite's size is what found the real four.
+- Peach's float and the pipe's crouch check named physical keys rather than the
+  bound action, so rebinding silently broke both. Both use isActionHeld() now.
+---
+[2026-08-20 11:30:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 202bb40 (before) → f8a5777 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
+Prompt: "should preserve state when moving into the pipe. Complete the logic when
+dying is to drop then respawn. And when not have life anymore to show the end menu
+(especially when falling into the void so that the game continue properly).
+Complete the menu and things in map gen for better visual" + mid-turn: "the
+thwomper (or else) is still visible inside the pipe which is should not be. the
+shell hasn't been fixed that it still create damage after died and cannot pickup"
++ mid-turn: "should implement the achievement and the tracker properly, that will
+have popup, and some place to watch"
+Files Modified:
+- SuperMarioGame/src/Core/{PlayingState,Game,MenuState,OptionsState,SoundManager}.cpp
+- SuperMarioGame/include/Core/{PlayingState,OptionsState}.hpp
+- SuperMarioGame/src/Entities/{Player,KoopaTroopa,PiranhaPlant}.cpp + headers
+- SuperMarioGame/src/{Physics/CollisionResolver,Graphics/UiRenderer,Graphics/Hud}.cpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — main() → MenuState → RECORDS opens the new pages;
+death and warps are on the ordinary play path.
+Verified By: ctest (2/2 — verify_regressions 403/403, up from 377;
+verify_frontend_states 34/34). The two new screens, an achievement toast, and
+generated levels in all four themes were rendered off-screen and inspected as
+PNGs. NOT verified by playing the built game.
+Summary of Changes:
+- ROOT CAUSE, "void but not dying / game does not continue": killPlayer() had no
+  re-entry guard. The pit check fires every frame because nothing moves the
+  corpse, so killPlayer ran in full each time — and ScreenTransitionManager::
+  fadeOut() resets m_elapsedTime, so restarting it every frame meant the fade
+  NEVER completed and its callback (the game-over screen) never ran. The death
+  sound played 60x/second underneath. Replaced with a DeathPhase state machine
+  whose phase doubles as the guard.
+- Death is now the classic sequence the user asked for: pop up, stop colliding,
+  fall through the level, off screen, then respawn or game over.
+- SECOND BUG found while wiring it: Player::powerDown() called loseLife() itself
+  and published PlayerDied, which NOTHING in PlayingState subscribed to. An enemy
+  killing Small Mario docked a life and left him standing there. Moved the
+  accounting to PlayingState and added the subscription.
+- Warp state loss: loadLevelByPath destroys the Player and rebuilds it, so
+  anything not captured is lost. Added Player::Form + getForm/setForm and carried
+  it alongside lives/coins/score.
+- I WAS WRONG TWICE, and the user caught both:
+  * The piranha fix I shipped last session was a no-op. emergedHeight() computed
+    `mouthY - bottomY + targetSize.y` where the first two cancel when retracted,
+    so it returned FULL height for the state it was supposed to hide. I had not
+    checked the value, only that it compiled and the tests I wrote passed — and
+    the tests did not cover the retracted state. Corrected to a single term and
+    added a test that walks the whole 7s cycle.
+  * The shell "damages after death" report was also real, and not what I assumed.
+    PhysicsEngine applies friction to every Character; an Enemy is a Character;
+    and a shelled Koopa runs no strategy, so nothing re-asserted its velocity. A
+    kicked shell decelerated to a stop within a second and the player caught up
+    to a "moving shell" and took damage. Shell chains could never have worked.
+    Fixed by holding kick speed while ShellKicked, plus a 0.35s grace so the
+    shell cannot hurt whoever launched it while it is still overlapping them.
+  LESSON: both were cases where I verified the code path but never the VALUE it
+  produced. Printing the actual number over the actual cycle found both in
+  minutes.
+- Achievements/statistics (plan tasks 7.9 and 7.10, previously never built):
+  both were fully tracked and persisted with no in-game view — the only surface
+  was a collapsed ImGui panel in the dev overlay, and toasts were an ImGui window
+  that ordinary play never renders. Added a RECORDS main-menu row with unlock
+  progress, statistics and scrolling-achievement pages on OptionsState (Tab
+  cycles four pages now), real SFML toasts drawn from Game::run so they show in
+  every state, and an unlock sound. Moved the toast tick to Game::run so a toast
+  raised as a level ends does not freeze when the state changes.
+- Visual: ground and brick tiles now follow the level theme (everything drew
+  brown-on-grey before, so ice/castle/grass were indistinguishable); HUD labels
+  carry a black outline (red on a light castle ceiling was unreadable); the main
+  menu hint is shadowed because it sits over the parallax bushes.
+---
+[2026-08-20 13:10:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 94a25c8 (before) → 9e035e8 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
+Prompt: "anything else to do"
+Files Modified:
+- SuperMarioGame/CMakeLists.txt (every verify_* target)
+- SuperMarioGame/tests/ (10 harnesses)
+- SuperMarioGame/src/Utils/Serializer.cpp
+- SuperMarioGame/src/Entities/{Mario,Luigi,Peach,Toad,Player}.cpp
+- SuperMarioGame/include/Entities/{Player,Entity,Character,Trampoline,PiranhaPlant}.hpp
+Reachable From Main: the spawn-drift and save/load fixes are; the rest is build
+and test infrastructure.
+Verified By: `cmake --build build` with no target now succeeds for all 22
+targets (six did not compile and two hung before); ctest 12/12, up from 2
+registered cases. NOT verified by playing.
+Summary of Changes:
+- Answering "anything else to do" honestly meant building everything rather than
+  the two targets I habitually build. Six harnesses did not compile and two hung.
+- REAL BUG FOUND: every character spawned 2px below the position it was
+  constructed with. The constructors set a placeholder 32x32 box then called
+  changeState(SmallState); applyStateSize() shifts position.y by the height
+  difference to keep the feet planted, which is right for a mushroom mid-level
+  and wrong for the initial form. This also made save/load LOSSY: the save wrote
+  the drifted position and the load drifted it again, so a round trip moved the
+  player every time. Added Player::setStartingForm() and made loadGame restore
+  the position after the form. Two harnesses had been failing on exactly this
+  assertion and nobody could see it because they did not build.
+- WHY THE HARNESSES ROTTED: four defined their own stub Game/TileMap/SoundManager
+  to link a few entity files, while their CMake targets linked the whole engine —
+  35 duplicate symbols each. Two more hand-picked source lists that had drifted
+  (verify_hud_boss compiled Hud.cpp without SpriteSheet.cpp). Deleted the stubs
+  and routed every target through the add_verify_test helper that already
+  existed, so a harness cannot drift from the engine again.
+- Added NO_CTEST to the helper for harnesses that open an sf::RenderWindow and
+  loop until it closes. Registering those as tests is what made `ctest` hang on
+  the first one; they are inspection tools, not tests.
+- ELEVEN STALE ASSERTIONS, every one describing behaviour that was deliberately
+  changed and improved: death animations mean an enemy is dying rather than
+  instantly inactive; isCollidable() replaced the zero-sized-AABB idiom (B-14);
+  a hidden block is always collidable because hitting it is how you find it
+  (B-3); a question block publishes PowerUpRequested rather than the pickup
+  event nothing listened to (B-2) — that test was asserting the bug; player
+  states own their sizes (24x30, 24x60); a fireball bursts before vanishing; a
+  paratroopa has a one-second grace so one stomp cannot count twice.
+- verify_fireball's enemy-death assertion was MISSING: it drove a resolver method
+  that no longer exists and only ever checked the fireball. That is the exact
+  gap that let three enemies ship with a shadowed m_isFlipped. It now drives the
+  real dispatch and asserts the Goomba dies.
+- LESSON: "the tests pass" meant "the two targets I build pass". A test that does
+  not compile is worse than no test — it looks like coverage in the file listing.
+  Build every target before claiming a suite is green.
+---
+[2026-08-20 10:26:19] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → a59d435 (after — branch created off A/complete-game-tiers-1-4, no commits; planning session)
+Fetched Remotes: yes, 10:24
+Prompt: Diverge onto a new branch, read docs/two_player_ai_plan.md, and propose what to implement for Shadow Mario and AI multiplayer.
+Files Modified: logs/agent_history.log only
+Reachable From Main: n/a — planning session, no runtime code written
+Verified By: n/a — no code changes; findings verified by reading source on this branch after fetch
+Summary of Changes:
+- Created branch A/shadow-mario-ai-multiplayer off A/complete-game-tiers-1-4
+  (which contains dev + 14 commits; branching off bare dev would have dropped
+  the Tier 1-4 work this feature builds on). Note: local dev is 30 commits
+  ahead of origin/dev (unpushed merges).
+- Surveyed the engine for 2P/AI/Shadow readiness. Key findings:
+  * Shared-screen Versus (TASKS.md 11.1) is real and load-bearing: P2 bindings,
+    registerPlayer(idx), m_player2, versus camera/HUD, player-vs-player
+    collision all exist.
+  * BUG: PlayingState::handleInput never dispatches press events for m_player2
+    — P2 cannot jump. Also the M key is both P2 fire and the minimap toggle.
+  * BUG: GameSnapshot captures P1 only — rewind/replay silently desync in 2P.
+  * Enemies target P1 only (strategies call Game::getPlayer()).
+  * ReplayRecorder is state-based and decimated to every 6th frame — NOT
+    suitable to drive Shadow Mario; a new 60Hz PlayerFramePacket deque is
+    needed. TASK_DIVISION.md's "extends Replay system" rationale for Bonus C
+    is therefore wrong.
+  * IMovementStrategy takes Enemy& and cannot drive a Player; a separate
+    AIController (as the plan doc proposes) is the cheaper path.
+  * SpriteColorFilter is still dead code (audit B-9) and is exactly what a
+    dark translucent shadow sprite needs.
+  * Camera is non-copyable/non-movable, no viewport support — split-screen is
+    expensive; shared-screen modes are nearly free.
+- Proposed a 3-phase plan to the user (fix 2P foundations → Shadow Mario
+  Chase → AI opponent; split-screen deferred). Flagged that Bonus C is
+  assigned to Member B in TASK_DIVISION.md while this session runs as
+  Member A — ownership needs the user's call. No code implemented; awaiting
+  user confirmation per Plan Deviations directive.
+---
+[2026-08-20 10:38:00] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → c142645 (after)
+Fetched Remotes: no — fetched at 10:24 this session; no repository-state reporting in this task
+Prompt: Add per-mode GUI adaptation to the plan, and plan a seam for a future neural-network reinforcement-learning AI side project.
+Files Modified: docs/two_player_ai_plan.md, logs/agent_history.log
+Reachable From Main: n/a — documentation only
+Verified By: n/a — no code changes
+Summary of Changes:
+- Added §5 "GUI & UX Adaptation Per Mode" to docs/two_player_ai_plan.md: mode
+  picker off ROW_VERSUS, opponent picker (Human/CPU + difficulty/archetype),
+  CharacterSelectState forwarding the mode, per-mode HUD (generalized versus
+  HUD with CPU labels, co-op shared pool, shadow-delay gauge, minimap second
+  marker), mode-aware Victory/GameOver headlines, pause freezing the AI
+  decision timer, OptionsState exposing the existing P2 bindings and fixing
+  the M-key minimap collision, and ImGui DevPanel sliders per AGENTS.md
+  tunability rule.
+- Added §6 "RL-Ready Policy Seam": AIController delegates decisions to an
+  IAIPolicy interface (HeuristicPolicy now, NeuralPolicy later). Fixed-size
+  normalized AIObservation, AIAction mirroring PlayerFramePacket (recorded
+  human play doubles as imitation-learning data), epsilon-noise applied
+  outside the policy (maps to epsilon-greedy), reward function as an EventBus
+  subscriber. Headless training mode explicitly deferred to its own proposal.
+- Updated §4 sketch (m_policy member replaces "neural network inference"
+  comment) and renumbered Next Steps to §7 with GUI-pass and policy-seam-first
+  items.
+- Committed as c142645. Not pushed (per policy). Implementation still awaiting
+  the user's phase green-light and the Member A/B ownership call on Bonus C.
+---
+[2026-08-20 11:48:54] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → b878f38 (after, plus a follow-up commit for
+  the key-hint fix, docs and verification captures)
+Fetched Remotes: yes, 10:24
+Prompt: Take all phases as Member A; implement Phase 0 (2P foundations), Phase 1
+  (Shadow Mario), Phase 2 (AI opponent) plus the per-mode GUI; keep the RL work
+  on a separate branch so it can be dropped from the submission.
+Files Modified: 53 files. New: Core/GameMode.hpp, Entities/{ShadowMario,
+  AIController,HeuristicPolicy,IAIPolicy}, Utils/InputScript, tests/
+  verify_multiplayer_ai.cpp, tests/scripts/*.txt, docs/verification/*.
+  Modified: PlayingState, Game, MenuState, OptionsState, GameOverState,
+  DevPanel, CollisionResolver, PhysicsEngine, Entity, Minimap, Serializer,
+  GameSnapshot, 16 entity files (nearest-player sweep), CMakeLists, TASKS.md,
+  docs/two_player_ai_plan.md.
+Reachable From Main: yes — menu → MULTIPLAYER page → all four modes. Verified by
+  playing each from a real launch, not from a harness. The one exception is
+  noted honestly below.
+Verified By: ran the game (scripted, in-process) AND ctest — 13/13 suites pass
+  including the new verify_multiplayer_ai (12 assertions). Every target builds.
+Summary of Changes:
+- PHASE 0. Three genuine defects in the already-ticked task 11.1:
+  * Player 2 could not jump. PlayingState::handleInput dispatched press events
+    to P1 only, so P2 had hold mappings (walk, crouch) and nothing else for the
+    entire life of two-player mode.
+  * The minimap toggle and P2's fire key were both M; moved the minimap to Tab.
+  * Enemies ignored P2 completely — 16 call sites asked Game::getPlayer(), which
+    is P1 by definition. They now ask getNearestPlayer(pos), which also skips a
+    dying player so a corpse does not drag the level's aggro off the map.
+  * GameSnapshot captured P1 only, so a 2P rewind rolled one score back and left
+    the other. Now records hasSecondPlayer + secondPlayerState.
+- PHASE 1. ShadowMario: a 60Hz deque<PlayerFramePacket>, drained past the delay,
+  inputs applied with a lerp back onto the recorded position past 4px of drift.
+  NOT built on ReplayRecorder — that records state not input and thins to every
+  6th frame, so TASK_DIVISION.md's "extends Replay system" rationale for Bonus C
+  is wrong and is now corrected in the plan doc. Dark purple + ghost trail via
+  SpriteColorFilter, whose FIRST caller this is (audit B-9 finally wired).
+  Modelled as a contact hazard, not a participant: one virtual on Entity, one
+  guard in the collision dispatch, so it cannot stomp Goombas or eat mushrooms
+  for the player it is chasing.
+- PHASE 2. AIController (senses + actuates) over IAIPolicy (decides), with
+  HeuristicPolicy shipping. Difficulty drives vision radius / reaction latency /
+  epsilon / allowed controls from the plan's table; the three archetypes are
+  reward weightings over one rule set. Drives a Player through the same verbs
+  InputManager's commands call, so no input plumbing was needed.
+- GUI per mode: multiplayer menu page (mode, opponent, AI skill, AI style, with
+  inapplicable rows disabled AND skipped by the cursor), mode-aware HUD (versus
+  scores labelled with the CPU's archetype, co-op shared pool, shadow proximity
+  gauge with a red danger band and a BEHIND YOU warning), mode-aware game-over
+  headline, a new Options → KEYS page exposing BOTH pads with P2 bindings now
+  persisted (Serializer gained keyBindings2, optional on load so old configs
+  still parse), minimap markers for rivals and the shadow, and an ImGui panel
+  for every new tunable.
+- THREE BUGS ONLY RUNNING THE GAME COULD HAVE FOUND, all fixed:
+  1. The shadow spawned on top of the player and killed them on frame one, twice,
+     ending a run in ~2s without a key being pressed. It is now inert until it
+     has something to replay.
+  2. On respawn it kept the dead life's buffer, so the correction lerp dragged it
+     back across the level onto the player and took the next life. resetChase()
+     now restarts the chase with the life.
+  3. Death attribution inferred cause from proximity, so a Goomba kill next to
+     the shadow was reported as "caught by their own shadow". The resolver now
+     tells the hazard it landed a hit, and the game-over headline reads the fact
+     rather than the mode.
+  A fourth, in my own new code: the multiplayer page's control hint was hardcoded
+  "P1 WASD + SPACE / P2 ARROWS + M" while this repo's config.json has P1 on the
+  arrow keys — i.e. both players sharing them. It now reads the live bindings and
+  warns when the two pads collide.
+- TOOLING. --script plays a text file of input through the real input pipeline,
+  in process. Written because the alternative was driving the OS keyboard via
+  osascript, which hijacks the machine's focus and types into whatever window is
+  in front; the user stopped me mid-session for exactly that reason. `shot`
+  writes a PNG from the live window, so a verification run needs no external
+  screen grab either. Scripts in tests/scripts/, captures in docs/verification/.
+- NOT DONE, deliberately, rather than shipped inert:
+  * A* pathfinding on TileMap. The policy reasons locally off its vision grid,
+    which is enough for the campaign levels. Writing an unused pathfinder is
+    exactly how five finished graphics subsystems ended up dead (audit B-9).
+  * Split-screen Speedrun (plan §1.2). Camera owns a single non-movable sf::View,
+    nothing anywhere uses setViewport, and every screen-space overlay would have
+    to learn which half it draws into. Its own proposal.
+  * AIObservation::toFeatureVector() lives on the RL branch with its only caller,
+    not here.
+- PRE-EXISTING DEFECT FOUND AND PROVEN NOT MINE: the game aborts on every clean
+  exit with "mutex lock failed: Invalid argument". Verified by building a59d435
+  in a throwaway worktree with a temporary auto-quit probe — the baseline aborts
+  identically. Game::shutdown() carries a comment saying this same crash was
+  fixed once by clearing ResourceManager before the window; prime suspect is the
+  function-local `static sf::Sprite dummySprite` in Animator::getSprite(), which
+  also explains the stray empty "[ResourceManager] Texture not found:" line.
+  Spawned as a separate task rather than fixed here.
+- Not pushed, per policy. dev remains 30 commits ahead of origin/dev locally.
+---
+[2026-08-20 12:46:42] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: 0c9c173 (before) → see commit below (after)
+Fetched Remotes: yes, 12:46
+Prompt: The game aborts on every clean exit with "mutex lock failed: Invalid
+  argument". Confirm the cause with a stack trace, fix it so the process exits 0,
+  verify with tests/scripts/shadow_chase.txt, and make the stray empty-texture-id
+  warning honest.
+Files Modified: include/Core/Game.hpp, src/Core/Game.cpp,
+  include/Core/ResourceManager.hpp, src/Core/ResourceManager.cpp,
+  src/Graphics/Animator.cpp, src/Graphics/SpriteSheet.cpp
+Reachable From Main: yes — this is the exit path of main() itself, on every run.
+Verified By: ran the game (three scripts + the real menu QUIT row, all exit 0)
+  AND ctest 13/13. Cause confirmed from two macOS crash reports (.ips
+  backtraces), and the "pre-existing" claim re-confirmed against a59d435.
+Summary of Changes:
+- THE HYPOTHESIS IN THE TASK WAS WRONG, and the trace says so plainly. The
+  suspect was Animator's function-local `static sf::Sprite`. sf::Sprite is not a
+  GlResource — it is a transform, a texture pointer and a rect — so its
+  destruction cannot touch the GL context. The real chain, from the crash
+  report:
+      exit -> __cxa_finalize_ranges -> Game::~Game()
+           -> sf::RenderWindow::~RenderWindow() -> sf::Window::~Window()
+           -> sf::GlResource::~GlResource()
+           -> GlContext::SharedContext dtor -> SFContext::~SFContext() THROWS
+  Game is a function-local static, so its `sf::RenderWindow` member was
+  destroyed during static destruction — after SFML's own statics, including the
+  mutex guarding the shared GL context. Throwing during static destruction
+  aborts.
+- WHY THE PREVIOUS FIX WAS NECESSARY BUT NOT SUFFICIENT: shutdown() already
+  called ResourceManager::clear() and m_window.close(). close() tears down the OS
+  window and the render context, but sf::Window's GlResource base holds its
+  shared_ptr to the shared context until the OBJECT is destroyed. Only
+  destruction releases it, and destruction was happening at exit().
+- FIX 1: m_window is now std::optional<sf::RenderWindow>, and shutdown() calls
+  reset() — destroying it while the rest of SFML is still alive. 20 call sites in
+  Game.cpp updated; the member is private so nothing outside changed.
+  getMouseWorldPosition() and isWindowFocused() now answer for "no window",
+  which matters because headless harnesses reach the former before one exists.
+- FIX 2, and this one only appeared BECAUSE of fix 1: verify_regressions started
+  aborting — printing "403 / 403 checks passed  ALL PASS" and then exiting 134.
+  A second crash report gave the second chain:
+      exit -> __cxa_finalize_ranges -> ResourceManager::~ResourceManager()
+           -> ~unordered_map<string, sf::Texture> -> sf::Texture::~Texture()
+           -> sf::GlResource::~GlResource() -> ... -> SFContext dtor THROWS
+  Same root cause, different owner. Game's RenderWindow had been holding the
+  shared context alive past ResourceManager's destruction purely by construction
+  order — an accidental keep-alive that masked this for the harnesses, which
+  never call shutdown() and so never call clear(). Removing the window from the
+  static removed the mask. ResourceManager::getInstance() is now a deliberately
+  never-destroyed heap singleton, documented at length: destruction order between
+  our statics and SFML's is not ours to choose, the real run still frees
+  everything through clear() while the context is alive, and one fixed-size
+  allocation reclaimed by the OS at exit is not what AGENTS.md's memory rule is
+  about. It also fixes this for any future entry point whose author forgets.
+- FIX 3, the warning: the stray "[ResourceManager] Texture not found: " with an
+  empty id came from Animator::getSprite()'s static initialising itself with
+  getTexture(""). That static was also a latent bug in its own right — it held a
+  reference to a texture that clear() frees. Replaced with a per-call
+  sf::Sprite built from a new, named ResourceManager::placeholderTexture()
+  (reserved id, no warning, since asking for the placeholder is not a failure).
+  Kept deliberately zero-sized so drawSprite() still skips it and nothing changed
+  visually. SpriteSheet's getTexture("") fallback moved to the same call.
+  getTexture("") now reports an empty id as the caller mistake it is, and points
+  at placeholderTexture(). Zero occurrences of the old warning across all three
+  gameplay scripts.
+- VERIFIED: script quit, menu QUIT row, shadow_chase.txt, shadow_chase_run.txt
+  and versus_cpu.txt all exit 0. ctest 13/13. No new entries in
+  ~/Library/Logs/DiagnosticReports across a full build-and-test round, which is
+  the check that would catch an abort ctest reported as a pass.
+- NOT FIXED, and worth someone's attention: SoundManager holds sf::Music and
+  sf::Sound in a static singleton and has the same shape of problem (an audio
+  device with its own threads and mutexes). It does not currently abort and
+  Game::shutdown() calls its shutdown(), so I left it alone rather than change
+  something I cannot demonstrate is broken.
+- Not pushed, per policy.
+---
+[2026-08-20 13:54:39] Branch: A/teammate-fixes
+Git Fingerprint: fa318b7 (before) → see commit below (after).
+  Also this session: A/rl-neural-policy 8a39e97 → da650a0 (rebased);
+  dev 4224b0a → fa318b7 (fast-forward merge, user-directed).
+Fetched Remotes: yes, 12:5x — before reading branch state for the merge
+Prompt: Rebase the RL branch to keep it current; merge everything except the side
+  project to dev; then fix twelve issues reported by Member B (plus a menu
+  overflow they spotted mid-session).
+Files Modified: 22 files across Core, Entities, Graphics, Physics, Utils and
+  tests/verify_regressions.cpp. Untracked SuperMarioGame/saves/config.json.
+Reachable From Main: yes — every fix is on a path from main(): the menus, the
+  level, the death sequence, the collision resolver, startup and shutdown.
+Verified By: ran the game (scripted, in-process, with captures) AND ctest —
+  13/13 suites, verify_regressions now 443/443 with six new cases for these
+  reports. All gameplay scripts still exit 0.
+Summary of Changes:
+- GIT (user-directed, per the AGENTS.md merge exception):
+  * Rebased A/rl-neural-policy onto A/shadow-mario-ai-multiplayer so the side
+    project carries the exit-crash fix. ONE conflict, in logs/agent_history.log,
+    resolved by UNION sorted by timestamp per the log rule — both entries kept,
+    neither side discarded.
+  * Merged A/shadow-mario-ai-multiplayer into dev. Fast-forward (dev was 0 ahead,
+    18 behind), so no file conflicted. dev is now 48 ahead of origin/dev.
+  * Untracked saves/config.json: the game rewrites it on every exit, so it
+    dirtied the tree and blocked two git operations this session. saves/ is
+    already gitignored; the file stays on disk. Backed up first, and the only
+    diff was the keyBindings2 key my own schema change added.
+  * Noticed and left alone: a stray ">>>>>>> Stashed changes" marker at
+    logs/agent_history.log:2404, committed by some earlier session and present
+    as far back as a59d435. Not mine, and removing a line from the shared audit
+    trail is not something to do in passing.
+- THE TWELVE REPORTS. What each actually was:
+  1. Backgrounds hover. TWO causes. The vertical jitter was SUBTRACTED from the
+     baseline, so every ground-standing decoration floated 0-23px and only
+     touched the ground when the hash was zero — one slot in 24. And GROUND_LINE
+     is a *screen* constant while the backdrop draws before the camera view, so
+     it was 16-32px off in the shipped levels and differently off in sub-levels.
+     Jitter is now horizontal for ground layers; the ground line is scanned from
+     the tilemap and passed in. Verified against the committed pre-fix capture.
+  2. Death screen too short / skipped. It was not short, it was SKIPPED: nothing
+     disables key repeat and nothing clears held keys on a state change, so a
+     player still holding jump got RETRY on frame one. Added a 0.75s input
+     lockout plus clearHeldKeys() on entry, and a floor under the death fall so
+     leaving the screen cannot truncate it below 0.9s. Also fixed Up falling
+     through into Down (the cursor moved the wrong way).
+  3. Mini stretches. MiniState returned a 14x14 SQUARE while the tiny frames are
+     15x19 to 16x23, so drawSprite scaled off the height and drew an ~11px-wide
+     figure in a 14px box. Now 14x18 (~0.78, matching the art). Same defect the
+     Mega state's own comment records; Mini was the last square.
+  4. End-level music repeats. THREE owners for one cue: the EventBus handler
+     played it as music AND as SFX (same fanfare, two files), playMusic looped
+     unconditionally so it restarted for the whole celebration, and
+     VictoryState::enter played it a third time. Now one owner, once, unlooped;
+     playMusic takes a loop flag and game-over/castle jingles stopped looping too.
+  5. Combo never disappears. resetCombo() existed with NO CALLERS ANYWHERE, so
+     the counter was monotonic for the life of the Player — a 36px "x7!" nailed
+     to screen centre for the rest of the level, and a permanently inflated score
+     multiplier. Added a 2.5s chain window that decays, resets on damage, and
+     fades on the HUD. Also moved the text off dead centre, where it sat on top
+     of the player it described.
+  6. Pipes: partial sprites under one big hitbox. A Pipe is one 64x64 collider
+     drawn as four 16x16 quarters, each separately transformed — hence the seams
+     and the mismatched corners when rotated. The atlas already had
+     pipe_dark_green_short_l at exactly 64x64; one hitbox is now one sprite,
+     transformed once. The quarter path stays as a fallback for headless segments.
+  7. Level not reset / spawn killing. Respawn was a teleport: the entity list was
+     never touched, so an enemy that wandered onto the checkpoint was still
+     there, and beginDeathFall() zeroes i-frames while nothing put them back — so
+     the player returned collidable with zero frames onto a live enemy, and the
+     enemy never moved either. Now clears enemies within 2.5 tiles of the respawn
+     and grants 1.5s of landing invincibility. Observed working:
+     "Cleared 1 enemy(ies) from the respawn point."
+  8. 2P kills the wrong player. THE PAYLOAD WAS ALWAYS THERE: Player::powerDown
+     publishes {PlayerDied, this}, and the subscriber took an unnamed parameter
+     and threw it away, so killPlayer() ran the death fall, the life deduction
+     and the game-over test on PLAYER 1 whoever was hit. Death is now per
+     participant (a DeathState each), the subscription reads the pointer, and the
+     void check covers both players and all four edges — P2's hand-rolled version
+     only checked the bottom, so a P2 shoved off the left edge was stuck alive
+     outside the map forever. Also: killPlayer no longer re-publishes PlayerDied
+     (StatisticsTracker was counting two deaths per death), an eliminated player
+     is marked so hazards stop re-killing the corpse (that was an endless loop of
+     death jingles while the other played on), and restartLevel/cleanupTestScene
+     clear the death records — pause is reachable mid-death and Restart landed
+     with phase == Falling, taking a life off the fresh run. Observed working:
+     "Player 2 was defeated." where it used to say Player 1.
+  9. P2 keybinds not shown. All seven WERE bound; the Controls page was DEAD.
+     Every navigation and activation key was gated on Page::Settings, so when
+     Controls became its own page the cursor could not leave row 0 and Enter
+     closed the overlay instead of rebinding. Widened the gate, and gave P2 the
+     second jump key (RShift) that P1 has in Space.
+  10. Daily challenge forgets the character. MapGenerator always builds a Mario
+     and PlayingState adopted whatever Player it found in the generated list, so
+     m_selectedCharIndex arrived intact and was ignored. Now the generator's
+     player is discarded and the selected character is built at its spawn point.
+     Verified: the HUD reads LUIGI.
+  11. BoomBoom cheese. resolvePlayerVsEnemy had no boss case, and isStomp is a
+     POSITIONAL test that stays true while standing on the boss — so contact paid
+     score and combo every frame, landed a real hit whenever the boss's private
+     1s i-frames lapsed, and never hurt the player because takeDamage is only in
+     the else branch. Added a boss branch: a genuine descent is required, the
+     player is bounced clear so the next frame is not another contact frame,
+     score is paid only when takeHit actually landed, and resting on an
+     invulnerable boss now hurts like touching its side. isInvulnerable() made
+     public so the resolver can ask.
+  12. Progress not saved. Achievements and statistics were serialized ONLY inside
+     a level save slot, and the only path that reads a slot back is
+     PlayingState::loadFromSlot — whose only caller is the ImGui dev panel. So
+     they were written on every autosave and never loaded: every launch started
+     empty, and Toad and Peach, being gated on the "toad"/"peach" achievements,
+     were permanently locked. Added Serializer::saveProfile/loadProfile writing
+     saves/profile.json (same directory and shape as progress.json, the one piece
+     of persistence that already worked), loaded at startup, saved at shutdown
+     and on each unlock. Verified round-trip across two launches.
+- REPORTED MID-SESSION: menus too small for their text. Both pages this work
+  added overflowed. The Controls page put 18 rows at a hardcoded 24px through the
+  bottom of a 560px panel, so BACK landed on the hint line; row height and text
+  size now derive from the space available, so adding a row cannot overflow it
+  again. The multiplayer page had a fixed 330px panel while the blurb, the live
+  key summary and the shared-keys warning were all added later and conditional —
+  the warning was clipped by the frame edge; the panel is now sized from its
+  content. Both verified from captures.
+- REGRESSION COVER: six new cases in verify_regressions (443/443), pinning the
+  combo window, Mini's aspect, the boss i-frame gate, the PlayerDied payload
+  carrying the right player, jingles not looping, and both pads binding the same
+  action set. The purely visual fixes were verified from captures instead, and
+  said so rather than asserted.
+- NOT pushed yet at the time of this entry; a PR follows at the user's request.
+---

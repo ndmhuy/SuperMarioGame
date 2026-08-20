@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <memory>
+#include <string>
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Text.hpp>
@@ -17,6 +19,11 @@ struct HudData {
     int worldMajor = 1;
     int worldMinor = 1;
     int comboCount = 1;
+    // Seconds left on the chain. The combo text used to be drawn whenever the
+    // count exceeded 1 and the count never came down, so a 36px "x7!" stayed
+    // nailed to the middle of the screen for the rest of the level. It now fades
+    // out as this runs down.
+    float comboTimer = 0.0f;
     std::string characterName = "mario";
     bool pSwitchActive = false;
     float pSwitchTimer = 0.0f;

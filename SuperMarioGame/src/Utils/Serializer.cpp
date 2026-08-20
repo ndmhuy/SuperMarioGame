@@ -7,13 +7,16 @@
 #include "Entities/IPlayerState.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
-#include <fstream>
-#include <filesystem>
+#include <algorithm>
 #include <chrono>
-#include <iomanip>
-#include <sstream>
-#include <iostream>
 #include <ctime>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <vector>
 
 // Helper to get active character name
 static std::string getCharacterName(const Player& player) {
@@ -60,12 +63,137 @@ static std::string getCurrentISOTimestamp() {
     return ss.str();
 }
 
+// Everything under saves/ resolves through here.
+//
+// These used to be bare relative paths, so the file you got depended on where
+// the binary was launched from: running from build/ read build/saves/config.json
+// while running from the source root read saves/config.json. Two different
+// configs, and a key rebind saved in one was invisible to the other — which is
+// exactly how a player ends up unable to move with a config file that looks
+// fine.
+//
+// Resolution mirrors ResourceManager::resolvePath: prefer a saves/ directory
+// that already exists at one of the usual roots, and otherwise fall back to the
+// working directory so a first run still has somewhere to write.
+std::string Serializer::saveDirectory() {
+    static const std::string resolved = [] {
+        const std::vector<std::string> candidates = {
+            "saves", "../saves", "../../saves",
+            "SuperMarioGame/saves", "../SuperMarioGame/saves"
+        };
+        // Never settle on a saves/ that sits inside a CMake build tree. That is
+        // how the split happened: launching from build/ found build/saves and
+        // wrote settings there, so the same game had two configs and a key
+        // rebind made in one was invisible from the other.
+        auto insideBuildTree = [](const std::string& dir) {
+            std::error_code ec;
+            const std::filesystem::path parent = std::filesystem::path(dir).parent_path();
+            return std::filesystem::exists(parent / "CMakeCache.txt", ec);
+        };
+
+        for (const auto& candidate : candidates) {
+            std::error_code ec;
+            if (std::filesystem::is_directory(candidate, ec) && !insideBuildTree(candidate)) {
+                return candidate;
+            }
+        }
+        return std::string("saves");
+    }();
+    return resolved;
+}
+
 std::string Serializer::getSaveFilePath(int slot) {
-    return "saves/slot_" + std::to_string(slot) + ".json";
+    return saveDirectory() + "/slot_" + std::to_string(slot) + ".json";
 }
 
 std::string Serializer::getSettingsFilePath() {
-    return "saves/config.json";
+    return saveDirectory() + "/config.json";
+}
+
+std::string Serializer::getHighScoresFilePath() {
+    return saveDirectory() + "/highscores.json";
+}
+
+std::vector<HighScoreEntry> Serializer::loadHighScores() {
+    std::vector<HighScoreEntry> scores;
+    try {
+        const std::string path = getHighScoresFilePath();
+        if (!std::filesystem::exists(path)) return scores;
+
+        std::ifstream file(path);
+        if (!file.is_open()) return scores;
+
+        nlohmann::json j;
+        file >> j;
+        if (!j.contains("scores") || !j["scores"].is_array()) return scores;
+
+        for (const auto& item : j["scores"]) {
+            HighScoreEntry entry;
+            entry.score      = item.value("score", 0);
+            entry.coins      = item.value("coins", 0);
+            entry.starCoins  = item.value("starCoins", 0);
+            entry.character  = item.value("character", std::string("mario"));
+            entry.levelName  = item.value("levelName", std::string("1-1"));
+            entry.timestamp  = item.value("timestamp", std::string(""));
+            scores.push_back(std::move(entry));
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Failed to read high scores: " << e.what() << std::endl;
+        scores.clear();
+    }
+    return scores;
+}
+
+bool Serializer::recordHighScore(const HighScoreEntry& entry) {
+    // A run worth nothing is not a high score; writing it would just push a real
+    // entry off the bottom of the table.
+    if (entry.score <= 0) return false;
+
+    try {
+        std::vector<HighScoreEntry> scores = loadHighScores();
+
+        HighScoreEntry stamped = entry;
+        if (stamped.timestamp.empty()) {
+            stamped.timestamp = getCurrentISOTimestamp();
+        }
+        scores.push_back(std::move(stamped));
+
+        std::stable_sort(scores.begin(), scores.end(),
+                         [](const HighScoreEntry& a, const HighScoreEntry& b) {
+                             return a.score > b.score;
+                         });
+        if (static_cast<int>(scores.size()) > MAX_HIGH_SCORES) {
+            scores.resize(static_cast<std::size_t>(MAX_HIGH_SCORES));
+        }
+
+        const std::string path = getHighScoresFilePath();
+        std::filesystem::path fsPath(path);
+        if (fsPath.has_parent_path()) {
+            std::filesystem::create_directories(fsPath.parent_path());
+        }
+
+        nlohmann::json j;
+        j["version"] = "1.0";
+        j["scores"] = nlohmann::json::array();
+        for (const auto& s : scores) {
+            nlohmann::json row;
+            row["score"]     = s.score;
+            row["coins"]     = s.coins;
+            row["starCoins"] = s.starCoins;
+            row["character"] = s.character;
+            row["levelName"] = s.levelName;
+            row["timestamp"] = s.timestamp;
+            j["scores"].push_back(std::move(row));
+        }
+
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << j.dump(4);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Failed to write high score: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 bool Serializer::saveGame(int slot, const Player& player, int levelId, const std::string& levelName, 
@@ -127,13 +255,15 @@ bool Serializer::saveGame(int slot, const Player& player, int levelId, const std
         float sfx = 80.0f, music = 60.0f;
         std::string diff = "normal";
         std::unordered_map<std::string, std::string> bindings;
+        std::unordered_map<std::string, std::string> bindings2;
         bool colorblind = false;
-        loadSettings(sfx, music, diff, bindings, colorblind);
+        loadSettings(sfx, music, diff, bindings, bindings2, colorblind);
 
         j["settings"]["sfxVolume"] = sfx;
         j["settings"]["musicVolume"] = music;
         j["settings"]["difficulty"] = diff;
         j["settings"]["keyBindings"] = bindings;
+        j["settings"]["keyBindings2"] = bindings2;
         j["settings"]["colorblindMode"] = colorblind;
 
         std::ofstream file(path);
@@ -175,9 +305,17 @@ bool Serializer::loadGame(int slot, std::unique_ptr<Player>& player, int& levelI
         player->score = j["player"]["score"];
         player->lives = j["player"]["lives"];
 
-        // Restore state
+        // Restore state, THEN the position.
+        //
+        // Changing the base form runs applyStateSize(), which shifts position.y
+        // by the height difference so the feet stay planted — correct when a
+        // mushroom makes you grow mid-level, wrong when restoring a snapshot
+        // whose position already belongs to that form. Loading a saved Super
+        // Mario therefore moved him by the Small/Super height difference, and
+        // every save/load round trip drifted him further.
         std::string stateName = j["player"]["state"];
         restorePlayerState(*player, stateName);
+        player->setPosition(sf::Vector2f(px, py));
 
         // 2. Restore level parameters
         levelId = j["level"]["id"];
@@ -251,8 +389,9 @@ bool Serializer::deleteSlot(int slot) {
     return false;
 }
 
-bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty, 
+bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty,
                              const std::unordered_map<std::string, std::string>& keyBindings,
+                             const std::unordered_map<std::string, std::string>& keyBindings2,
                              bool colorblindMode) {
     try {
         std::string path = getSettingsFilePath();
@@ -266,6 +405,7 @@ bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::str
         j["musicVolume"] = musicVolume;
         j["difficulty"] = difficulty;
         j["keyBindings"] = keyBindings;
+        j["keyBindings2"] = keyBindings2;
         j["colorblindMode"] = colorblindMode;
 
         std::ofstream file(path);
@@ -277,8 +417,9 @@ bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::str
     }
 }
 
-bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty, 
+bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty,
                              std::unordered_map<std::string, std::string>& keyBindings,
+                             std::unordered_map<std::string, std::string>& keyBindings2,
                              bool& colorblindMode) {
     try {
         std::string path = getSettingsFilePath();
@@ -288,6 +429,10 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
             musicVolume = 60.0f;
             difficulty = "normal";
             keyBindings = { {"jump", "W"}, {"left", "A"}, {"right", "D"}, {"fire", "F"} };
+            // Empty rather than a default layout: InputManager already ships the
+            // arrow-key defaults, and applyBindings() only overrides what it is
+            // given. Naming them here would be a second source of truth.
+            keyBindings2.clear();
             colorblindMode = false;
             return true;
         }
@@ -302,6 +447,12 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
         musicVolume = j["musicVolume"];
         difficulty = j["difficulty"];
         keyBindings = j["keyBindings"].get<std::unordered_map<std::string, std::string>>();
+        // Optional: a config.json written before Player 2 was configurable has no
+        // such key, and must not be an exception that discards every setting.
+        keyBindings2.clear();
+        if (j.contains("keyBindings2")) {
+            keyBindings2 = j["keyBindings2"].get<std::unordered_map<std::string, std::string>>();
+        }
         if (j.contains("colorblindMode")) {
             colorblindMode = j["colorblindMode"];
         } else {
@@ -309,6 +460,79 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
         }
         return true;
     } catch (...) {
+        return false;
+    }
+}
+
+// --- Player profile ---------------------------------------------------------
+
+namespace {
+std::string profileFilePath() {
+    return Serializer::saveDirectory() + "/profile.json";
+}
+} // namespace
+
+bool Serializer::saveProfile() {
+    try {
+        const std::string path = profileFilePath();
+        std::filesystem::path fsPath(path);
+        if (fsPath.has_parent_path()) {
+            std::filesystem::create_directories(fsPath.parent_path());
+        }
+
+        nlohmann::json j;
+        j["achievements"] = AchievementManager::getInstance().getUnlockedIds();
+
+        const auto& stats = StatisticsTracker::getInstance().getStats();
+        j["statistics"]["totalEnemiesDefeated"] = stats.totalEnemiesDefeated;
+        j["statistics"]["totalCoinsCollected"]  = stats.totalCoinsCollected;
+        j["statistics"]["totalDeaths"]          = stats.totalDeaths;
+        j["statistics"]["totalTimePlayed"]      = stats.totalTimePlayed;
+        j["statistics"]["highestCombo"]         = stats.highestCombo;
+
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << j.dump(4);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Could not save the profile: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool Serializer::loadProfile() {
+    try {
+        const std::string path = profileFilePath();
+        // A first run has no profile. That is not an error, and it must not look
+        // like one in the log — the achievements simply start empty.
+        if (!std::filesystem::exists(path)) return false;
+
+        std::ifstream file(path);
+        if (!file.is_open()) return false;
+
+        nlohmann::json j;
+        file >> j;
+
+        if (j.contains("achievements")) {
+            AchievementManager::getInstance().setUnlockedAchievements(
+                j["achievements"].get<std::vector<std::string>>());
+        }
+
+        if (j.contains("statistics")) {
+            const auto& s = j["statistics"];
+            GameStatistics stats;
+            stats.totalEnemiesDefeated = s.value("totalEnemiesDefeated", 0);
+            stats.totalCoinsCollected  = s.value("totalCoinsCollected", 0);
+            stats.totalDeaths          = s.value("totalDeaths", 0);
+            stats.totalTimePlayed      = s.value("totalTimePlayed", 0.0f);
+            stats.highestCombo         = s.value("highestCombo", 0);
+            StatisticsTracker::getInstance().setStats(stats);
+        }
+
+        std::cout << "[Serializer] Profile loaded from " << path << "." << std::endl;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Could not load the profile: " << e.what() << std::endl;
         return false;
     }
 }

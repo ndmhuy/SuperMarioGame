@@ -1,12 +1,13 @@
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <vector>
-#include <cmath>
-#include <algorithm>
 #include <typeinfo>
+#include <vector>
 
 #include "Entities/Goomba.hpp"
 #include "Entities/KoopaTroopa.hpp"
@@ -295,7 +296,7 @@ int main() {
         // Revive mechanics for testing
         if (Player* p = getPlayer()) {
             if (!p->isActive() || p->getLives() <= 0) {
-                p->active = true;
+                p->revive();
                 p->setPosition(sf::Vector2f(400.0f, 512.0f));
                 p->setVelocity(sf::Vector2f(0.0f, 0.0f));
             }

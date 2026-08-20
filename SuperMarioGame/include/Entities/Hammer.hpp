@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Entities/Entity.hpp"
+#include "Entities/Projectile.hpp"
 #include "Graphics/Animator.hpp"
 #include "Graphics/SpriteSheet.hpp"
 #include <memory>
@@ -16,22 +16,34 @@ class Player;
 //
 // Arcs under gravity, spins while airborne, and despawns once it falls out of
 // the world. Damages the player on contact; harmless to other enemies.
-class Hammer : public Entity {
+class Hammer : public Projectile {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     Hammer(sf::Vector2f position, sf::Vector2f velocity);
     ~Hammer() override = default;
 
     std::string getTypeName() const override { return "hammer"; }
-    EntityCategory getCategory() const override { return EntityCategory::Projectile; }
+
+    // Damages the player only. It used to kill other enemies as well, because
+    // the resolver treated it as a Fireball.
+    bool damagesPlayer() const override { return true; }
+    void onHitPlayer(Player& player) override;
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
-    void setupAnimations(const SpriteSheet* spriteSheet);
+    void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     // Hammers pass through terrain — they are thrown over gaps and platforms.
     bool collidesWithTiles() const override { return false; }
 
-    void onHitPlayer(Player& player);
+    // See Fireball::resetForPool.
+    void resetForPool(sf::Vector2f pos, sf::Vector2f vel);
 
 private:
     float m_lifetime = 6.0f;

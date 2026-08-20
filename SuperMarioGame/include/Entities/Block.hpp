@@ -9,6 +9,13 @@ class Player;
 
 class Block : public Entity {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     explicit Block(sf::Vector2f position, sf::Vector2f targetSize = {32.0f, 32.0f});
     ~Block() override = default;
 

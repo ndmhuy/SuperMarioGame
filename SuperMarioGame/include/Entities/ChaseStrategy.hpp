@@ -1,11 +1,14 @@
 #pragma once
 
 #include "Entities/IMovementStrategy.hpp"
+#include <string>
 
 class ChaseStrategy : public IMovementStrategy {
 public:
     ChaseStrategy() = default;
     virtual ~ChaseStrategy() override = default;
+
+    std::string getName() const override { return "Chase"; }
 
 protected:
     void calculateTarget(Enemy& enemy, float dt) override;

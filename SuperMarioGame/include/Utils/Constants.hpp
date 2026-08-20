@@ -63,6 +63,26 @@ namespace Constants {
     constexpr float BOO_CHASE_RANGE = 250.0f;
     constexpr float ENEMY_SPINY_SPEED = 50.0f;
 
+    // The nine enemies below left Character::speed at its default of zero, and
+    // every strategy quietly substituted a literal of its own — `enemy.speed > 0
+    // ? enemy.speed : 60.0f` and four other spellings of the same idea. So
+    // getSpeed() answered 0 for enemies that were visibly moving, the AI overlay
+    // showed nothing useful, and the difficulty modifier multiplied zero by 1.3
+    // and changed nothing (task 9.4 only worked for four of thirteen enemies).
+    //
+    // These are the values those fallbacks were already using, so Normal
+    // difficulty plays exactly as before — they just live in one place now and
+    // can be scaled.
+    constexpr float ENEMY_PARATROOPA_SPEED = 50.0f;
+    constexpr float ENEMY_PIRANHA_SPEED    = 40.0f;   // emergence rate, px/s
+    constexpr float ENEMY_BULLET_BILL_SPEED = 200.0f;
+    constexpr float ENEMY_HAMMER_BRO_SPEED = 30.0f;
+    constexpr float ENEMY_THWOMP_SLAM_SPEED = 600.0f; // SPEC: instant slam
+    constexpr float ENEMY_CHAIN_CHOMP_SPEED = 250.0f; // lunge speed
+    constexpr float ENEMY_LAKITU_SPEED     = 100.0f;  // tracking speed
+    constexpr float BOSS_BOWSER_SPEED      = 55.0f;
+    constexpr float BOSS_BOOM_BOOM_SPEED   = 120.0f;
+
     // Block & Platform Constants
     constexpr float FALLING_PLATFORM_SHAKE_TIME = 1.0f;
     constexpr float FALLING_PLATFORM_RESPAWN_TIME = 5.0f;

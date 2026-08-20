@@ -12,7 +12,11 @@ Peach::Peach(sf::Vector2f pos) : Player(pos) {
     health = 1;
     
     boundingBox = AABB{pos.x, pos.y, 32.0f, 32.0f};
-    changeState(std::make_unique<SmallState>());
+    // Starting form, not a form *change*: the constructor's position is the one
+    // the caller asked for and must be preserved. changeState() here shifted it
+    // by the placeholder-box height difference (2px), so no character ever
+    // spawned exactly where it was constructed.
+    setStartingForm(Form::Small);
 }
 
 void Peach::setupAnimations(const SpriteSheet* spriteSheet) {
@@ -24,15 +28,10 @@ void Peach::update(float dt) {
         m_hoverTimer = 0.0f;
         m_isHovering = false;
     } else {
-        bool isP1 = (this == InputManager::getInstance().getPlayer(0));
-        bool isP2 = (this == InputManager::getInstance().getPlayer(1));
-        
-        bool jumpHeld = false;
-        if (isP1) {
-            jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space);
-        } else if (isP2) {
-            jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
-        }
+        // Asks for the *bound* jump key. This used to name W, Space and Up
+        // directly, so rebinding jump silently disabled Peach's float.
+        const bool jumpHeld =
+            InputManager::getInstance().isActionHeld("jump", getPlayerIndex());
 
         if (jumpHeld && m_hoverTimer < 1.5f && velocity.y >= 0.0f) {
             m_isHovering = true;

@@ -1,8 +1,9 @@
 #include "Graphics/ScreenTransitionManager.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/MathUtils.hpp"
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <iostream>
 
 #ifndef M_PI

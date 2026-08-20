@@ -1,6 +1,7 @@
 #include "Graphics/EntityDeathEffect.hpp"
 #include "Graphics/ParticleSystem.hpp"
 #include "Graphics/ParticleEmitter.hpp"
+#include <algorithm>
 #include <cmath>
 
 EntityDeathEffect& EntityDeathEffect::getInstance() {

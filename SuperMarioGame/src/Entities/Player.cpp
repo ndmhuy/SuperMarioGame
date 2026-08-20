@@ -1,4 +1,6 @@
 #include "Entities/Player.hpp"
+#include "Entities/KoopaTroopa.hpp"
+#include "Core/InputManager.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/GameSnapshot.hpp"
@@ -6,6 +8,9 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
 
 void Player::performJump() {
     velocity.y = -jumpForce;
@@ -16,6 +21,7 @@ void Player::performJump() {
 }
 
 void Player::jump() {
+    if (m_dying) return;
     if (onGround || coyoteFramesLeft > 0) {
         performJump();
     } else {
@@ -26,6 +32,7 @@ void Player::jump() {
 }
 
 void Player::run() {
+    if (m_dying) return;
     m_runRequested = true;
 }
 
@@ -60,8 +67,107 @@ void Player::slide() {
     m_crouchRequestedThisFrame = true;
 }
 
+bool Player::canShootFireball() const {
+    if (m_fireballCooldownTimer > 0.0f) return false;
+    // getBaseState() unwraps Star and Mega, so an invincible or giant Fire Mario
+    // keeps his fireballs — the decorators wrap the form, they do not replace it.
+    return dynamic_cast<FireState*>(getBaseState()) != nullptr;
+}
+
+Player::Form Player::getForm() const {
+    IPlayerState* base = getBaseState();
+    if (dynamic_cast<SuperState*>(base)) return Form::Super;
+    if (dynamic_cast<FireState*>(base))  return Form::Fire;
+    if (dynamic_cast<CapeState*>(base))  return Form::Cape;
+    if (dynamic_cast<MiniState*>(base))  return Form::Mini;
+    return Form::Small;
+}
+
+void Player::setStartingForm(Form form) {
+    const sf::Vector2f keep = position;
+    setForm(form);
+    setPosition(keep);
+}
+
+void Player::setForm(Form form) {
+    switch (form) {
+        case Form::Super: setBaseState(std::make_unique<SuperState>()); break;
+        case Form::Fire:  setBaseState(std::make_unique<FireState>());  break;
+        case Form::Cape:  setBaseState(std::make_unique<CapeState>());  break;
+        case Form::Mini:  setBaseState(std::make_unique<MiniState>());  break;
+        case Form::Small: setBaseState(std::make_unique<SmallState>()); break;
+    }
+}
+
+void Player::moveLeft() {
+    if (m_dying) return;
+    Character::moveLeft();
+}
+
+void Player::moveRight() {
+    if (m_dying) return;
+    Character::moveRight();
+}
+
+void Player::beginDeathFall() {
+    if (m_dying) return;
+    m_dying = true;
+    dropHeldEntity();
+    clearMovementRequests();
+    // Up first, then gravity takes it down through the floor: collidesWithTiles()
+    // is false for the whole fall.
+    velocity = {0.0f, -420.0f};
+    onGround = false;
+    m_gliding = false;
+    m_capeSpinTimer = 0.0f;
+    invincibilityTimer = 0.0f;
+}
+
+int Player::getPlayerIndex() const {
+    // Two pads, and the InputManager is the only thing that knows which is which.
+    return (this == InputManager::getInstance().getPlayer(1)) ? 1 : 0;
+}
+
+bool Player::spinCape() {
+    if (!dynamic_cast<CapeState*>(getBaseState())) return false;
+    if (m_capeSpinTimer > 0.0f) return true;   // already mid-swing
+    m_capeSpinTimer = 0.35f;
+    SoundManager::getInstance().playSound("kick");
+    return true;
+}
+
+bool Player::throwHeldEntity() {
+    if (!m_heldEntity) return false;
+
+    // Only Koopa shells are carryable today, but the hook is on Player so the
+    // rule stays "throw what you are holding" rather than "throw a shell".
+    if (auto* koopa = dynamic_cast<KoopaTroopa*>(m_heldEntity)) {
+        m_heldEntity = nullptr;
+        koopa->throwShell();
+        return true;
+    }
+
+    m_heldEntity = nullptr;
+    return true;
+}
+
+void Player::dropHeldEntity() {
+    if (!m_heldEntity) return;
+    if (auto* koopa = dynamic_cast<KoopaTroopa*>(m_heldEntity)) {
+        koopa->release();
+    }
+    m_heldEntity = nullptr;
+}
+
 void Player::shootFireball() {
-    if (m_fireballCooldownTimer > 0.0f) return;
+    // One button, three meanings, in the order the originals use:
+    //   carrying something -> throw it
+    //   wearing the cape   -> swing it
+    //   fire form          -> shoot
+    if (throwHeldEntity()) return;
+    if (spinCape()) return;
+
+    if (!canShootFireball()) return;
 
     EventBus::getInstance().publish({EventType::PlayerShotFireball, this});
     m_fireballCooldownTimer = 0.3f; // 0.3s cooldown between shots
@@ -129,7 +235,12 @@ void Player::powerUp(int itemType) {
 }
 
 void Player::takeDamage(int amount) {
+    if (m_dying) return;
     if (invincibilityTimer > 0.0f) return;
+    // Taking a hit breaks the chain — that is what makes a long combo a risk
+    // worth taking rather than a number that only grows.
+    resetCombo();
+    dropHeldEntity();
     Character::takeDamage(amount);
     powerDown();
 }
@@ -165,7 +276,12 @@ void Player::powerDown() {
         setBaseState(std::make_unique<SmallState>());
         EventBus::getInstance().publish({EventType::PlayerDamaged, this});
     } else if (dynamic_cast<SmallState*>(state)) {
-        loseLife();
+        // Report the death; do not account for it. Life accounting and the
+        // death sequence belong to PlayingState, which is the only thing that
+        // knows about checkpoints and game over. This used to call loseLife()
+        // here and publish an event nothing in PlayingState subscribed to, so
+        // an enemy killing Small Mario silently docked a life and left him
+        // standing where he was.
         EventBus::getInstance().publish({EventType::PlayerDied, this});
     }
 }
@@ -197,11 +313,32 @@ void Player::refreshStateAnimations() {
     while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(baseState)) {
         baseState = decorator->getWrappedState();
     }
+    // Each base state has its own sprite set. Super, Fire and Cape used to fall
+    // through to "small", so every power-up looked identical in play (the art
+    // simply did not exist until tools/powerup-frames derived it).
     std::string stateSuffix = "small";
     if (dynamic_cast<MiniState*>(baseState)) {
         stateSuffix = "tiny"; // Mini state maps to _tiny sprite frames
+    } else if (dynamic_cast<FireState*>(baseState)) {
+        stateSuffix = "fire";
+    } else if (dynamic_cast<CapeState*>(baseState)) {
+        stateSuffix = "cape";
+    } else if (dynamic_cast<SuperState*>(baseState)) {
+        stateSuffix = "super";
     }
-    setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_" + stateSuffix);
+
+    // Fall back rather than render nothing if an atlas predates the derived
+    // frames: setupCharacterAnimations() would otherwise ask for frames that are
+    // not there and leave the player invisible.
+    const std::string prefix = getCharacterName() + "_" + stateSuffix;
+    if (stateSuffix != "small" && !m_spriteSheet->hasFrame(prefix + "_idle")
+                               && !m_spriteSheet->hasFrame(prefix + "_walk_0")) {
+        std::cerr << "[Player] Atlas has no \"" << prefix
+                  << "\" frames; falling back to _small." << std::endl;
+        setupCharacterAnimations(m_spriteSheet, getCharacterName() + "_small");
+        return;
+    }
+    setupCharacterAnimations(m_spriteSheet, prefix);
 }
 
 void Player::changeState(std::unique_ptr<IPlayerState> state) {
@@ -313,6 +450,18 @@ void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std:
 }
 
 void Player::update(float dt) {
+    if (m_capeSpinTimer > 0.0f) {
+        m_capeSpinTimer -= dt;
+        if (m_capeSpinTimer < 0.0f) m_capeSpinTimer = 0.0f;
+    }
+    // The combo chain expires. Nothing used to tick this, so the counter only
+    // ever went up.
+    if (comboTimer > 0.0f) {
+        comboTimer -= dt;
+        if (comboTimer <= 0.0f) resetCombo();
+    }
+    if (onGround) m_gliding = false;
+
     if (m_animator && m_hasAnimation) {
         Animation* targetAnim = &m_animIdle;
         if (invincibilityTimer > 1.7f && invincibilityTimer < 9000.0f) {
@@ -527,10 +676,18 @@ void Player::restoreStats(int newLives, int newCoins, int newScore) {
 
 void Player::resetCombo() {
     comboCounter = 0;
+    comboTimer = 0.0f;
 }
 
 void Player::incrementCombo() {
     ++comboCounter;
+    // Every increment refreshes the window. A combo is a *chain* — kills close
+    // together — and without this the counter was monotonic for the whole life of
+    // the Player: resetCombo() existed and had no callers anywhere, so nothing
+    // ever brought it back down. Every stomp in the level raised it permanently,
+    // which both pinned an "x7!" to the middle of the screen forever and
+    // permanently inflated the score multiplier.
+    comboTimer = COMBO_WINDOW;
     EventBus::getInstance().publish({EventType::ComboHit, comboCounter});
 }
 

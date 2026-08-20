@@ -36,12 +36,23 @@ bool Animator::isDone() const {
 }
 
 sf::Sprite Animator::getSprite() const {
-    static sf::Sprite dummySprite(
-        ResourceManager::getInstance().getTexture("")
-    );
+    // Built on demand rather than kept in a function-local static.
+    //
+    // The static version held a reference to a ResourceManager texture and was
+    // destroyed during static destruction — after ResourceManager::clear() had
+    // already freed that texture, and after the graphics context was gone. It
+    // also initialised itself by asking getTexture(""), which is what printed
+    // the stray "Texture not found: " with an empty id once per run.
+    //
+    // An sf::Sprite is a transform, a texture pointer and a rect; constructing
+    // one per call costs nothing, and the normal paths below already construct
+    // one every call.
+    auto blank = [] {
+        return sf::Sprite(ResourceManager::getInstance().placeholderTexture());
+    };
 
-    if (m_spriteSheet == nullptr) return dummySprite;
-    if (m_animation == nullptr) return dummySprite;
+    if (m_spriteSheet == nullptr) return blank();
+    if (m_animation == nullptr) return blank();
     if (m_animation->frameList.size() && isDone())
         return m_spriteSheet->getSprite(m_animation->frameList.back().frameName);
 

@@ -1,6 +1,7 @@
 #include "Entities/IPlayerState.hpp"
 #include "Entities/Player.hpp"
 #include "Utils/Constants.hpp"
+#include "Core/InputManager.hpp"
 
 // --- SmallState ---
 void SmallState::enter(Player& player) {}
@@ -25,9 +26,33 @@ sf::Vector2f FireState::getSize() const { return sf::Vector2f{24.0f, 60.0f}; }
 
 // --- CapeState ---
 void CapeState::enter(Player& player) {}
-void CapeState::exit(Player& player) {}
+
+void CapeState::exit(Player& player) {
+    // Losing the cape mid-glide must not leave the flag set: the animation and
+    // the HUD both read it.
+    player.setGliding(false);
+}
+
 void CapeState::handleInput(Player& player, const sf::Event& event) {}
-void CapeState::update(Player& player, float dt) {}
+
+void CapeState::update(Player& player, float dt) {
+    // Glide, not hover: the player still descends, just slowly, and only while
+    // already falling. Holding jump on the way up does nothing, so a cape jump
+    // is a normal jump that turns into a drift at the apex.
+    const bool falling = !player.isOnGround() && player.getVelocity().y > 0.0f;
+    const bool jumpHeld =
+        InputManager::getInstance().isActionHeld("jump", player.getPlayerIndex());
+
+    if (falling && jumpHeld) {
+        player.setGliding(true);
+        if (player.getVelocity().y > GLIDE_FALL_SPEED) {
+            player.setVelocity({player.getVelocity().x, GLIDE_FALL_SPEED});
+        }
+    } else {
+        player.setGliding(false);
+    }
+}
+
 sf::Vector2f CapeState::getSize() const { return sf::Vector2f{24.0f, 60.0f}; }
 
 // --- MiniState ---
@@ -35,7 +60,16 @@ void MiniState::enter(Player& player) {}
 void MiniState::exit(Player& player) {}
 void MiniState::handleInput(Player& player, const sf::Event& event) {}
 void MiniState::update(Player& player, float dt) {}
-sf::Vector2f MiniState::getSize() const { return sf::Vector2f{14.0f, 14.0f}; }
+// 14x18, not 14x14. The tiny frames are tall — mario_tiny_walk_0 is 15x19, the
+// run frames 15-16x22-23 — so a *square* box made drawSprite() pick its scale
+// from the height, drawing an ~11px-wide figure inside a 14px-wide box. Mini
+// therefore read as pinched and vertically stretched, and slid around loose
+// inside its own hitbox.
+//
+// This is the same defect MegaState's comment below records and fixed: nothing
+// the player can be is square. 14x18 is ~0.78, which matches the tiny art's
+// ~0.79 and leaves Mini half the height of Super (60) as the spec intends.
+sf::Vector2f MiniState::getSize() const { return sf::Vector2f{14.0f, 18.0f}; }
 
 
 // --- PlayerStateDecorator ---
@@ -105,5 +139,20 @@ void MegaDecorator::update(Player& player, float dt) {
 }
 
 sf::Vector2f MegaDecorator::getSize() const {
-    return sf::Vector2f{128.0f, 128.0f};
+    // SPEC 6.x gives Mega as "4 tiles (128px)" — a height, like every other row
+    // of that table. This returned a 128x128 *square*, and nothing the player
+    // can be is square: every form is 24 wide. drawSprite aspect-fits, so the
+    // sprite came out ~39px wide inside a 128px box and the player collided
+    // with things 45px to either side of where they appeared. Swapping the base
+    // form underneath Mega — a Fire Flower while giant — made that obvious as a
+    // stretched "big fire" figure adrift in its own hitbox.
+    //
+    // Scaling the wrapped form to that height instead keeps the box on the
+    // sprite whatever Mega is wrapping.
+    constexpr float MEGA_HEIGHT = 128.0f;
+    const sf::Vector2f base = PlayerStateDecorator::getSize();
+    if (base.y <= 0.0f) {
+        return sf::Vector2f{MEGA_HEIGHT * 0.4f, MEGA_HEIGHT};
+    }
+    return sf::Vector2f{base.x * (MEGA_HEIGHT / base.y), MEGA_HEIGHT};
 }

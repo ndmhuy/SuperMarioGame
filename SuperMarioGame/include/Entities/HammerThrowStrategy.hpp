@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entities/IMovementStrategy.hpp"
+#include <string>
 #include <SFML/System/Vector2.hpp>
 #include <functional>
 
@@ -8,6 +9,8 @@ class HammerThrowStrategy : public IMovementStrategy {
 public:
     explicit HammerThrowStrategy(float throwCooldown = 1.5f, float jumpCooldown = 3.0f);
     virtual ~HammerThrowStrategy() override = default;
+
+    std::string getName() const override { return "HammerThrow"; }
 
     // Callback to allow spawning projectiles without circular dependencies
     void setThrowCallback(std::function<void(sf::Vector2f position, bool faceRight)> callback);

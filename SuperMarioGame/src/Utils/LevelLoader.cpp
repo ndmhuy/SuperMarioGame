@@ -1,4 +1,6 @@
 #include "Utils/LevelLoader.hpp"
+#include "Core/ResourceManager.hpp"
+#include "Entities/Boss.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/SerializationUtils.hpp"
@@ -25,26 +27,24 @@
 #include "Entities/QuestionBlock.hpp"
 
 #include <nlohmann/json.hpp>
-#include <fstream>
-#include <filesystem>
-#include <iostream>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
     std::string filename = std::filesystem::path(jsonPath).filename().string();
     std::vector<std::string> fallbacks = {
-        jsonPath,
-        "SuperMarioGame/" + jsonPath,
-        "../" + jsonPath,
-        "build/" + jsonPath,
-        "../build/" + jsonPath,
-        "assets/levels/" + filename,
-        "../assets/levels/" + filename,
-        "SuperMarioGame/assets/levels/" + filename,
+        // resolvePath knows the source roots; this list only has to cover the
+        // shapes it does not — a path given relative to the levels directory,
+        // and the copy of assets/ that CMake syncs into the build tree (audit
+        // A-13, which counted eleven candidates here).
+        ResourceManager::resolvePath(jsonPath),
+        ResourceManager::resolvePath("assets/levels/" + filename),
         "build/assets/levels/" + filename,
-        "../build/assets/levels/" + filename,
-        "SuperMarioGame/build/assets/levels/" + filename
+        "../build/assets/levels/" + filename
     };
 
     std::ifstream file;
@@ -146,6 +146,22 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
                 entity = EntityFactory::create(eType, position);
             }
 
+            // A boss carries the room it is fought in. Optional "arenaX" and
+            // "arenaW" are in tiles, like every other coordinate in this file;
+            // without them the arena is centred on the boss's own spawn, so a
+            // boss dropped into a level still gets a fight rather than pacing
+            // the whole map.
+            if (auto* boss = dynamic_cast<Boss*>(entity.get())) {
+                const float arenaTilesX = entityJson.value("arenaX", tx - 7.0f);
+                const float arenaTilesW = entityJson.value("arenaW", 15.0f);
+                boss->setArena(AABB{
+                    arenaTilesX * Constants::TILE_SIZE,
+                    0.0f,
+                    arenaTilesW * Constants::TILE_SIZE,
+                    static_cast<float>(height) * Constants::TILE_SIZE
+                });
+            }
+
             if (entity) {
                 levelData.entities.push_back(std::move(entity));
             }
@@ -208,6 +224,11 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
         // 2. Serialize Entities list
         j["entities"] = nlohmann::json::array();
         for (const auto& entity : entities) {
+            // Projectiles are in flight, not level furniture. Writing a
+            // hammer or a fireball into a level file would resurrect it on
+            // every load — and before the type names were fixed it came back
+            // as a Goomba.
+            if (entity && entity->getCategory() == EntityCategory::Projectile) continue;
             if (!entity) continue;
             std::string typeStr = SerializationUtils::getEntityTypeName(*entity);
             if (typeStr == "unknown" || typeStr == "mario" || typeStr == "luigi" || typeStr == "toad" || typeStr == "peach") {

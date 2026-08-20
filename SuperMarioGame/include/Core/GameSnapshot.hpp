@@ -43,6 +43,17 @@ struct EntitySpawnRequest {
 
 struct GameSnapshot {
     PlayerSnapshot playerState;
+
+    // Player 2's stats, and whether there was a Player 2 at all.
+    //
+    // The snapshot captured Player 1 only. Player 2's *position* came back
+    // correctly — it is an Entity, so it rode along in entityStates — but its
+    // score, coins and lives did not, so rewinding in a two-player match rolled
+    // one player's stats back and left the other's where they were. Silent,
+    // because nothing about the screen looks wrong until you read the scores.
+    bool hasSecondPlayer = false;
+    PlayerSnapshot secondPlayerState;
+
     std::vector<EntitySnapshot> entityStates;
     float levelTimer = 300.0f;
     sf::Vector2f cameraCenter{0.0f, 0.0f};

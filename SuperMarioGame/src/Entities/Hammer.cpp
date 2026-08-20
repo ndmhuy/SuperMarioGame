@@ -5,10 +5,18 @@
 #include <SFML/Graphics/CircleShape.hpp>
 #include <cmath>
 
-Hammer::Hammer(sf::Vector2f pos, sf::Vector2f vel) : Entity(pos, {16.0f, 16.0f}) {
+Hammer::Hammer(sf::Vector2f pos, sf::Vector2f vel) : Projectile(pos, {16.0f, 16.0f}) {
+    velocity = vel;
+}
+
+void Hammer::resetForPool(sf::Vector2f pos, sf::Vector2f vel) {
     position = pos;
     velocity = vel;
-    setTargetSize({16.0f, 16.0f});
+    boundingBox.x = pos.x;
+    boundingBox.y = pos.y;
+    m_lifetime = 6.0f;
+    m_spin = 0.0f;
+    active = true;
 }
 
 void Hammer::setupAnimations(const SpriteSheet* spriteSheet) {

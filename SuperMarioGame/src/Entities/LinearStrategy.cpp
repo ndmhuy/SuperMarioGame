@@ -31,6 +31,9 @@ void LinearStrategy::setDirection(sf::Vector2f direction) {
 }
 
 void LinearStrategy::applyMovement(Enemy& enemy, float dt) {
-    enemy.velocity = m_direction * m_speed;
+    // Prefer the enemy's own speed so the difficulty modifier reaches Bullet
+    // Bill; m_speed stays as the default for a strategy built standalone.
+    const float speed = enemy.speed > 0.0f ? enemy.speed : m_speed;
+    enemy.velocity = m_direction * speed;
     enemy.facingRight = (enemy.velocity.x > 0.0f);
 }

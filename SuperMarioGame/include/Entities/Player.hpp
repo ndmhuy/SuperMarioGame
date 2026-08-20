@@ -10,6 +10,13 @@ struct PlayerSnapshot;
 
 class Player : public Character {
 public:
+    bool hasArtwork() const override { return m_animator && m_hasAnimation; }
+    sf::Vector2f artworkSize() const override {
+        if (!m_animator || !m_hasAnimation) return {0.0f, 0.0f};
+        const auto b = m_animator->getSprite().getLocalBounds();
+        return {b.size.x, b.size.y};
+    }
+
     explicit Player(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f}) : Character(pos, targetSize) {}
     ~Player() override = default;
 
@@ -25,6 +32,11 @@ public:
     virtual void crouch();
     virtual void slide();
     virtual void shootFireball();
+
+    // True only in the Fire state (through any decorator) and off cooldown.
+    // shootFireball() had NO state check at all: Small, Super, Cape and Mini
+    // Mario could all throw fireballs, which made the Fire Flower pointless.
+    bool canShootFireball() const;
 
     // Powerup state transitions
     void powerUp(int itemType);
@@ -72,6 +84,11 @@ public:
     int getCoyoteFramesLeft() const { return coyoteFramesLeft; }
     int getJumpBufferFramesLeft() const { return jumpBufferFramesLeft; }
     int getComboCounter() const { return comboCounter; }
+    // Seconds left on the current chain, for the HUD's fade. Zero when there is
+    // no combo running.
+    float getComboTimer() const { return comboTimer; }
+    // How long a chain survives without another hit.
+    static constexpr float COMBO_WINDOW = 2.5f;
     bool isCrouched() const { return crouched; }
     bool isSliding() const { return sliding; }
     bool isRunRequested() const { return m_runRequested; }
@@ -81,6 +98,69 @@ public:
     Entity* getHeldEntity() const { return m_heldEntity; }
     void holdEntity(Entity* entity) { m_heldEntity = entity; }
     void releaseHeldEntity() { m_heldEntity = nullptr; }
+
+    // Throws whatever is being carried in the facing direction and returns true
+    // if something was thrown. Nothing used to clear m_heldEntity, so a picked-up
+    // shell was carried for the rest of the level with no way to put it down.
+    bool throwHeldEntity();
+
+    // --- Carrying a form across a level load ------------------------------
+    //
+    // A warp discards the Player object and builds a new one, which reset the
+    // power-up form every time: Fire Mario went down a pipe and came back Small.
+    // These name the base form as a plain value so it can be re-applied to the
+    // replacement without moving the state object between two owners.
+    enum class Form { Small, Super, Fire, Cape, Mini };
+
+    // Applies `form` as the starting form, sizing the bounding box to it without
+    // the feet-planting shift a later form change performs. Character
+    // constructors set a placeholder 32x32 box and then changed state, so
+    // applyStateSize() shifted them by the difference — every character was
+    // spawned 2px below the position it was constructed with, and a save/load
+    // round trip drifted by the same amount each time.
+    void setStartingForm(Form form);
+    Form getForm() const;
+    void setForm(Form form);
+
+    // --- Dying ---------------------------------------------------------------
+    //
+    // The classic death: a pop upward, then a fall clean through the level and
+    // off the bottom of the screen, and only then a respawn. Death used to
+    // teleport the player to the spawn point on the same frame they touched the
+    // pit, which read as a glitch rather than as dying.
+    //
+    // A dying player also stops colliding with anything and stops taking input,
+    // which is what makes the fall-through work and what stops a second death
+    // being registered on the way down.
+    void beginDeathFall();
+    bool isDying() const { return m_dying; }
+    void endDeathFall() { m_dying = false; }
+    void moveLeft() override;
+    void moveRight() override;
+    bool collidesWithTiles() const override { return !m_dying; }
+    bool isCollidable() const override { return !m_dying; }
+
+    // --- Cape ---------------------------------------------------------------
+    //
+    // Which pad drives this player, so a state can ask the InputManager about
+    // the *bound* jump key rather than naming a physical one.
+    int getPlayerIndex() const;
+
+    // Set by CapeState while the player is drifting down under the cape. Read by
+    // the animation picker and by the physics glide clamp.
+    bool isGliding() const { return m_gliding; }
+    void setGliding(bool gliding) { m_gliding = gliding; }
+
+    // Swings the cape. Returns false when the player is not caped, so the fire
+    // button can fall through to the fireball. While the spin lasts, touching an
+    // enemy defeats it instead of hurting the player.
+    bool spinCape();
+    bool isSpinningCape() const { return m_capeSpinTimer > 0.0f; }
+    float getCapeSpinTimer() const { return m_capeSpinTimer; }
+
+    // Drops it in place without launching it. Used when the player is hurt or
+    // dies: a carried shell must not follow a corpse around.
+    void dropHeldEntity();
 
     // Encapsulated Memento pattern methods
     PlayerSnapshot createSnapshot() const;
@@ -102,6 +182,8 @@ protected:
     int coyoteFramesLeft = 0;
     int jumpBufferFramesLeft = 0;
     int comboCounter = 0;
+    // Counts down since the last hit; at zero the chain is over.
+    float comboTimer = 0.0f;
     bool crouched = false;
     bool sliding = false;
     bool m_crouchRequestedThisFrame = false;
@@ -110,6 +192,9 @@ protected:
     bool m_isImmortal = false;
     float m_fireballCooldownTimer = 0.0f;
     Entity* m_heldEntity = nullptr;
+    bool m_gliding = false;
+    bool m_dying = false;
+    float m_capeSpinTimer = 0.0f;
 
     std::unique_ptr<Animator> m_animator;
     const SpriteSheet* m_spriteSheet = nullptr;

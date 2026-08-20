@@ -3059,6 +3059,86 @@
         "w": 22,
         "h": 31
       }
+    },
+    "boom_boom_spin_0": {
+      "frame": {
+        "x": 1,
+        "y": 423,
+        "w": 44,
+        "h": 51
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 44,
+        "h": 51
+      },
+      "sourceSize": {
+        "w": 44,
+        "h": 51
+      }
+    },
+    "boom_boom_spin_1": {
+      "frame": {
+        "x": 46,
+        "y": 423,
+        "w": 38,
+        "h": 54
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 38,
+        "h": 54
+      },
+      "sourceSize": {
+        "w": 38,
+        "h": 54
+      }
+    },
+    "boom_boom_walk_0": {
+      "frame": {
+        "x": 85,
+        "y": 423,
+        "w": 28,
+        "h": 42
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 28,
+        "h": 42
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 42
+      }
+    },
+    "boom_boom_walk_1": {
+      "frame": {
+        "x": 114,
+        "y": 423,
+        "w": 28,
+        "h": 42
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 28,
+        "h": 42
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 42
+      }
     }
   },
   "meta": {
@@ -3067,7 +3147,8 @@
     "image": "merged_spritesheet.png",
     "size": {
       "w": 340,
-      "h": 423
-    }
+      "h": 478
+    },
+    "derivedFrames": "tools/boss-frames/gen_boomboom_frames.py"
   }
 }

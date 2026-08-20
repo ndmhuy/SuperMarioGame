@@ -62,7 +62,22 @@ Several ledger tasks are now complete as a side effect of the audit work. Verifi
 
 Seventeen ledger tasks. Grouped by what they buy.
 
-### Tier 1 — Required for a complete game loop (~14 h)
+### Tier 1 — Required for a complete game loop (~14 h) — **DONE** (`A/tier1-game-loop`)
+
+All seven items are implemented and both ctest suites pass. What is *not* done
+inside them, so the ledger stays honest:
+
+* 7.1 has no attract mode (it needs 10.3 Replay) and no Load Game entry.
+* 7.5 has no World Map entry, because 7.3 does not exist yet.
+* Nobody has watched pause / victory / game over on screen. The environment this
+  was built in cannot inject keystrokes or capture the screen, so the evidence is
+  the two ctest suites plus a launch that reaches the new menu. **Play it before
+  tagging the milestone.**
+
+One bug fell out of the work: the game aborted on exit with SIGABRT because
+`Game::shutdown` never released the `ResourceManager`'s textures and fonts. It
+printed its whole clean-shutdown log and then died, which is why 208 sessions
+never noticed. Fixed in `91ab4d4`.
 
 Without these the game runs but has no shell around it.
 
@@ -76,7 +91,29 @@ Without these the game runs but has no shell around it.
 | 6 | **7.8** Options & High Scores | A | 3 h | Every backing piece exists — volume, difficulty, colourblind, and now key rebinding. This is the UI over them. |
 | 7 | **Flag + power-up sprites** | — | 1 h | Two flag frames and 3 × 4 characters of Super/Fire/Cape art, or a documented palette-swap fallback. |
 
-### Tier 2 — Depth the spec calls for (~16 h)
+### Tier 2 — Depth the spec calls for (~16 h) — **DONE** (`A/tier2-bosses`)
+
+All five items plus a shared foundation neither boss could exist without.
+Caveats, so the ledger stays honest:
+
+* Boom Boom's art is *derived*, not drawn: `tools/boss-frames/` recolours and
+  scales Boomerang Bro, the nearest silhouette in the atlas. Bowser's art was
+  already there.
+* 9.4's second sub-item — rebalancing per-level enemy counts against the new
+  difficulty modifiers — is not done and is left unticked.
+* Same verification limit as Tier 1: two ctest suites pass (165 + 24 checks) and
+  the game launches, but **nobody has fought either boss on screen.** This
+  environment cannot inject keystrokes or capture the display.
+
+Two more bugs fell out of the work, both pre-existing:
+
+* `CollisionResolver` `static_cast` every `Projectile` to `Fireball`, so a
+  Hammer Bro's hammer killed other enemies. Fixed in `d3e8b55` by dispatching
+  through a real `Projectile` base.
+* `Hammer::setupAnimations` was never called — hammers fell through the
+  animation dispatcher's Player/Enemy/Item/Block chain and drew a placeholder.
+
+
 
 | # | Task | Owner | Est. |
 | :-- | :--- | :--- | ---: |
@@ -88,7 +125,24 @@ Without these the game runs but has no shell around it.
 
 `EntityFactory` already returns `nullptr` for `Bowser` and `BoomBoom`, and the HUD already carries boss health-bar fields with no producer — the sockets are cut, the classes are missing.
 
-### Tier 3 — Spec extras (~13 h)
+### Tier 3 — Spec extras (~13 h) — **DONE** (`A/tier3-systems`)
+
+All ten items. Deliberately not done inside them, recorded next to their boxes:
+console autocomplete, NG+ level mirroring, sprite recolouring for colourblind
+mode (the palette covers UI markers), per-row menu audio cues, and bubble/ember
+particles for water and lava.
+
+Four more pre-existing bugs surfaced while doing it:
+
+* Five entities never overrode `getTypeName()`, so they wrote `"unknown"` into
+  saved levels and came back as **Goombas** — silent data loss in the map editor.
+* All seven level files claimed `"theme": "overworld"`, including the ice cavern
+  and the castle.
+* Level 3's lava pit was filled with **water**, because no lava tile type existed.
+* The boss-arena camera was chasing the player while `clampToBounds` centred it,
+  so the two fought every frame.
+
+
 
 | # | Task | Owner | Est. |
 | :-- | :--- | :--- | ---: |
@@ -103,7 +157,17 @@ Without these the game runs but has no shell around it.
 | 21 | **5.10** Water & lava animation | A | 2 h |
 | 22 | **4.3** Camera lookahead + scroll modes | A | 1.5 h |
 
-### Tier 4 — Hygiene (~3 h)
+### Tier 4 — Hygiene (~3 h) — **DONE**
+
+All four. `main` is level with `dev` at `679d301` and tagged `v1.0-complete`;
+both are unpushed, because pushing is the user's call.
+
+X-8 turned out to be 208 files, not 207, and A-13 seven files rather than four —
+three of the seven were new screens I added in Tiers 1 and 3, each having copied
+the same path-guessing lambda. Both are closed at the source: one
+`SpriteSheet::loadAtlas`, and everything else through `resolvePath`.
+
+
 
 | # | Task | Est. |
 | :-- | :--- | ---: |

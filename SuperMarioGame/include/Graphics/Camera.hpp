@@ -29,12 +29,41 @@ public:
     // Prevent copying, allow moving
     Camera(const Camera&) = delete;
     Camera& operator=(const Camera&) = delete;
-    Camera(Camera&&) noexcept = default;
-    Camera& operator=(Camera&&) noexcept = default;
+    // Deliberately not movable. The constructor subscribes lambdas that capture
+    // `this`, so a defaulted move copied the subscription ids to the new object
+    // while the callbacks still pointed at the old one: the moved-from
+    // destructor would then cancel the *new* camera's shake subscriptions, and a
+    // shake arriving in between would run against a dead object (audit X-7).
+    //
+    // Re-subscribing in a move constructor would work too, but nothing moves a
+    // Camera, and a deleted operation is a compile error rather than a bug.
+    Camera(Camera&&) = delete;
+    Camera& operator=(Camera&&) = delete;
 
-    // Follow target & set bounds
+    // How the camera treats the level it is looking at (task 4.3).
+    enum class ScrollMode {
+        Free,        // follows on both axes — the default, and what sub-levels want
+        Horizontal,  // vertical position pinned; classic side-scrolling
+        Locked       // ignores the target entirely; used by boss arenas
+    };
+
+    void setScrollMode(ScrollMode mode) { m_scrollMode = mode; }
+    ScrollMode getScrollMode() const { return m_scrollMode; }
+
+    // Look ahead of a moving target, so the player sees where they are going
+    // rather than where they have been. Strength is in pixels at full run speed;
+    // zero disables it.
+    void setLookahead(float pixelsAtFullSpeed) { m_lookaheadStrength = pixelsAtFullSpeed; }
+    float getLookahead() const { return m_lookaheadStrength; }
+
+    // Follow target & set bounds. The two-argument form keeps every existing
+    // caller working; pass a velocity to get lookahead.
     void follow(const sf::Vector2f& target, float dt);
+    void follow(const sf::Vector2f& target, const sf::Vector2f& targetVelocity, float dt);
     void setBounds(const AABB& bounds);
+    // Needed so a caller that swaps the bounds temporarily — the boss arena —
+    // can put back what was there without recomputing it from the tilemap.
+    const AABB& getBounds() const;
 
     // View & bounds accessors
     sf::View& getView();
@@ -79,6 +108,11 @@ private:
     AABB m_bounds;
     sf::Vector2f m_position;
     bool m_boundsEnabled = true;
+
+    ScrollMode m_scrollMode = ScrollMode::Free;
+    float m_lookaheadStrength = 0.0f;
+    // Smoothed, not snapped: an instant offset flick on every turn is nauseating.
+    float m_lookaheadOffset = 0.0f;
 
     // Active shake runtime state
     ShakeParams m_activeShake;

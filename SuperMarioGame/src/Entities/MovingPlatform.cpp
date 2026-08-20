@@ -5,8 +5,11 @@
 #include <cmath>
 
 MovingPlatform::MovingPlatform(sf::Vector2f position, sf::Vector2f travelRange, float speed)
-    : Block(position, {64.0f, 16.0f}), m_startPos(position), m_travelRange(travelRange), m_speed(speed),
-      m_rangeLen(std::sqrt(m_travelRange.x * m_travelRange.x + m_travelRange.y * m_travelRange.y)) {
+    // Initialiser order must match the declaration order in the header, or
+    // m_rangeLen reads m_travelRange before it is set (-Wreorder-ctor).
+    : Block(position, {64.0f, 16.0f}), m_startPos(position), m_travelRange(travelRange),
+      m_rangeLen(std::sqrt(travelRange.x * travelRange.x + travelRange.y * travelRange.y)),
+      m_speed(speed) {
     m_breakable = false;
 }
 
@@ -46,7 +49,7 @@ void MovingPlatform::update(float dt) {
     setPosition(newPos);
 
     // Apply carrying logic if player is standing on top
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         AABB pBox = player->getBoundingBox();
         AABB platBox = getBoundingBox();
@@ -69,7 +72,11 @@ void MovingPlatform::update(float dt) {
 void MovingPlatform::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
     m_animation = Animation("moving_platform");
-    m_animation.frameList = {{"platform_medium", 0.15f}};
+    // This named "platform_medium", which world_scenery_item does not contain.
+    // setupAnimations() sets m_hasAnimation whether or not the frames exist,
+    // and drawSprite() returns early on a zero-size sprite, so the moving platform
+    // drew nothing at all — not even the placeholder rectangle.
+    m_animation.frameList = {{"half_platform_long", 0.15f}};
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;

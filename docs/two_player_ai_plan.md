@@ -175,7 +175,9 @@ private:
     // Heuristic Path Planning (A*)
     sf::Vector2f planPathToGoal(const TileMap& tileMap);
     
-    // Reactive Action selection (Neural network inference or decision tree)
+    // Decision-making is delegated to an IAIPolicy (see §6): heuristic decision
+    // tree first, neural network later — the controller only senses and actuates.
+    std::unique_ptr<IAIPolicy> m_policy;
     void executeTacticalMove(const sf::Vector2f& targetWaypoint, const std::vector<std::vector<AIAroundState>>& visionGrid);
 };
 ```
@@ -211,8 +213,121 @@ private:
 
 ---
 
-## 📈 5. Next Steps for Implementation
+## 🖥️ 5. GUI & UX Adaptation Per Mode
 
-1. **Verify State & Input Framework**: Ensure `InputManager` supports registering P2 controllers (Keyboard/Gamepad) for Split-Screen and Shared-Screen configurations.
-2. **Prototype Shadow Mario**: Implement the ring-buffer recording loop inside `PlayingState` and hook up position interpolation to ensure smooth tracking.
-3. **A* Helper Integration**: Implement a basic pathfinding helper on the `TileMap` to allow the AI to navigate platforms on custom levels.
+Every mode needs the UI to acknowledge it. The engine's existing screens (`MenuState`, `CharacterSelectState`, `OptionsState`, `PauseState`, `VictoryState`, `GameOverState`) and the ImGui `DevPanel` are the touch points.
+
+### 5.1 Mode Selection Flow
+* `MenuState`'s `ROW_VERSUS` becomes the entry to a **mode picker** (Versus / Co-op / Shadow Chase; Split-Screen greyed out until implemented) instead of hardcoding shared-screen versus.
+* For Versus and Co-op, an **opponent picker**: Human (P2 keys) or CPU. Choosing CPU exposes difficulty (Easy/Normal/Hard) and archetype (Speedrunner/Hunter/Collector) selectors.
+* `CharacterSelectState` must forward the chosen mode (today the versus path bypasses it — P1 is always Mario on 1-1). In 2P-human it runs twice (P1 pick, then P2 pick); with a CPU opponent, P2's portrait shows a "CPU" badge with the archetype icon.
+
+### 5.2 In-Game HUD Per Mode
+* **Versus**: generalize `renderVersusHud` — replace the hardcoded "P1/P2" labels with slot names ("P2" vs "CPU · HUNTER"), keep the lead indicator.
+* **Co-op**: single shared pool display (lives, score) plus both players' power-up forms side by side; no lead indicator.
+* **Shadow Chase**: standard P1 HUD plus a **shadow gauge** — a 3-second ring/bar showing how far behind the shadow is, flashing a proximity warning when the shadow is within ~3 tiles of the player.
+* **Minimap**: add a second marker for P2 / the shadow (today it renders P1 only).
+
+### 5.3 End & Pause Screens
+* `VictoryState` / `GameOverState` need a mode-aware headline: "P1 WINS" / "CPU WINS" (Versus), shared result (Co-op), and for Shadow Chase, "CAUGHT BY YOUR SHADOW" on shadow-touch death.
+* `PauseState` in a CPU match should freeze the `AIController` cleanly (no decision-timer drift across pause).
+
+### 5.4 Settings & Dev Tooling
+* `OptionsState`: expose the P2 keybinding set that already exists in `InputManager` (arrows/M/N defaults) for rebinding, and resolve the `M`-key collision with the minimap toggle.
+* **ImGui `DevPanel`** (per AGENTS.md tunability rule): sliders for shadow delay (default 3.0s), lerp threshold/factor, AI reaction latency, action noise ε, and live archetype/difficulty switching; plus an AI debug overlay drawing the observation grid and current target waypoint (extend the existing strategy `getDebugState()` overlay).
+
+---
+
+## 🧬 6. RL-Ready Policy Seam (Side Project: Neural Network AI)
+
+The heuristic AI ships first, but the `AIController` is deliberately split so a trained **reinforcement-learning policy can be plugged in later without touching the game loop**. The controller owns *sensing* and *actuation*; the *decision* is behind an interface:
+
+```cpp
+// include/Entities/IAIPolicy.hpp
+#pragma once
+#include <vector>
+
+struct AIObservation {
+    // Fixed-size, normalized — this IS the RL observation space.
+    std::vector<float> grid;      // flattened vision grid (AIAroundState one-hot), size = W*H*5
+    float dxToGoal, dyToGoal;     // normalized offset to current objective
+    float dxToOpponent, dyToOpponent;
+    float vx, vy;                 // own velocity, normalized
+    bool onGround, canJump, isPoweredUp;
+};
+
+struct AIAction {
+    // Discrete action space, mirrors PlayerFramePacket's buttons.
+    bool moveLeft, moveRight, jump, run, crouch, shoot, groundPound;
+};
+
+class IAIPolicy {
+public:
+    virtual ~IAIPolicy() = default;
+    virtual AIAction decide(const AIObservation& obs) = 0;
+};
+```
+
+* `HeuristicPolicy : IAIPolicy` — the utility-scored decision tree shipping in the first pass (archetypes = reward weightings, per §3B).
+* `NeuralPolicy : IAIPolicy` — later wraps the neural network for inference; same observation in, same action out.
+* **Design consequences to honor now** (cheap now, painful to retrofit):
+  1. `AIObservation` is fixed-size and normalized to [-1, 1] from day one — heuristic and network consume the identical struct.
+  2. `AIAction` mirrors `PlayerFramePacket`'s button fields, so a recorded human session doubles as **imitation-learning data** and the shadow-replay machinery doubles as an action executor.
+  3. Difficulty's ε-noise is applied *outside* the policy (in `AIController`), so it works identically for both — and maps directly onto ε-greedy exploration during training.
+  4. **Reward hooks via `EventBus`**: the reward function is an EventBus subscriber (coin/damage/kill/flag events already exist as events), not code inside the policy. Training reads rewards without touching gameplay code.
+  5. Keep `decide()` synchronous and allocation-free on the hot path; the controller calls it at the difficulty's reaction cadence, not every frame.
+* **Out of scope for now, noted for training later**: a headless/accelerated stepping mode for the sim, and (de)serialization of network weights. These get their own proposal when the side project starts.
+
+---
+
+## 📈 7. Implementation Status
+
+Implemented on `A/shadow-mario-ai-multiplayer`. What landed, and where this
+document turned out to be wrong:
+
+| Item | State |
+| :--- | :--- |
+| P2 input framework (§7.1) | Done — and it was *broken*, not missing: P2's press actions were never dispatched, so Player 2 could not jump at all. |
+| Shadow Mario (§3) | Done. Inputs drive it, the recorded position is the leash, as designed. |
+| Shared-screen Versus, Co-op, Shadow Chase (§1.1, 1.3, 1.4) | Done. |
+| Split-Screen Speedrun (§1.2) | **Not done.** `Camera` owns a single non-movable `sf::View` and no code anywhere uses `setViewport`; every screen-space overlay would have to learn which half it draws into first. Own proposal. |
+| AI difficulty tiers (§2A) | Done — vision radius, reaction latency, ε and allowed controls per tier. |
+| AI archetypes (§2B) | Done as reward weightings over one rule set. |
+| A\* path planning (§4) | **Not done, deliberately.** The policy reasons locally from its vision grid, which is enough for the campaign levels. Writing an unused pathfinder is how this project accumulated five finished-but-inert graphics subsystems (audit B-9). |
+| Per-mode GUI (§5) | Done. |
+| RL policy seam (§6) | Done on this branch; the network itself is on `A/rl-neural-policy`. |
+
+### Corrections to this document
+
+1. **§3 said the delay queue could extend the existing replay system.**
+   `TASK_DIVISION.md` repeats this as the reason Bonus C is cheap. It is wrong
+   twice over: `ReplayRecorder` records *state, not input* — its header explains
+   that the simulation is not deterministic, which is exactly why — and it thins
+   to every sixth frame, so it has 10Hz resolution and cannot drive a character.
+   Shadow Mario needed a new 60Hz input buffer, which is what it now has.
+
+2. **§4's `AIController` sketch mentioned "neural network inference or decision
+   tree" inside `executeTacticalMove`.** Decisions moved out to `IAIPolicy` (§6)
+   instead, so sensing, deciding and actuating are three separable things.
+
+3. **Three bugs only a real playthrough could have found**, all now fixed, all
+   invisible to a unit test: the shadow spawned on top of the player and killed
+   them on frame one; on respawn it kept the dead life's buffer and the
+   correction lerp dragged it back across the level into the player; and the
+   death report inferred cause from proximity, so a Goomba kill next to the
+   shadow was announced as being caught by it.
+
+### Verifying it without playing it
+
+`--script` plays a text file of input through the real input pipeline, in
+process, so a verification run neither needs a human nor touches the machine's
+keyboard. Scripts live in `tests/scripts/`; `shot` writes a PNG to
+`saves/shots/`.
+
+```
+./build/SuperMarioGame --script tests/scripts/shadow_chase_run.txt
+./build/SuperMarioGame --script tests/scripts/versus_cpu.txt
+```
+
+Note that scripts name **bound** keys, not the built-in defaults — the
+`config.json` in this repo has Player 1 on the arrow keys.

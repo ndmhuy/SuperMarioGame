@@ -8,6 +8,16 @@
 
 class Player;
 
+// One row of the high-score table shown by the Options & High Scores screen.
+struct HighScoreEntry {
+    int score = 0;
+    int coins = 0;
+    int starCoins = 0;
+    std::string character = "mario";
+    std::string levelName = "1-1";
+    std::string timestamp = "";
+};
+
 struct SaveSlotPreview {
     bool exists = false;
     std::string character = "mario";
@@ -31,18 +41,56 @@ public:
                          std::vector<bool>& starCoinsCollected);
 
     static SaveSlotPreview getSlotPreview(int slot);
+
+    // The one directory every save file lives in, resolved once. Public because
+    // CampaignProgress writes alongside these files and must not resolve its own
+    // — see the comment on the definition: bare relative paths gave you a
+    // different config depending on the working directory.
+    static std::string saveDirectory();
+
+    // --- Player profile: achievements and lifetime statistics ---------------
+    //
+    // These were serialized ONLY inside a level save slot, and the only code path
+    // that read a slot back is PlayingState::loadFromSlot — whose only caller is
+    // the ImGui dev panel. So achievements and statistics were written to disk on
+    // every autosave and never loaded by the running game: every launch started
+    // with an empty achievement set and zeroed counters, and because Toad and
+    // Peach are gated on the "toad"/"peach" achievements, both characters were
+    // permanently locked no matter what the player had done.
+    //
+    // A profile is separate from a save slot on purpose. Achievements and
+    // lifetime totals belong to the player, not to one run, and must survive
+    // starting a new game. Same directory and same shape as progress.json, which
+    // is the one piece of persistence that already worked.
+    static bool saveProfile();
+    static bool loadProfile();
+
+    // High-score table (saves/highscores.json). recordHighScore() merges the
+    // entry in, keeps the list sorted descending and truncates to MAX_HIGH_SCORES,
+    // so callers never have to read-modify-write it themselves.
+    static constexpr int MAX_HIGH_SCORES = 10;
+    static bool recordHighScore(const HighScoreEntry& entry);
+    static std::vector<HighScoreEntry> loadHighScores();
     static bool deleteSlot(int slot);
 
-    // Settings save/load
-    static bool saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty, 
+    // Settings save/load.
+    //
+    // `keyBindings2` is Player 2's pad. Written under its own "keyBindings2" key
+    // and treated as optional on load, so a config.json written before two
+    // players were configurable still parses and simply keeps the built-in
+    // arrow-key layout.
+    static bool saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty,
                              const std::unordered_map<std::string, std::string>& keyBindings,
+                             const std::unordered_map<std::string, std::string>& keyBindings2,
                              bool colorblindMode);
 
-    static bool loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty, 
+    static bool loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty,
                              std::unordered_map<std::string, std::string>& keyBindings,
+                             std::unordered_map<std::string, std::string>& keyBindings2,
                              bool& colorblindMode);
 
 private:
     static std::string getSaveFilePath(int slot);
+    static std::string getHighScoresFilePath();
     static std::string getSettingsFilePath();
 };

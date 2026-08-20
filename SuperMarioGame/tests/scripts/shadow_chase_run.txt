@@ -1,0 +1,45 @@
+# Shadow Chase, played far enough to see the shadow retracing the path.
+#
+# Uses the ACTUAL bound keys, not the built-in defaults: saves/config.json in
+# this repo has Player 1 on Left/Right/Space. Running this after a rebind means
+# editing the key names below — or resetting controls from Options/Keys.
+#
+#   ./build/SuperMarioGame --script tests/scripts/shadow_chase_run.txt
+
+wait 2.0
+press Down
+wait 0.4
+press Enter               # multiplayer page
+wait 0.6
+press Right
+wait 0.25
+press Right
+wait 0.25
+press Right               # -> SHADOW CHASE
+wait 0.5
+press Down                # -> START
+wait 0.4
+press Enter
+wait 1.2
+
+# Run right, jumping over 1-1's first Goomba rather than into it.
+hold Right 8.0
+wait 0.8
+press Space
+wait 1.0
+press Space
+wait 1.2
+shot 40_running           # buffer still filling
+wait 1.2
+press Space
+wait 1.0
+shot 41_shadow_replaying  # past 3s: the shadow is on the path, behind
+wait 1.0
+press Space
+wait 1.0
+shot 42_shadow_trail
+wait 1.5
+shot 43_after_stop        # key released, so the past starts closing in
+wait 1.5
+shot 44_closing
+quit

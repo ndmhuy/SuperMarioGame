@@ -42,6 +42,12 @@ public:
     virtual const AABB& getBoundingBox() const;
     virtual bool isActive() const;
     virtual void destroy();
+
+    // Brings a destroyed entity back. The object pool needs this (a recycled
+    // object is reactivated rather than reconstructed) and so do the harnesses
+    // that respawn a test player, both of which used to assign to the protected
+    // `active` flag through friendship.
+    void revive() { active = true; }
     virtual float getGravityMultiplier() const { return 1.0f; }
 
     // What kind of thing this is, for collision dispatch. Overridden once per
@@ -66,6 +72,28 @@ public:
     // (audit B-14). Say it directly instead.
     virtual bool isCollidable() const { return true; }
 
+    // Does this entity only ever act as a moving hazard to the human player?
+    //
+    // Shadow Mario is a Player subclass so that it moves, animates and collides
+    // with the level exactly as the player it is replaying. That makes it a
+    // Player to the collision dispatcher too, which would let it stomp Goombas,
+    // eat mushrooms and punch question blocks — clearing the level on behalf of
+    // the player it is supposed to be chasing. A hazard is resolved against the
+    // human and ignored by everything else.
+    //
+    // A virtual rather than another EntityCategory: the category answers "how
+    // does this collide", and a shadow collides as a Player. This answers a
+    // narrower question, which is what EntityCategory's own comment asks callers
+    // to do instead of widening the enum.
+    virtual bool isContactHazard() const { return false; }
+
+    // Told to a contact hazard when it has just hurt the player. Lets the hazard
+    // record that it was the cause, rather than leaving anything downstream to
+    // infer causation from proximity — which is wrong: a player killed by a
+    // Goomba while standing next to Shadow Mario was reported as having been
+    // caught by their shadow.
+    virtual void onContactWithPlayer() {}
+
     // Getters/Setters for external access
     sf::Vector2f getPosition() const;
     sf::Vector2f getVelocity() const;
@@ -81,6 +109,22 @@ public:
     void setPosition(sf::Vector2f pos);
     void setVelocity(sf::Vector2f vel);
     void setTargetSize(sf::Vector2f size) { m_targetSize = size; boundingBox.width = size.x; boundingBox.height = size.y; }
+
+    // Will this entity draw real artwork, or fall back to drawPlaceholder()?
+    //
+    // Every render() in the codebase branches on "animator && m_hasAnimation",
+    // but each subclass tree keeps its own copy of that flag, so there was no
+    // way to ask. Without it, a missing sprite is only discoverable by looking
+    // at the screen — which is how moving platforms shipped as brown rectangles.
+    virtual bool hasArtwork() const { return false; }
+
+    // The size of the sprite this entity would draw right now, or (0,0) if it
+    // would draw nothing. hasArtwork() only says a frame list was installed —
+    // setupAnimations() sets that flag whether or not the frame names it asked
+    // for exist in the atlas. A moving platform named "platform_medium", the
+    // atlas had no such frame, and drawSprite() bails on a zero-size sprite, so
+    // the platform drew *nothing at all* — not even the placeholder rectangle.
+    virtual sf::Vector2f artworkSize() const { return {0.0f, 0.0f}; }
 
 protected:
     // Where a sprite's origin sits relative to the entity's bounding box.

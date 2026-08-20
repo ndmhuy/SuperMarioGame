@@ -1,29 +1,105 @@
 {
+  "_comment": "Entity tuning data, read by EntityFactory (task 10.2). Seeded from the values the C++ constructors were already using, so adopting this file changed nothing about how the game plays. Edit numbers here rather than in Constants.hpp. 'strategy' is descriptive only - it records which IMovementStrategy the factory wires, and is validated on load, not applied.",
+  "_note_goomba_speed": "The previous hand-written version of this file said goomba speed 60 while the code used 50. The code won, per the decision recorded in the Tier 3 plan; nothing was reading the file, so 60 had never taken effect.",
   "goomba": {
-    "speed": 60,
-    "health": 1,
-    "score": 100,
-    "stompable": true,
-    "fireballKillable": true,
-    "strategy": "patrol",
-    "animation": { "walk": [0,1], "squish": [2], "frameDuration": 0.3 }
-  },
-  "koopa": {
     "speed": 50,
+    "score": 100,
+    "strategy": "patrol",
     "health": 1,
-    "score": 200,
     "stompable": true,
     "fireballKillable": true,
+    "animation": {
+      "walk": [
+        0,
+        1
+      ],
+      "squish": [
+        2
+      ],
+      "frameDuration": 0.3
+    }
+  },
+  "koopa_troopa": {
+    "speed": 50,
+    "score": 200,
     "strategy": "patrol",
-    "animation": { "walk": [0,1], "shell": [2], "frameDuration": 0.3 }
+    "health": 1,
+    "stompable": true,
+    "fireballKillable": true,
+    "animation": {
+      "walk": [
+        0,
+        1
+      ],
+      "shell": [
+        2
+      ],
+      "frameDuration": 0.3
+    }
+  },
+  "koopa_paratroopa": {
+    "speed": 50,
+    "score": 400,
+    "strategy": "fly"
+  },
+  "boo": {
+    "speed": 80,
+    "score": 0,
+    "strategy": "chase"
   },
   "piranha_plant": {
-    "speed": 0,
+    "speed": 40,
+    "score": 100,
+    "strategy": "timeremergence",
     "health": 1,
-    "score": 200,
     "stompable": false,
     "fireballKillable": true,
-    "strategy": "proximity_trigger",
-    "animation": { "bite": [0,1], "frameDuration": 0.2 }
+    "animation": {
+      "bite": [
+        0,
+        1
+      ],
+      "frameDuration": 0.2
+    }
+  },
+  "bullet_bill": {
+    "speed": 200,
+    "score": 200,
+    "strategy": "linear"
+  },
+  "hammer_bro": {
+    "speed": 30,
+    "score": 1000,
+    "strategy": "hammerthrow"
+  },
+  "thwomp": {
+    "speed": 600,
+    "score": 0,
+    "strategy": "proximitytrigger"
+  },
+  "chain_chomp": {
+    "speed": 250,
+    "score": 0,
+    "strategy": "tetheredchase"
+  },
+  "lakitu": {
+    "speed": 100,
+    "score": 800,
+    "strategy": "fly"
+  },
+  "spiny": {
+    "speed": 50,
+    "score": 200,
+    "strategy": "patrol"
+  },
+  "bowser": {
+    "speed": 55,
+    "score": 5000,
+    "strategy": "boss"
+  },
+  "boom_boom": {
+    "speed": 120,
+    "score": 2000,
+    "strategy": "boss"
   }
 }

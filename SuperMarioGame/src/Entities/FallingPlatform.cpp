@@ -15,7 +15,7 @@ void FallingPlatform::onHitFromBelow(Player& player) {
 }
 
 bool FallingPlatform::isPlayerStandingOnTop() const {
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (!player) return false;
 
     AABB pBox = player->getBoundingBox();
@@ -32,7 +32,7 @@ bool FallingPlatform::isPlayerStandingOnTop() const {
 }
 
 void FallingPlatform::update(float dt) {
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     
     switch (m_state) {
         case FallingPlatformState::Idle: {
@@ -90,7 +90,11 @@ void FallingPlatform::update(float dt) {
 void FallingPlatform::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
     m_animation = Animation("falling_platform");
-    m_animation.frameList = {{"falling_platform_medium", 0.15f}};
+    // This named "falling_platform_medium", which world_scenery_item does not contain.
+    // setupAnimations() sets m_hasAnimation whether or not the frames exist,
+    // and drawSprite() returns early on a zero-size sprite, so the falling platform
+    // drew nothing at all — not even the placeholder rectangle.
+    m_animation.frameList = {{"half_platform_short", 0.15f}};
     if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;

@@ -138,10 +138,18 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                 }
             }
 
-            // Clear intent flags for next frame
-            character->clearMovementRequests();
+            // Intent flags are NOT cleared here. They describe what the player
+            // asked for this frame, and collision resolution at the end of this
+            // same update() reads them: "hold run to carry a shell instead of
+            // kicking it" could never fire, because run had already been wiped
+            // by the time the resolver looked. Cleared at the end of update()
+            // instead, once everything that consumes them has run.
 
-            // Reset ground/wall flags for the new collision detection pass
+            // Reset ground/wall flags for the new collision detection pass.
+            // Preserve the incoming value first: the X pass runs before the Y
+            // pass that recomputes onGround, so it would otherwise see false for
+            // every character, grounded or not.
+            character->wasOnGround = character->onGround;
             character->onGround = false;
             character->onWall = false;
         } else if (auto item = dynamic_cast<Item*>(entity.get())) {
@@ -244,8 +252,12 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             } else {
                 m_resolver.resolveEntityVsTile(*entity, maxCollision);
 
-                // Head-butt logic for Player hitting ceiling tiles from below
-                if (auto player = dynamic_cast<Player*>(entity.get())) {
+                // Head-butt logic for Player hitting ceiling tiles from below.
+                // Shadow Mario is excluded: it replays the player's path, so it
+                // would punch out every question block and brick the player had
+                // already jumped under, three seconds behind them.
+                if (auto player = dynamic_cast<Player*>(entity.get());
+                    player && !player->isContactHazard()) {
                     for (const auto& col : collisions) {
                         // Only a ceiling contact counts as a head-butt. The old
                         // condition also accepted `preVelY < 0.0f`, which is true for
@@ -361,6 +373,15 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             if (collision.collided) {
                 m_resolver.resolveEntityVsEntity(*entity, *candidate, collision);
             }
+        }
+    }
+
+    // 6. Intent flags last, now that acceleration and collision resolution have
+    // both had their look at them.
+    for (const auto& entity : entities) {
+        if (!entity || !entity->isActive()) continue;
+        if (auto character = dynamic_cast<Character*>(entity.get())) {
+            character->clearMovementRequests();
         }
     }
 }

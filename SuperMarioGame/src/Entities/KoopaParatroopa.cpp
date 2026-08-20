@@ -7,6 +7,9 @@
 
 KoopaParatroopa::KoopaParatroopa(sf::Vector2f position, bool isRed)
     : KoopaTroopa(position, isRed) {
+    // Character::speed was left at zero here, so every strategy substituted a
+    // literal and the difficulty modifier had nothing to scale.
+    speed = Constants::ENEMY_PARATROOPA_SPEED;
     setScoreValue(400);
     m_hasWings = true;
 
@@ -75,7 +78,7 @@ void KoopaParatroopa::onStomped() {
         setScoreValue(200); // Subsequent stomps give standard Koopa Troopa points
         
         // Change strategy to PatrolStrategy (ledge-aware if red Koopa)
-        setStrategy(std::make_unique<PatrolStrategy>(m_isRed, false));
+        setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
         if (m_animator) {
             m_animator->play(&m_animation); // Switch to ground walking animation
         }

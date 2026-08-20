@@ -5,9 +5,11 @@
 #include <SFML/Graphics/RenderStates.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Text.hpp>
-#include <cmath>
-#include <iostream>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <iostream>
 
 Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteSheet* playerSheet)
     : m_scoreText(ResourceManager::getInstance().getFont("PressStart2P")),
@@ -24,27 +26,43 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
     // Initialize text attributes
     m_scoreText.setCharacterSize(24);
     m_scoreText.setFillColor(sf::Color::White);
+    m_scoreText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_scoreText.setOutlineThickness(2.0f);
 
     m_coinsText.setCharacterSize(24);
     m_coinsText.setFillColor(sf::Color::White);
+    m_coinsText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_coinsText.setOutlineThickness(2.0f);
 
     m_worldText.setCharacterSize(24);
     m_worldText.setFillColor(sf::Color::Red);
+    m_worldText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_worldText.setOutlineThickness(2.0f);
 
     m_timeLeftText.setCharacterSize(24);
     m_timeLeftText.setFillColor(sf::Color::White);
+    m_timeLeftText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_timeLeftText.setOutlineThickness(2.0f);
 
     m_livesText.setCharacterSize(24);
     m_livesText.setFillColor(sf::Color::White);
+    m_livesText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_livesText.setOutlineThickness(2.0f);
 
     m_comboCountText.setCharacterSize(36);
     m_comboCountText.setFillColor(sf::Color::Green);
+    m_comboCountText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_comboCountText.setOutlineThickness(2.0f);
 
     m_pSwitchTimeText.setCharacterSize(24);
     m_pSwitchTimeText.setFillColor(sf::Color::Yellow);
+    m_pSwitchTimeText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_pSwitchTimeText.setOutlineThickness(2.0f);
 
     m_bossNameText.setCharacterSize(20);
     m_bossNameText.setFillColor(sf::Color::Red);
+    m_bossNameText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_bossNameText.setOutlineThickness(2.0f);
 
     // Configure health bar background
     m_healthBarOuter.setSize(sf::Vector2f(300.f, 20.f));
@@ -114,14 +132,22 @@ void Hud::sync(const HudData& data) {
         m_livesText.setPosition(sf::Vector2f(60.f, 60.f));
     }
 
-    // 6. Combo text: x2! (temporary, Center)
-    if (m_curData.comboCount > 1) {
+    // 6. Combo text: x2! (Center, fades with the chain)
+    if (m_curData.comboCount > 1 && m_curData.comboTimer > 0.0f) {
         char comboBuf[32];
         std::snprintf(comboBuf, sizeof(comboBuf), "x%d!", m_curData.comboCount);
         m_comboCountText.setString(comboBuf);
         sf::FloatRect bounds = m_comboCountText.getLocalBounds();
         m_comboCountText.setOrigin(sf::Vector2f(bounds.size.x / 2.f, bounds.size.y / 2.f));
-        m_comboCountText.setPosition(sf::Vector2f(640.f, 360.f));
+        // Drawn above centre rather than dead centre: at (640, 360) it sat
+        // directly on top of the player it was describing.
+        m_comboCountText.setPosition(sf::Vector2f(640.f, 260.f));
+
+        // Fade over the last second, so it leaves rather than blinking out.
+        const float fade = std::min(1.0f, m_curData.comboTimer);
+        const auto alpha = static_cast<std::uint8_t>(255.0f * fade);
+        m_comboCountText.setFillColor(sf::Color(0, 255, 0, alpha));
+        m_comboCountText.setOutlineColor(sf::Color(0, 0, 0, static_cast<std::uint8_t>(220.0f * fade)));
     }
 
     // 7. P-Switch Alert: P-SWITCH 15 (when active, Top-Center)
@@ -253,8 +279,8 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
     }
     target.draw(m_livesText, state);
 
-    // 6. Draw Combo Counter (if active)
-    if (m_curData.comboCount > 1) {
+    // 6. Draw Combo Counter (only while the chain is actually running)
+    if (m_curData.comboCount > 1 && m_curData.comboTimer > 0.0f) {
         target.draw(m_comboCountText, state);
     }
 

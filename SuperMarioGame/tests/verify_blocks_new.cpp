@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <cstdlib>
 #include <cmath>
 #include <SFML/System/Vector2.hpp>
@@ -27,55 +28,15 @@
         } \
     } while (0)
 
-// Singletons / Stubs definition
-Game& Game::getInstance() {
-    static Game instance;
-    return instance;
-}
-Player* Game::getPlayer() const { return m_player; }
-void Game::setPlayer(Player* player) { m_player = player; }
-TileMap* Game::getTileMap() const { return m_tileMap; }
-void Game::setTileMap(TileMap* tileMap) { m_tileMap = tileMap; }
-void Game::run() {}
-void Game::quit() {}
-void Game::pushState(std::unique_ptr<IGameState> state) {}
-void Game::popState() {}
-void Game::changeState(std::unique_ptr<IGameState> state) {}
-void Game::initWindow() {}
-void Game::initImGui() {}
-void Game::shutdown() {}
-
-GameStateManager::~GameStateManager() = default;
-
-// TileMap stubs
-const TileInfo& TileMap::getInfo(TileType type) {
-    static TileInfo info;
-    return info;
-}
-void TileMap::render(sf::RenderTarget& target, Camera& camera) {}
-TileType TileMap::getTileAt(float px, float py) const { return TileType::Empty; }
-sf::Vector2i TileMap::worldToGrid(float px, float py) const { return {0,0}; }
-sf::Vector2f TileMap::gridToWorld(int gx, int gy) const { return {0.f, 0.f}; }
-TileType TileMap::getTileSurfaceType(float px, float py) const { return TileType::Empty; }
-void TileMap::swapBricksAndCoins() {}
-void TileMap::initialize(int width, int height) {}
-void TileMap::setTile(int gx, int gy, TileType type) {}
-
-// SoundManager stubs
-SoundManager& SoundManager::getInstance() {
-    static SoundManager instance;
-    return instance;
-}
-void SoundManager::playSound(const std::string& id) {}
-void SoundManager::playMusic(const std::string& path) {}
-void SoundManager::stopMusic() {}
-void SoundManager::pauseMusic() {}
-void SoundManager::resumeMusic() {}
-void SoundManager::shutdown() {}
-void SoundManager::setSFXVolume(float volume) {}
-void SoundManager::setMusicVolume(float volume) {}
-SoundManager::SoundManager() {}
-
+// No stubs here any more.
+//
+// This harness used to define its own Game, TileMap and SoundManager so it could
+// link against a handful of entity files instead of the engine. The CMake target
+// links the whole engine, so every stub collided with the real definition — 35
+// duplicate symbols — and the target has not built in a long time. Running
+// against the real classes is also what the other harnesses do, and it is the
+// only way these assertions describe the shipped behaviour rather than the
+// stubs' behaviour.
 // Custom TestPlayer
 class TestPlayer : public Player {
 public:
@@ -95,6 +56,11 @@ public:
     void takeDamage(int amount) override {
         damageTaken += amount;
     }
+
+    // Player gained a pure virtual getCharacterName() when the save system
+    // started recording who the run belonged to. This harness was never updated,
+    // so TestPlayer stayed abstract and the target has not compiled since.
+    std::string getCharacterName() const override { return "test"; }
 };
 
 int main() {
@@ -112,14 +78,20 @@ int main() {
         HiddenBlock block(blockPos, 0); // Contains a Coin
 
         TEST_ASSERT(!block.isRevealed());
-        // Unrevealed bounding box is empty
-        TEST_ASSERT(block.getBoundingBox().width == 0.0f);
+        // A hidden block is ALWAYS collidable — that is the mechanic: you find
+        // it by hitting it. It used to report a zero-sized box while unrevealed,
+        // so it never collided, so onHitFromBelow never fired, so it could never
+        // be revealed. Every hidden block in the game was unreachable (audit
+        // B-3). Invisibility is a rendering concern, not a collision one.
+        TEST_ASSERT(block.isCollidable());
+        TEST_ASSERT(block.getBoundingBox().width == 32.0f);
 
         // Hit from below triggers reveal
         block.onHitFromBelow(player);
         TEST_ASSERT(block.isRevealed());
         
-        // Revealed bounding box is solid 32x32
+        // Revealed: solid, and back in the collision world.
+        TEST_ASSERT(block.isCollidable());
         TEST_ASSERT(block.getBoundingBox().width == 32.0f);
         TEST_ASSERT(block.getBoundingBox().height == 32.0f);
 
@@ -191,7 +163,9 @@ int main() {
         // Fall far enough to trigger respawn
         plat.update(1.0f); // fell way past 400px
         TEST_ASSERT(plat.getState() == FallingPlatformState::Respawning);
-        TEST_ASSERT(plat.getBoundingBox().width == 0.f); // empty box while respawning
+        // Opts out of collision rather than reporting an empty box — a degenerate
+        // AABB in the spatial hash is what isCollidable() exists to avoid (B-14).
+        TEST_ASSERT(!plat.isCollidable());
 
         // Wait out respawn time (5.0s)
         plat.update(5.1f);

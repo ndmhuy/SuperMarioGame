@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entities/IMovementStrategy.hpp"
+#include <string>
 
 enum class FlyMode {
     SinusoidalPatrol = 0,
@@ -12,6 +13,8 @@ class FlyStrategy : public IMovementStrategy {
 public:
     explicit FlyStrategy(FlyMode mode = FlyMode::SinusoidalPatrol, bool movingRight = false);
     virtual ~FlyStrategy() override = default;
+
+    std::string getName() const override { return "Fly"; }
 
     FlyMode getFlyMode() const;
     void setFlyMode(FlyMode mode);

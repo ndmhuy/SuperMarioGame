@@ -19,7 +19,6 @@
 #include "Entities/Lakitu.hpp"
 #include "Entities/Spiny.hpp"
 #include "Entities/Hammer.hpp"
-// Note: Bowser.hpp and BoomBoom.hpp are not yet created in the project, so they are not included here.
 
 #include "Entities/Mushroom.hpp"
 #include "Entities/FireFlower.hpp"
@@ -39,13 +38,41 @@
 #include "Entities/Pipe.hpp"
 #include "Entities/Flagpole.hpp"
 #include "Entities/Fireball.hpp"
+#include "Entities/Bowser.hpp"
+#include "Entities/BossFireball.hpp"
+#include "Entities/BoomBoom.hpp"
+#include "Utils/EntityConfig.hpp"
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/FallingPlatform.hpp"
 #include "Entities/IceBlock.hpp"
 #include "Entities/ConveyorBelt.hpp"
 
+namespace {
+
+// Applies whatever assets/config/entities.json has to say about an entity, on
+// top of what its constructor set (task 10.2). Values the file omits are left
+// alone, so a partial entry cannot zero out something the code knew.
+void applyConfig(Entity* entity) {
+    auto* enemy = dynamic_cast<Enemy*>(entity);
+    if (!enemy) return;   // only enemies are tuned from the file today
+
+    const EntityConfigEntry* config = EntityConfig::find(enemy->getTypeName());
+    if (!config) return;
+
+    if (config->speed > 0.0f) enemy->setSpeed(config->speed);
+    if (config->score >= 0)   enemy->setScoreValue(config->score);
+}
+
+} // namespace
+
 std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f position) {
+    std::unique_ptr<Entity> entity = createUnconfigured(type, position);
+    applyConfig(entity.get());
+    return entity;
+}
+
+std::unique_ptr<Entity> EntityFactory::createUnconfigured(EntityType type, sf::Vector2f position) {
     switch (type) {
         // --- PLAYERS ---
         case EntityType::Mario:
@@ -83,10 +110,13 @@ std::unique_ptr<Entity> EntityFactory::create(EntityType type, sf::Vector2f posi
         case EntityType::Hammer:
             // Velocity is applied by the spawn listener after construction.
             return std::make_unique<Hammer>(position, sf::Vector2f(0.0f, 0.0f));
+        case EntityType::BossFireball:
+            // Velocity is applied by the spawn listener after construction.
+            return std::make_unique<BossFireball>(position, sf::Vector2f(0.0f, 0.0f));
         case EntityType::Bowser:
+            return std::make_unique<Bowser>(position);
         case EntityType::BoomBoom:
-            // Bowser and BoomBoom are not yet implemented in the codebase
-            return nullptr;
+            return std::make_unique<BoomBoom>(position);
 
         // --- ITEMS ---
         case EntityType::Mushroom:
