@@ -45,6 +45,14 @@ class PolicyTrainer {
 public:
     struct Config {
         float learningRate = 0.01f;
+        // Balance each button's contribution by its inverse press frequency.
+        // Off, the jump button — pressed on ~3% of frames — contributes ~3% of
+        // the gradient it should, and the optimiser correctly concludes that
+        // never jumping is near-optimal.
+        bool balanceClasses = true;
+        // Floor on an estimated press rate, so a button never pressed in the
+        // first few episodes cannot produce an unbounded weight.
+        float minPressRate = 0.01f;
         // Fraction of decisions the TEACHER executes. Starts at 1 (pure
         // demonstration, so the learner sees competent play) and decays toward
         // 0 (learner drives, teacher only labels).
@@ -97,6 +105,11 @@ public:
     float beta() const { return m_config.beta; }
     // The network's last raw outputs, for the per-button bar display.
     const std::vector<float>& lastPrediction() const { return m_lastPrediction; }
+    // Per-button agreement this episode. One aggregate number hid the entire
+    // failure for 219 episodes: 99.9% overall while the jump button was 0%.
+    std::vector<float> buttonAgreement() const;
+    // Observed teacher press rate per button — the class balance itself.
+    const std::vector<float>& pressRates() const { return m_pressRate; }
 
 private:
     struct Impl;                       // holds nn:: types; see NeuralPolicy.hpp
@@ -118,6 +131,10 @@ private:
     std::vector<float> m_lossHistory;
     std::vector<float> m_agreementHistory;
     std::vector<float> m_lastPrediction;
+    std::vector<float> m_pressRate;             // running teacher press frequency
+    std::vector<std::size_t> m_buttonCorrect;   // per-button, this episode
+    std::vector<std::size_t> m_buttonTotal;
+    std::unique_ptr<class WeightedBernoulliLoss> m_loss;
 
     std::string m_logPath;
     bool m_logOpen = false;

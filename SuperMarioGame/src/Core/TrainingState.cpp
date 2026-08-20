@@ -317,18 +317,24 @@ void TrainingState::renderOverlay(sf::RenderTarget& target) {
                          sf::Color(180, 180, 180));
     y += 14.0f;
     const std::vector<float>& prediction = m_trainer->lastPrediction();
+    const std::vector<float> perButton = m_trainer->buttonAgreement();
     for (std::size_t i = 0; i < prediction.size() && i < 7; ++i) {
         const float value = std::clamp(prediction[i], 0.0f, 1.0f);
-        UiRenderer::drawText(target, kButtons[i], {left, y + static_cast<float>(i) * 14.0f},
+        // Label carries this button's own agreement. One aggregate number hid a
+        // total jump failure behind six well-learned buttons for 219 episodes.
+        char label[24];
+        std::snprintf(label, sizeof(label), "%-3s %2.0f%%", kButtons[i],
+                      (i < perButton.size() ? perButton[i] : 0.0f) * 100.0f);
+        UiRenderer::drawText(target, label, {left, y + static_cast<float>(i) * 14.0f},
                              9, sf::Color(200, 200, 200));
 
-        sf::RectangleShape track({panelWidth - 90.0f, 8.0f});
-        track.setPosition({left + 40.0f, y + static_cast<float>(i) * 14.0f + 2.0f});
+        sf::RectangleShape track({panelWidth - 110.0f, 8.0f});
+        track.setPosition({left + 60.0f, y + static_cast<float>(i) * 14.0f + 2.0f});
         track.setFillColor(sf::Color(255, 255, 255, 30));
         target.draw(track);
 
-        sf::RectangleShape fill({(panelWidth - 90.0f) * value, 8.0f});
-        fill.setPosition({left + 40.0f, y + static_cast<float>(i) * 14.0f + 2.0f});
+        sf::RectangleShape fill({(panelWidth - 110.0f) * value, 8.0f});
+        fill.setPosition({left + 60.0f, y + static_cast<float>(i) * 14.0f + 2.0f});
         // Coloured by the decision the threshold will actually make, so the
         // bar reads as "this button is pressed" rather than as a raw number.
         fill.setFillColor(value > 0.5f ? sf::Color(120, 220, 120)

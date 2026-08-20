@@ -2,8 +2,9 @@
 #include "Entities/NeuralPolicy.hpp"
 
 #include "Entities/NeuralNet.hpp"
+#include "Entities/PolicyLosses.hpp"
 
-#include "nn/Loss/MSELoss.hpp"
+#include "nn/Loss/Loss.hpp"
 #include "nn/Module/Sequential.hpp"
 #include "nn/Optim/SGD.hpp"
 #include "nn/Tensor/Tensor.hpp"
@@ -18,7 +19,6 @@
 // TrainingState — can use it without ever seeing a concept.
 
 struct PolicyTrainer::Impl {
-    nn::MSELoss loss;
     nn::SGD optimizer;
     explicit Impl(float lr) : optimizer(lr) {}
 };
@@ -51,6 +51,12 @@ PolicyTrainer::PolicyTrainer(NeuralPolicy& policy)
 PolicyTrainer::PolicyTrainer(NeuralPolicy& policy, const Config& config)
     : m_impl(new Impl(config.learningRate)), m_policy(&policy), m_config(config) {
     m_lastPrediction.assign(NeuralPolicy::kActionBits, 0.0f);
+    m_loss = std::make_unique<WeightedBernoulliLoss>();
+    // Seeded at 0.5 rather than 0: an unseen button starts neutral and the
+    // running estimate moves it, instead of starting at an extreme weight.
+    m_pressRate.assign(NeuralPolicy::kActionBits, 0.5f);
+    m_buttonCorrect.assign(NeuralPolicy::kActionBits, 0);
+    m_buttonTotal.assign(NeuralPolicy::kActionBits, 0);
 }
 
 PolicyTrainer::~PolicyTrainer() = default;
@@ -89,13 +95,37 @@ float PolicyTrainer::learn(const AIObservation& observation,
 
     // Forward WITH the graph this time — unlike decide(), which runs under
     // nn::NoGrad. This is the one place gradients are wanted.
+    // Update the running press-rate estimate BEFORE weighting, so the weights
+    // reflect the distribution including this sample.
+    constexpr float kRateDecay = 0.999f;
+    for (int i = 0; i < NeuralPolicy::kActionBits; ++i) {
+        const float pressed = target[static_cast<std::size_t>(i)];
+        m_pressRate[static_cast<std::size_t>(i)] =
+            kRateDecay * m_pressRate[static_cast<std::size_t>(i)] + (1.0f - kRateDecay) * pressed;
+    }
+
+    // Class-balanced weights. A button pressed with probability r contributes
+    // 0.5/r when pressed and 0.5/(1-r) when not, so both classes carry equal
+    // total weight regardless of how rare one of them is.
+    std::vector<float> weights(NeuralPolicy::kActionBits, 1.0f);
+    if (m_config.balanceClasses) {
+        for (int i = 0; i < NeuralPolicy::kActionBits; ++i) {
+            const std::size_t k = static_cast<std::size_t>(i);
+            const float rate = std::clamp(m_pressRate[k], m_config.minPressRate,
+                                          1.0f - m_config.minPressRate);
+            weights[k] = target[k] > 0.5f ? 0.5f / rate : 0.5f / (1.0f - rate);
+        }
+    }
+    m_loss->setWeights(weights);
+
     nn::Tensor prediction = net->model.forward(input);
     // forward(), NOT compute(). compute() returns a bare loss value with no
     // GradFn attached; only forward() wires the loss into the autograd graph.
     // Calling compute() here made backward() a no-op, so the network trained
     // for 79,000 samples with the loss frozen at 0.13 and agreement stuck at
     // 47% — it looked like it was running and was learning nothing.
-    nn::Tensor lossTensor = m_impl->loss.forward(prediction, labels);
+    nn::Loss* criterion = static_cast<nn::Loss*>(m_loss->handle());
+    nn::Tensor lossTensor = criterion->forward(prediction, labels);
 
     m_impl->optimizer.zeroGrad(net->model.parameters());
     lossTensor.backward();
@@ -114,8 +144,12 @@ float PolicyTrainer::learn(const AIObservation& observation,
         // however small its contribution to the loss.
         const bool predicted = p > 0.5f;
         const bool expected = target[static_cast<std::size_t>(i)] > 0.5f;
-        if (predicted == expected) ++m_episodeButtonsCorrect;
+        if (predicted == expected) {
+            ++m_episodeButtonsCorrect;
+            ++m_buttonCorrect[static_cast<std::size_t>(i)];
+        }
         ++m_episodeButtonsTotal;
+        ++m_buttonTotal[static_cast<std::size_t>(i)];
     }
 
     m_episodeLossSum += m_lastLoss;
@@ -140,12 +174,29 @@ void PolicyTrainer::openLog(const std::string& path) {
     // second run's rows onto the first produces a curve that means nothing.
     std::ofstream file(path, std::ios::trunc);
     if (!file) return;
-    file << "episode,samples,mean_loss,agreement,beta,outcome\n";
+    // jump_agreement is broken out because the aggregate hid a total failure:
+    // 99.9% overall while the jump button was at 0%.
+    file << "episode,samples,mean_loss,agreement,jump_agreement,jump_rate,beta,outcome\n";
     m_logPath = path;
     m_logOpen = true;
 }
 
+std::vector<float> PolicyTrainer::buttonAgreement() const {
+    std::vector<float> out(m_buttonTotal.size(), 0.0f);
+    for (std::size_t i = 0; i < m_buttonTotal.size(); ++i) {
+        if (m_buttonTotal[i] > 0) {
+            out[i] = static_cast<float>(m_buttonCorrect[i]) /
+                     static_cast<float>(m_buttonTotal[i]);
+        }
+    }
+    return out;
+}
+
 void PolicyTrainer::endEpisode(const char* outcome) {
+    // Index 2 is the jump button, per AIAction declaration order.
+    const std::vector<float> perButton = buttonAgreement();
+    const float jumpAgreement = perButton.size() > 2 ? perButton[2] : 0.0f;
+
     if (m_episodeSamples > 0) {
         m_lossHistory.push_back(
             static_cast<float>(m_episodeLossSum / static_cast<double>(m_episodeSamples)));
@@ -163,6 +214,8 @@ void PolicyTrainer::endEpisode(const char* outcome) {
     m_episodeSamples = 0;
     m_episodeButtonsCorrect = 0;
     m_episodeButtonsTotal = 0;
+    std::fill(m_buttonCorrect.begin(), m_buttonCorrect.end(), 0);
+    std::fill(m_buttonTotal.begin(), m_buttonTotal.end(), 0);
     ++m_episodes;
 
     m_config.beta = std::max(m_config.minBeta,
@@ -173,6 +226,7 @@ void PolicyTrainer::endEpisode(const char* outcome) {
         if (file) {
             file << m_episodes << ',' << m_samples << ','
                  << m_lossHistory.back() << ',' << m_agreementHistory.back() << ','
+                 << jumpAgreement << ',' << m_pressRate[2] << ','
                  << m_config.beta << ',' << (outcome ? outcome : "") << '\n';
         }
     }

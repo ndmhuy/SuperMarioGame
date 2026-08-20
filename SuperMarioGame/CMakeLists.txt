@@ -289,6 +289,7 @@ endif()
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Entities/NeuralPolicy.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Entities/PolicyTrainer.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Entities/PolicyLosses.cpp"
     PROPERTIES COMPILE_FLAGS "-std=c++20"
 )
 
