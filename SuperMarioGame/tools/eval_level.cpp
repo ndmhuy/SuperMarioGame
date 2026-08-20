@@ -75,6 +75,11 @@ struct Options {
     AIArchetype archetype = AIArchetype::Speedrunner;
     float maxSeconds = 300.0f;        // in-game seconds, not wall clock
     bool quiet = false;
+    // Per-frame state dump over [traceFrom, traceTo). Off unless asked for.
+    // A stalled agent is invisible in a summary — the report says "stuck" and
+    // nothing about why — so the runner has to be able to show its working.
+    int traceFrom = -1;
+    int traceTo = -1;
 };
 
 struct Report {
@@ -119,7 +124,8 @@ void usage() {
         "  --difficulty <d>      easy | normal | hard          (default: hard)\n"
         "  --archetype <a>       speedrunner | hunter | collector (default: speedrunner)\n"
         "  --max-seconds <n>     in-game seconds before timeout (default: 300)\n"
-        "  --quiet               suppress the human-readable summary\n";
+        "  --quiet               suppress the human-readable summary\n"
+        "  --trace <a>:<b>       dump per-frame agent state for frames [a, b)\n";
 }
 
 bool parseArgs(int argc, char** argv, Options& opt) {
@@ -156,6 +162,20 @@ bool parseArgs(int argc, char** argv, Options& opt) {
             opt.maxSeconds = std::strtof(v, nullptr);
             if (opt.maxSeconds <= 0.0f) {
                 std::cerr << "[eval] --max-seconds must be positive.\n";
+                return false;
+            }
+        } else if (arg == "--trace") {
+            const char* v = next("a frame range like 600:660");  if (!v) return false;
+            const std::string range = v;
+            const std::size_t colon = range.find(':');
+            if (colon == std::string::npos) {
+                std::cerr << "[eval] --trace wants <from>:<to>, e.g. 600:660.\n";
+                return false;
+            }
+            opt.traceFrom = std::atoi(range.substr(0, colon).c_str());
+            opt.traceTo = std::atoi(range.substr(colon + 1).c_str());
+            if (opt.traceTo <= opt.traceFrom) {
+                std::cerr << "[eval] --trace range must be increasing.\n";
                 return false;
             }
         } else if (arg == "--quiet") {
@@ -313,8 +333,36 @@ int main(int argc, char** argv) {
     float furthestX = startX;
     report.maxProgressX = startX;
 
+    if (opt.traceFrom >= 0) {
+        std::cout << "# frame      x       y      vx      vy  ground  canJump  "
+                     "tile(x,y)  reason\n";
+    }
+
     while (simTime < opt.maxSeconds) {
         controller.update(kDt, nullptr, tileMap, entities);
+
+        if (report.frames >= opt.traceFrom && report.frames < opt.traceTo) {
+            const sf::Vector2f p = player->getPosition();
+            const sf::Vector2f v = player->getVelocity();
+            const AIObservation& obs = controller.lastObservation();
+            const AABB b = player->getBoundingBox();
+            const int tx = int(b.x / Constants::TILE_SIZE);
+            const int ty = int(b.y / Constants::TILE_SIZE);
+            auto tile = [&](int dx, int dy) {
+                return int(tileMap.getTileType(tx + dx, ty + dy));
+            };
+            std::cout << std::fixed << std::setprecision(1)
+                      << "  " << std::setw(5) << report.frames
+                      << std::setw(8) << p.x << std::setw(8) << p.y
+                      << std::setw(8) << v.x << std::setw(8) << v.y
+                      << std::setw(7) << (player->isOnGround() ? "yes" : "no")
+                      << std::setw(8) << (obs.canJump ? "yes" : "no")
+                      << "  box=" << b.x << "," << b.y
+                      << " " << b.width << "x" << b.height
+                      << "  up=" << tile(0, -1) << " right=" << tile(1, 0)
+                      << " upright=" << tile(1, -1) << " down=" << tile(0, 1)
+                      << "  " << controller.reason() << "\n";
+        }
 
         for (auto& e : entities) {
             if (e && e->isActive()) e->update(kDt);
