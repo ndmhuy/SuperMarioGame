@@ -250,7 +250,10 @@ void testArchetypesDisagree() {
     AIObservation obs = flatGroundObservation();
     obs.dxToOpponent = -0.05f;   // just behind, well inside the proximity falloff
     obs.dyToOpponent = 0.0f;
-    setCell(obs, -3, 0, AICellState::Reward);
+    // Coin, specifically: observation v3 split Reward into Coin and PowerUp,
+    // and this test is about the Collector being drawn to a collectable, which
+    // a coin is the plainest example of.
+    setCell(obs, -3, 0, AICellState::Coin);
 
     HeuristicPolicy speedrunner(AIArchetype::Speedrunner);
     HeuristicPolicy hunter(AIArchetype::Hunter);

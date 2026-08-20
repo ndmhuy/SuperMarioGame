@@ -49,7 +49,7 @@ PolicyTrainer::PolicyTrainer(NeuralPolicy& policy)
     : PolicyTrainer(policy, Config()) {}
 
 PolicyTrainer::PolicyTrainer(NeuralPolicy& policy, const Config& config)
-    : m_impl(new Impl(config.learningRate)), m_config(config), m_policy(&policy) {
+    : m_impl(new Impl(config.learningRate)), m_policy(&policy), m_config(config) {
     m_lastPrediction.assign(NeuralPolicy::kActionBits, 0.0f);
 }
 
