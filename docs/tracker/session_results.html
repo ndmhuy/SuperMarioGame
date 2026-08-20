@@ -1,0 +1,261 @@
+<title>Wall-Jump Defect Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root {
+  --paper:#EDEEF3; --surface:#F7F8FB; --surface-2:#E3E5EC;
+  --line:#CFD2DD; --line-soft:#DEE0E9;
+  --ink:#171A26; --ink-2:#4A4F63; --ink-3:#767B8F;
+  --accent:#C98A0C; --accent-ink:#171A26;
+  --ok:#2E7D57; --bad:#C23A36;
+  --shadow:0 1px 2px rgba(23,26,38,.06), 0 8px 24px -12px rgba(23,26,38,.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#0F111A; --surface:#171A26; --surface-2:#1F2331;
+    --line:#2E3345; --line-soft:#252A39;
+    --ink:#EEF0F6; --ink-2:#AAB0C4; --ink-3:#767D95;
+    --accent:#F5B32C; --accent-ink:#12141F;
+    --ok:#4FBE8B; --bad:#E5615C;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#0F111A; --surface:#171A26; --surface-2:#1F2331;
+  --line:#2E3345; --line-soft:#252A39;
+  --ink:#EEF0F6; --ink-2:#AAB0C4; --ink-3:#767D95;
+  --accent:#F5B32C; --accent-ink:#12141F;
+  --ok:#4FBE8B; --bad:#E5615C;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif; font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased; }
+.wrap { max-width:960px; margin:0 auto; padding:40px 24px 96px;
+  display:flex; flex-direction:column; gap:44px; }
+h1,h2,h3 { margin:0; text-wrap:balance; }
+.eyebrow { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:700;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3); }
+code,.mono { font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace; }
+code { font-size:.88em; background:var(--surface-2); border-radius:3px; padding:.1em .34em; }
+
+header { display:flex; flex-direction:column; gap:16px; }
+header h1 { font-size:clamp(30px,5.4vw,50px); font-weight:800; letter-spacing:-.03em; line-height:1.04; }
+header p.lede { max-width:62ch; font-size:17px; color:var(--ink-2); margin:0; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; }
+.chip { border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:4px 11px; color:var(--ink-2); }
+
+.steps { display:flex; flex-direction:column; gap:14px; }
+.step { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--line);
+  border-radius:8px; padding:18px 20px; display:grid; grid-template-columns:38px 1fr; gap:16px; }
+.step.ok   { border-left-color:var(--ok); }
+.step.bad  { border-left-color:var(--bad); }
+.step.key  { border-left-color:var(--accent); }
+.step .n { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:18px; font-weight:700;
+  color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.step.ok .n { color:var(--ok); } .step.bad .n { color:var(--bad); } .step.key .n { color:var(--accent); }
+.step .body { display:flex; flex-direction:column; gap:9px; min-width:0; }
+.step h3 { font-size:16.5px; font-weight:600; letter-spacing:-.01em; }
+.step p { margin:0; font-size:14.5px; color:var(--ink-2); }
+.result { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px;
+  background:var(--surface-2); border-radius:6px; padding:10px 13px; overflow-x:auto;
+  white-space:pre; margin:0; line-height:1.7; }
+.result .g { color:var(--ok); font-weight:700; }
+.result .r { color:var(--bad); font-weight:700; }
+.result .a { color:var(--accent); font-weight:700; }
+.verdict { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; align-self:flex-start;
+  padding:3px 9px; border-radius:4px; background:var(--surface-2); color:var(--ink-3); border:1px solid var(--line); }
+.verdict.ok  { background:var(--ok); color:#fff; border-color:transparent; }
+.verdict.bad { background:var(--bad); color:#fff; border-color:transparent; }
+.verdict.key { background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+
+table { border-collapse:collapse; width:100%; font-size:14px; }
+th { text-align:left; color:var(--ink-3); font-weight:600; padding:6px 14px 6px 0; font-size:13px; }
+td { padding:5px 14px 5px 0; }
+tbody { font-family:"JetBrains Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+.tblwrap { overflow-x:auto; background:var(--surface); border:1px solid var(--line);
+  border-radius:8px; padding:16px 18px; }
+.up { color:var(--ok); font-weight:700; } .flat { color:var(--ink-3); }
+footer { border-top:1px solid var(--line); padding-top:18px;
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3);
+  display:flex; flex-wrap:wrap; gap:6px 22px; }
+@media (max-width:620px){ .step{grid-template-columns:26px 1fr;} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">CS202 · Super Mario · run log · 20 Aug 2026</p>
+  <h1>You could not jump while walking into a wall</h1>
+  <p class="lede">Every step of the session, and what it actually measured. The tooling was
+  built to score generated levels; the first thing it scored was the engine.</p>
+  <div class="chips">
+    <span class="chip">branch A/mapgen-gan-plan</span>
+    <span class="chip">6 commits</span>
+    <span class="chip">14/14 ctest</span>
+    <span class="chip">game run &amp; screenshotted</span>
+  </div>
+</header>
+
+<div class="steps">
+
+  <article class="step ok"><span class="n">01</span><div class="body">
+    <h3>Re-based the side project off the RL branch</h3>
+    <p>Moved from <code>dev</code> onto <code>A/rl-neural-policy</code> so both halves of the
+    experiment are one droppable unit and <code>dev</code> depends on none of it.</p>
+    <pre class="result">bbada58 (on dev base)  ->  10c6ccd (stacked on A/rl-neural-policy)</pre>
+    <span class="verdict ok">Done</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">02</span><div class="body">
+    <h3>Level tensor contract — JSON ↔ semantic tile grid</h3>
+    <p>14-row band, 9 semantic classes. Band and vocabulary measured against the shipped
+    levels, not assumed; the band height matches the VGLC corpus exactly.</p>
+    <pre class="result">level_tensor.py check assets/levels/*.json
+<span class="g">7/7 levels roundtrip cleanly</span>   (bonus_1, level_1..3, level_*_sub)</pre>
+    <span class="verdict ok">Shipped</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">03</span><div class="body">
+    <h3>Headless <code>eval_level</code> runner</h3>
+    <p>Plays a level with an AI, no window / GL / ImGui, writes a versioned JSON report.
+    A separate harness because <code>PlayingState</code> reads <code>ImGui::GetIO()</code> and
+    writes save files from its update path.</p>
+    <pre class="result">200s of gameplay simulated in 5.2s wall clock   <span class="g">24x realtime</span></pre>
+    <span class="verdict ok">Shipped</span>
+  </div></article>
+
+  <article class="step bad"><span class="n">04</span><div class="body">
+    <h3>First sweep — 4 levels × 3 archetypes</h3>
+    <p>The agent finished nothing. Identical result in every archetype, and it never died —
+    it simply stopped and stayed stopped.</p>
+    <pre class="result">level_1   speedrunner  stuck-out-of-time  <span class="r">10.8%</span>  stall=146.6s  deaths=0
+level_1   hunter       stuck-out-of-time  <span class="r">10.8%</span>  stall=146.6s  deaths=0
+level_1   collector    stuck-out-of-time  <span class="r">10.8%</span>  stall=145.4s  deaths=0
+level_2   speedrunner  stuck-out-of-time  <span class="r">13.8%</span>  stall=145.0s  deaths=0
+level_3   speedrunner  stuck-out-of-time  <span class="r">21.4%</span>  stall=142.9s  deaths=0
+bonus_1   speedrunner  stuck-out-of-time  <span class="r">46.4%</span>  stall=138.8s  deaths=0</pre>
+    <span class="verdict bad">0 of 4 finished</span>
+  </div></article>
+
+  <article class="step key"><span class="n">05</span><div class="body">
+    <h3>Geometric solvability oracle — measure the level, not the player</h3>
+    <p>Floods a level with every jump the engine's own physics constants permit. No policy,
+    no agent. Difficulty as a bottleneck: the hardest forced move on the kindest route.</p>
+    <pre class="result">level                required  optional  reachable   0.25s/level
+level_1                 0.71      0.96    <span class="g">100%</span>
+level_2                 <span class="a">0.96</span>      0.96    <span class="g">100%</span>
+level_3                 <span class="a">0.96</span>      0.96    <span class="g">100%</span>
+bonus_1                 0.71      0.81    <span class="g">100%</span>
+level_*_sub             0.14      0.42    <span class="g">100%</span></pre>
+    <p>The levels are provably fine. So the agent was the problem — and a playthrough-based
+    fitness function, which is what every system in the literature uses, cannot tell those
+    apart. It also flagged two design faults no playtest had found: level_2 and level_3
+    require a jump at 96% of the physical maximum, and difficulty is a cliff, not a curve.</p>
+    <span class="verdict key">The contradiction</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">06</span><div class="body">
+    <h3><code>--trace</code>: per-frame agent state</h3>
+    <p>Turned the stall from a guess into a measurement. The policy was doing the right thing
+    the whole time — it reported <code>climbing</code> on every frame.</p>
+    <pre class="result">frame      x       y     vx       vy  ground  canJump   reason
+  301   776.0   578.0   0.0  <span class="a">-678.8</span>      no     yes   climbing
+  302   776.0   578.0   0.0     0.0      no      no   climbing
+  303   776.0   578.0   0.0  <span class="a">-678.8</span>      no     yes   climbing
+                        <span class="r">position never changes; onGround always false</span></pre>
+    <span class="verdict ok">Localised</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">07</span><div class="body">
+    <h3>Ruled out the obvious suspects</h3>
+    <p>Each checked rather than assumed: <code>AABB::intersects</code> uses strict comparisons,
+    so exact tangency is not a false collision. The 0.01px pushback at x=775.99 is ordinary
+    wall resolution. The cell above the agent is empty, and no entity sits within 96px.</p>
+    <span class="verdict ok">Narrowed</span>
+  </div></article>
+
+  <article class="step key"><span class="n">08</span><div class="body">
+    <h3>Instrumented the physics engine — root cause</h3>
+    <p>The jump velocity was already gone before the Y pass ran. The X pass was destroying it,
+    on a collision whose normal has no vertical component at all.</p>
+    <pre class="result">[physX] vy=<span class="a">-648.8</span>  tile(25,18)  n=(<span class="a">-1,0</span>)  ov=(0.27,0)  -> vy=<span class="r">0</span>
+[phys ] preVelY=<span class="r">0</span>  y 577.99 -> 577.99  collisions=0
+
+CollisionResolver.cpp:44   if (!character-&gt;onGround) {
+CollisionResolver.cpp:46       entity.velocity.y = 0.0f;   // upward momentum</pre>
+    <span class="verdict key">Root cause</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">09</span><div class="body">
+    <h3>The fix — two defects in one rule</h3>
+    <p><strong>One:</strong> the airborne test read <code>onGround</code>, which PhysicsEngine
+    clears at the start of each frame and only recomputes in the Y pass — which runs
+    <em>after</em> the X pass this code lives in. It read false for a character standing firmly
+    on the ground, so the rule fired for everyone touching a wall. <code>Character</code> now
+    keeps <code>wasOnGround</code>.</p>
+    <p><strong>Two:</strong> it cancelled <em>vertical</em> velocity because a <em>wall</em> was
+    touched. A wall is vertical; rising alongside one is ordinary platforming, and a real
+    ceiling is the Y pass's job. Only the downward slide cap survives.</p>
+    <pre class="result">include/Entities/Character.hpp     + wasOnGround
+src/Physics/PhysicsEngine.cpp      capture before clearing onGround
+src/Physics/CollisionResolver.cpp  the rule itself</pre>
+    <span class="verdict ok">Fixed</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">10</span><div class="body">
+    <h3>Result — before and after</h3>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Level</th><th>Before</th><th>After</th><th>Deaths</th><th>Coins</th><th>Kills</th></tr></thead>
+      <tbody>
+        <tr><td>level_1</td><td>10.8%</td><td class="up">31.8%</td><td>13</td><td>4</td><td>4</td></tr>
+        <tr><td>level_2</td><td>13.8%</td><td class="up">47.8%</td><td>0</td><td>4</td><td>2</td></tr>
+        <tr><td>level_3</td><td>21.4%</td><td class="flat">21.4%</td><td>0</td><td>2</td><td>0</td></tr>
+        <tr><td>bonus_1</td><td>46.4%</td><td class="flat">46.4%</td><td>0</td><td>5</td><td>1</td></tr>
+      </tbody>
+    </table></div>
+    <p>The agent is now genuinely playing — moving, dying, collecting, fighting — where before
+    it was frozen with zero deaths. It still finishes nothing, but that is now a policy
+    competence problem rather than a frozen simulation, which is exactly the distinction the
+    oracle was built to make. <strong>level_3 and bonus_1 are unchanged, so at least one
+    further blocker remains.</strong></p>
+    <span class="verdict ok">Unfrozen</span>
+  </div></article>
+
+  <article class="step ok"><span class="n">11</span><div class="body">
+    <h3>Verification</h3>
+    <pre class="result">ctest                        <span class="g">100% tests passed, 0 failed out of 14</span>
+./SuperMarioGame --script tests/scripts/versus_cpu.txt
+                             <span class="g">runs, respawns, screenshots</span>
+                             VERSUS CPU: luigi (HARD HUNTER)</pre>
+    <p>Building is not verifying, so the game was launched and observed, not just compiled.</p>
+    <span class="verdict ok">Verified</span>
+  </div></article>
+
+</div>
+
+<section>
+  <p class="eyebrow">Where to pick up</p>
+  <div class="tblwrap">
+    <p style="margin:0 0 10px;color:var(--ink-2);font-size:15px"><strong>Next, in order:</strong></p>
+    <p style="margin:0 0 8px;color:var(--ink-2);font-size:15px">1. Trace <code>level_3</code> and <code>bonus_1</code> — both stalled at exactly the same
+    percentage after the fix, so a second, distinct blocker is still there.</p>
+    <p style="margin:0 0 8px;color:var(--ink-2);font-size:15px">2. Training corpus (VGLC mapping) — needs a download, so it needs your go-ahead.</p>
+    <p style="margin:0;color:var(--ink-2);font-size:15px">3. Replace the reward's rightward-progress term with progress along the reachability
+    graph, so the agent is not paid for pressing into walls.</p>
+  </div>
+</section>
+
+<footer>
+  <span>docs/mapgen_gan_rl_plan.md</span>
+  <span>docs/level_tensor_contract.md</span>
+  <span>tools/eval_level.cpp</span>
+  <span>tools/solvability.py</span>
+  <span>commit eda0e5d</span>
+</footer>
+</div>

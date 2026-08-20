@@ -4020,3 +4020,23 @@ Summary of Changes:
 - NOT FIXED, DELIBERATELY. The fix is in PhysicsEngine/CollisionResolver, which is main-path code; this branch is contained as a side project and AGENTS.md directive 4 requires discussing a deviation first. Flagged to the user for a decision on which branch should carry the fix.
 - Nothing pushed.
 ---
+[2026-08-20 17:00:00] Branch: A/mapgen-gan-plan (side project, off A/rl-neural-policy)
+Git Fingerprint: 6faa687 (before) → eda0e5d (fix) → (docs commit after)
+Fetched Remotes: no — no repository-state reporting; continuation on the same branch.
+Prompt: "okay fix it or tell another session to fix is okay" then "fix it in the current PR is the best" — user authorised fixing the jump/stall defect on this branch.
+Files Modified: SuperMarioGame/include/Entities/Character.hpp, SuperMarioGame/src/Physics/PhysicsEngine.cpp, SuperMarioGame/src/Physics/CollisionResolver.cpp, SuperMarioGame/tools/eval_level.cpp, docs/tracker/session_results.html (new)
+Reachable From Main: YES — CollisionResolver/PhysicsEngine/Character are on the default game path. This is the first main-path change on this branch; made on the user's explicit instruction to fix it here rather than on a separate dev-based branch.
+Verified By: ctest — 100% passed, 0 failed out of 14; AND ran the game (./SuperMarioGame --script tests/scripts/versus_cpu.txt) which loaded 1-1, played versus-CPU (luigi HARD HUNTER), respawned after a death and wrote 3 screenshots; inspected saves/shots/54_bot_progress.png visually. Also re-ran eval_level across all 4 campaign levels before and after.
+Summary of Changes:
+- ROOT CAUSE FOUND for the agent stall logged in the previous entry. It was NOT the AI policy. CollisionResolver::resolveEntityVsTile lines 44-50 (the wall-slide rule) contained two defects that together made it impossible to jump while walking into a wall — so no character could climb any step it was touching.
+  1. The airborne test read character->onGround. PhysicsEngine clears onGround at the start of every frame (step 1.5) and only recomputes it during the Y pass (step 4), which runs AFTER the X pass where this code lives. It therefore read false for a character standing firmly on the ground, so the rule fired for every character, every time they touched a wall.
+  2. It zeroed VERTICAL velocity on a purely HORIZONTAL collision (measured normal = (-1, 0)). A wall is vertical; rising alongside one is ordinary platforming, and a genuine ceiling is already handled by the Y pass's normal.y == 1 case.
+- Fix: added Character::wasOnGround (the state the frame started in), captured in PhysicsEngine where onGround is cleared, and used it as the airborne test; removed the upward-momentum kill; kept the downward wall-slide cap.
+- Diagnosis method, recorded because it is reusable: added --trace to eval_level (per-frame position/velocity/ground/box/neighbouring tiles), then temporary instrumentation inside PhysicsEngine's X and Y passes. The decisive line was "[physX] vy=-648.8 n=(-1,0) -> vy=0". The temporary PhysicsEngine instrumentation was reverted before the fix was written.
+- Ruled out explicitly rather than assumed: AABB::intersects uses strict comparisons so exact tangency is not a false collision; the 0.01px pushback at x=775.99 is correct wall resolution; no tile or entity ceiling above the agent.
+- MEASURED EFFECT (heuristic agent, 200s budget, before -> after): level_1 10.8% -> 31.8% (and now 13 deaths, 4 coins, 4 kills where before it had zero of everything); level_2 13.8% -> 47.8%; level_3 21.4% -> 21.4% (unchanged); bonus_1 46.4% -> 46.4% (unchanged).
+- HONEST STATUS: the agent still finishes NO level. It is no longer frozen — it is now genuinely playing and failing — which is a policy-competence problem rather than a stuck simulation. level_3 and bonus_1 are unchanged to the decimal, so AT LEAST ONE FURTHER BLOCKER REMAINS and is not yet diagnosed.
+- Published a step-by-step results page for the user at docs/tracker/session_results.html.
+- Nothing pushed.
+NEXT: (1) trace level_3 / bonus_1 for the second blocker; (2) VGLC corpus — needs a download, so needs user go-ahead; (3) swap the reward's rightward-progress term for progress along the reachability graph.
+---
