@@ -63,6 +63,16 @@ public:
     // heuristic's internal commit/escape counters twice per decision and
     // quietly change its behaviour.
     const AIAction& lastAction() const { return m_action; }
+
+    // Replace the decision for this frame and actuate it immediately.
+    //
+    // For the reinforcement trainer, which samples its own action from the
+    // policy's Bernoulli outputs rather than thresholding them — the controller
+    // has already sensed and decided by the time the trainer is consulted, and
+    // this substitutes the sampled action so the agent executes what REINFORCE
+    // will actually be crediting. Without it the trainer would learn about
+    // actions the agent never took.
+    void overrideAction(const AIAction& action);
     // Live tunables, so the numbers in the difficulty table can be felt rather
     // than argued about. Latency is seconds between decisions; noise is the
     // epsilon that randomises a button.

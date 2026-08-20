@@ -287,6 +287,11 @@ void AIController::applyNoise(AIAction& action) {
     }
 }
 
+void AIController::overrideAction(const AIAction& action) {
+    m_action = action;
+    actuate();
+}
+
 void AIController::actuate() {
     // Movement verbs are per-frame intent flags — PhysicsEngine clears them
     // after integrating — so they are re-asserted every frame from the held

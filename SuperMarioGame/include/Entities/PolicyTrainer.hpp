@@ -43,8 +43,49 @@ class NeuralPolicy;
 // observation, the network and the optimiser are identical.
 class PolicyTrainer {
 public:
+    // Which objective is being optimised.
+    //
+    // Imitation caps the agent at its teacher: the best possible outcome is
+    // copying it perfectly, and the teacher plateaus. Reinforce removes that
+    // ceiling by optimising the game's own reward, but it is far harder to
+    // train from scratch — which is why the default is to imitate first and
+    // reinforce afterwards, the standard pretrain-then-finetune pipeline.
+    enum class Mode { Imitation, Reinforce };
+
     struct Config {
         float learningRate = 0.01f;
+        // Switch from imitation to reinforcement after this many episodes.
+        // Imitation supplies a competent starting policy; REINFORCE from random
+        // weights on a sparse-ish reward would spend most of its time failing to
+        // reach any reward at all.
+        int imitationEpisodes = 40;
+        // Discount for the return. 0.99 at 60 decisions/second means the horizon
+        // is ~1.7 s of game time, which is about the length of one jump-and-land
+        // manoeuvre — the timescale over which an action's consequence shows up.
+        float discount = 0.99f;
+        // Learning rate for the reinforcement phase. Lower than imitation's:
+        // policy-gradient updates are much higher variance, and this phase is
+        // refining an already-competent policy rather than finding one.
+        float reinforceLearningRate = 0.002f;
+        // Hold each sampled action for this many decisions.
+        //
+        // Independently sampling seven buttons at 60 Hz produces incoherent
+        // motion — left and right alternating frame to frame — which no return
+        // can be attributed to. Holding an action is standard practice (the
+        // frame-skip in the Atari DQN work) and gives exploration that lasts
+        // long enough to have a consequence. 4 decisions is ~67 ms, roughly the
+        // shortest input a human makes.
+        int actionRepeat = 4;
+        // Minimum spread of returns within an episode before its updates are
+        // applied at all.
+        //
+        // Standardising by a near-zero standard deviation turns floating-point
+        // noise into full-magnitude advantages: a stuck episode has returns
+        // identical to four decimal places, and dividing their differences by
+        // their own tiny spread produced advantages around 1.0 built entirely
+        // from noise. The agent then trained hard on nothing, which kept it
+        // stuck. Episodes flatter than this carry no signal and are skipped.
+        float minReturnSpread = 0.5f;
         // Balance each button's contribution by its inverse press frequency.
         // Off, the jump button — pressed on ~3% of frames — contributes ~3% of
         // the gradient it should, and the optimiser correctly concludes that
@@ -77,6 +118,16 @@ public:
     // measured against the teacher's action, and one optimiser step is taken.
     // Returns the loss for this sample.
     float learn(const AIObservation& observation, const AIAction& teacherAction);
+
+    // Reinforcement phase. Samples an action from the policy's own Bernoulli
+    // outputs — stochastic on purpose, because a deterministic threshold never
+    // explores and REINFORCE needs the actions it evaluates to be its own — and
+    // records the transition. The caller executes the returned action.
+    AIAction sampleAction(const AIObservation& observation);
+    // Credit whatever the game paid since the previous decision.
+    void recordReward(float reward);
+
+    Mode mode() const { return m_mode; }
 
     // Whether the teacher should drive this decision, per the current beta.
     bool teacherDrives();
@@ -135,6 +186,40 @@ private:
     std::vector<std::size_t> m_buttonCorrect;   // per-button, this episode
     std::vector<std::size_t> m_buttonTotal;
     std::unique_ptr<class WeightedBernoulliLoss> m_loss;
+
+    Mode m_mode = Mode::Imitation;
+
+    // One episode's transitions, replayed at episode end once returns are
+    // known. REINFORCE is episodic by construction: the weight on an action is
+    // the discounted return that FOLLOWED it, which does not exist until the
+    // episode does.
+    struct Transition {
+        std::vector<float> features;
+        std::vector<float> action;   // the action actually sampled and executed
+        float reward = 0.0f;
+    };
+    std::vector<Transition> m_episode;
+    // Running mean return, used as the REINFORCE baseline. Subtracting a
+    // baseline leaves the gradient unbiased while cutting its variance, which
+    // is the difference between this converging and thrashing.
+    float m_returnBaseline = 0.0f;
+    bool m_baselineSeeded = false;
+    float m_lastEpisodeReturn = 0.0f;
+    int m_skippedFlatEpisodes = 0;
+
+    AIAction m_heldAction{};
+    int m_repeatLeft = 0;
+
+    void runReinforceUpdate();
+
+public:
+    float lastEpisodeReturn() const { return m_lastEpisodeReturn; }
+    float returnBaseline() const { return m_returnBaseline; }
+    // Episodes whose returns were too flat to learn from. A rising count means
+    // the agent is stuck rather than that training has stalled.
+    int skippedFlatEpisodes() const { return m_skippedFlatEpisodes; }
+
+private:
 
     std::string m_logPath;
     bool m_logOpen = false;

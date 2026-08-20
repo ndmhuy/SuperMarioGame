@@ -3,6 +3,7 @@
 #include "Core/IGameState.hpp"
 #include "Entities/AIController.hpp"
 #include "Entities/PolicyTrainer.hpp"
+#include "Entities/RewardTracker.hpp"
 #include "Graphics/Camera.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/LevelLoader.hpp"
@@ -77,6 +78,10 @@ private:
     std::unique_ptr<class HeuristicPolicy> m_teacherPolicy;
     bool m_teacherDriving = true;
 
+    // The reinforcement signal, assembled from events the game already
+    // publishes. Not consulted at all during the imitation phase.
+    RewardTracker m_reward;
+
     // Episode bookkeeping
     float m_episodeTime = 0.0f;
     float m_maxEpisodeSeconds = 60.0f;
@@ -92,4 +97,18 @@ private:
     // knob when the point is both to learn and to be seen learning.
     int m_stepsPerFrame = 1;
     float m_blinkPhase = 0.0f;
+
+    // Whether to draw the world this frame.
+    //
+    // Rendering a level nobody is watching closely is wasted work, and at high
+    // speed it is also misleading: 64 simulated steps between frames means the
+    // picture skips most of what happened. So above 1x the world is drawn only
+    // when something substantial has changed — a new furthest point, or the
+    // switch from imitation to reinforcement — and otherwise the panel alone is
+    // updated. At 1x it always draws, because then the point IS to watch.
+    bool m_renderWorld = true;
+    float m_bestProgressX = 0.0f;
+    float m_showWorldUntil = 0.0f;   // seconds of wall time to keep showing
+    float m_wallClock = 0.0f;
+    bool m_sawReinforcePhase = false;
 };

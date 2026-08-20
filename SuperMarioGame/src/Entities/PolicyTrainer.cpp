@@ -10,7 +10,9 @@
 #include "nn/Tensor/Tensor.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
+#include <iostream>
 #include <fstream>
 #include <cmath>
 
@@ -176,9 +178,144 @@ void PolicyTrainer::openLog(const std::string& path) {
     if (!file) return;
     // jump_agreement is broken out because the aggregate hid a total failure:
     // 99.9% overall while the jump button was at 0%.
-    file << "episode,samples,mean_loss,agreement,jump_agreement,jump_rate,beta,outcome\n";
+    file << "episode,phase,samples,mean_loss,agreement,jump_agreement,jump_rate,return,outcome\n";
     m_logPath = path;
     m_logOpen = true;
+}
+
+AIAction PolicyTrainer::sampleAction(const AIObservation& observation) {
+    AIAction action;
+    auto* net = m_policy->network();
+    if (!net) return action;
+
+    // Still holding the previous action: reuse it, and let its reward keep
+    // accruing to the transition that chose it. Re-sampling every frame gave
+    // motion so incoherent that no return could be attributed to any decision.
+    if (m_repeatLeft > 0) {
+        --m_repeatLeft;
+        return m_heldAction;
+    }
+
+    const std::vector<float> features = observation.toFeatureVector();
+
+    std::vector<float> probabilities(NeuralPolicy::kActionBits, 0.0f);
+    {
+        // Inference only while acting; the gradient for this step is computed
+        // later, in runReinforceUpdate(), once the return is known.
+        nn::NoGrad noGrad;
+        nn::Tensor input(features, {1, static_cast<int>(features.size())});
+        nn::Tensor output = net->model.forward(input);
+        for (int i = 0; i < NeuralPolicy::kActionBits && i < output.size(); ++i) {
+            probabilities[static_cast<std::size_t>(i)] = output.flat(i);
+        }
+    }
+    m_lastPrediction = probabilities;
+
+    // Sample rather than threshold. A deterministic policy has no gradient
+    // signal to learn FROM: REINFORCE estimates the gradient by comparing the
+    // return of actions it actually took against the baseline, so the actions
+    // have to vary.
+    std::vector<float> taken(NeuralPolicy::kActionBits, 0.0f);
+    for (int i = 0; i < NeuralPolicy::kActionBits; ++i) {
+        const bool pressed = nextRandom() < probabilities[static_cast<std::size_t>(i)];
+        taken[static_cast<std::size_t>(i)] = pressed ? 1.0f : 0.0f;
+    }
+
+    action.moveLeft    = taken[0] > 0.5f;
+    action.moveRight   = taken[1] > 0.5f;
+    action.jump        = taken[2] > 0.5f;
+    action.run         = taken[3] > 0.5f;
+    action.crouch      = taken[4] > 0.5f;
+    action.shoot       = taken[5] > 0.5f;
+    action.groundPound = taken[6] > 0.5f;
+    if (action.moveLeft && action.moveRight) {
+        if (probabilities[0] >= probabilities[1]) action.moveRight = false;
+        else                                      action.moveLeft = false;
+        taken[0] = action.moveLeft ? 1.0f : 0.0f;
+        taken[1] = action.moveRight ? 1.0f : 0.0f;
+    }
+
+    m_episode.push_back(Transition{features, taken, 0.0f});
+    ++m_samples;
+    m_heldAction = action;
+    m_repeatLeft = std::max(m_config.actionRepeat - 1, 0);
+    return action;
+}
+
+void PolicyTrainer::recordReward(float reward) {
+    if (!m_episode.empty()) m_episode.back().reward += reward;
+}
+
+void PolicyTrainer::runReinforceUpdate() {
+    auto* net = m_policy->network();
+    if (!net || m_episode.empty()) { m_episode.clear(); return; }
+
+    // Discounted return following each action: G_t = r_t + gamma * G_{t+1},
+    // accumulated backwards so each is computed once.
+    const std::size_t n = m_episode.size();
+    std::vector<float> returns(n, 0.0f);
+    float running = 0.0f;
+    for (std::size_t k = n; k-- > 0;) {
+        running = m_episode[k].reward + m_config.discount * running;
+        returns[k] = running;
+    }
+    m_lastEpisodeReturn = returns.empty() ? 0.0f : returns.front();
+
+    // Standardise. Without this the update size tracks the raw magnitude of the
+    // game's reward, so a level that happens to pay more would take larger
+    // steps for no principled reason.
+    double sum = 0.0;
+    for (float g : returns) sum += g;
+    const float mean = static_cast<float>(sum / static_cast<double>(n));
+    double variance = 0.0;
+    for (float g : returns) variance += (g - mean) * (g - mean);
+    const float stdev = std::sqrt(static_cast<float>(variance / static_cast<double>(n)));
+
+    if (!m_baselineSeeded) { m_returnBaseline = mean; m_baselineSeeded = true; }
+    else                   { m_returnBaseline = 0.95f * m_returnBaseline + 0.05f * mean; }
+
+    // No spread means no information about which actions were better, and
+    // standardising by a near-zero spread manufactures advantages out of
+    // rounding error. Skip rather than train on noise.
+    if (stdev < m_config.minReturnSpread) {
+        ++m_skippedFlatEpisodes;
+        m_episodeLossSum = 0.0;
+        m_episodeSamples = m_episode.size();
+        m_episode.clear();
+        m_repeatLeft = 0;
+        return;
+    }
+
+    nn::Loss* criterion = static_cast<nn::Loss*>(m_loss->handle());
+    double lossSum = 0.0;
+
+    for (std::size_t k = 0; k < n; ++k) {
+        const float advantage = (returns[k] - mean) / stdev;
+        // Uniform across buttons: the return credits the whole action, and
+        // REINFORCE has no way to attribute it to individual buttons. The SIGN
+        // is the learning signal — a positive advantage raises the probability
+        // of exactly the action that was taken, a negative one lowers it.
+        m_loss->setWeights(std::vector<float>(NeuralPolicy::kActionBits, advantage));
+
+        nn::Tensor input(m_episode[k].features,
+                         {1, static_cast<int>(m_episode[k].features.size())});
+        nn::Tensor taken(m_episode[k].action, {1, NeuralPolicy::kActionBits});
+
+        nn::Tensor prediction = net->model.forward(input);
+        nn::Tensor lossTensor = criterion->forward(prediction, taken);
+
+        m_impl->optimizer.zeroGrad(net->model.parameters());
+        lossTensor.backward();
+        m_impl->optimizer.step(net->model.parameters());
+
+        lossSum += lossTensor.size() > 0 ? lossTensor.flat(0) : 0.0f;
+    }
+
+    m_lastLoss = static_cast<float>(lossSum / static_cast<double>(n));
+    m_episodeLossSum = lossSum;
+    m_episodeSamples = n;
+    m_episode.clear();
+    m_repeatLeft = 0;
 }
 
 std::vector<float> PolicyTrainer::buttonAgreement() const {
@@ -193,6 +330,8 @@ std::vector<float> PolicyTrainer::buttonAgreement() const {
 }
 
 void PolicyTrainer::endEpisode(const char* outcome) {
+    if (m_mode == Mode::Reinforce) runReinforceUpdate();
+
     // Index 2 is the jump button, per AIAction declaration order.
     const std::vector<float> perButton = buttonAgreement();
     const float jumpAgreement = perButton.size() > 2 ? perButton[2] : 0.0f;
@@ -221,13 +360,26 @@ void PolicyTrainer::endEpisode(const char* outcome) {
     m_config.beta = std::max(m_config.minBeta,
                              m_config.beta - m_config.betaDecayPerEpisode);
 
+    // Hand over from imitation to reinforcement once the policy is competent
+    // enough that policy-gradient updates have something to improve on.
+    if (m_mode == Mode::Imitation && m_episodes >= m_config.imitationEpisodes) {
+        m_mode = Mode::Reinforce;
+        m_impl->optimizer = nn::SGD(m_config.reinforceLearningRate);
+        m_config.beta = 0.0f;   // the teacher no longer drives; it is done
+        std::cout << "[PolicyTrainer] Imitation phase complete after "
+                  << m_episodes << " episodes. Switching to REINFORCE (lr "
+                  << m_config.reinforceLearningRate << ")." << std::endl;
+    }
+
     if (m_logOpen && !m_lossHistory.empty()) {
         std::ofstream file(m_logPath, std::ios::app);
         if (file) {
-            file << m_episodes << ',' << m_samples << ','
+            file << m_episodes << ','
+                 << (m_mode == Mode::Reinforce ? "reinforce" : "imitation") << ','
+                 << m_samples << ','
                  << m_lossHistory.back() << ',' << m_agreementHistory.back() << ','
                  << jumpAgreement << ',' << m_pressRate[2] << ','
-                 << m_config.beta << ',' << (outcome ? outcome : "") << '\n';
+                 << m_lastEpisodeReturn << ',' << (outcome ? outcome : "") << '\n';
         }
     }
 }

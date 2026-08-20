@@ -1,0 +1,17 @@
+# Watchable training run: stays at 1x (one simulated frame per rendered frame),
+# which is the lightest possible setting — no speed-up keypresses at all.
+# Press +/- in the window to change speed live; ESC checkpoints and exits.
+wait 2.0
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.3
+press Space
+wait 900.0
+quit

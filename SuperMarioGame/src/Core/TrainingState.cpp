@@ -4,6 +4,7 @@
 #include "Core/SoundManager.hpp"
 #include "Entities/BorrowedPolicy.hpp"
 #include "Entities/HeuristicPolicy.hpp"
+#include "Entities/RewardTracker.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/NeuralPolicy.hpp"
 #include "Entities/Player.hpp"
@@ -126,6 +127,22 @@ void TrainingState::finishEpisode(const char* reason) {
 
 void TrainingState::update(float dt) {
     m_blinkPhase += dt;
+    m_wallClock += dt;
+
+    // Decide what is worth looking at. A "substantial update" is the agent
+    // reaching further than it ever has, or the objective changing — both of
+    // which are worth a few seconds of screen time; everything else at speed is
+    // the same failure repeated.
+    const bool reinforcing = m_trainer && m_trainer->mode() == PolicyTrainer::Mode::Reinforce;
+    if (reinforcing && !m_sawReinforcePhase) {
+        m_sawReinforcePhase = true;
+        m_showWorldUntil = m_wallClock + 6.0f;
+    }
+    if (m_furthestX > m_bestProgressX + 64.0f) {   // two tiles further than ever
+        m_bestProgressX = m_furthestX;
+        m_showWorldUntil = m_wallClock + 3.0f;
+    }
+    m_renderWorld = (m_stepsPerFrame <= 1) || (m_wallClock < m_showWorldUntil);
     if (m_paused || !m_player || !m_agent) return;
 
     for (int step = 0; step < m_stepsPerFrame; ++step) {
@@ -133,15 +150,26 @@ void TrainingState::update(float dt) {
 
         m_agent->update(h, nullptr, m_tileMap, m_entities);
 
-        // The supervision label for the state the agent just saw. When the
-        // teacher is driving, the controller already computed exactly this, and
-        // asking the heuristic again would advance its commit and escape
-        // counters a second time — changing the very behaviour being copied.
         const AIObservation& observation = m_agent->lastObservation();
-        const AIAction teacherAction = m_teacherDriving
-                                           ? m_agent->lastAction()
-                                           : m_teacherPolicy->decide(observation);
-        m_trainer->learn(observation, teacherAction);
+
+        if (m_trainer->mode() == PolicyTrainer::Mode::Imitation) {
+            // The supervision label for the state the agent just saw. When the
+            // teacher is driving, the controller already computed exactly this,
+            // and asking the heuristic again would advance its commit and
+            // escape counters a second time — changing the very behaviour being
+            // copied.
+            const AIAction teacherAction = m_teacherDriving
+                                               ? m_agent->lastAction()
+                                               : m_teacherPolicy->decide(observation);
+            m_trainer->learn(observation, teacherAction);
+        } else {
+            // Reinforcement: the policy's own sampled action is executed, and
+            // the game's reward — not the teacher — says whether it was good.
+            const AIAction sampled = m_trainer->sampleAction(observation);
+            m_agent->overrideAction(sampled);
+            m_reward.observe(m_player->getPosition());
+            m_trainer->recordReward(m_reward.consume());
+        }
 
         for (auto& entity : m_entities) {
             if (entity && entity->isActive()) entity->update(h);
@@ -170,7 +198,18 @@ void TrainingState::update(float dt) {
             return;
         }
         if (m_episodeTime >= m_maxEpisodeSeconds) { finishEpisode("timeout"); return; }
-        if (m_stallTime >= kStuckSeconds)          { finishEpisode("stuck");   return; }
+        // The stall cut-off is an imitation-phase device: there, a stuck agent
+        // is just wasting teacher labels on one state. Under REINFORCE it is
+        // actively harmful — exploration looks like stalling for a second or
+        // two before it pays off, and killing the episode at 4 s meant every
+        // episode ended with near-identical returns, which the flat-return
+        // guard then correctly refused to learn from. Measured: median episode
+        // length was 61 decisions, exactly the timeout, across 12,584 episodes
+        // that produced no learning at all.
+        const float stallLimit = (m_trainer->mode() == PolicyTrainer::Mode::Reinforce)
+                                     ? m_maxEpisodeSeconds
+                                     : kStuckSeconds;
+        if (m_stallTime >= stallLimit)             { finishEpisode("stuck");   return; }
         if (position.x >= (m_tileMap.getWidth() - 4) * Constants::TILE_SIZE) {
             ++m_completions;
             finishEpisode("reached the end");
@@ -209,10 +248,12 @@ void TrainingState::handleInput(const sf::Event& event) {
 }
 
 void TrainingState::render(sf::RenderTarget& target) {
-    target.setView(m_camera.getView());
-    m_tileMap.render(target, m_camera);
-    for (const auto& entity : m_entities) {
-        if (entity && entity->isActive()) entity->render(target);
+    if (m_renderWorld) {
+        target.setView(m_camera.getView());
+        m_tileMap.render(target, m_camera);
+        for (const auto& entity : m_entities) {
+            if (entity && entity->isActive()) entity->render(target);
+        }
     }
 
     target.setView(target.getDefaultView());
@@ -269,10 +310,20 @@ void TrainingState::renderOverlay(sf::RenderTarget& target) {
     UiRenderer::drawText(target, "TRAINING", {left, y}, 16, sf::Color::Yellow);
     y += 26.0f;
 
-    const char* driver = m_teacherDriving ? "TEACHER" : "LEARNER";
-    UiRenderer::drawText(target, std::string("driving: ") + driver, {left, y}, 11,
-                         m_teacherDriving ? sf::Color(150, 200, 255)
-                                          : sf::Color(150, 255, 150));
+    const bool reinforcing = m_trainer->mode() == PolicyTrainer::Mode::Reinforce;
+    // Which objective is running matters more than which policy is driving:
+    // imitation is capped by the teacher, reinforcement is not.
+    UiRenderer::drawText(target,
+                         reinforcing ? "phase: REINFORCE (reward)"
+                                     : "phase: IMITATION (teacher)",
+                         {left, y}, 11,
+                         reinforcing ? sf::Color(255, 200, 120)
+                                     : sf::Color(150, 200, 255));
+    y += 16.0f;
+    const char* driver = reinforcing ? "policy (sampled)"
+                                     : (m_teacherDriving ? "TEACHER" : "LEARNER");
+    UiRenderer::drawText(target, std::string("driving: ") + driver, {left, y}, 10,
+                         sf::Color(190, 190, 190));
     y += 18.0f;
 
     char line[128];
@@ -285,6 +336,12 @@ void TrainingState::renderOverlay(sf::RenderTarget& target) {
     UiRenderer::drawText(target, line, {left, y}, 11, sf::Color::White);
     y += 18.0f;
 
+    if (reinforcing) {
+        std::snprintf(line, sizeof(line), "return %.1f  baseline %.1f",
+                      m_trainer->lastEpisodeReturn(), m_trainer->returnBaseline());
+        UiRenderer::drawText(target, line, {left, y}, 11, sf::Color(255, 200, 120));
+        y += 18.0f;
+    }
     std::snprintf(line, sizeof(line), "loss %.4f", m_trainer->lastLoss());
     UiRenderer::drawText(target, line, {left, y}, 11, sf::Color(255, 180, 120));
     y += 18.0f;
@@ -346,6 +403,15 @@ void TrainingState::renderOverlay(sf::RenderTarget& target) {
     std::snprintf(line, sizeof(line), "last: %s   speed x%d", m_lastOutcome,
                   m_stepsPerFrame);
     UiRenderer::drawText(target, line, {left, y}, 9, sf::Color(180, 180, 180));
+    y += 13.0f;
+    if (!m_renderWorld) {
+        std::snprintf(line, sizeof(line), "world hidden - best %.0f tiles",
+                      m_bestProgressX / Constants::TILE_SIZE);
+        UiRenderer::drawText(target, line, {left, y}, 9, sf::Color(150, 150, 170));
+        y += 12.0f;
+        UiRenderer::drawText(target, "shows on a new best, or at speed x1",
+                             {left, y}, 8, sf::Color(120, 120, 140));
+    }
 
     if (m_paused) {
         UiRenderer::drawText(target, "PAUSED", {Constants::WINDOW_WIDTH * 0.5f, 60.0f},

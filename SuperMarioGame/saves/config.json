@@ -6,6 +6,10 @@
         "left": "Left",
         "right": "Right"
     },
+    "keyBindings2": {
+        "fire": "M",
+        "jump": "Up"
+    },
     "musicVolume": 35.0,
     "sfxVolume": 45.0
 }
