@@ -3495,3 +3495,74 @@ Summary of Changes:
   seven-level campaign, the other hardcoded "1-2" for level index 2. The second
   now asks LevelCatalog so it cannot go stale again.
 ---
+[2026-08-20 09:55:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: c0e2e15 (before) → 9ef2e29 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin/A/complete-game-tiers-1-4
+was 0/0 before this commit.
+Prompt: "defeat bowser then segmentation fault. The koop troopa shell cannot be
+touched after it die so no pick up. The thwomper should not be visible when it is
+inside the pipe. The warp logic sometimes make player into the void but not
+dying, then a madness of music erases my ears. There are still things like moving
+platform don't have the sprite, find them and fix"
+Files Modified:
+- SuperMarioGame/src/Core/PlayingState.cpp, include/Core/PlayingState.hpp
+- SuperMarioGame/src/Physics/PhysicsEngine.cpp
+- SuperMarioGame/src/Entities/{Pipe,PiranhaPlant,MovingPlatform,FallingPlatform,ConveyorBelt,Peach}.cpp
+- SuperMarioGame/include/Entities/{Entity,Block,Enemy,Item,Player,Fireball,Hammer,BossFireball,Pipe,PiranhaPlant}.hpp
+- SuperMarioGame/include/Core/EventBus.hpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — every one of these is on the normal play path; the
+first is a hard crash at the end of the campaign.
+Verified By: ctest (2/2 — verify_regressions 377/377, up from 374;
+verify_frontend_states 34/34). The shell and fireball paths were driven through
+the real PhysicsEngine in a throwaway harness before being written up as tests.
+NOT verified by playing the built game.
+Summary of Changes:
+- CRASH ROOT CAUSE: Boss::update ends the defeat sequence with destroy(). The
+  prune in PlayingState::update then frees the entity. updateBossArena(), ninety
+  lines later in the SAME function, does `m_activeBoss->isActive()`. The pointer
+  was cleared there, which is one frame too late — the free already happened.
+  Added forgetEntity(), called from inside the prune before the unique_ptr is
+  released, and it drops every observer pointer (boss, held shell, and m_player2,
+  which the prune had never excluded so a dead P2 dangled too).
+  LESSON: a raw observer pointer into an owning container must be cleared by the
+  code that does the removal, not by whoever happens to read it next.
+- SHELL PICKUP: PhysicsEngine::update cleared the movement intent flags in the
+  MIDDLE of update(), before the collision resolution at the END of the same
+  update() read them. isRunRequested() was therefore always false by the time
+  the resolver asked, so "hold run to carry" could never fire in the real game.
+  My own regression test passed because it called the resolver directly with the
+  flag freshly set — the same shape of mistake as the old fireball test. Fixed by
+  clearing the flags at the end of update().
+  LESSON: when a test drives one function directly, it is not testing the order
+  the game calls things in. Drive the pipeline.
+- PIRANHA PLANT (reported as "the thwomper"): "Retracted" positioned the plant at
+  its anchor, i.e. sitting on the pipe mouth in full view. Now drawn clipped to
+  the portion above the mouth, so it slides out, and non-collidable while inside.
+- "MADNESS OF MUSIC": Pipe::checkWarp was declared const and played a sound,
+  teleported the player and published an event. PlayingState called it once per
+  pipe per frame, so holding crouch re-fired everything every frame. And the
+  event it published was CheckpointActivated ("Warp event type mapping" in the
+  comment) — so every warp also set a respawn point, ran an auto-save and played
+  the checkpoint jingle. Two overlapping sounds a frame at 60Hz. checkWarp is a
+  pure query now; added a real PlayerWarped event; added a 0.75s cooldown; and
+  the level swap moved out of the loop over m_entities that it was replacing.
+- "VOID BUT NOT DYING": three gaps. The void check only tested Y, so a player
+  past the map edge never fell and never died. A pipe exit was trusted even when
+  outside its destination. And a spawn point in the void respawned you into it
+  repeatedly. All three closed, with a fallback to the level's own spawn point.
+- MISSING SPRITES: four entity types drew NOTHING — not the placeholder.
+  setupAnimations() sets m_hasAnimation whether or not the frames it names exist,
+  and drawSprite() returns early on a zero-size sprite, so a wrong frame name is
+  completely silent. Moving platform asked for "platform_medium", falling
+  platform for "falling_platform_medium", conveyor for "platform_long"; the
+  atlas has none of them. Rather than fix the reported one, added
+  Entity::hasArtwork()/artworkSize() and a suite case that asks all forty factory
+  types what they would actually draw. That found the other three and Pipe (a
+  false positive — it draws via PipeRenderer, now reports honestly).
+  METHOD NOTE: the first version of the sweep only checked m_hasAnimation and
+  reported 0/40 clean. The flag is set unconditionally, so it proved nothing.
+  Checking the resolved sprite's size is what found the real four.
+- Peach's float and the pipe's crouch check named physical keys rather than the
+  bound action, so rebinding silently broke both. Both use isActionHeld() now.
+---
