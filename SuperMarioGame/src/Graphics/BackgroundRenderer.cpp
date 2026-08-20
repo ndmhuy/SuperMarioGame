@@ -102,14 +102,30 @@ void BackgroundRenderer::render(sf::RenderTarget& target, const AABB& visibleBou
     const float screenW = static_cast<float>(Constants::WINDOW_WIDTH);
     const float screenH = static_cast<float>(Constants::WINDOW_HEIGHT);
 
+    // Where the world's ground surface lands on screen this frame.
+    //
+    // GROUND_LINE is a *screen* constant, and the backdrop is drawn in the
+    // default view before the camera view is applied — so it was only ever right
+    // by luck. In the shipped levels the ground surface is tile row 21, i.e.
+    // world y 672, and the camera clamp keeps the view top in [0, 16], so the
+    // ground actually renders at screen y 656-672: the layers sat 16-32px too
+    // high before the jitter above even got involved. Short sub-levels anchor the
+    // view differently again, so no single constant can be correct.
+    //
+    // setWorldGroundY() supplies the real figure; until it does, the old constant
+    // stands in (which is what the menu, with no tilemap, still wants).
+    const float groundY = (m_worldGroundY > 0.0f)
+        ? std::clamp(m_worldGroundY - visibleBounds.y, 0.0f, screenH)
+        : GROUND_LINE;
+
     // Sky first, so the layers have something to sit on and no seam shows.
     sf::RectangleShape sky({screenW, screenH});
     sky.setFillColor(getSkyColor());
     target.draw(sky);
 
     if (m_drawGroundBand) {
-        sf::RectangleShape earth({screenW, screenH - GROUND_LINE});
-        earth.setPosition({0.0f, GROUND_LINE});
+        sf::RectangleShape earth({screenW, screenH - groundY});
+        earth.setPosition({0.0f, groundY});
         // Darker than the layer tint so the silhouettes still read against it.
         earth.setFillColor(m_theme == BackgroundTheme::Ice ? sf::Color(198, 214, 232)
                                                            : sf::Color(88, 56, 24));
@@ -141,11 +157,23 @@ void BackgroundRenderer::render(sf::RenderTarget& target, const AABB& visibleBou
             sprite.setScale({layer.scale, layer.scale});
             sprite.setColor(layer.tint);
 
-            // A second hash nudges the vertical placement so a row of identical
-            // decorations does not read as a ruler.
+            // A second hash nudges placement so a row of identical decorations
+            // does not read as a ruler — but HORIZONTALLY.
+            //
+            // It used to be subtracted from the baseline. The hash is 0..23, so
+            // every ground-standing decoration was lifted up to 23px off the
+            // ground line and only touched it when the hash happened to be zero:
+            // one slot in twenty-four. Hills, bushes, fences and trees all
+            // floated. Clouds have no ground to sit on, so they take the offset
+            // vertically as originally intended.
             const float jitter = static_cast<float>(slotHash(slot * 7 + 1, 24));
-            const float x = static_cast<float>(slot) * layer.spacing - layerX;
-            const float y = layer.baselineY - bounds.size.y * layer.scale - jitter;
+            const bool floats = layer.baselineY < groundY - 1.0f;
+            const float x = static_cast<float>(slot) * layer.spacing - layerX +
+                            (floats ? 0.0f : jitter);
+            // Ground layers are pinned to where the world's ground actually
+            // renders this frame; only the sky layers keep a fixed screen y.
+            const float base = floats ? layer.baselineY : groundY;
+            const float y = base - bounds.size.y * layer.scale - (floats ? jitter : 0.0f);
             sprite.setPosition({std::round(x), std::round(y)});
             target.draw(sprite);
         }

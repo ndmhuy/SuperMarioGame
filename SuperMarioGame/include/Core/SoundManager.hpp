@@ -28,7 +28,15 @@ public:
     void playSound(const std::string& id);
 
     // Music methods
-    void playMusic(const std::string& path);
+    // `loop` false for one-shot jingles — level complete, castle complete, game
+    // over. It used to be hardcoded true for everything, so the 3-second
+    // level-clear cue restarted for as long as the celebration lasted and read as
+    // the jingle playing over and over.
+    void playMusic(const std::string& path, bool loop = true);
+
+    // Whether the current track repeats. Exists so the regression suite can tell
+    // a jingle from level music without opening an audio device to listen.
+    bool isMusicLooping() const { return m_music.isLooping(); }
     void playLevelBGM(int levelIndex);
     void playStarMusic();
     void restoreLevelBGM();

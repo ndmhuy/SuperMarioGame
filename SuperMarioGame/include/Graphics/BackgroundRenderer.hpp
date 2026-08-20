@@ -61,6 +61,12 @@ public:
 
     static BackgroundTheme parseThemeName(const std::string& themeName);
 
+    // Tell the backdrop where the world's ground surface is, in WORLD
+    // coordinates, so the ground-standing layers can be pinned to it rather than
+    // to a hardcoded screen line that the camera makes wrong. Pass 0 (the
+    // default) for surfaces with no tilemap behind them, such as the menu.
+    void setWorldGroundY(float worldY) { m_worldGroundY = worldY; }
+
 private:
     // One parallax layer: a set of frames placed along the ground line at a
     // fraction of camera speed.
@@ -80,4 +86,6 @@ private:
     const SpriteSheet* m_sheet = nullptr;
     bool m_drawGroundBand = false;
     float m_elapsed = 0.0f;
+    // World y of the ground surface, or 0 when unknown.
+    float m_worldGroundY = 0.0f;
 };

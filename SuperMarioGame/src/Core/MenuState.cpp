@@ -464,17 +464,6 @@ void MenuState::render(sf::RenderTarget& target) {
     if (m_page == Page::Multiplayer) {
         const std::vector<UiMenuItem> rows = buildMultiplayerItems();
 
-        UiRenderer::drawPanel(target, {centerX - 280.0f, 200.0f}, {560.0f, 330.0f},
-                              sf::Color(0, 0, 0, 200));
-        UiRenderer::drawText(target, "MULTIPLAYER", {centerX, 220.0f}, 14,
-                             sf::Color(255, 170, 220), true);
-        UiRenderer::drawMenuItems(target, rows, m_mpSelected,
-                                  {centerX - 210.0f, 262.0f}, 36.0f, 13,
-                                  centerX + 90.0f, m_elapsed);
-
-        // What the highlighted mode actually does. The labels alone do not say.
-        UiRenderer::drawText(target, modeBlurb(m_match.mode), {centerX, 486.0f}, 11,
-                             sf::Color(200, 200, 200), true);
         // Which keys each participant gets — the one thing a second player at
         // the same keyboard has to be told before the level starts.
         //
@@ -482,8 +471,46 @@ void MenuState::render(sf::RenderTarget& target) {
         // rebindable and a hint that names the defaults is worse than none: this
         // line said "P1 WASD" while a config.json in the repo had Player 1 on the
         // arrow keys, which also means both players were sharing them.
-        if (m_match.mode == GameMode::VersusHuman || m_match.isCoop()) {
-            const InputManager& input = InputManager::getInstance();
+        const InputManager& input = InputManager::getInstance();
+        const bool twoHumans = (m_match.mode == GameMode::VersusHuman || m_match.isCoop());
+        bool padsCollide = false;
+        if (twoHumans) {
+            for (const char* action : {"left", "right", "jump"}) {
+                if (!input.getBoundKeyName(action, 0).empty() &&
+                    input.getBoundKeyName(action, 0) == input.getBoundKeyName(action, 1)) {
+                    padsCollide = true;
+                    break;
+                }
+            }
+        }
+
+        // The panel is sized from what is actually going in it. It was a fixed
+        // 330px, so the key summary and the shared-keys warning — both added
+        // later, and both conditional — were clipped straight through the bottom
+        // edge of the frame.
+        constexpr float kTop = 196.0f;
+        constexpr float kRowHeight = 34.0f;
+        const float rowsTop = kTop + 58.0f;
+        const float rowsBottom = rowsTop + kRowHeight * static_cast<float>(rows.size());
+        const float blurbY = rowsBottom + 16.0f;
+        const float keysY = blurbY + 22.0f;
+        const float warnY = keysY + 18.0f;
+        const float contentBottom = padsCollide ? warnY : (twoHumans ? keysY : blurbY);
+        const float panelHeight = (contentBottom + 22.0f) - kTop;
+
+        UiRenderer::drawPanel(target, {centerX - 280.0f, kTop}, {560.0f, panelHeight},
+                              sf::Color(0, 0, 0, 200));
+        UiRenderer::drawText(target, "MULTIPLAYER", {centerX, kTop + 20.0f}, 14,
+                             sf::Color(255, 170, 220), true);
+        UiRenderer::drawMenuItems(target, rows, m_mpSelected,
+                                  {centerX - 210.0f, rowsTop}, kRowHeight, 13,
+                                  centerX + 90.0f, m_elapsed);
+
+        // What the highlighted mode actually does. The labels alone do not say.
+        UiRenderer::drawText(target, modeBlurb(m_match.mode), {centerX, blurbY}, 11,
+                             sf::Color(200, 200, 200), true);
+
+        if (twoHumans) {
             auto padSummary = [&input](int pad) {
                 const std::string left  = input.getBoundKeyName("left", pad);
                 const std::string right = input.getBoundKeyName("right", pad);
@@ -491,21 +518,18 @@ void MenuState::render(sf::RenderTarget& target) {
                 return left + "/" + right + " + " + jump;
             };
             UiRenderer::drawText(target, "P1  " + padSummary(0) + "      P2  " + padSummary(1),
-                                 {centerX, 508.0f}, 11, sf::Color(150, 220, 150), true);
+                                 {centerX, keysY}, 11, sf::Color(150, 220, 150), true);
 
             // Both pads on the same key is unplayable, and the only place it can
             // be noticed before the level starts is here.
-            for (const char* action : {"left", "right", "jump"}) {
-                if (!input.getBoundKeyName(action, 0).empty() &&
-                    input.getBoundKeyName(action, 0) == input.getBoundKeyName(action, 1)) {
-                    UiRenderer::drawText(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
-                                         {centerX, 526.0f}, 10, sf::Color(255, 140, 140), true);
-                    break;
-                }
+            if (padsCollide) {
+                UiRenderer::drawText(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
+                                     {centerX, warnY}, 10, sf::Color(255, 140, 140), true);
             }
         }
+
         UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
-                                     {centerX, 556.0f}, 11,
+                                     {centerX, kTop + panelHeight + 18.0f}, 11,
                                      sf::Color(220, 220, 220), true);
         return;
     }

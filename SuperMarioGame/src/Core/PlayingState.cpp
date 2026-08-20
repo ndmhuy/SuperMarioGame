@@ -131,27 +131,37 @@ void PlayingState::enter() {
         cleanupTestScene();
         MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
         m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
+        syncBackdropGround();
 
         // Wire animations for all procedurally generated entities
         for (auto& entity : m_entities) {
             admitEntity(entity.get());
         }
         
-        m_player = nullptr;
-        for (const auto& entity : m_entities) {
-            if (auto p = dynamic_cast<Player*>(entity.get())) {
-                m_player = p;
-                break;
+        // The generator always builds a Mario (MapGenerator::generate does
+        // `std::make_unique<Mario>`), and this used to simply adopt whatever
+        // Player it found in the generated list. So the character the player
+        // picked was carried all the way here in m_selectedCharIndex — it is even
+        // echoed back in buildRunSummary — and then ignored, which is why the
+        // daily challenge always came out as Mario however you chose.
+        //
+        // Take the generator's spawn point, discard its player, and build the
+        // selected character there instead.
+        sf::Vector2f generatedSpawn{96.0f, 64.0f};
+        for (auto it = m_entities.begin(); it != m_entities.end(); ) {
+            if (dynamic_cast<Player*>(it->get())) {
+                generatedSpawn = (*it)->getPosition();
+                it = m_entities.erase(it);
+            } else {
+                ++it;
             }
         }
-        if (!m_player) {
-            spawnSelectedPlayer(sf::Vector2f(96.0f, 64.0f));
-            m_levelSpawnPoint = sf::Vector2f(96.0f, 64.0f);
-        } else {
-            m_levelSpawnPoint = m_player->getPosition();
-            InputManager::getInstance().registerPlayer(m_player, 0);
-            Game::getInstance().setPlayer(m_player);
-        }
+        m_player = nullptr;
+        m_levelSpawnPoint = generatedSpawn;
+        // adoptPlayer (via spawnSelectedPlayer) refreshes m_player, InputManager
+        // and Game together, which is the only sanctioned way in (audit A-3).
+        spawnSelectedPlayer(generatedSpawn);
+        spawnMatchParticipants();
         Game::getInstance().setTileMap(&m_tileMap);
         m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
     } else {
@@ -212,11 +222,25 @@ void PlayingState::enter() {
     });
 
     // A player death reported from anywhere — an enemy killing Small Mario, the
-    // debug key, a script — runs the one death sequence. killPlayer() re-enters
-    // through this subscription when it publishes, and its phase guard absorbs
-    // that immediately.
+    // debug key, a script — runs that player's death sequence.
+    //
+    // The payload matters and used to be discarded. Player::powerDown() publishes
+    // {PlayerDied, this}, so the event has always known WHICH player died; the
+    // handler ignored it and killPlayer() acted on Player 1 unconditionally. An
+    // enemy hitting Player 2 therefore ran the death fall, the life deduction and
+    // the game-over test on Player 1, standing unharmed somewhere else — the
+    // "kills the wrong player" report, exactly.
+    //
+    // The debug key publishes an int rather than a Player*, so the cast is
+    // guarded and falls back to Player 1.
     m_playerDiedSubId = EventBus::getInstance().subscribe(
-        EventType::PlayerDied, [this](const GameEvent&) { killPlayer("was defeated"); });
+        EventType::PlayerDied, [this](const GameEvent& ev) {
+            Player* who = nullptr;
+            if (const Player* const* asPlayer = std::any_cast<Player*>(&ev.data)) {
+                who = const_cast<Player*>(*asPlayer);
+            }
+            killPlayer(who, "was defeated");
+        });
 
     m_starCoinsCollected = {false, false, false};
     m_starCoinSubId = EventBus::getInstance().subscribe(EventType::StarCoinCollected, [this](const GameEvent& ev) {
@@ -601,7 +625,13 @@ void PlayingState::update(float dt) {
 
     // 3b1. Death sequence. While it runs, the corpse is falling through the
     // level on purpose, so none of the hazard checks below may fire again.
-    if (m_deathPhase != DeathPhase::None) {
+    //
+    // Note this still short-circuits the whole frame, which in two-player mode
+    // means the survivor is held still for the ~1s their partner spends falling.
+    // That is deliberate and matches the single-player feel; letting one player
+    // keep running while the other dies would need the hazard checks below to be
+    // per-player, which is a larger change than this fix.
+    if (anyDeathInProgress()) {
         updateDeathSequence(dt);
         m_camera.update(dt);
         m_background.update(dt);
@@ -622,7 +652,7 @@ void PlayingState::update(float dt) {
             // it still dies outright, which is the intent.
             m_player->takeDamage(1);
             if (m_player->getLives() <= 0 || m_player->isDying()) {
-                killPlayer("fell into the lava");
+                killPlayer(m_player, "fell into the lava");
                 return;
             }
         }
@@ -632,26 +662,23 @@ void PlayingState::update(float dt) {
     // Sideways counts too: a bad warp exit could park the player past the edge
     // of the map, where they were outside every tile, never fell, and never
     // died. "In the void but not dying" was exactly that.
+    //
+    // Both players go through the same path now. Player 2 had a hand-rolled
+    // version that only checked the *bottom* — so a Player 2 shoved off the left
+    // edge was stuck alive outside the map forever — and which skipped the death
+    // fall, the jingle and the i-frames that Player 1 got.
     const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
     const float rightVoidX  = (m_tileMap.getWidth()  * Constants::TILE_SIZE) + 64.0f;
-    if (m_player && (m_player->getPosition().y > bottomVoidY ||
-                     m_player->getPosition().x < -64.0f ||
-                     m_player->getPosition().x > rightVoidX)) {
-        killPlayer("fell into the void");
-        if (allPlayersOut()) return;
-    }
-    // Player 2 falls into the same void.
-    if (m_player2 && m_player2->getPosition().y > bottomVoidY) {
-        SoundManager::getInstance().playSound("lost_life");
-        m_player2->loseLife();
-        if (m_player2->getLives() > 0) {
-            m_player2->setPosition(m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint);
-            m_player2->setVelocity({0.0f, 0.0f});
-        } else if (allPlayersOut()) {
-            killPlayer("both players are out");
-            return;
+    for (Player* who : {m_player, m_player2}) {
+        if (!who || !who->isActive()) continue;
+        const sf::Vector2f at = who->getPosition();
+        if (at.y > bottomVoidY || at.x < -64.0f || at.x > rightVoidX) {
+            // Nothing else publishes for a fall, so this path does.
+            EventBus::getInstance().publish({EventType::PlayerDied, who});
+            killPlayer(who, "fell into the void");
         }
     }
+    if (anyDeathInProgress()) return;
 
     // 3d. Warp Pipe check for sub-level transitions or teleportation.
     //
@@ -712,7 +739,7 @@ void PlayingState::update(float dt) {
 
         if (m_levelTimer <= 0.0f) {
             m_levelTimer = 0.0f;
-            killPlayer("ran out of time");
+            killPlayer(m_player, "ran out of time");
             if (m_player && m_player->getLives() <= 0) return;
         }
     }
@@ -765,6 +792,7 @@ void PlayingState::update(float dt) {
             hudData.coins = player->getCoins();
             hudData.lives = player->getLives();
             hudData.comboCount = player->getComboCounter();
+            hudData.comboTimer = player->getComboTimer();
             hudData.characterName = player->getCharacterName();
             hudData.starCoinsCollected = m_starCoinsCollected;
         } else {
@@ -814,6 +842,30 @@ void PlayingState::update(float dt) {
         // no second capture path, and nothing to drift out of step (task 10.3).
         ReplayRecorder::getInstance().record(snapshot);
     }
+}
+
+void PlayingState::syncBackdropGround() {
+    // Find the top of the ground the player actually walks on, and hand it to the
+    // backdrop so the hills and bushes stand on it.
+    //
+    // Scanned rather than assumed: the campaign levels put their surface on tile
+    // row 21 of 23, but a generated level or a sub-level can be any height, and a
+    // hardcoded screen line was wrong for all of them. The lowest row containing
+    // a solid tile is the floor; its top edge is where decorations belong.
+    int groundRow = -1;
+    for (int y = m_tileMap.getHeight() - 1; y >= 0 && groundRow < 0; --y) {
+        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+            if (TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) {
+                groundRow = y;
+                break;
+            }
+        }
+    }
+    if (groundRow < 0) {
+        m_background.setWorldGroundY(0.0f);   // no floor at all: fall back
+        return;
+    }
+    m_background.setWorldGroundY(static_cast<float>(groundRow) * Constants::TILE_SIZE);
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
@@ -1138,6 +1190,7 @@ void PlayingState::setupTestScene() {
         // Set camera bounds matching the level size
         m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
         m_background.setTheme(levelData.theme);
+        syncBackdropGround();
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -1173,6 +1226,11 @@ void PlayingState::cleanupTestScene() {
     m_aiController.reset();
     Game::getInstance().setSecondPlayer(nullptr);
     InputManager::getInstance().registerPlayer(nullptr, 1);
+    // The participants this vector held are gone, so their death records describe
+    // nobody. Carrying `eliminated` across a level load would lock a player out
+    // of the next level they were never eliminated in.
+    m_death = DeathState{};
+    m_death2 = DeathState{};
 }
 
 bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride) {
@@ -1258,6 +1316,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     Game::getInstance().setTileMap(&m_tileMap);
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
     m_background.setTheme(levelData.theme);
+    syncBackdropGround();
     findActiveBoss();
 
     std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;
@@ -1268,6 +1327,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 void PlayingState::regenerateProceduralLevel() {
     MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
     m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
+    syncBackdropGround();
     for (auto& entity : m_entities) {
         admitEntity(entity.get());
     }
@@ -1687,8 +1747,24 @@ void PlayingState::syncBossHud(HudData& hudData) const {
     hudData.bossMaxHealth = m_activeBoss->getMaxHealth();
 }
 
-void PlayingState::killPlayer(const char* reason) {
-    if (!m_player) return;
+PlayingState::DeathState* PlayingState::deathStateFor(const Player* who) {
+    if (who && who == m_player2) return &m_death2;
+    if (who && who != m_player)  return nullptr;   // the shadow, or a stale pointer
+    return &m_death;
+}
+
+bool PlayingState::anyDeathInProgress() const {
+    return m_death.phase != DeathPhase::None || m_death2.phase != DeathPhase::None;
+}
+
+void PlayingState::killPlayer(Player* who, const char* reason) {
+    // Null means Player 1: the debug key and the level-timer path have no
+    // particular player in mind.
+    if (!who) who = m_player;
+    if (!who) return;
+
+    DeathState* death = deathStateFor(who);
+    if (!death) return;   // not a participant — the shadow cannot die
 
     // One death per death. This used to run its whole body every frame the
     // player was still out of bounds: the pit check fires again next frame
@@ -1697,15 +1773,21 @@ void PlayingState::killPlayer(const char* reason) {
     // elapsed time. The fade therefore never completed, its callback never ran,
     // and the game-over screen never appeared. Falling into the void simply hung
     // the game with a scream.
-    if (m_deathPhase != DeathPhase::None) return;
+    if (death->phase != DeathPhase::None) return;
+    // And nothing may kill a player who is already out. Their corpse stays below
+    // the level, so the void check fired again every frame and an eliminated
+    // Player 1 put the match into an endless loop of death jingles.
+    if (death->eliminated) return;
 
-    std::cout << "[PlayingState] Player " << reason << "." << std::endl;
+    const bool isSecond = (who == m_player2);
+    std::cout << "[PlayingState] " << (isSecond ? "Player 2 " : "Player 1 ") << reason
+              << "." << std::endl;
 
     // Set the phase BEFORE publishing: the PlayerDied subscription calls back
     // into here, and the guard above is what absorbs it.
-    m_deathPhase  = DeathPhase::Falling;
-    m_deathTimer  = DEATH_FALL_SECONDS;
-    m_deathReason = reason;
+    death->phase  = DeathPhase::Falling;
+    death->timer  = DEATH_FALL_SECONDS;
+    death->reason = reason;
 
     // Attribute the death to the shadow when the shadow actually caused it. The
     // damage arrives through Player::takeDamage and surfaces as a generic
@@ -1717,61 +1799,122 @@ void PlayingState::killPlayer(const char* reason) {
     // shadow was parked on was reported as having been caught by it. The shadow
     // is told when it lands a hit, so this reads a fact.
     if (m_shadow && m_shadow->caughtPlayerRecently()) {
-        m_deathReason = "was caught by their own shadow";
+        death->reason = "was caught by their own shadow";
     }
 
     // Pop up, then fall through the level. The respawn happens when the fall is
     // over, not on the frame of the hit.
-    m_player->beginDeathFall();
+    who->beginDeathFall();
 
-    // SoundManager's PlayerDied handler stops the music and plays the jingle, so
-    // this does not do it a second time.
-    EventBus::getInstance().publish({EventType::PlayerDied, m_player});
+    // Deliberately does NOT re-publish PlayerDied. Player::powerDown() already
+    // published it for a damage death, and re-publishing meant StatisticsTracker
+    // counted two deaths for every one — which is why the game-over panel's
+    // DEATHS line ran at double the real figure. The void and timeout paths
+    // publish it themselves, since nothing else did.
 }
 
 void PlayingState::updateDeathSequence(float dt) {
-    if (m_deathPhase != DeathPhase::Falling || !m_player) return;
+    // Both participants advance independently. With one shared phase, a second
+    // death during the first player's fall was silently dropped.
+    for (Player* who : {m_player, m_player2}) {
+        if (!who) continue;
+        DeathState* death = deathStateFor(who);
+        if (!death || death->phase != DeathPhase::Falling) continue;
 
-    m_deathTimer -= dt;
+        death->timer -= dt;
+        const float elapsed = DEATH_FALL_SECONDS - death->timer;
 
-    // Either the timer runs out or the corpse has visibly left the screen,
-    // whichever comes first — a death high above the ground should not make the
-    // player wait out a fall they cannot see.
-    const float offScreenY = m_camera.getVisibleBounds().y +
-                             m_camera.getVisibleBounds().height + 96.0f;
-    const bool fallFinished = m_deathTimer <= 0.0f || m_player->getPosition().y > offScreenY;
-    if (!fallFinished) return;
+        // Either the timer runs out or the corpse has visibly left the screen,
+        // whichever comes first — a death high above the ground should not make
+        // the player wait out a fall they cannot see. But not before
+        // DEATH_FALL_MINIMUM: a death near the bottom of the view cleared the
+        // screen edge in a few frames, so the death "animation" was over before
+        // it could be seen at all.
+        const float offScreenY = m_camera.getVisibleBounds().y +
+                                 m_camera.getVisibleBounds().height + 96.0f;
+        const bool leftScreen = who->getPosition().y > offScreenY &&
+                                elapsed >= DEATH_FALL_MINIMUM;
+        if (death->timer > 0.0f && !leftScreen) continue;
 
-    m_deathPhase = DeathPhase::None;
-    m_player->endDeathFall();
-    m_player->loseLife();
+        death->phase = DeathPhase::None;
+        who->endDeathFall();
+        who->loseLife();
 
-    // In versus, one player running out does not end the run — the other is
-    // still playing, and ending it early would hand them the win by default.
-    if (m_match.hasSecondPlayer() && m_player->getLives() <= 0 && !allPlayersOut()) {
-        std::cout << "[PlayingState] Player 1 is out; Player 2 continues." << std::endl;
+        if (who->getLives() > 0) {
+            respawnPlayer(who);
+            continue;
+        }
+
+        // Out of lives.
+        death->eliminated = true;
+
+        // In versus, one player running out does not end the run — the other is
+        // still playing, and ending it early would hand them the win by default.
+        // The corpse is parked out of the way so no hazard check finds it again.
+        if (m_match.hasSecondPlayer() && !allPlayersOut()) {
+            std::cout << "[PlayingState] " << (who == m_player2 ? "Player 2" : "Player 1")
+                      << " is out; the other continues." << std::endl;
+            who->destroy();
+            forgetEntity(who);
+            continue;
+        }
+
+        std::cout << "[PlayingState] Game Over — " << death->reason << "." << std::endl;
+        EventBus::getInstance().publish({EventType::GameOver, 0});
+
+        // Taken *now*: by the time the fade completes and the callback runs, this
+        // state is being replaced and m_player is gone.
+        const RunSummary summary = buildRunSummary();
+        death->phase = DeathPhase::GameOver;   // nothing else may start a transition
+        ScreenTransitionManager::getInstance().fadeOut(0.6f, [summary]() {
+            Game::getInstance().changeState(std::make_unique<GameOverState>(summary));
+        });
         return;
     }
-
-    if (m_player->getLives() > 0) {
-        respawnAtCheckpoint();
-        return;
-    }
-
-    std::cout << "[PlayingState] Game Over — " << m_deathReason << "." << std::endl;
-    EventBus::getInstance().publish({EventType::GameOver, 0});
-
-    // Taken *now*: by the time the fade completes and the callback runs, this
-    // state is being replaced and m_player is gone.
-    const RunSummary summary = buildRunSummary();
-    m_deathPhase = DeathPhase::GameOver;   // nothing else may start a transition
-    ScreenTransitionManager::getInstance().fadeOut(0.6f, [summary]() {
-        Game::getInstance().changeState(std::make_unique<GameOverState>(summary));
-    });
 }
 
-void PlayingState::respawnAtCheckpoint() {
-    if (!m_player) return;
+void PlayingState::makeSpawnSafe(Player* who, sf::Vector2f respawn) {
+    if (!who) return;
+
+    // Respawning was a teleport, not a reset: the entity list was never touched,
+    // so an enemy that had wandered onto the checkpoint while the player was
+    // dying was still standing there — and the player came back with zero
+    // invincibility frames, because beginDeathFall() zeroes them and nothing put
+    // them back. Landing on that enemy cost the next life immediately, and since
+    // the enemy never moved either, the loop ran until the lives were gone. That
+    // is the "spawn killing" the report describes.
+    //
+    // Two halves to the fix. Clear the immediate area, so nothing is *already*
+    // touching the player on frame one:
+    constexpr float kClearRadius = Constants::TILE_SIZE * 2.5f;
+    int cleared = 0;
+    for (const auto& entity : m_entities) {
+        if (!entity || !entity->isActive()) continue;
+        if (entity->getCategory() != EntityCategory::Enemy) continue;
+
+        const sf::Vector2f delta = entity->getPosition() - respawn;
+        if (std::abs(delta.x) > kClearRadius || std::abs(delta.y) > kClearRadius) continue;
+
+        // Destroyed rather than nudged: moving it leaves it walking straight back
+        // in, and a checkpoint the player cannot survive arriving at is worse
+        // than a level one enemy lighter.
+        entity->destroy();
+        forgetEntity(entity.get());
+        ++cleared;
+    }
+    if (cleared > 0) {
+        std::cout << "[PlayingState] Cleared " << cleared
+                  << " enemy(ies) from the respawn point." << std::endl;
+    }
+
+    // And grant landing invincibility, so anything that walks back in during the
+    // next second and a half cannot convert the respawn into another death.
+    who->setInvincible(1.5f);
+}
+
+void PlayingState::respawnPlayer(Player* who) {
+    if (!who) return;
+    const bool isFirst = (who == m_player);
 
     // The last checkpoint if one was reached, otherwise the level's own spawn
     // point — never a hardcoded corner.
@@ -1786,10 +1929,23 @@ void PlayingState::respawnAtCheckpoint() {
         std::cerr << "[PlayingState] Respawn point was outside the map; "
                      "using the top-left of the level instead." << std::endl;
     }
+    // Player 2 comes back beside Player 1's spawn rather than inside it, so the
+    // two do not resolve out of each other on the first frame.
+    if (!isFirst) respawn.x += 48.0f;
 
-    m_player->setPosition(respawn);
-    m_player->setVelocity({0.0f, 0.0f});
-    m_player->setGrounded(false);
+    who->setPosition(respawn);
+    who->setVelocity({0.0f, 0.0f});
+    who->setGrounded(false);
+    // A corpse must not still be carrying a shell it picked up before dying.
+    who->dropHeldEntity();
+    makeSpawnSafe(who, respawn);
+
+    if (!isFirst) {
+        std::cout << "[PlayingState] Player 2 respawned. Lives remaining: "
+                  << who->getLives() << std::endl;
+        return;
+    }
+
     m_camera.snapTo(respawn);
 
     // The chase restarts with the life. The shadow was left holding the dead
@@ -1810,7 +1966,7 @@ void PlayingState::respawnAtCheckpoint() {
     ScreenTransitionManager::getInstance().fadeIn(0.35f);
 
     std::cout << "[PlayingState] Respawned. Lives remaining: "
-              << m_player->getLives() << std::endl;
+              << who->getLives() << std::endl;
 }
 
 RunSummary PlayingState::buildRunSummary() const {
@@ -1822,7 +1978,7 @@ RunSummary PlayingState::buildRunSummary() const {
     summary.starCoins = static_cast<int>(std::count(m_starCoinsCollected.begin(),
                                                     m_starCoinsCollected.end(), true));
     summary.match = m_match;
-    summary.cause = m_deathReason;
+    summary.cause = m_death.reason;
     summary.caughtByShadow = m_shadow && m_shadow->caughtPlayerRecently();
     if (m_player) {
         summary.score         = m_player->getScore();
@@ -1845,6 +2001,12 @@ void PlayingState::restartLevel() {
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     m_starCoinsCollected = {false, false, false};
+    // The death records have to go too. Pause is reachable during the death fall,
+    // and its "Restart Level" callback lands here — leaving phase == Falling, so
+    // updateDeathSequence() immediately ran the tail of the old death on the
+    // brand-new player and took a life off a fresh run.
+    m_death = DeathState{};
+    m_death2 = DeathState{};
     setupTestScene();
     SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
     ScreenTransitionManager::getInstance().fadeIn(0.45f);

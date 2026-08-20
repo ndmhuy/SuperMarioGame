@@ -59,6 +59,10 @@ private:
     float m_elapsed = 0.0f;
     bool m_dismissed = false;
 
+    // How long this screen ignores input after appearing. Long enough that a key
+    // held through the death cannot dismiss it, short enough not to feel stuck.
+    static constexpr float kInputLockout = 0.75f;
+
     // True when this run made the high-score table, so the screen can say so.
     bool m_madeHighScore = false;
 };

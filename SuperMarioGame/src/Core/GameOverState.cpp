@@ -1,5 +1,6 @@
 #include "Core/GameOverState.hpp"
 #include "Core/Game.hpp"
+#include "Core/InputManager.hpp"
 #include "Core/MenuState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/SoundManager.hpp"
@@ -36,6 +37,11 @@ void GameOverState::enter() {
 
     SoundManager::getInstance().stopMusic();
     SoundManager::getInstance().playSound("game_over");
+
+    // Drop whatever was held during gameplay. Held-key state is only cleared on
+    // focus loss, so without this a key held through the death carries into this
+    // screen and, with key repeat on, keeps arriving as fresh presses.
+    InputManager::getInstance().clearHeldKeys();
 
     // A finished run is the only point at which a score is final, so this is
     // where the high-score table is written.
@@ -74,11 +80,26 @@ void GameOverState::activateSelection() {
 void GameOverState::handleInput(const sf::Event& event) {
     const auto* keyPressed = event.getIf<sf::Event::KeyPressed>();
     if (!keyPressed) return;
+
+    // Ignore everything for the first fraction of a second.
+    //
+    // Nothing disables SFML's key repeat and nothing clears held keys on a state
+    // change, so a player still holding jump as they died — Space for Player 1 —
+    // got activateSelection() on the very first frame this screen existed. The
+    // panel was dismissed before it was ever drawn, which is what "death screen
+    // too short / input makes it skip" describes: the screen was not short, it
+    // was skipped.
+    if (m_elapsed < kInputLockout) return;
+
     using Key = sf::Keyboard::Key;
 
     switch (keyPressed->code) {
         case Key::Up:
         case Key::W:
+            // Up used to fall through into Down and move the cursor *forwards*.
+            m_selected = (m_selected - 1 + static_cast<int>(m_items.size())) %
+                         static_cast<int>(m_items.size());
+            break;
         case Key::Down:
         case Key::S:
             m_selected = (m_selected + 1) % static_cast<int>(m_items.size());

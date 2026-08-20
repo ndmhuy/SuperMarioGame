@@ -38,6 +38,7 @@
 #include "Graphics/ColorPalette.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Core/SoundManager.hpp"
 #include "Core/ReplayRecorder.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Boss.hpp"
@@ -2650,6 +2651,164 @@ void testAKickedShellKeepsGoingAndSparesItsKicker() {
     check(!koopa.isHarmlessToKicker(), "and by then it is dangerous again");
 }
 
+// --- Reported by Member B, August 2026 ------------------------------------
+//
+// Twelve defects found by playing the game rather than reading it. The ones with
+// observable state are pinned here; the purely visual ones (hovering backdrops,
+// pipe seams, the Mini sprite's proportions) were verified from captures.
+
+void testComboExpiresInsteadOfAccumulatingForever() {
+    section("reported  a combo is a chain, not a running total");
+
+    Mario player({100.0f, 100.0f});
+    check(player.getComboCounter() == 0, "a fresh player has no combo");
+    check(player.getComboTimer() <= 0.0f, "and no chain running");
+
+    player.incrementCombo();
+    player.incrementCombo();
+    check(player.getComboCounter() == 2, "two hits make a x2 chain");
+    check(player.getComboTimer() > 0.0f, "which is running");
+
+    // Another hit inside the window extends it rather than starting over.
+    player.update(1.0f);
+    player.incrementCombo();
+    check(player.getComboCounter() == 3, "a hit inside the window extends the chain");
+    check(player.getComboTimer() > 1.0f, "and refreshes its clock");
+
+    // Left alone, it expires. resetCombo() existed with no callers at all, so the
+    // counter was monotonic for the life of the Player: an "x7!" stayed nailed to
+    // the middle of the screen for the rest of the level and the score multiplier
+    // never came back down.
+    player.update(Mario::COMBO_WINDOW + 0.1f);
+    check(player.getComboCounter() == 0, "left alone, the chain expires");
+    check(player.getComboTimer() <= 0.0f, "and its clock stops");
+
+    // Taking a hit breaks it, which is what makes a long chain a risk.
+    player.incrementCombo();
+    player.incrementCombo();
+    check(player.getComboCounter() == 2, "a new chain starts");
+    player.takeDamage(1);
+    check(player.getComboCounter() == 0, "and taking damage breaks it");
+}
+
+void testMiniIsNotSquare() {
+    section("reported  Mini Mario is not a square, so its sprite is not stretched");
+
+    // The tiny frames are 15-16 wide by 19-23 tall. A square box made
+    // Entity::drawSprite pick its scale from the height and draw an ~11px-wide
+    // figure inside a 14px box, so Mini read as pinched and vertically stretched
+    // and slid around loose inside its own hitbox. This is the same defect the
+    // Mega state's comment records; Mini was the one square left.
+    MiniState mini;
+    const sf::Vector2f size = mini.getSize();
+    check(size.x != size.y, "Mini's box is not square");
+    const float aspect = size.x / size.y;
+    check(aspect > 0.68f && aspect < 0.90f,
+          "and its aspect ratio matches the tiny artwork (~0.79)");
+
+    // And it stays the smallest form.
+    SuperState super;
+    check(size.y < super.getSize().y, "Mini is still shorter than Super");
+}
+
+void testBossCannotBeCheesedByStandingOnIt() {
+    section("reported  standing on a boss is not a free win");
+
+    BoomBoom boss({200.0f, 200.0f});
+    const int fullHealth = boss.getHealth();
+    check(fullHealth > 1, "a boss takes more than one hit");
+
+    // A landed hit starts its invulnerability window.
+    check(boss.tryStomp(), "a first stomp lands");
+    check(boss.getHealth() == fullHealth - 1, "and costs a health point");
+    check(boss.isInvulnerable(), "and starts the i-frame window");
+
+    // Which is the thing the resolver could not see before: isInvulnerable() was
+    // protected, so contact awarded score and combo every frame regardless, and
+    // one real hit landed each time the window silently lapsed. Standing still on
+    // BoomBoom was the whole fight in three seconds.
+    check(!boss.tryStomp(), "a second stomp inside the window does not land");
+    check(boss.getHealth() == fullHealth - 1, "and costs nothing");
+
+    // The descent gate is what stops resting on the boss counting as an attack.
+    check(Boss::STOMP_MIN_DESCENT_SPEED > 0.0f,
+          "a stomp requires an actual descent, not just contact");
+}
+
+void testDeathReportsWhichPlayerDied() {
+    section("reported  in two players, the right player dies");
+
+    // The event has always carried the dying player; the subscriber discarded it,
+    // so an enemy hitting Player 2 ran the death sequence, the life deduction and
+    // the game-over test on Player 1 — standing somewhere else, unharmed.
+    Mario one({100.0f, 100.0f});
+    Luigi two({300.0f, 100.0f});
+
+    Player* reported = nullptr;
+    EventBus::ScopedSubscription sub(
+        EventType::PlayerDied, [&reported](const GameEvent& ev) {
+            if (const Player* const* p = std::any_cast<Player*>(&ev.data)) {
+                reported = const_cast<Player*>(*p);
+            }
+        });
+
+    // Small + damage is the death path Player::powerDown publishes from.
+    two.takeDamage(1);
+    check(reported == &two, "Player 2 taking a fatal hit reports Player 2");
+
+    reported = nullptr;
+    one.takeDamage(1);
+    check(reported == &one, "and Player 1 reports Player 1");
+
+    // And the payload survives being read as the wrong type, which is what the
+    // debug key publishes.
+    reported = nullptr;
+    EventBus::getInstance().publish({EventType::PlayerDied, 0});
+    check(reported == nullptr, "an int payload is not mistaken for a player");
+}
+
+void testJinglesDoNotLoop() {
+    section("reported  the level-clear jingle plays once");
+
+    // Three owners played one cue: SoundManager's LevelComplete handler fired
+    // playMusic AND playSound for the same fanfare, playMusic looped it for the
+    // whole celebration, and VictoryState::enter played it again three seconds
+    // later. The handler now owns it, once, unlooped.
+    SoundManager& sound = SoundManager::getInstance();
+    sound.playMusic("level_complete", /*loop=*/false);
+    check(!sound.isMusicLooping(), "a jingle does not loop");
+
+    sound.playMusic("overworld", /*loop=*/true);
+    check(sound.isMusicLooping(), "level music still does");
+}
+
+void testPlayerTwoHasEveryControl() {
+    section("reported  Player 2's controls are complete and reachable");
+
+    InputManager& input = InputManager::getInstance();
+    input.resetBindingsToDefaults(0);
+    input.resetBindingsToDefaults(1);
+
+    for (const char* action : {"left", "right", "jump", "run", "crouch", "fire",
+                               "groundpound"}) {
+        check(!input.getBoundKeyName(action, 1).empty(),
+              std::string("Player 2 has a key bound for ") + action);
+    }
+
+    // Both pads expose the same action set — that symmetry is the claim worth
+    // pinning. (The alternate jump keys, P1's Space and P2's new RShift, live in
+    // the press mappings and deliberately not in the bound-key table, which holds
+    // one key per action for the rebinding UI to display.)
+    const auto padOne = input.resetBindingsToDefaults(0);
+    const auto padTwo = input.resetBindingsToDefaults(1);
+    check(padOne.size() == padTwo.size(),
+          "and both pads default to the same number of controls");
+    for (const auto& [action, key] : padOne) {
+        check(padTwo.count(action) == 1,
+              std::string("Player 2's defaults cover ") + action + " too");
+    }
+}
+
 int main() {
     std::cout << "Audit regression suite\n";
 
@@ -2729,6 +2888,14 @@ int main() {
     testAFormSurvivesBeingRebuilt();
     testPiranhaPlantHidesInsideItsPipe();
     testAKickedShellKeepsGoingAndSparesItsKicker();
+
+    // Reported by Member B, August 2026.
+    testComboExpiresInsteadOfAccumulatingForever();
+    testMiniIsNotSquare();
+    testBossCannotBeCheesedByStandingOnIt();
+    testDeathReportsWhichPlayerDied();
+    testJinglesDoNotLoop();
+    testPlayerTwoHasEveryControl();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

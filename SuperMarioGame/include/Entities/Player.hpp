@@ -84,6 +84,11 @@ public:
     int getCoyoteFramesLeft() const { return coyoteFramesLeft; }
     int getJumpBufferFramesLeft() const { return jumpBufferFramesLeft; }
     int getComboCounter() const { return comboCounter; }
+    // Seconds left on the current chain, for the HUD's fade. Zero when there is
+    // no combo running.
+    float getComboTimer() const { return comboTimer; }
+    // How long a chain survives without another hit.
+    static constexpr float COMBO_WINDOW = 2.5f;
     bool isCrouched() const { return crouched; }
     bool isSliding() const { return sliding; }
     bool isRunRequested() const { return m_runRequested; }
@@ -177,6 +182,8 @@ protected:
     int coyoteFramesLeft = 0;
     int jumpBufferFramesLeft = 0;
     int comboCounter = 0;
+    // Counts down since the last hit; at zero the chain is over.
+    float comboTimer = 0.0f;
     bool crouched = false;
     bool sliding = false;
     bool m_crouchRequestedThisFrame = false;

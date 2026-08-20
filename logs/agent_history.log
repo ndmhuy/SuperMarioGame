@@ -3920,3 +3920,132 @@ Summary of Changes:
   something I cannot demonstrate is broken.
 - Not pushed, per policy.
 ---
+[2026-08-20 13:54:39] Branch: A/teammate-fixes
+Git Fingerprint: fa318b7 (before) → see commit below (after).
+  Also this session: A/rl-neural-policy 8a39e97 → da650a0 (rebased);
+  dev 4224b0a → fa318b7 (fast-forward merge, user-directed).
+Fetched Remotes: yes, 12:5x — before reading branch state for the merge
+Prompt: Rebase the RL branch to keep it current; merge everything except the side
+  project to dev; then fix twelve issues reported by Member B (plus a menu
+  overflow they spotted mid-session).
+Files Modified: 22 files across Core, Entities, Graphics, Physics, Utils and
+  tests/verify_regressions.cpp. Untracked SuperMarioGame/saves/config.json.
+Reachable From Main: yes — every fix is on a path from main(): the menus, the
+  level, the death sequence, the collision resolver, startup and shutdown.
+Verified By: ran the game (scripted, in-process, with captures) AND ctest —
+  13/13 suites, verify_regressions now 443/443 with six new cases for these
+  reports. All gameplay scripts still exit 0.
+Summary of Changes:
+- GIT (user-directed, per the AGENTS.md merge exception):
+  * Rebased A/rl-neural-policy onto A/shadow-mario-ai-multiplayer so the side
+    project carries the exit-crash fix. ONE conflict, in logs/agent_history.log,
+    resolved by UNION sorted by timestamp per the log rule — both entries kept,
+    neither side discarded.
+  * Merged A/shadow-mario-ai-multiplayer into dev. Fast-forward (dev was 0 ahead,
+    18 behind), so no file conflicted. dev is now 48 ahead of origin/dev.
+  * Untracked saves/config.json: the game rewrites it on every exit, so it
+    dirtied the tree and blocked two git operations this session. saves/ is
+    already gitignored; the file stays on disk. Backed up first, and the only
+    diff was the keyBindings2 key my own schema change added.
+  * Noticed and left alone: a stray ">>>>>>> Stashed changes" marker at
+    logs/agent_history.log:2404, committed by some earlier session and present
+    as far back as a59d435. Not mine, and removing a line from the shared audit
+    trail is not something to do in passing.
+- THE TWELVE REPORTS. What each actually was:
+  1. Backgrounds hover. TWO causes. The vertical jitter was SUBTRACTED from the
+     baseline, so every ground-standing decoration floated 0-23px and only
+     touched the ground when the hash was zero — one slot in 24. And GROUND_LINE
+     is a *screen* constant while the backdrop draws before the camera view, so
+     it was 16-32px off in the shipped levels and differently off in sub-levels.
+     Jitter is now horizontal for ground layers; the ground line is scanned from
+     the tilemap and passed in. Verified against the committed pre-fix capture.
+  2. Death screen too short / skipped. It was not short, it was SKIPPED: nothing
+     disables key repeat and nothing clears held keys on a state change, so a
+     player still holding jump got RETRY on frame one. Added a 0.75s input
+     lockout plus clearHeldKeys() on entry, and a floor under the death fall so
+     leaving the screen cannot truncate it below 0.9s. Also fixed Up falling
+     through into Down (the cursor moved the wrong way).
+  3. Mini stretches. MiniState returned a 14x14 SQUARE while the tiny frames are
+     15x19 to 16x23, so drawSprite scaled off the height and drew an ~11px-wide
+     figure in a 14px box. Now 14x18 (~0.78, matching the art). Same defect the
+     Mega state's own comment records; Mini was the last square.
+  4. End-level music repeats. THREE owners for one cue: the EventBus handler
+     played it as music AND as SFX (same fanfare, two files), playMusic looped
+     unconditionally so it restarted for the whole celebration, and
+     VictoryState::enter played it a third time. Now one owner, once, unlooped;
+     playMusic takes a loop flag and game-over/castle jingles stopped looping too.
+  5. Combo never disappears. resetCombo() existed with NO CALLERS ANYWHERE, so
+     the counter was monotonic for the life of the Player — a 36px "x7!" nailed
+     to screen centre for the rest of the level, and a permanently inflated score
+     multiplier. Added a 2.5s chain window that decays, resets on damage, and
+     fades on the HUD. Also moved the text off dead centre, where it sat on top
+     of the player it described.
+  6. Pipes: partial sprites under one big hitbox. A Pipe is one 64x64 collider
+     drawn as four 16x16 quarters, each separately transformed — hence the seams
+     and the mismatched corners when rotated. The atlas already had
+     pipe_dark_green_short_l at exactly 64x64; one hitbox is now one sprite,
+     transformed once. The quarter path stays as a fallback for headless segments.
+  7. Level not reset / spawn killing. Respawn was a teleport: the entity list was
+     never touched, so an enemy that wandered onto the checkpoint was still
+     there, and beginDeathFall() zeroes i-frames while nothing put them back — so
+     the player returned collidable with zero frames onto a live enemy, and the
+     enemy never moved either. Now clears enemies within 2.5 tiles of the respawn
+     and grants 1.5s of landing invincibility. Observed working:
+     "Cleared 1 enemy(ies) from the respawn point."
+  8. 2P kills the wrong player. THE PAYLOAD WAS ALWAYS THERE: Player::powerDown
+     publishes {PlayerDied, this}, and the subscriber took an unnamed parameter
+     and threw it away, so killPlayer() ran the death fall, the life deduction
+     and the game-over test on PLAYER 1 whoever was hit. Death is now per
+     participant (a DeathState each), the subscription reads the pointer, and the
+     void check covers both players and all four edges — P2's hand-rolled version
+     only checked the bottom, so a P2 shoved off the left edge was stuck alive
+     outside the map forever. Also: killPlayer no longer re-publishes PlayerDied
+     (StatisticsTracker was counting two deaths per death), an eliminated player
+     is marked so hazards stop re-killing the corpse (that was an endless loop of
+     death jingles while the other played on), and restartLevel/cleanupTestScene
+     clear the death records — pause is reachable mid-death and Restart landed
+     with phase == Falling, taking a life off the fresh run. Observed working:
+     "Player 2 was defeated." where it used to say Player 1.
+  9. P2 keybinds not shown. All seven WERE bound; the Controls page was DEAD.
+     Every navigation and activation key was gated on Page::Settings, so when
+     Controls became its own page the cursor could not leave row 0 and Enter
+     closed the overlay instead of rebinding. Widened the gate, and gave P2 the
+     second jump key (RShift) that P1 has in Space.
+  10. Daily challenge forgets the character. MapGenerator always builds a Mario
+     and PlayingState adopted whatever Player it found in the generated list, so
+     m_selectedCharIndex arrived intact and was ignored. Now the generator's
+     player is discarded and the selected character is built at its spawn point.
+     Verified: the HUD reads LUIGI.
+  11. BoomBoom cheese. resolvePlayerVsEnemy had no boss case, and isStomp is a
+     POSITIONAL test that stays true while standing on the boss — so contact paid
+     score and combo every frame, landed a real hit whenever the boss's private
+     1s i-frames lapsed, and never hurt the player because takeDamage is only in
+     the else branch. Added a boss branch: a genuine descent is required, the
+     player is bounced clear so the next frame is not another contact frame,
+     score is paid only when takeHit actually landed, and resting on an
+     invulnerable boss now hurts like touching its side. isInvulnerable() made
+     public so the resolver can ask.
+  12. Progress not saved. Achievements and statistics were serialized ONLY inside
+     a level save slot, and the only path that reads a slot back is
+     PlayingState::loadFromSlot — whose only caller is the ImGui dev panel. So
+     they were written on every autosave and never loaded: every launch started
+     empty, and Toad and Peach, being gated on the "toad"/"peach" achievements,
+     were permanently locked. Added Serializer::saveProfile/loadProfile writing
+     saves/profile.json (same directory and shape as progress.json, the one piece
+     of persistence that already worked), loaded at startup, saved at shutdown
+     and on each unlock. Verified round-trip across two launches.
+- REPORTED MID-SESSION: menus too small for their text. Both pages this work
+  added overflowed. The Controls page put 18 rows at a hardcoded 24px through the
+  bottom of a 560px panel, so BACK landed on the hint line; row height and text
+  size now derive from the space available, so adding a row cannot overflow it
+  again. The multiplayer page had a fixed 330px panel while the blurb, the live
+  key summary and the shared-keys warning were all added later and conditional —
+  the warning was clipped by the frame edge; the panel is now sized from its
+  content. Both verified from captures.
+- REGRESSION COVER: six new cases in verify_regressions (443/443), pinning the
+  combo window, Mini's aspect, the boss i-frame gate, the PlayerDied payload
+  carrying the right player, jingles not looping, and both pads binding the same
+  action set. The purely visual fixes were verified from captures instead, and
+  said so rather than asserted.
+- NOT pushed yet at the time of this entry; a PR follows at the user's request.
+---

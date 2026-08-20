@@ -29,8 +29,14 @@ VictoryState::VictoryState(LevelSummary summary, std::function<void()> onContinu
 void VictoryState::enter() {
     std::cout << "Entering VictoryState (" << m_summary.levelName << ")" << std::endl;
 
-    SoundManager::getInstance().stopMusic();
-    SoundManager::getInstance().playSound(m_summary.isFinalLevel ? "world_clear" : "stage_clear");
+    // The level-clear fanfare is already playing — SoundManager's LevelComplete
+    // handler started it three seconds ago, when the flag was touched. Stopping
+    // it and starting the same cue again here was the third of three plays of one
+    // jingle. Only the end of the campaign gets its own, different cue.
+    if (m_summary.isFinalLevel) {
+        SoundManager::getInstance().stopMusic();
+        SoundManager::getInstance().playSound("world_clear");
+    }
 
     // Finishing the campaign ends the run, so that is a final score worth
     // recording. Clearing a single level is not — the run continues.

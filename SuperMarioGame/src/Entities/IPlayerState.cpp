@@ -60,7 +60,16 @@ void MiniState::enter(Player& player) {}
 void MiniState::exit(Player& player) {}
 void MiniState::handleInput(Player& player, const sf::Event& event) {}
 void MiniState::update(Player& player, float dt) {}
-sf::Vector2f MiniState::getSize() const { return sf::Vector2f{14.0f, 14.0f}; }
+// 14x18, not 14x14. The tiny frames are tall — mario_tiny_walk_0 is 15x19, the
+// run frames 15-16x22-23 — so a *square* box made drawSprite() pick its scale
+// from the height, drawing an ~11px-wide figure inside a 14px-wide box. Mini
+// therefore read as pinched and vertically stretched, and slid around loose
+// inside its own hitbox.
+//
+// This is the same defect MegaState's comment below records and fixed: nothing
+// the player can be is square. 14x18 is ~0.78, which matches the tiny art's
+// ~0.79 and leaves Mini half the height of Super (60) as the spec intends.
+sf::Vector2f MiniState::getSize() const { return sf::Vector2f{14.0f, 18.0f}; }
 
 
 // --- PlayerStateDecorator ---

@@ -81,6 +81,10 @@ void InputManager::loadDefaultBindings() {
     // --- PLAYER 2 BINDINGS (Arrow keys) ---
     // Press mappings (one-shot actions)
     m_pressMappings[1][sf::Keyboard::Key::Up] = compositeJumpCmd;
+    // RShift is Player 2's second jump key, mirroring Player 1's Space above.
+    // Player 1 had two and Player 2 had one, which on a shared keyboard reads as
+    // Player 2's controls being incomplete — the arrow cluster has no thumb key.
+    m_pressMappings[1][sf::Keyboard::Key::RShift] = compositeJumpCmd;
     m_pressMappings[1][sf::Keyboard::Key::M] = fireCmd;
     m_pressMappings[1][sf::Keyboard::Key::Down] = gpCmd; // Press Down arrow to ground pound
 

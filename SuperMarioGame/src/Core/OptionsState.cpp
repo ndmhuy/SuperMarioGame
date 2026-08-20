@@ -263,7 +263,7 @@ void OptionsState::handleInput(const sf::Event& event) {
             break;
         case Key::Up:
         case Key::W:
-            if (m_page == Page::Settings && !m_rows.empty()) {
+            if (isRowPage() && !m_rows.empty()) {
                 moveRow(-1);
             } else if (m_page == Page::Achievements) {
                 m_achievementScroll = std::max(0, m_achievementScroll - 1);
@@ -271,7 +271,7 @@ void OptionsState::handleInput(const sf::Event& event) {
             break;
         case Key::Down:
         case Key::S:
-            if (m_page == Page::Settings && !m_rows.empty()) {
+            if (isRowPage() && !m_rows.empty()) {
                 moveRow(1);
             } else if (m_page == Page::Achievements) {
                 const int total = static_cast<int>(
@@ -282,16 +282,16 @@ void OptionsState::handleInput(const sf::Event& event) {
             break;
         case Key::Left:
         case Key::A:
-            if (m_page == Page::Settings) adjustSelected(-1);
+            if (isRowPage()) adjustSelected(-1);
             break;
         case Key::Right:
         case Key::D:
-            if (m_page == Page::Settings) adjustSelected(1);
+            if (isRowPage()) adjustSelected(1);
             break;
         case Key::Enter:
         case Key::Space:
-            if (m_page == Page::Settings) activateSelected();
-            else                          close();
+            if (isRowPage()) activateSelected();
+            else             close();
             break;
         default:
             break;
@@ -361,12 +361,24 @@ void OptionsState::render(sf::RenderTarget& target) {
             items.emplace_back(row.label, value, row.selectable);
         }
 
-        // Eighteen rows on the controls page against five on settings, in the
-        // same 560px panel: the row height has to come from the row count or the
-        // list runs out through the bottom of the frame.
-        const float rowHeight = (m_page == Page::Controls) ? 24.0f : 34.0f;
+        // Row height comes from the space available, not from a guess.
+        //
+        // A fixed 24px for the controls page put eighteen rows through the
+        // bottom of the panel: the last row landed on the hint line and both sat
+        // on the frame edge. Deriving it means adding a row — or a whole second
+        // pad, which is what happened — cannot silently overflow again. This is
+        // the same defect the main menu's panel-height comment records.
+        constexpr float kListTop = 96.0f;
+        constexpr float kFooterSpace = 76.0f;   // notice + hint, with clearance
+        const float available = PANEL_H - kListTop - kFooterSpace;
+        const float rowCount = static_cast<float>(std::max<std::size_t>(1, items.size()));
+        const float rowHeight = std::min(34.0f, available / rowCount);
+        // Text has to shrink with the rows or tall glyphs overlap their neighbours.
+        const auto charSize = static_cast<unsigned int>(
+            std::clamp(rowHeight * 0.55f, 9.0f, 13.0f));
+
         UiRenderer::drawMenuItems(target, items, m_selected,
-                                  {px + 60.0f, py + 100.0f}, rowHeight, 13,
+                                  {px + 60.0f, py + kListTop}, rowHeight, charSize,
                                   px + PANEL_W - 200.0f, m_elapsed);
 
         if (!m_notice.empty()) {

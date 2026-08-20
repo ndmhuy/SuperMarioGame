@@ -48,6 +48,23 @@ public:
     // different config depending on the working directory.
     static std::string saveDirectory();
 
+    // --- Player profile: achievements and lifetime statistics ---------------
+    //
+    // These were serialized ONLY inside a level save slot, and the only code path
+    // that read a slot back is PlayingState::loadFromSlot — whose only caller is
+    // the ImGui dev panel. So achievements and statistics were written to disk on
+    // every autosave and never loaded by the running game: every launch started
+    // with an empty achievement set and zeroed counters, and because Toad and
+    // Peach are gated on the "toad"/"peach" achievements, both characters were
+    // permanently locked no matter what the player had done.
+    //
+    // A profile is separate from a save slot on purpose. Achievements and
+    // lifetime totals belong to the player, not to one run, and must survive
+    // starting a new game. Same directory and same shape as progress.json, which
+    // is the one piece of persistence that already worked.
+    static bool saveProfile();
+    static bool loadProfile();
+
     // High-score table (saves/highscores.json). recordHighScore() merges the
     // entry in, keeps the list sorted descending and truncates to MAX_HIGH_SCORES,
     // so callers never have to read-modify-write it themselves.

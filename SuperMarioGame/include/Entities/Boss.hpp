@@ -48,6 +48,27 @@ public:
     // does not vanish the instant the last hit lands.
     bool isDeadOrDying() const override { return !active || isDefeated(); }
 
+    // Public so the collision resolver can ask before paying out a stomp.
+    //
+    // This was protected, so the resolver could not tell an invulnerable boss
+    // from a vulnerable one: it called onStomped() every frame of contact and
+    // awarded score and combo regardless of whether takeHit() actually landed.
+    // Standing on BoomBoom therefore paid 2000 x combo *per frame* and still
+    // landed one real hit per second, which is the whole fight in three seconds.
+    bool isInvulnerable() const { return m_invulnerableTimer > 0.0f; }
+
+    // Contact with a boss is only a stomp if the player is genuinely coming down
+    // onto it. Standing on top is not a stomp, and neither is resting there while
+    // the i-frames lapse.
+    static constexpr float STOMP_MIN_DESCENT_SPEED = 60.0f;
+
+    // Take a stomp and report whether it actually cost health.
+    //
+    // onStomped() returns void and swallows takeHit()'s result, so the resolver
+    // had no way to tell a landed hit from one absorbed by i-frames — and paid
+    // score for both. This is the same hit, with the answer.
+    bool tryStomp() { return takeHit(); }
+
 protected:
     // The subclass's own fight logic, called once per frame while the boss is
     // alive. Gravity and collision are still the physics engine's job.
@@ -65,7 +86,6 @@ protected:
     // Costs one health point unless the boss is still in its i-frames.
     // Returns true if the hit actually landed.
     bool takeHit(int amount = 1);
-    bool isInvulnerable() const { return m_invulnerableTimer > 0.0f; }
 
     // True while the defeat sequence is playing, for subclasses that want to
     // stop attacking without checking the health themselves.

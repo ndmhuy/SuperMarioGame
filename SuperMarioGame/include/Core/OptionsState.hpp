@@ -57,6 +57,16 @@ private:
     };
 
     void buildRows();
+
+    // Is the current page a keyboard-driven list of rows?
+    //
+    // Every navigation and activation key used to be gated on Page::Settings
+    // alone, so when Controls became its own page the whole thing was inert: the
+    // cursor could not leave row 0, and Enter closed the overlay instead of
+    // starting a rebind. Player 2's bindings were listed and unusable, which is
+    // exactly what "P2 doesn't have full keybinds (or not shown)" described.
+    bool isRowPage() const { return m_page == Page::Settings || m_page == Page::Controls; }
+
     // Move the cursor, skipping rows that are captions rather than controls.
     void moveRow(int delta);
     void adjustSelected(int direction);

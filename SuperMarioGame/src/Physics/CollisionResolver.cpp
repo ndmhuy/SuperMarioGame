@@ -11,6 +11,7 @@
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/KoopaTroopa.hpp"
+#include "Entities/Boss.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/InputManager.hpp"
 #include "Core/Game.hpp"
@@ -240,6 +241,49 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
             // A walking Koopa or a shell already sliding: falls through to the
             // ordinary side-contact damage path below, like every other enemy.
         }
+    }
+
+    // --- Bosses ------------------------------------------------------------
+    //
+    // A boss cannot reuse the generic stomp path, which is written as if contact
+    // were transient. `isStomp` is a *positional* test, true on every frame the
+    // player's feet are near the enemy's top, and the branch never separates the
+    // two boxes — so standing on BoomBoom held it true indefinitely. That paid
+    // score and combo every frame, landed a real hit every time the boss's
+    // one-second i-frames lapsed, and never hurt the player, because takeDamage
+    // is only in the else branch. Three seconds of standing still won the fight.
+    if (auto* boss = dynamic_cast<Boss*>(&enemy)) {
+        const bool descending = player.getVelocity().y > Boss::STOMP_MIN_DESCENT_SPEED;
+
+        // Resting on the boss is not an attack. While its i-frames run, or while
+        // the player is not actually falling onto it, contact is contact — it
+        // hurts, exactly as touching its side does.
+        if (!descending || boss->isInvulnerable()) {
+            const float dx = player.getBoundingBox().getCenter().x -
+                             boss->getBoundingBox().getCenter().x;
+            const float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
+            player.velocity.x = direction * Constants::KNOCKBACK_FORCE_X;
+            player.velocity.y = -Constants::KNOCKBACK_FORCE_Y;
+            player.takeDamage(1);
+            return;
+        }
+
+        // A genuine descending impact. Pay out only if the hit actually landed —
+        // takeHit() reports that, and it was being ignored.
+        const bool landed = boss->tryStomp();
+        player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
+        // Bounced clear of the boss's box either way, so the next frame is not
+        // another contact frame. Without this the player never leaves and the
+        // whole cycle repeats.
+        const AABB bossBox = boss->getBoundingBox();
+        player.position.y = bossBox.y - player.getBoundingBox().height - 1.0f;
+        player.boundingBox.y = player.position.y;
+
+        if (landed) {
+            player.incrementCombo();
+            player.addScore(boss->getScoreValue() * player.getComboCounter());
+        }
+        return;
     }
 
     if (isStomp) {

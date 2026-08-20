@@ -50,6 +50,12 @@ void Game::run() {
     // Initialize tracking systems
     StatisticsTracker::getInstance().init();
     AchievementManager::getInstance().init();
+    // Then restore what the player earned in previous sessions. init() only
+    // builds the achievement list and subscribes; every unlocked flag starts
+    // false, and until now nothing ever put them back — the data was being
+    // written into save slots and read by nothing, so achievements, lifetime
+    // statistics and the Toad/Peach unlocks they gate all reset on every launch.
+    Serializer::loadProfile();
     // The console works through the public singletons, so it is available from
     // every state rather than only from PlayingState (task 10.4).
     DebugConsole::getInstance().init();
@@ -298,6 +304,10 @@ void Game::shutdown() {
     // Save configuration settings
     Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
                              m_keyBindings2, m_colorblindMode);
+    // And the profile: achievements and lifetime statistics. Written here as well
+    // as on each unlock, so a session that earns nothing still persists its
+    // playtime and counters.
+    Serializer::saveProfile();
 
     // Tear the stack down immediately — pushState/popState are deferred to a
     // frame boundary, and there are no more frames.

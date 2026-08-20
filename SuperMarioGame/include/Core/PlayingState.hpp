@@ -101,12 +101,45 @@ private:
     // falling into the void hung the game instead of showing the end screen.
     enum class DeathPhase { None, Falling, GameOver };
     static constexpr float DEATH_FALL_SECONDS = 1.6f;
-    DeathPhase m_deathPhase = DeathPhase::None;
-    float m_deathTimer = 0.0f;
-    std::string m_deathReason;
+    // The corpse leaving the screen can end the fall early, but never before
+    // this. Without a floor, a death low in the view cleared the bottom edge in a
+    // handful of frames and the whole death — animation, jingle, pause — was over
+    // in well under half a second.
+    static constexpr float DEATH_FALL_MINIMUM = 0.9f;
+
+    // Death is per participant, not per level.
+    //
+    // There was one set of these fields, and killPlayer() always acted on
+    // m_player. The PlayerDied event has always carried the dying Player* — see
+    // Player::powerDown() — but the subscription discarded it, so an enemy
+    // hitting Player 2 ran the death sequence, the life deduction and the
+    // game-over test on PLAYER 1, who was standing somewhere else entirely
+    // unharmed. A single shared phase also meant a genuine second death was
+    // swallowed while the first player's 1.6s fall was still running.
+    struct DeathState {
+        DeathPhase phase = DeathPhase::None;
+        float timer = 0.0f;
+        std::string reason;
+        // Out of lives. Kept so the hazard checks stop re-killing a corpse: an
+        // eliminated Player 1 sits below the level, the void check fires again
+        // every frame, and the match becomes a permanent loop of death jingles
+        // while Player 2 plays on.
+        bool eliminated = false;
+    };
+    DeathState m_death;    // Player 1
+    DeathState m_death2;   // Player 2
+
+    // Which record belongs to `who`, or null if it is not a participant (the
+    // shadow, for instance, cannot die).
+    DeathState* deathStateFor(const Player* who);
+    // True while any participant is mid-death — the guard the update loop needs
+    // before running hazard checks.
+    bool anyDeathInProgress() const;
 
     void updateDeathSequence(float dt);
-    void respawnAtCheckpoint();
+    // Put `who` back at the checkpoint. Player 1 additionally resets the level
+    // clock and the music; Player 2 just returns to play.
+    void respawnPlayer(Player* who);
 
     Player* m_player = nullptr;
 
@@ -190,7 +223,13 @@ private:
     // Build the snapshot GameOverState needs to rebuild this run.
     RunSummary buildRunSummary() const;
     // Kill the player: lose a life and respawn, or end the run.
-    void killPlayer(const char* reason);
+    // Kill a specific participant. `who` must be Player 1 or Player 2; passing
+    // null is treated as Player 1 so the debug key and the older callers keep
+    // meaning what they always meant.
+    void killPlayer(Player* who, const char* reason);
+    // Clear enemies sitting on a respawn point and grant landing invincibility,
+    // so coming back to life is not immediately fatal.
+    void makeSpawnSafe(Player* who, sf::Vector2f respawn);
 
     // Minimap overlay (toggled with M via EventType::MinimapToggled)
     std::unique_ptr<Minimap> m_minimap;
@@ -258,6 +297,10 @@ private:
 
     std::array<bool, 3> m_starCoinsCollected = {false, false, false};
     EventBus::SubscriptionId m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
+
+    // Tell the parallax backdrop where this level's floor is, so the layers that
+    // are meant to stand on the ground actually do.
+    void syncBackdropGround();
 
     void setupTestScene();
     void cleanupTestScene();

@@ -235,6 +235,9 @@ void Player::powerUp(int itemType) {
 void Player::takeDamage(int amount) {
     if (m_dying) return;
     if (invincibilityTimer > 0.0f) return;
+    // Taking a hit breaks the chain — that is what makes a long combo a risk
+    // worth taking rather than a number that only grows.
+    resetCombo();
     dropHeldEntity();
     Character::takeDamage(amount);
     powerDown();
@@ -448,6 +451,12 @@ void Player::update(float dt) {
     if (m_capeSpinTimer > 0.0f) {
         m_capeSpinTimer -= dt;
         if (m_capeSpinTimer < 0.0f) m_capeSpinTimer = 0.0f;
+    }
+    // The combo chain expires. Nothing used to tick this, so the counter only
+    // ever went up.
+    if (comboTimer > 0.0f) {
+        comboTimer -= dt;
+        if (comboTimer <= 0.0f) resetCombo();
     }
     if (onGround) m_gliding = false;
 
@@ -665,10 +674,18 @@ void Player::restoreStats(int newLives, int newCoins, int newScore) {
 
 void Player::resetCombo() {
     comboCounter = 0;
+    comboTimer = 0.0f;
 }
 
 void Player::incrementCombo() {
     ++comboCounter;
+    // Every increment refreshes the window. A combo is a *chain* — kills close
+    // together — and without this the counter was monotonic for the whole life of
+    // the Player: resetCombo() existed and had no callers anywhere, so nothing
+    // ever brought it back down. Every stomp in the level raised it permanently,
+    // which both pinned an "x7!" to the middle of the screen forever and
+    // permanently inflated the score multiplier.
+    comboTimer = COMBO_WINDOW;
     EventBus::getInstance().publish({EventType::ComboHit, comboCounter});
 }
 

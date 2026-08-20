@@ -462,3 +462,76 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
         return false;
     }
 }
+
+// --- Player profile ---------------------------------------------------------
+
+namespace {
+std::string profileFilePath() {
+    return Serializer::saveDirectory() + "/profile.json";
+}
+} // namespace
+
+bool Serializer::saveProfile() {
+    try {
+        const std::string path = profileFilePath();
+        std::filesystem::path fsPath(path);
+        if (fsPath.has_parent_path()) {
+            std::filesystem::create_directories(fsPath.parent_path());
+        }
+
+        nlohmann::json j;
+        j["achievements"] = AchievementManager::getInstance().getUnlockedIds();
+
+        const auto& stats = StatisticsTracker::getInstance().getStats();
+        j["statistics"]["totalEnemiesDefeated"] = stats.totalEnemiesDefeated;
+        j["statistics"]["totalCoinsCollected"]  = stats.totalCoinsCollected;
+        j["statistics"]["totalDeaths"]          = stats.totalDeaths;
+        j["statistics"]["totalTimePlayed"]      = stats.totalTimePlayed;
+        j["statistics"]["highestCombo"]         = stats.highestCombo;
+
+        std::ofstream file(path);
+        if (!file.is_open()) return false;
+        file << j.dump(4);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Could not save the profile: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool Serializer::loadProfile() {
+    try {
+        const std::string path = profileFilePath();
+        // A first run has no profile. That is not an error, and it must not look
+        // like one in the log — the achievements simply start empty.
+        if (!std::filesystem::exists(path)) return false;
+
+        std::ifstream file(path);
+        if (!file.is_open()) return false;
+
+        nlohmann::json j;
+        file >> j;
+
+        if (j.contains("achievements")) {
+            AchievementManager::getInstance().setUnlockedAchievements(
+                j["achievements"].get<std::vector<std::string>>());
+        }
+
+        if (j.contains("statistics")) {
+            const auto& s = j["statistics"];
+            GameStatistics stats;
+            stats.totalEnemiesDefeated = s.value("totalEnemiesDefeated", 0);
+            stats.totalCoinsCollected  = s.value("totalCoinsCollected", 0);
+            stats.totalDeaths          = s.value("totalDeaths", 0);
+            stats.totalTimePlayed      = s.value("totalTimePlayed", 0.0f);
+            stats.highestCombo         = s.value("highestCombo", 0);
+            StatisticsTracker::getInstance().setStats(stats);
+        }
+
+        std::cout << "[Serializer] Profile loaded from " << path << "." << std::endl;
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Serializer] Could not load the profile: " << e.what() << std::endl;
+        return false;
+    }
+}

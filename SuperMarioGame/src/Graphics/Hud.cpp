@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <cstdint>
 
 Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteSheet* playerSheet)
     : m_scoreText(ResourceManager::getInstance().getFont("PressStart2P")),
@@ -130,14 +131,22 @@ void Hud::sync(const HudData& data) {
         m_livesText.setPosition(sf::Vector2f(60.f, 60.f));
     }
 
-    // 6. Combo text: x2! (temporary, Center)
-    if (m_curData.comboCount > 1) {
+    // 6. Combo text: x2! (Center, fades with the chain)
+    if (m_curData.comboCount > 1 && m_curData.comboTimer > 0.0f) {
         char comboBuf[32];
         std::snprintf(comboBuf, sizeof(comboBuf), "x%d!", m_curData.comboCount);
         m_comboCountText.setString(comboBuf);
         sf::FloatRect bounds = m_comboCountText.getLocalBounds();
         m_comboCountText.setOrigin(sf::Vector2f(bounds.size.x / 2.f, bounds.size.y / 2.f));
-        m_comboCountText.setPosition(sf::Vector2f(640.f, 360.f));
+        // Drawn above centre rather than dead centre: at (640, 360) it sat
+        // directly on top of the player it was describing.
+        m_comboCountText.setPosition(sf::Vector2f(640.f, 260.f));
+
+        // Fade over the last second, so it leaves rather than blinking out.
+        const float fade = std::min(1.0f, m_curData.comboTimer);
+        const auto alpha = static_cast<std::uint8_t>(255.0f * fade);
+        m_comboCountText.setFillColor(sf::Color(0, 255, 0, alpha));
+        m_comboCountText.setOutlineColor(sf::Color(0, 0, 0, static_cast<std::uint8_t>(220.0f * fade)));
     }
 
     // 7. P-Switch Alert: P-SWITCH 15 (when active, Top-Center)
@@ -269,8 +278,8 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
     }
     target.draw(m_livesText, state);
 
-    // 6. Draw Combo Counter (if active)
-    if (m_curData.comboCount > 1) {
+    // 6. Draw Combo Counter (only while the chain is actually running)
+    if (m_curData.comboCount > 1 && m_curData.comboTimer > 0.0f) {
         target.draw(m_comboCountText, state);
     }
 

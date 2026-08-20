@@ -1,5 +1,6 @@
 #include "Core/AchievementManager.hpp"
 #include "Core/StatisticsTracker.hpp"
+#include "Utils/Serializer.hpp"
 #include <any>
 #include <iostream>
 #include <algorithm>
@@ -69,6 +70,11 @@ void AchievementManager::unlockAchievement(const std::string& id) {
 
         // Publish event so HUD or SoundManager can play a SFX
         EventBus::getInstance().publish({EventType::AchievementUnlocked, it->id});
+
+        // Persist immediately. Unlocking a character is the kind of thing a
+        // player will quit to go and try, and waiting for a clean shutdown to
+        // write it means a force-quit silently takes it away again.
+        Serializer::saveProfile();
     }
 }
 
