@@ -54,10 +54,13 @@ private:
     // gradient magnitude near 1e6 * weight, which SGD at lr 0.01 tolerates.
     static float clampProbability(float p) { return std::clamp(p, 1e-6f, 1.0f - 1e-6f); }
 
+    // Weights are per BUTTON, so a batched tensor of shape {batch, buttons}
+    // must index by column, not by flat position. Without the modulo, every
+    // element past the first row took m_weights.back() — i.e. every button in
+    // rows 2..N was weighted as if it were groundPound.
     float weightFor(int index) const {
         if (m_weights.empty()) return 1.0f;
-        const std::size_t i = static_cast<std::size_t>(index);
-        return i < m_weights.size() ? m_weights[i] : m_weights.back();
+        return m_weights[static_cast<std::size_t>(index) % m_weights.size()];
     }
 
     std::vector<float> m_weights;

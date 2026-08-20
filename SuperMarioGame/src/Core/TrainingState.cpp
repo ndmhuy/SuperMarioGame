@@ -21,7 +21,11 @@
 namespace {
 // Checkpoints go beside the save data, not into assets/: they are produced by
 // running the game, not shipped with it.
-const char* kCheckpointPath = "saves/ai/policy.ckpt";
+// Separate files per phase, deliberately. A REINFORCE run that collapses must
+// not overwrite a working imitation policy — which is exactly what happened
+// here: a reward-hacked policy scoring 0.0% replaced one scoring 22.2%.
+const char* kImitationCheckpoint = "saves/ai/policy_imitation.ckpt";
+const char* kReinforceCheckpoint = "saves/ai/policy_reinforce.ckpt";
 constexpr float kStuckSeconds = 4.0f;
 }
 
@@ -42,12 +46,24 @@ void TrainingState::enter() {
     m_policy = std::make_unique<NeuralPolicy>();
     // Resume if a previous run left a checkpoint. Training that silently starts
     // from scratch every launch is how hours get thrown away.
-    if (m_policy->load(kCheckpointPath)) {
-        std::cout << "[Training] Resumed from " << kCheckpointPath << std::endl;
+    if (m_policy->load(kImitationCheckpoint)) {
+        std::cout << "[Training] Resumed from " << kImitationCheckpoint << std::endl;
     }
     m_trainer = std::make_unique<PolicyTrainer>(*m_policy);
     m_trainer->openLog("saves/ai/training_log.csv");
     m_teacherPolicy = std::make_unique<HeuristicPolicy>(AIArchetype::Speedrunner);
+
+    // Rebalance the reward for reinforcement. With the shipped weights, crossing
+    // all of level_1 earns +64 while one death costs -50 and standing still for
+    // 60 s costs -3.6 — so the optimal policy is to not move, and REINFORCE
+    // found exactly that: 0.0% progress, 0 deaths, its return "improving" from
+    // -10.7 to -1.9 purely by ceasing to die. The algorithm was not wrong; it
+    // maximised what it was given. A full crossing is now worth +640 against a
+    // death's -10, and standing still is strictly worse than trying.
+    RewardTracker::Weights& rewardWeights = m_reward.weights();
+    rewardWeights.progressPerPixel = 0.1f;
+    rewardWeights.died = -10.0f;
+    rewardWeights.timeStep = -0.02f;
 
     m_camera.setLookahead(140.0f);
     startEpisode();
@@ -59,8 +75,10 @@ void TrainingState::exit() {
     // failing on it.
     std::error_code ignored;
     std::filesystem::create_directories("saves/ai", ignored);
-    if (m_policy && m_policy->saveCheckpoint(kCheckpointPath)) {
-        std::cout << "[Training] Saved " << kCheckpointPath << " after "
+    const char* path = (m_trainer && m_trainer->mode() == PolicyTrainer::Mode::Reinforce)
+                           ? kReinforceCheckpoint : kImitationCheckpoint;
+    if (m_policy && m_policy->saveCheckpoint(path)) {
+        std::cout << "[Training] Saved " << path << " after "
                   << (m_trainer ? m_trainer->episodes() : 0) << " episodes."
                   << std::endl;
     }
@@ -120,7 +138,9 @@ void TrainingState::finishEpisode(const char* reason) {
     if (m_trainer->episodes() % 25 == 0) {
         std::error_code ignored;
         std::filesystem::create_directories("saves/ai", ignored);
-        m_policy->saveCheckpoint(kCheckpointPath);
+        m_policy->saveCheckpoint(
+            m_trainer->mode() == PolicyTrainer::Mode::Reinforce ? kReinforceCheckpoint
+                                                                : kImitationCheckpoint);
     }
     startEpisode();
 }

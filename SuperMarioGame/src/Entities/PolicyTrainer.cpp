@@ -120,6 +120,14 @@ float PolicyTrainer::learn(const AIObservation& observation,
     }
     m_loss->setWeights(weights);
 
+    // Aggregate first, so the new sample is eligible for its own update.
+    if (m_aggregate.size() < m_config.aggregateCapacity) {
+        m_aggregate.push_back(Sample{features, target});
+    } else if (!m_aggregate.empty()) {
+        m_aggregate[m_aggregateNext % m_aggregate.size()] = Sample{features, target};
+        ++m_aggregateNext;
+    }
+
     nn::Tensor prediction = net->model.forward(input);
     // forward(), NOT compute(). compute() returns a bare loss value with no
     // GradFn attached; only forward() wires the loss into the autograd graph.
@@ -152,6 +160,45 @@ float PolicyTrainer::learn(const AIObservation& observation,
         }
         ++m_episodeButtonsTotal;
         ++m_buttonTotal[static_cast<std::size_t>(i)];
+    }
+
+    // Replay from the aggregate, as ONE minibatch.
+    //
+    // Sequential single-sample steps were the first attempt and were wrong: 16
+    // full-strength updates per decision is ~17x the intended learning rate,
+    // and training-time progress fell 31% -> 1.4% accordingly. A real minibatch
+    // averages the gradients (the loss divides by element count), so the update
+    // magnitude is right, and it is also 2.45x cheaper per sample.
+    if (!m_aggregate.empty() && m_config.replayBatch > 0) {
+        const int batch = std::min<int>(m_config.replayBatch,
+                                        static_cast<int>(m_aggregate.size()));
+        const std::size_t width = features.size();
+        std::vector<float> batchFeatures;
+        std::vector<float> batchTargets;
+        batchFeatures.reserve(width * static_cast<std::size_t>(batch));
+        batchTargets.reserve(static_cast<std::size_t>(NeuralPolicy::kActionBits * batch));
+
+        for (int r = 0; r < batch; ++r) {
+            const std::size_t pick = std::min<std::size_t>(
+                static_cast<std::size_t>(nextRandom() * static_cast<float>(m_aggregate.size())),
+                m_aggregate.size() - 1);
+            const Sample& sample = m_aggregate[pick];
+            batchFeatures.insert(batchFeatures.end(), sample.features.begin(),
+                                 sample.features.end());
+            batchTargets.insert(batchTargets.end(), sample.target.begin(),
+                                sample.target.end());
+        }
+
+        // Class weights stay per button; the loss indexes them by column.
+        m_loss->setWeights(weights);
+
+        nn::Tensor rIn(batchFeatures, {batch, static_cast<int>(width)});
+        nn::Tensor rTarget(batchTargets, {batch, NeuralPolicy::kActionBits});
+        nn::Tensor rPred = net->model.forward(rIn);
+        nn::Tensor rLoss = criterion->forward(rPred, rTarget);
+        m_impl->optimizer.zeroGrad(net->model.parameters());
+        rLoss.backward();
+        m_impl->optimizer.step(net->model.parameters());
     }
 
     m_episodeLossSum += m_lastLoss;
@@ -301,6 +348,9 @@ void PolicyTrainer::runReinforceUpdate() {
                          {1, static_cast<int>(m_episode[k].features.size())});
         nn::Tensor taken(m_episode[k].action, {1, NeuralPolicy::kActionBits});
 
+        // Aggregation belongs to the imitation path only: REINFORCE's target is
+        // the action the policy itself sampled, which is not a supervision
+        // label and must not be replayed as one.
         nn::Tensor prediction = net->model.forward(input);
         nn::Tensor lossTensor = criterion->forward(prediction, taken);
 

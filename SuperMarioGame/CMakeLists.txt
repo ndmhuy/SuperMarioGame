@@ -294,6 +294,21 @@ set_source_files_properties(
 )
 
 # ---------------------------------------------------------
+# 17c. Headless Policy Training Target (train_policy)
+# ---------------------------------------------------------
+# The same training loop as the in-game TrainingState, without a window. A
+# window costs frame budget, pins the run to a visible desktop session, and caps
+# the simulation at whatever the renderer keeps up with — all wrong for a long
+# run, however right they are for watching one.
+add_executable(train_policy "tools/train_policy.cpp" ${APP_SOURCES})
+target_include_directories(train_policy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(train_policy PRIVATE
+    SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json
+    nn)
+
+# ---------------------------------------------------------
 # 17b. Headless Level Evaluation Target (eval_level)
 # ---------------------------------------------------------
 # Side project, off the main line — see docs/mapgen_gan_rl_plan.md. Plays a

@@ -86,6 +86,26 @@ public:
         // from noise. The agent then trained hard on nothing, which kept it
         // stuck. Episodes flatter than this carry no signal and are skipped.
         float minReturnSpread = 0.5f;
+        // DATASET AGGREGATION — the defining feature of DAgger, and initially
+        // missing from this implementation.
+        //
+        // DAgger keeps every transition seen so far and retrains on the union;
+        // that aggregation is what gives it its no-regret guarantee. Training
+        // only on the newest sample is ordinary online cloning, and it degrades
+        // for a specific reason: as beta decays the learner drives, visits its
+        // own poor states, and trains exclusively on those, overwriting the
+        // competent behaviour learned earlier. Measured without aggregation,
+        // jump-agreement fell 0.849 -> 0.736 over 220 episodes while training
+        // continued — catastrophic forgetting, not underfitting.
+        //
+        // A bounded buffer rather than the unbounded union of the paper: 176k
+        // samples at 2844 floats would be 2 GB. 12k samples is ~136 MB and
+        // still spans dozens of episodes, so early competent states stay in the
+        // training distribution.
+        std::size_t aggregateCapacity = 12000;
+        // Samples drawn from the buffer per update, alongside the new one.
+        // Minibatches are also 2.45x more efficient per sample than batch 1.
+        int replayBatch = 16;
         // Balance each button's contribution by its inverse press frequency.
         // Off, the jump button — pressed on ~3% of frames — contributes ~3% of
         // the gradient it should, and the optimiser correctly concludes that
@@ -199,6 +219,16 @@ private:
         float reward = 0.0f;
     };
     std::vector<Transition> m_episode;
+
+    // The aggregated dataset. A ring buffer: once full, the oldest transition
+    // is replaced, which keeps a moving window of the states the learner has
+    // actually visited rather than only the most recent ones.
+    struct Sample {
+        std::vector<float> features;
+        std::vector<float> target;
+    };
+    std::vector<Sample> m_aggregate;
+    std::size_t m_aggregateNext = 0;
     // Running mean return, used as the REINFORCE baseline. Subtracting a
     // baseline leaves the gradient unbiased while cutting its variance, which
     // is the difference between this converging and thrashing.
