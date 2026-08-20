@@ -5,10 +5,28 @@
 > `A/shadow-mario-ai-multiplayer` depends on it — that branch ships the seam and
 > the heuristic policy, and plays fine without any of this.
 
+> **Correction, from `docs/mapgen_gan_rl_plan.md` §2d.** The "training belongs
+> in Python" call below is superseded. Two things changed it: the user has a
+> from-scratch C++ deep learning framework
+> (`/Users/huynguyen/Documents/CS200-Cpp`, `nn::` — Tensor autograd,
+> `Sequential`/`Linear`, `SGD`/`Adam`, existing RL precedent in that repo) to
+> build on instead of a second hand-rolled forward pass; and the user wants
+> training visualized on screen as it happens, which only a training loop
+> running inside the render loop can do. At ~123K parameters (the observation
+> and hidden-layer widths below fix that number), one optimizer step on that
+> framework's CPU backend is microseconds, not milliseconds — the "duplicate
+> of something better" argument below was sound for a large network and does
+> not apply at this size. See `mapgen_gan_rl_plan.md` §2d and §6 for the
+> integration shape (vendored static library, `NeuralPolicy` rebuilt on
+> `nn::Sequential`, a new in-game training state) before touching any of this.
+> Everything below about the observation, action space and reward is
+> unaffected — it describes the contract, not where the maths runs.
+
 ## What is in the game, and what is not
 
 The game owns the half of the loop that has to live in the game, and nothing
-more:
+more — **as of the design below.** Training has since moved into the game too;
+see the correction above.
 
 | In the game | Not in the game |
 | :--- | :--- |
@@ -18,9 +36,12 @@ more:
 | Producing the reward (`RewardTracker`) | Anything that wants a GPU |
 | Logging transitions (`ExperienceLog`) | |
 
-Training belongs in Python, where the tooling already exists. Reimplementing
-backpropagation inside a 60Hz game loop would be slower, harder to test, and a
-duplicate of something better.
+*(Superseded, kept for the reasoning it still gets right about **why not** to
+reinvent an autograd engine from zero: don't — which is exactly why this project
+reuses an existing one rather than hand-rolling gradients inside
+`HeuristicPolicy`-style code.)* Training belongs in Python, where the tooling
+already exists. Reimplementing backpropagation inside a 60Hz game loop would be
+slower, harder to test, and a duplicate of something better.
 
 ## The observation
 

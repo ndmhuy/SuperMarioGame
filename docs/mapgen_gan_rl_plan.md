@@ -30,9 +30,17 @@ into a de-facto dependency:
 
 1. **No behaviour change on the default path.** Nothing added here runs unless
    a CLI flag or an explicitly-chosen menu entry asks for it.
-2. **The C++ footprint stays at one flag plus one optional game mode.** All
-   training, generation and orchestration is Python outside the game — the same
-   split `rl_training.md` already committed to.
+2. **The C++ footprint stays deliberately small, and is now larger for the RL
+   half by an explicit decision (§2d).** Map generation keeps its original
+   shape: all generation and orchestration is Python outside the game, with the
+   game's C++ surface limited to one flag plus one optional level-pool game
+   mode. RL training is the one exception, made on purpose — see §2d for why
+   training now happens in-game, in C++, rather than in Python: the network is
+   small enough for it, the user has a from-scratch C++ deep learning
+   framework to build it on, and only in-game training can show a live view of
+   the agent learning. The RL C++ surface grows by one vendored library and
+   one new, explicitly-entered game state — never touching the default
+   single-player path.
 3. **Generated levels are additive files**, never replacements. `level_1..3`
    stay exactly as they are on `dev`.
 
@@ -189,11 +197,105 @@ in `rl_training.md`:
    unlearnable reward, and no amount of exploration fixes it. The oracle is the
    admission filter.
 
-Open question, deliberately not answered yet: the heuristic policy's stall is
-also a **bug worth fixing on its own terms** — it stops dead at a 3-tile step
-that the oracle says is clearable. Whether to fix the heuristic or to let the
-learned policy supersede it is a decision for when the RL run actually trains.
-Either way, the finding is logged rather than papered over.
+**Update, after fixing it**: the stall was fixed on its own terms (a physics
+engine bug — `CollisionResolver` cancelled upward velocity on a purely
+horizontal wall collision, see the run log). With that gone and the heuristic
+given wall-height awareness, an escape state and a stuck detector, it plateaued
+at level_1 24.9% / level_2 75.3% / level_3 21.4% / bonus_1 13.1% — and two
+different hand-tuned speed gates, tried in sequence, each *traded* a fix on one
+level for a regression on two others (numbers and reasoning kept in
+`HeuristicPolicy.cpp`, not just here). That is the concrete evidence, not a
+hunch, that reactive hand-tuning has hit a ceiling and the learned policy is
+the way past it, not an optional upgrade.
+
+## 2d. Framework and training location — a deliberate change from `rl_training.md`
+
+`rl_training.md` says "training belongs in Python, where the tooling already
+exists" and treats the game as inference-only, loading a hand-rolled
+`NeuralPolicy` from a JSON weight file trained offline. **That decision is
+superseded.** Two things changed it:
+
+1. **The user has a from-scratch C++ deep learning framework** —
+   `/Users/huynguyen/Documents/CS200-Cpp` (`nn::` namespace): N-dimensional
+   `Tensor` with a real reverse-mode autograd engine, `Sequential`/`Linear`/
+   `Activation` modules, `SGD`/`Adam` optimizers, `MSELoss`, NEON-SIMD and
+   Metal-GPU backends, and existing RL precedent in that repo
+   (`gaussian_rl.cpp` — a DQN agent; `poker_rl.cpp` — Deep CFR self-play). This
+   is the framework to build on, not a second hand-rolled forward pass living
+   beside it in `NeuralPolicy.cpp`.
+2. **The user wants training visualized on screen as it happens.** That is
+   only possible if training runs inside the game process, in the same loop
+   that renders — an offline Python trainer producing a weight file to load
+   later cannot show a live curve of the agent actually getting better.
+
+### Why in-game C++ training is actually feasible here, not just requested
+
+This is not a compromise made because Python happens to be unavailable on this
+machine (it does — no `numpy`/`torch` in this session — but that is not the
+reason). The network is small enough that the reason stands on its own:
+
+```
+AIObservation::featureCount() = 1899          (input width, fixed by contract)
+hidden layers, matching NeuralPolicy today    = {64, 32}
+parameters ≈ 1899·64 + 64 + 64·32 + 32 + 32·7 + 7  ≈  123,000
+
+CS200-Cpp CPUBackend: NEON SIMD + a real thread pool + cache-aligned
+allocator, on Apple Silicon.
+```
+
+123K parameters is a small MLP by any modern standard — this is squarely what
+that CPU backend was built for, and Metal GPU acceleration is unnecessary
+overhead for it (and would drag Objective-C++ build requirements into
+SuperMarioGame's CMake for no measured benefit). One SGD step at this size on
+that backend is on the order of microseconds, not milliseconds, so a training
+loop can run inside the game's 60Hz update and still leave frame budget for
+rendering the live view.
+
+### Integration shape (design, not yet built)
+
+- **Bring `nn::` in as a vendored static library**, not a path dependency on
+  another course repo. `CS200-Cpp` is not built as a library today — every
+  demo there links `LIB_SRC_FILES` directly into its own executable — so the
+  clean move is copying `include/nn/` and `src/{Tensor,Autograd,Module,Optim,
+  Loss,Core,Compute}/*.cpp` (CPU-backend files only; skip `MetalBackend.mm`
+  and the `.metal` shaders — no Metal, no Objective-C++, per the paragraph
+  above) into `SuperMarioGame/third_party/nn/` and building it as
+  `add_library(nn STATIC ...)` in `SuperMarioGame/CMakeLists.txt`. A path
+  dependency on a sibling checkout would break the build on any machine (a
+  grader's included) that does not happen to have `CS200-Cpp` cloned next to
+  `SuperMarioGame` — vendoring makes the submission self-contained, which
+  `AGENTS.md`'s build directive already implicitly requires.
+- **`NeuralPolicy` is rewritten around `nn::Sequential`**, not JSON-loaded
+  weights read into hand-written `std::vector<Layer>` math. `decide()` becomes
+  a `Sequential::forward()` call; the multi-label sigmoid-threshold action
+  decoding stays exactly as it is today, since that is a policy-level decision
+  independent of which tensor library computes the logits.
+- **A new game state drives training live** — not `PlayingState` reused, for
+  the same reason `eval_level` is a separate harness rather than a reuse of
+  it (§4.1): training wants to run many episodes back-to-back with resets,
+  loss/reward bookkeeping and an optimizer step between them, none of which
+  `PlayingState` was built to do, and bolting it on would risk the same
+  headless-hazards catalogue §4.1 already worked through for the eval runner.
+  The new state renders the live episode (reusing `TileMap::render`,
+  `Camera`, `Entity::render`'s existing debug-rectangle fallback for
+  unsprited entities) plus an overlay: episode count, current loss, a reward
+  curve, and the action distribution — the visualization the user asked for.
+  Menu entry: a "Train Agent" option alongside the existing dev-panel AI
+  controls, not a hidden CLI flag, since the entire point is to watch it.
+- **Checkpointing** uses `nn::Training::Checkpoint`, which already exists in
+  `CS200-Cpp`, rather than reinventing the hand-written JSON schema
+  `NeuralPolicy::load()` documents today. The observation-version guard
+  (`kAIObservationVersion`) is kept regardless of serialization format — it is
+  a contract about the *input layer*, not about how weights are stored.
+
+### What stays true from `rl_training.md`
+
+The observation (§ "The observation"), the action space (§ "The action
+space") and the reward (§ "The reward", amended per §2c above) are all
+framework-agnostic — they describe what goes in and out of the network, not
+how the network is computed or trained. None of that is being redesigned;
+only *where the learning happens* and *what library does the tensor math*
+changed.
 
 ## 3. The data problem (decides whether a GAN is even trainable)
 
@@ -338,12 +440,42 @@ trained RL agent.** This alone fixes "map gen is somewhat bad."
 
 ## 6. Phase 2 — RL track (independent of GAN)
 
-Exactly as `docs/rl_training.md`, with one amendment: the training level set
-is `campaign ∪ generated pool`, sampled per episode. Generated levels are
-domain randomization — the single cheapest defense against the agent
-overfitting three fixed maps. Until the pool exists, train on campaign maps;
-swap the sampler when Phase 1 ships. That is the *entire* coupling at this
-stage, by design.
+Per `docs/rl_training.md`'s observation/action/reward design, but per §2d's
+correction to *where* it runs: `NeuralPolicy` rebuilt on the vendored `nn::`
+framework, trained by a new in-game state rather than an offline Python
+script, with a live view of the run. Two amendments beyond that:
+
+1. **Training level set is `campaign ∪ generated pool`**, sampled per episode.
+   Generated levels are domain randomization — the single cheapest defense
+   against the agent overfitting three fixed maps. Until the pool exists,
+   train on campaign maps; swap the sampler when Phase 1 ships.
+2. **Every training episode is oracle-gated (§2c)**: an episode only starts on
+   a level `solvability.py` has already certified reachable, campaign or
+   generated. Training on an unreachable level hands the optimizer an
+   unlearnable reward and no amount of it converges — this is not an
+   optimization, it is what makes the loss curve on screen mean anything.
+
+Concrete steps for this phase, in order:
+
+1. Vendor `nn::` (CPU-backend sources only) into
+   `SuperMarioGame/third_party/nn/`; add the `add_library(nn STATIC ...)`
+   target; link it only into the new training state's executable path, not
+   into the base game.
+2. Rewrite `NeuralPolicy` around `nn::Sequential` — same public interface
+   (`decide`, `name`, `load`, `isTrained`), same `kAIObservationVersion` guard,
+   internals swapped from hand-rolled `std::vector<Layer>` math to `nn::`
+   modules.
+3. Build the training state: reset → play one episode with the current
+   network as the policy → collect `(observation, action, reward)` via
+   `ExperienceLog`-shaped transitions → one optimizer step (`nn::Optim::SGD`
+   or `Adam`) → render the live overlay → repeat. Start/stop/pause from the
+   dev panel, per `two_player_ai_plan.md` §5.4's existing tunability
+   convention.
+4. Checkpoint via `nn::Training::Checkpoint` on an interval and on stop, so a
+   training run surviving a crash or a deliberate pause is the default, not a
+   lucky accident.
+
+That is the *entire* coupling with the GAN track at this stage, by design.
 
 ## 7. Phase 3 — closing the loop (only after 1 & 2 both work standalone)
 
@@ -392,15 +524,24 @@ fall out of the curriculum automatically.
 | 1 | `eval_level` headless runner + versioned stats report | shared | — | **done** |
 | 2 | Level tensor contract + `level_tensor.py` | shared | — | **done** |
 | 2b | Solvability + bottleneck-difficulty oracle | shared | 2 | **done** |
+| 2c | Heuristic policy: perception + wall-height/escape/stuck fixes | RL | 1 | **done — plateaued (§2c)** |
 | 3 | Corpus: VGLC mapping + editor levels | shared | 2 | next |
 | 4 | Baseline generator → repair → oracle filter → agent filter → pool | mapgen | 2b, 3 | |
 | 5 | DCGAN generator (replaces baseline in same pipeline) | mapgen | 4 | |
 | 6 | "Endless/Remix" mode loading the vetted pool | mapgen | 4 | |
-| 7 | RL training, reachability-shaped reward, sampler = campaign ∪ pool | RL | 1, 2b | |
-| 8 | Curriculum loop (difficulty-targeted level search) | joint | 5, 7 | |
+| 7a | Vendor `nn::` framework as a static library (§2d) | RL | — | next |
+| 7b | `NeuralPolicy` rebuilt on `nn::Sequential` | RL | 7a | |
+| 7c | In-game training state + live visualization overlay | RL | 7b, 2b | |
+| 7d | Full training run, reachability-shaped reward, sampler = campaign ∪ pool | RL | 7c | |
+| 8 | Curriculum loop (difficulty-targeted level search) | joint | 5, 7d | |
 | 9 | PAIRED-style generator fine-tuning | stretch | 8 | |
 
 Note that 2b moved the oracle *ahead* of the agent in the pipeline at step 4:
 levels are now filtered geometrically first and played second. That ordering is
 what makes the agent filter affordable — it never wastes a 5-second rollout on a
 level a 0.25-second reachability check could have rejected.
+
+Note that step 7 split into 7a–7d because §2d changed *where* RL training
+runs — vendoring a framework and building a visualized training state are
+real deliverables in their own right now, not a Python script invisible to
+this table.
