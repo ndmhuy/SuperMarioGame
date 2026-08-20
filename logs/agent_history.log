@@ -4049,3 +4049,94 @@ Summary of Changes:
   said so rather than asserted.
 - NOT pushed yet at the time of this entry; a PR follows at the user's request.
 ---
+
+[2026-08-20 22:43:18] Branch: A/teammate-fixes -> dev -> main
+Git Fingerprint: 62de7af (before, HEAD on A/mapgen-gan-plan) -> 33d5aae (A/teammate-fixes tip) -> cca1a59 (dev, PR #13 merge) -> cca1a59 (main, fast-forward)
+Fetched Remotes: yes, 20:47 and again at 22:12 before reporting state
+Prompt: merge the open PR and any physics fix, then reevaluate and PR to main. Follow-ups: do not merge the mapgen/RL side project; the path is task branch -> dev -> main; halt the file-stripping idea for later.
+Files Modified:
+  - SuperMarioGame/CMakeLists.txt (Hud.cpp casing; ctest_binaries target)
+  - .github/workflows/ci.yml (build the tested binaries; audio device; xvfb)
+  - 28 headers/sources, added standard includes only (no code change)
+  - SuperMarioGame/src/Physics/CollisionResolver.cpp, PhysicsEngine.cpp,
+    include/Entities/Character.hpp (wall-jump fix, cherry-picked)
+Reachable From Main: yes — CollisionResolver and PhysicsEngine run every frame of
+  every level for every Character; the CMake and workflow changes are build
+  infrastructure (n/a as runtime code).
+Verified By: ctest 13/13 on ubuntu-latest at 33d5aae, and again green on PR #14.
+  NOT verified by running the game — see below. An earlier local "14/14" claim in
+  this session was RETRACTED as invalid.
+Summary of Changes:
+- MERGED PR #13 into dev (cca1a59). PR #12 closed as merged automatically: its
+  head was strictly contained in #13 (git log #13..#12 was empty).
+- FAST-FORWARDED main to dev. main had sat at 53be790 "Initial commit" since
+  2026-05-29 while 234 commits accumulated on dev, so the default branch
+  represented nothing for the whole term. Delivered by fast-forward push rather
+  than a merge commit, deliberately: a merge commit on main would be a commit dev
+  does not have, so main would diverge and every future delivery would stop being
+  a fast-forward. Rebase-merge was rejected for the same reason — it would rewrite
+  all 234 SHAs.
+- FIRST GREEN CI IN THIS REPOSITORY'S HISTORY. Every prior run was red, dev
+  included, which is why two real code defects stayed invisible. Five causes:
+   1. 03bf828 CMakeLists named src/Graphics/HUD.cpp; the file is Hud.cpp. macOS is
+      case-insensitive so every local build resolved it; on Linux CMake failed at
+      *generate* and the target lost its entire source list. Audited all 39 CMake
+      paths, every project #include and 32 asset paths against git ls-files (which
+      stores the real case) — this was the only mismatch.
+   2. 4ac8a1c 28 files used std:: symbols without including the providing header,
+      e.g. SpriteSheet.hpp declaring std::vector<std::string> with no <vector>.
+      libc++ drags them in transitively, libstdc++ does not. Audited all 285 files
+      with a symbol->header map resolved through the transitive closure of project
+      includes, treating multi-provider symbols (std::abs, std::exception) as
+      satisfied by any provider: 54 raw hits down to 28 real ones. Fixed in one
+      pass instead of ~20 CI round trips.
+   3. 8141120 The workflow built 2 of the 13 binaries ctest ran; the other 11
+      reported ***Not Run and failed the job. The list was hand-written and had
+      drifted. Replaced with a ctest_binaries target that add_verify_test attaches
+      every registered case to, so the build list derives from the test
+      registration and adding a test cannot reopen the gap.
+   4. 8141120 The runner has no sound card; opening a playback device aborted
+      verify_regressions with SIGABRT before its first check.
+   5. 33d5aae Four harnesses construct an sf::RenderWindow and a runner is
+      headless; ctest now runs under xvfb-run -a.
+- PHYSICS: 60cc735, cherry-picked from eda0e5d on A/mapgen-gan-plan.
+  CollisionResolver cancelled vertical velocity on a purely horizontal collision,
+  guarded by onGround — which PhysicsEngine clears and does not recompute until
+  the Y pass, after the X pass this code runs in. It read false for a character
+  standing on solid ground, so the rule fired for anyone touching a wall and jump
+  velocity was erased in the same frame it was applied: no character could climb a
+  step it was already touching. wasOnGround now carries the frame's incoming
+  state; only the downward slide cap survives. The tools/eval_level.cpp hunk that
+  came with the commit was dropped — side-project tooling.
+- SIDE PROJECT KEPT OUT, per explicit user instruction. The mapgen/GAN and RL work
+  stays on A/mapgen-gan-plan and is not in dev or main. Verified by listing the
+  merged tree: no NeuralPolicy, PolicyTrainer, nn/, train_policy or eval_level.
+  HeuristicPolicy and BorrowedPolicy ARE present and are meant to be — they are
+  the heuristic game AI opponent, PR #13's advertised multiplayer feature, not the
+  RL work. Loose RL work found in the tree at session start was committed as
+  e2b230d on that branch rather than discarded.
+- HONEST GAPS:
+  * DID NOT RUN THE GAME. AGENTS.md directive 10 asks for it and this entry does
+    not claim it. Another agent session held the working tree throughout — it
+    checked out A/mapgen-gan-plan at 21:55 and was actively adding a headless
+    train_policy target — so building locally would have fought that work and
+    built the wrong branch. Four of the thirteen green cases do construct a real
+    sf::RenderWindow under Xvfb, which is the closest standing evidence.
+  * RETRACTED A LOCAL RESULT. A local full build + ctest was reported mid-session
+    as 14/14 passing. It was invalid: the run straddled the other session's branch
+    switch, so it executed stale binaries, picked up verify_rl_policy from the
+    other branch, and SuperMarioGame actually failed to link. Discarded as
+    evidence; CI is the only signal relied on.
+  * AUDIO ABORT IS A SYMPTOM TREATED, NOT A DEFECT FIXED. The game aborts rather
+    than degrading when no audio device exists, which would affect a real machine
+    without sound. CI was given a device instead. Reproducing it needs a
+    device-less environment macOS cannot provide.
+  * BUILD COST: all 14 test targets recompile the same ~133 sources, so CI does
+    ~14 full builds where an OBJECT library would do one. ~10 min per run, and
+    plausibly why the 2-target list existed.
+  * HYGIENE DEFERRED at user request: ~1.2 MB of scratch SVG/HTML output,
+    duplicate docs zips, and .member_profile.json tracked despite being listed in
+    .gitignore:18 (gitignore does not apply to already-tracked files), leaking
+    Member B's private notes. Left for a later pass so this delivery stayed a
+    clean fast-forward.
+---
