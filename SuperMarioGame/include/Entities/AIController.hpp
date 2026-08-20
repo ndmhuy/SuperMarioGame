@@ -56,6 +56,13 @@ public:
     const char* reason() const { return m_reason; }
     // The last observation, for the overlay that draws the vision grid.
     const AIObservation& lastObservation() const { return m_observation; }
+    // The last action the policy chose. Needed by the dev overlay to show what
+    // the bot decided as opposed to what it managed to do, and by the trainer
+    // (PolicyTrainer) to read the teacher's action as a supervision label
+    // without having to call decide() a second time — which would advance the
+    // heuristic's internal commit/escape counters twice per decision and
+    // quietly change its behaviour.
+    const AIAction& lastAction() const { return m_action; }
     // Live tunables, so the numbers in the difficulty table can be felt rather
     // than argued about. Latency is seconds between decisions; noise is the
     // epsilon that randomises a button.

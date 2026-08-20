@@ -45,6 +45,10 @@ bool InputScript::parseKey(const std::string& name, sf::Keyboard::Key& out) {
     if (name == "Backspace") { out = sf::Keyboard::Key::Backspace; return true; }
     if (name == "Tab")       { out = sf::Keyboard::Key::Tab;       return true; }
     if (name == "Grave")     { out = sf::Keyboard::Key::Grave;     return true; }
+    // Training-speed controls, so a scripted run can wind the simulation up
+    // past realtime the same way a human would.
+    if (name == "Equal")     { out = sf::Keyboard::Key::Equal;     return true; }
+    if (name == "Hyphen")    { out = sf::Keyboard::Key::Hyphen;    return true; }
     return false;
 }
 

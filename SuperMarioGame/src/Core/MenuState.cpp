@@ -3,6 +3,7 @@
 #include "Core/CharacterSelectState.hpp"
 #include "Core/OptionsState.hpp"
 #include "Core/PlayingState.hpp"
+#include "Core/TrainingState.hpp"
 #include "Core/Game.hpp"
 #include "Core/InputManager.hpp"
 #include "Core/SoundManager.hpp"
@@ -24,7 +25,7 @@ namespace {
 
 // Main-menu rows, in display order.
 enum MainRow { ROW_START = 0, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
-               ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
+               ROW_TRAIN_AI, ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
 constexpr int kThemeCount = 4;
@@ -98,6 +99,9 @@ void MenuState::enter() {
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
+    // A menu entry rather than a hidden flag: the whole point of in-game
+    // training is that it can be watched (docs/mapgen_gan_rl_plan.md §2d).
+    m_mainItems.emplace_back("TRAIN AI", "NEURAL");
     // Achievement progress on the row itself, so the player can see there is
     // something to chase without opening the page first.
     {
@@ -289,6 +293,10 @@ void MenuState::activateSelection() {
             case ROW_GENERATOR:
                 m_page = Page::Generator;
                 m_genSelected = 0;
+                break;
+            case ROW_TRAIN_AI:
+                m_dismissed = true;
+                game.changeState(std::make_unique<TrainingState>(0));
                 break;
             case ROW_RECORDS:
                 // Same screen, opened on the statistics page. Everything it

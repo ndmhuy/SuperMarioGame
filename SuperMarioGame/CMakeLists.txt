@@ -288,6 +288,7 @@ endif()
 # Everything else in APP_SOURCES stays C++17.
 set_source_files_properties(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Entities/NeuralPolicy.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Entities/PolicyTrainer.cpp"
     PROPERTIES COMPILE_FLAGS "-std=c++20"
 )
 

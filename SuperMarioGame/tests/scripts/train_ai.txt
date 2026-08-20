@@ -1,0 +1,33 @@
+# Neural policy training verification run.
+#
+# Walks the main menu down to TRAIN AI and lets it train for a while, taking
+# screenshots as it goes. Everything that moves after the level loads is the
+# network (or, during early episodes, the teacher it is copying) driving Mario,
+# with the live loss and agreement curves on the right.
+#
+#   ./build/SuperMarioGame --script tests/scripts/train_ai.txt
+
+wait 2.0
+
+# START GAME, MULTIPLAYER, DAILY CHALLENGE, MAP EDITOR, PROCEDURAL LEVEL, TRAIN AI
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.3
+shot 60_menu_train_selected
+wait 0.3
+press Space
+wait 3.0
+shot 61_training_started
+wait 6.0
+shot 62_training_running
+wait 8.0
+shot 63_training_curves
+wait 2.0
+quit

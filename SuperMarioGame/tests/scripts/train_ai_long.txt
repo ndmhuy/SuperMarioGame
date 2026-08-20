@@ -1,0 +1,29 @@
+# Longer training run: speeds the simulation up and lets many episodes pass,
+# so the agreement and loss curves have something in them and the numbers can
+# be checked for actual learning rather than just for rendering.
+wait 2.0
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.2
+press Space
+wait 3.0
+press Equal
+wait 0.1
+press Equal
+wait 0.1
+press Equal
+wait 0.1
+press Equal
+wait 0.1
+press Equal
+wait 40.0
+shot 64_training_long
+wait 1.0
+quit

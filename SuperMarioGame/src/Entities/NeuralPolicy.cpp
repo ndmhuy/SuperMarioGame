@@ -1,4 +1,5 @@
 #include "Entities/NeuralPolicy.hpp"
+#include "Entities/NeuralNet.hpp"
 
 #include "nn/Core/Device.hpp"
 #include "nn/Module/Activation.hpp"
@@ -24,12 +25,6 @@
 // old std::vector<Layer> math could do a forward pass and nothing else; the
 // framework brings a real autograd engine, optimizers and checkpointing that
 // already exist and are already tested.
-
-// The definition of the type NeuralPolicy.hpp forward-declares.
-struct NeuralPolicy::Net {
-    nn::Sequential model;
-    std::vector<int> hidden;
-};
 
 void NeuralPolicy::NetDeleter::operator()(Net* net) const { delete net; }
 
