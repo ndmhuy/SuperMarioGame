@@ -184,8 +184,14 @@ def add_safety_nets(path: Path, report: dict) -> bool:
     tile_type = _solid_tile_type(level_json)
     existing = {(t["x"], t["y"]) for t in level_json.get("tiles", [])}
     added = 0
+    # A net below the map is no net: world rows run 0..height-1, and a net for
+    # a bottom-pit edge computed at foothold+4 fell out of the level and
+    # silently protected nothing. Clamp into the bottom rows — a recessed
+    # floor inside the pit; the band guard upstream rejects the repair if the
+    # floor turns the gap into a walkway.
+    max_y = int(level_json.get("height", 23)) - 2
     for edge in edges:
-        nx, ny = int(edge["x"]), int(edge["y"]) + 4
+        nx, ny = int(edge["x"]), min(int(edge["y"]) + 4, max_y)
         for candidate in ((nx, ny), (nx - 1, ny), (nx + 1, ny)):
             if candidate not in existing:
                 level_json["tiles"].append(
@@ -346,6 +352,12 @@ def main(argv=None) -> int:
                 if any(signature_distance(result["signature"], sig) < 1.0
                        for sig in kept_signatures):
                     continue
+                # FORGIVING is a gate bar, so it is a door constraint too: a
+                # kept level must clear it, not merely be penalised for
+                # missing it. Batches may come back smaller than --keep;
+                # smaller and honest beats padded and failing.
+                if result["report"].get("forgiveness", 1.0) < 0.85:
+                    continue
                 kept.append((fitness, genome, result))
                 kept_signatures.append(result["signature"])
             kept.sort(key=lambda t: t[0], reverse=True)
@@ -361,7 +373,13 @@ def main(argv=None) -> int:
                 children.append(mutate(child, rng))
             population = children
 
-        # Write the winners with sidecars and a manifest.
+        # Write the winners with sidecars and a manifest — into a CLEAN dir.
+        # A smaller batch beside a larger old one left stale levels that
+        # failed the gate on the new batch's behalf: the door guaranteed every
+        # fresh keeper cleared 0.85 forgiveness, and the gate still reported
+        # sub-0.85 levels, because they were last run's leftovers.
+        for stale in list(out_dir.glob("evolved_*.json")):
+            stale.unlink()
         manifest = []
         for rank, (fitness, genome, result) in enumerate(kept[: args.keep]):
             name = f"evolved_{rank:02d}.json"

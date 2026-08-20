@@ -1,0 +1,40 @@
+[
+ {
+  "file": "evolved_00.json",
+  "fitness": 0.4586,
+  "genome": {
+   "pit": 0.04458579354643829,
+   "pipe": 0.044758671248975625,
+   "enemy": 0.2834575075838599,
+   "coin": 0.3600964609214307,
+   "rough": 0.5447863741886021,
+   "theme": "overworld",
+   "difficulty": "medium",
+   "lava": false,
+   "moving": true,
+   "seed": 27952860
+  },
+  "requiredDifficulty": 0.2828,
+  "hardestOptional": 0.7071,
+  "forgiveness": 0.9302
+ },
+ {
+  "file": "evolved_01.json",
+  "fitness": 0.2935,
+  "genome": {
+   "pit": 0.06107917063398503,
+   "pipe": 0.02185195961820651,
+   "enemy": 0.24324986803919624,
+   "coin": 0.13507537222505767,
+   "rough": 0.38322869789399505,
+   "theme": "ice",
+   "difficulty": "easy",
+   "lava": false,
+   "moving": true,
+   "seed": 1138885489
+  },
+  "requiredDifficulty": 0.2828,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.95
+ }
+]

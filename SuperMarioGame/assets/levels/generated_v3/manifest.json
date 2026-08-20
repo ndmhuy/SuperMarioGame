@@ -1,0 +1,116 @@
+[
+ {
+  "file": "evolved_00.json",
+  "fitness": 0.9867,
+  "genome": {
+   "pit": 0.22404311800663332,
+   "pipe": 0.0444705470342639,
+   "enemy": 0.15211889824554387,
+   "coin": 0.393263626809356,
+   "rough": 0.30420322168164593,
+   "theme": "castle",
+   "difficulty": "hard",
+   "lava": true,
+   "moving": false,
+   "seed": 1342224691
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.9333
+ },
+ {
+  "file": "evolved_01.json",
+  "fitness": 0.9734,
+  "genome": {
+   "pit": 0.06352768003730583,
+   "pipe": 0.055730418236187775,
+   "enemy": 0.09482069208749055,
+   "coin": 0.2240917418053618,
+   "rough": 0.1451334167635254,
+   "theme": "castle",
+   "difficulty": "medium",
+   "lava": true,
+   "moving": true,
+   "seed": 1998207348
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.9672
+ },
+ {
+  "file": "evolved_02.json",
+  "fitness": 0.8965,
+  "genome": {
+   "pit": 0.08940736749024877,
+   "pipe": 0.015979315155788865,
+   "enemy": 0.1906753671222451,
+   "coin": 0.10134974502652444,
+   "rough": 0.6380855139493755,
+   "theme": "underground",
+   "difficulty": "hard",
+   "lava": true,
+   "moving": false,
+   "seed": 1388070602
+  },
+  "requiredDifficulty": 0.5294,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.8557
+ },
+ {
+  "file": "evolved_03.json",
+  "fitness": 0.825,
+  "genome": {
+   "pit": 0.1703945315368184,
+   "pipe": 0.0,
+   "enemy": 0.2035123244964684,
+   "coin": 0.3676059221429463,
+   "rough": 0.10148731071236433,
+   "theme": "castle",
+   "difficulty": "medium",
+   "lava": true,
+   "moving": false,
+   "seed": 1342224691
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563,
+  "forgiveness": 1.0
+ },
+ {
+  "file": "evolved_04.json",
+  "fitness": 0.8117,
+  "genome": {
+   "pit": 0.18479252168350793,
+   "pipe": 0.0621211408068728,
+   "enemy": 0.15936219074758617,
+   "coin": 0.38019607679575007,
+   "rough": 0.11976497465866555,
+   "theme": "castle",
+   "difficulty": "hard",
+   "lava": true,
+   "moving": false,
+   "seed": 1342224691
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.9459
+ },
+ {
+  "file": "evolved_05.json",
+  "fitness": 0.808,
+  "genome": {
+   "pit": 0.14867367036704143,
+   "pipe": 0.02976425900212694,
+   "enemy": 0.17282877823943504,
+   "coin": 0.28136696373043285,
+   "rough": 0.4551734748050936,
+   "theme": "underground",
+   "difficulty": "hard",
+   "lava": true,
+   "moving": false,
+   "seed": 1963064368
+  },
+  "requiredDifficulty": 0.4243,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.871
+ }
+]
