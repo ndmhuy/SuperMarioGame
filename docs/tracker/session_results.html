@@ -514,6 +514,35 @@ jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class=
           <em>died</em>, half <em>stuck</em> — deaths reset the level in the same frame, which is why enemies appear not to kill.</div></div>
       </div></article>
 
+
+    <article class="step ok"><div class="step-head"><span class="n">06</span>
+      <h3>Device moves, repair descent, reservoir DAgger</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Oracle</span><div class="v">Two new moves close its admitted gaps: <strong>ride</strong> (aboard a moving platform, the
+          whole patrol sweep is reachable for a 0.25 timing surcharge — the schema now carries rangeX/rangeY/speed, which it silently dropped before) and
+          <strong>bounce</strong> (trampoline, 831.4 px/s, ~6 tiles). Teacher on the re-certified routes: <strong>level_1 53.4 → 72.6%</strong> — it waits for and boards
+          the platform the route crosses on.</div></div>
+        <div class="field"><span class="k">Repair descent</span><div class="v">The generator's grammar has a difficulty <strong>floor</strong> (~0.685); easy bands
+          returned zero levels from any genome. The bottleneck names both ends of the hardest edge; a stepping stone at its midpoint (height too) halves the move, and
+          repairs continue while the bottleneck <em>moves</em> — a level is limited by many copies of the same chunk. Result: <strong>six levels certified at 0.2828</strong>
+          in the 0.10–0.25 band request.</div></div>
+        <div class="field"><span class="k">Trainer</span><div class="v">The 10-level rotation broke the 12k FIFO buffer (~1.3 episodes per level; jump agreement decayed
+          0.99 → 0.82 over 442 episodes, student evaluated 8.2% flat — artifacts kept as <code>*_fifo12k_drifted</code>). The buffer is now a <strong>reservoir</strong>
+          (Algorithm R: a uniform sample of ALL history — what DAgger's union-of-data guarantee actually wants) with int8-quantized features: 48k samples in the memory
+          12k floats cost.</div></div>
+      </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">07</span>
+      <h3>🚩 First completion ever recorded</h3><span class="verdict ok">Milestone</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Outcome</span><div class="v">The teacher <strong>COMPLETED</strong> generated-easy level evolved_02 — the first flag reached in
+          this project by any policy on any level. Chain proven end to end: genome → repair descent → oracle certificate → playable → completed. Four sibling levels
+          certify equally easy yet the teacher sticks at ~40%: the oracle says the <em>level</em> is easy, so what fails there is the <em>agent</em> — the
+          reachable-but-failed row of the decomposition, i.e. exactly the curriculum material the plan promised. Training now rotates over 16 levels
+          (4 campaign + 6 mid + 6 easy).</div></div>
+        <div class="field"><span class="k">Why this answers "RL is hard"</span><div class="v">Completion is a sparse reward an agent that never wins cannot climb toward.
+          The generator turns it dense: evolve levels the agent CAN complete, let it win, ratchet the certified band upward.</div></div>
+      </div></article>
   </div>
 </div>
 
