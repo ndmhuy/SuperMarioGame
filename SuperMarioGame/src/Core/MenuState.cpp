@@ -4,6 +4,7 @@
 #include "Core/OptionsState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/Game.hpp"
+#include "Core/InputManager.hpp"
 #include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/MetaGame.hpp"
@@ -476,9 +477,32 @@ void MenuState::render(sf::RenderTarget& target) {
                              sf::Color(200, 200, 200), true);
         // Which keys each participant gets — the one thing a second player at
         // the same keyboard has to be told before the level starts.
+        //
+        // Read from InputManager rather than written out, because these are
+        // rebindable and a hint that names the defaults is worse than none: this
+        // line said "P1 WASD" while a config.json in the repo had Player 1 on the
+        // arrow keys, which also means both players were sharing them.
         if (m_match.mode == GameMode::VersusHuman || m_match.isCoop()) {
-            UiRenderer::drawText(target, "P1  WASD + SPACE      P2  ARROWS + M",
+            const InputManager& input = InputManager::getInstance();
+            auto padSummary = [&input](int pad) {
+                const std::string left  = input.getBoundKeyName("left", pad);
+                const std::string right = input.getBoundKeyName("right", pad);
+                const std::string jump  = input.getBoundKeyName("jump", pad);
+                return left + "/" + right + " + " + jump;
+            };
+            UiRenderer::drawText(target, "P1  " + padSummary(0) + "      P2  " + padSummary(1),
                                  {centerX, 508.0f}, 11, sf::Color(150, 220, 150), true);
+
+            // Both pads on the same key is unplayable, and the only place it can
+            // be noticed before the level starts is here.
+            for (const char* action : {"left", "right", "jump"}) {
+                if (!input.getBoundKeyName(action, 0).empty() &&
+                    input.getBoundKeyName(action, 0) == input.getBoundKeyName(action, 1)) {
+                    UiRenderer::drawText(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
+                                         {centerX, 526.0f}, 10, sf::Color(255, 140, 140), true);
+                    break;
+                }
+            }
         }
         UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
                                      {centerX, 556.0f}, 11,

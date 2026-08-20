@@ -638,6 +638,14 @@
 - [x] Shared camera following leading player, versus rules — frames the midpoint
       with a tether at the screen edge; score line shows who leads
 - [x] Commit: `feat: implement two-player versus mode`
+- [x] **Follow-up fixes** (`A/shadow-mario-ai-multiplayer`): three things this
+      task shipped broken and ticked anyway. Player 2 could not jump —
+      `PlayingState::handleInput` never dispatched press events to it, so P2 had
+      walk and crouch and nothing else. The minimap toggle and P2's fire key were
+      both `M`. And every enemy asked `Game::getPlayer()`, which is Player 1 by
+      definition, so the whole level ignored Player 2. Also: rewind captured
+      Player 1 only, so a two-player rewind rolled one score back and left the
+      other alone.
 
 ### 11.2 Edge Cases & Bug Fixes
 - [ ] Respawn at checkpoint with death animation
@@ -690,9 +698,42 @@
 - [ ] Hold Shift → reverse playback
 - [ ] VHS rewind visual overlay
 
-### Bonus C — Shadow Mario (`feature/shadow-mario`)
-- [ ] Record player input, spawn Shadow Mario, replay with 3s delay
-- [ ] Dark/translucent sprite
+### Bonus C — Shadow Mario (`A/shadow-mario-ai-multiplayer`)
+- [x] Record player input, spawn Shadow Mario, replay with 3s delay — a 60Hz
+      `std::deque<PlayerFramePacket>` on `ShadowMario`, drained when a packet is
+      older than the delay, with a lerp back onto the recorded position when
+      drift exceeds 4px. Deliberately NOT built on `ReplayRecorder`, which
+      records state rather than input and thins to every 6th frame:
+      `TASK_DIVISION.md` assumed it could be extended and it cannot.
+- [x] Dark/translucent sprite — dark purple at 65% alpha plus a six-image ghost
+      trail, through `SpriteColorFilter::applyColorFilter()`. That class had
+      existed unused since the graphics phase (audit item B-9); this is its
+      first caller.
+- [x] Observed running: menu → Shadow Chase → the shadow replays the player's
+      jump arc three seconds behind them, the proximity gauge turns red and the
+      "BEHIND YOU" warning fires. See [docs/verification/shadow_chase_replaying.png](docs/verification/shadow_chase_replaying.png).
+
+### Bonus C2 — AI Opponent & Multiplayer Modes (`A/shadow-mario-ai-multiplayer`)
+- [x] `IAIPolicy` seam: `AIController` senses and actuates, the policy decides,
+      so a trained network can replace the heuristic without touching the loop
+- [x] `HeuristicPolicy` — utility-scored direction, obstacle/gap/threat jumping,
+      three archetypes as reward weightings
+- [x] Difficulty table from the plan: vision radius, reaction latency and
+      epsilon noise per tier, with the allowed-controls gating
+- [x] Four modes selectable from a multiplayer menu page: Versus (human or CPU),
+      Co-op, Shadow Chase. Split-screen deliberately absent rather than shown
+      disabled — `Camera` holds one non-movable `sf::View` and every screen-space
+      overlay would need to learn about viewports first.
+- [x] Per-mode GUI: mode-aware HUD, mode-aware game-over headline, both pads on
+      a Controls page with P2 bindings persisted, minimap rival/shadow markers,
+      ImGui panel for every new tunable
+- [x] Observed running: a Hard Hunter abandons the route and comes back for
+      Player 1 while a Normal Speedrunner climbs away to the right.
+      See [docs/verification/versus_cpu_hunter.png](docs/verification/versus_cpu_hunter.png).
+- [ ] A\* pathfinding on `TileMap` — not done, and not needed yet: the policy
+      reasons locally off its vision grid. Deliberately left unwritten rather
+      than shipped inert.
+- [ ] Split-screen Speedrun mode (plan §1.2) — its own proposal; see above.
 
 ### Bonus D — Dynamic Lighting (`feature/dynamic-lighting`)
 - [ ] GLSL fragment shader for radial light

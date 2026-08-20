@@ -3752,3 +3752,95 @@ Summary of Changes:
 - Committed as c142645. Not pushed (per policy). Implementation still awaiting
   the user's phase green-light and the Member A/B ownership call on Bonus C.
 ---
+[2026-08-20 11:48:54] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → b878f38 (after, plus a follow-up commit for
+  the key-hint fix, docs and verification captures)
+Fetched Remotes: yes, 10:24
+Prompt: Take all phases as Member A; implement Phase 0 (2P foundations), Phase 1
+  (Shadow Mario), Phase 2 (AI opponent) plus the per-mode GUI; keep the RL work
+  on a separate branch so it can be dropped from the submission.
+Files Modified: 53 files. New: Core/GameMode.hpp, Entities/{ShadowMario,
+  AIController,HeuristicPolicy,IAIPolicy}, Utils/InputScript, tests/
+  verify_multiplayer_ai.cpp, tests/scripts/*.txt, docs/verification/*.
+  Modified: PlayingState, Game, MenuState, OptionsState, GameOverState,
+  DevPanel, CollisionResolver, PhysicsEngine, Entity, Minimap, Serializer,
+  GameSnapshot, 16 entity files (nearest-player sweep), CMakeLists, TASKS.md,
+  docs/two_player_ai_plan.md.
+Reachable From Main: yes — menu → MULTIPLAYER page → all four modes. Verified by
+  playing each from a real launch, not from a harness. The one exception is
+  noted honestly below.
+Verified By: ran the game (scripted, in-process) AND ctest — 13/13 suites pass
+  including the new verify_multiplayer_ai (12 assertions). Every target builds.
+Summary of Changes:
+- PHASE 0. Three genuine defects in the already-ticked task 11.1:
+  * Player 2 could not jump. PlayingState::handleInput dispatched press events
+    to P1 only, so P2 had hold mappings (walk, crouch) and nothing else for the
+    entire life of two-player mode.
+  * The minimap toggle and P2's fire key were both M; moved the minimap to Tab.
+  * Enemies ignored P2 completely — 16 call sites asked Game::getPlayer(), which
+    is P1 by definition. They now ask getNearestPlayer(pos), which also skips a
+    dying player so a corpse does not drag the level's aggro off the map.
+  * GameSnapshot captured P1 only, so a 2P rewind rolled one score back and left
+    the other. Now records hasSecondPlayer + secondPlayerState.
+- PHASE 1. ShadowMario: a 60Hz deque<PlayerFramePacket>, drained past the delay,
+  inputs applied with a lerp back onto the recorded position past 4px of drift.
+  NOT built on ReplayRecorder — that records state not input and thins to every
+  6th frame, so TASK_DIVISION.md's "extends Replay system" rationale for Bonus C
+  is wrong and is now corrected in the plan doc. Dark purple + ghost trail via
+  SpriteColorFilter, whose FIRST caller this is (audit B-9 finally wired).
+  Modelled as a contact hazard, not a participant: one virtual on Entity, one
+  guard in the collision dispatch, so it cannot stomp Goombas or eat mushrooms
+  for the player it is chasing.
+- PHASE 2. AIController (senses + actuates) over IAIPolicy (decides), with
+  HeuristicPolicy shipping. Difficulty drives vision radius / reaction latency /
+  epsilon / allowed controls from the plan's table; the three archetypes are
+  reward weightings over one rule set. Drives a Player through the same verbs
+  InputManager's commands call, so no input plumbing was needed.
+- GUI per mode: multiplayer menu page (mode, opponent, AI skill, AI style, with
+  inapplicable rows disabled AND skipped by the cursor), mode-aware HUD (versus
+  scores labelled with the CPU's archetype, co-op shared pool, shadow proximity
+  gauge with a red danger band and a BEHIND YOU warning), mode-aware game-over
+  headline, a new Options → KEYS page exposing BOTH pads with P2 bindings now
+  persisted (Serializer gained keyBindings2, optional on load so old configs
+  still parse), minimap markers for rivals and the shadow, and an ImGui panel
+  for every new tunable.
+- THREE BUGS ONLY RUNNING THE GAME COULD HAVE FOUND, all fixed:
+  1. The shadow spawned on top of the player and killed them on frame one, twice,
+     ending a run in ~2s without a key being pressed. It is now inert until it
+     has something to replay.
+  2. On respawn it kept the dead life's buffer, so the correction lerp dragged it
+     back across the level onto the player and took the next life. resetChase()
+     now restarts the chase with the life.
+  3. Death attribution inferred cause from proximity, so a Goomba kill next to
+     the shadow was reported as "caught by their own shadow". The resolver now
+     tells the hazard it landed a hit, and the game-over headline reads the fact
+     rather than the mode.
+  A fourth, in my own new code: the multiplayer page's control hint was hardcoded
+  "P1 WASD + SPACE / P2 ARROWS + M" while this repo's config.json has P1 on the
+  arrow keys — i.e. both players sharing them. It now reads the live bindings and
+  warns when the two pads collide.
+- TOOLING. --script plays a text file of input through the real input pipeline,
+  in process. Written because the alternative was driving the OS keyboard via
+  osascript, which hijacks the machine's focus and types into whatever window is
+  in front; the user stopped me mid-session for exactly that reason. `shot`
+  writes a PNG from the live window, so a verification run needs no external
+  screen grab either. Scripts in tests/scripts/, captures in docs/verification/.
+- NOT DONE, deliberately, rather than shipped inert:
+  * A* pathfinding on TileMap. The policy reasons locally off its vision grid,
+    which is enough for the campaign levels. Writing an unused pathfinder is
+    exactly how five finished graphics subsystems ended up dead (audit B-9).
+  * Split-screen Speedrun (plan §1.2). Camera owns a single non-movable sf::View,
+    nothing anywhere uses setViewport, and every screen-space overlay would have
+    to learn which half it draws into. Its own proposal.
+  * AIObservation::toFeatureVector() lives on the RL branch with its only caller,
+    not here.
+- PRE-EXISTING DEFECT FOUND AND PROVEN NOT MINE: the game aborts on every clean
+  exit with "mutex lock failed: Invalid argument". Verified by building a59d435
+  in a throwaway worktree with a temporary auto-quit probe — the baseline aborts
+  identically. Game::shutdown() carries a comment saying this same crash was
+  fixed once by clearing ResourceManager before the window; prime suspect is the
+  function-local `static sf::Sprite dummySprite` in Animator::getSprite(), which
+  also explains the stray empty "[ResourceManager] Texture not found:" line.
+  Spawned as a separate task rather than fixed here.
+- Not pushed, per policy. dev remains 30 commits ahead of origin/dev locally.
+---

@@ -280,10 +280,54 @@ public:
 
 ---
 
-## 📈 7. Next Steps for Implementation
+## 📈 7. Implementation Status
 
-1. **Verify State & Input Framework**: Ensure `InputManager` supports registering P2 controllers (Keyboard/Gamepad) for Split-Screen and Shared-Screen configurations.
-2. **Prototype Shadow Mario**: Implement the ring-buffer recording loop inside `PlayingState` and hook up position interpolation to ensure smooth tracking.
-3. **A* Helper Integration**: Implement a basic pathfinding helper on the `TileMap` to allow the AI to navigate platforms on custom levels.
-4. **GUI Pass Per Mode**: Land the §5 items alongside each mode's mechanics — a mode is not complete until its menu route, HUD, and end screens reflect it.
-5. **Policy Seam First**: Build `AIController` against `IAIPolicy` from the first commit (§6), shipping `HeuristicPolicy`; the neural network arrives later as a drop-in.
+Implemented on `A/shadow-mario-ai-multiplayer`. What landed, and where this
+document turned out to be wrong:
+
+| Item | State |
+| :--- | :--- |
+| P2 input framework (§7.1) | Done — and it was *broken*, not missing: P2's press actions were never dispatched, so Player 2 could not jump at all. |
+| Shadow Mario (§3) | Done. Inputs drive it, the recorded position is the leash, as designed. |
+| Shared-screen Versus, Co-op, Shadow Chase (§1.1, 1.3, 1.4) | Done. |
+| Split-Screen Speedrun (§1.2) | **Not done.** `Camera` owns a single non-movable `sf::View` and no code anywhere uses `setViewport`; every screen-space overlay would have to learn which half it draws into first. Own proposal. |
+| AI difficulty tiers (§2A) | Done — vision radius, reaction latency, ε and allowed controls per tier. |
+| AI archetypes (§2B) | Done as reward weightings over one rule set. |
+| A\* path planning (§4) | **Not done, deliberately.** The policy reasons locally from its vision grid, which is enough for the campaign levels. Writing an unused pathfinder is how this project accumulated five finished-but-inert graphics subsystems (audit B-9). |
+| Per-mode GUI (§5) | Done. |
+| RL policy seam (§6) | Done on this branch; the network itself is on `A/rl-neural-policy`. |
+
+### Corrections to this document
+
+1. **§3 said the delay queue could extend the existing replay system.**
+   `TASK_DIVISION.md` repeats this as the reason Bonus C is cheap. It is wrong
+   twice over: `ReplayRecorder` records *state, not input* — its header explains
+   that the simulation is not deterministic, which is exactly why — and it thins
+   to every sixth frame, so it has 10Hz resolution and cannot drive a character.
+   Shadow Mario needed a new 60Hz input buffer, which is what it now has.
+
+2. **§4's `AIController` sketch mentioned "neural network inference or decision
+   tree" inside `executeTacticalMove`.** Decisions moved out to `IAIPolicy` (§6)
+   instead, so sensing, deciding and actuating are three separable things.
+
+3. **Three bugs only a real playthrough could have found**, all now fixed, all
+   invisible to a unit test: the shadow spawned on top of the player and killed
+   them on frame one; on respawn it kept the dead life's buffer and the
+   correction lerp dragged it back across the level into the player; and the
+   death report inferred cause from proximity, so a Goomba kill next to the
+   shadow was announced as being caught by it.
+
+### Verifying it without playing it
+
+`--script` plays a text file of input through the real input pipeline, in
+process, so a verification run neither needs a human nor touches the machine's
+keyboard. Scripts live in `tests/scripts/`; `shot` writes a PNG to
+`saves/shots/`.
+
+```
+./build/SuperMarioGame --script tests/scripts/shadow_chase_run.txt
+./build/SuperMarioGame --script tests/scripts/versus_cpu.txt
+```
+
+Note that scripts name **bound** keys, not the built-in defaults — the
+`config.json` in this repo has Player 1 on the arrow keys.
