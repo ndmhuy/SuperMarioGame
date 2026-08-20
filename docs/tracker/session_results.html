@@ -373,8 +373,11 @@ frozen baseline         24.9    75.3    21.4    13.1
           Game code stays at the project's build type so it remains debuggable; no <code>-ffast-math</code>, so float semantics and reproducibility are untouched.
           The ctest suite also dropped from 14.6s to 4.2s.</div></div>
         <div class="field"><span class="k">Reasoning</span><div class="v">Unoptimised, live training is simply impossible — one step would eat three quarters of the
-          frame budget the renderer needs. This also explains upstream's <code>benchmark_results.md</code> reporting 0.01× vs PyTorch: those are <code>-O0</code> numbers.
-          Worth re-running that benchmark upstream with flags.</div></div>
+          frame budget the renderer needs. <strong>Correction:</strong> I inferred from this that upstream's <code>benchmark_results.md</code> 0.01× figures were <code>-O0</code> artifacts.
+          <strong>That inference was wrong.</strong> The framework's maintainer preserved the old build directory and confirmed it was
+          <code>Release</code> / <code>-O3 -DNDEBUG</code>; the published numbers reproduce. The 42× here is real but shape-specific — small tensors are
+          dominated by inlining-sensitive expression-template code, while their 1024×1024 matmul is memory-bound and gains ≤1.5%. Their 0.01× stands, with
+          real causes: a <code>parallelFor</code> that runs serially below 4096, so matmul is single-threaded at every benchmarked size.</div></div>
       </div>
     </article>
 
@@ -399,7 +402,10 @@ frozen baseline         24.9    75.3    21.4    13.1
           <pre class="result">first run: <span class="r">79,241 samples, loss frozen 0.13, agreement stuck 47%</span></pre>
           <p style="margin-top:8px"><strong>Bug 1:</strong> <code>PolicyTrainer</code> called <code>nn::Loss::compute()</code>, which returns a bare value —
           only <code>nn::Loss::forward()</code> attaches the GradFn. Every <code>backward()</code> was a no-op. It looked exactly like training.</p>
-          <p><strong>Bug 2:</strong> reusing one leaf tensor across backward passes grows its graph without bound — 200 steps took minutes, fresh tensors hold a flat 0.015 ms.</p></div></div>
+          <p><strong>Bug 2 — RETRACTED.</strong> I reported that reusing a leaf tensor grows its graph without bound, from a 200-step run that "took minutes".
+          Re-measured: flat 0.010 ms/step over 100 steps, no growth, and the framework's maintainer independently could not reproduce it across three variants.
+          The minutes were the framework <em>recompiling</em>, misread as run time. Fresh tensors per step remain correct practice, but for the ordinary reason
+          that each decision is a new sample — not because of a defect.</p></div></div>
         <div class="field"><span class="k">Reasoning</span><div class="v">Isolated by testing the framework on a trivial 4→8→2 task rather than debugging inside the game.
           Loss identical to 6 decimal places across 200 iterations is not slow learning, it is no learning — a distinction the on-screen curve alone would have hidden for hours.</div></div>
       </div>

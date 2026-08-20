@@ -76,9 +76,14 @@ float PolicyTrainer::learn(const AIObservation& observation,
     const std::vector<float> features = observation.toFeatureVector();
     const std::vector<float> target = actionToTarget(teacherAction);
 
-    // Fresh tensors every step, deliberately. Reusing one leaf tensor across
-    // backward passes makes the graph hanging off it grow without bound: 200
-    // steps that way took minutes, while fresh inputs hold a flat ~0.015 ms.
+    // Fresh tensors every step. This is recommended practice rather than a
+    // workaround for a known defect: an earlier comment here claimed that
+    // reusing a leaf tensor grows its graph without bound, citing a 200-step
+    // run that "took minutes". That was wrong — the minutes were the framework
+    // recompiling, misread as run time. Re-measured, reuse holds a flat
+    // 0.010 ms/step over 100 steps, and the nn:: maintainer could not reproduce
+    // any growth either. Fresh tensors are still what this loop wants, because
+    // each decision is genuinely a new sample.
     nn::Tensor input(features, {1, static_cast<int>(features.size())});
     nn::Tensor labels(target, {1, NeuralPolicy::kActionBits});
 
