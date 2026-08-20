@@ -1,87 +1,107 @@
 #include "Entities/NeuralPolicy.hpp"
 
+#include "nn/Core/Device.hpp"
+#include "nn/Module/Activation.hpp"
+#include "nn/Module/Linear.hpp"
+#include "nn/Module/Sequential.hpp"
+#include "nn/Tensor/Tensor.hpp"
+#include "nn/Training/Checkpoint.hpp"
+#include "nn/Autograd/NoGrad.hpp"
+
 #include <nlohmann/json.hpp>
 
-#include <cmath>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <random>
+
+// This is the ONLY game translation unit that includes nn/, and it is compiled
+// as C++20 (CMakeLists.txt §16b) because nn/Tensor/Tensor.hpp uses concepts.
+// NeuralPolicy.hpp is PIMPL'd so nothing else in the C++17 game ever sees them.
+//
+// Why nn:: rather than the hand-rolled forward pass this file used to hold:
+// training now runs inside the game so it can be visualised as it happens
+// (docs/mapgen_gan_rl_plan.md §2d), and a training loop needs gradients. The
+// old std::vector<Layer> math could do a forward pass and nothing else; the
+// framework brings a real autograd engine, optimizers and checkpointing that
+// already exist and are already tested.
+
+// The definition of the type NeuralPolicy.hpp forward-declares.
+struct NeuralPolicy::Net {
+    nn::Sequential model;
+    std::vector<int> hidden;
+};
+
+void NeuralPolicy::NetDeleter::operator()(Net* net) const { delete net; }
 
 namespace {
 
-float tanhActivation(float x) { return std::tanh(x); }
-
-float sigmoid(float x) {
-    // Clamped before exp: a wide untrained layer can produce values large enough
-    // to overflow, and inf/nan propagating into the thresholds turns "press
-    // nothing" into "press everything".
-    if (x < -30.0f) return 0.0f;
-    if (x >  30.0f) return 1.0f;
-    return 1.0f / (1.0f + std::exp(-x));
+// Sidecar metadata written next to a checkpoint. The binary holds floats and
+// nothing else, so on its own it cannot say what observation layout it was
+// trained against — which is exactly the silent-misalignment failure
+// kAIObservationVersion exists to prevent.
+std::string sidecarPath(const std::string& weightsPath) {
+    return weightsPath + ".meta.json";
 }
 
 } // namespace
 
 NeuralPolicy::NeuralPolicy(const std::vector<int>& hiddenLayers, unsigned seed) {
-    std::mt19937 rng(seed);
+    build(hiddenLayers, seed);
+}
 
-    // Xavier-ish: scaled by the fan-in, so an untrained forward pass produces
-    // outputs near 0.5 rather than saturated at 0 or 1.
-    auto buildLayer = [&rng](int inputs, int outputs) {
-        Layer layer;
-        const float limit = 1.0f / std::sqrt(static_cast<float>(std::max(1, inputs)));
-        std::uniform_real_distribution<float> dist(-limit, limit);
-        layer.weights.resize(static_cast<std::size_t>(outputs));
-        for (auto& row : layer.weights) {
-            row.resize(static_cast<std::size_t>(inputs));
-            for (float& w : row) w = dist(rng);
-        }
-        layer.biases.assign(static_cast<std::size_t>(outputs), 0.0f);
-        return layer;
-    };
+NeuralPolicy::~NeuralPolicy() = default;
+
+void NeuralPolicy::build(const std::vector<int>& hiddenLayers, unsigned seed) {
+    // nn::Linear seeds itself with Xavier initialisation; the seed argument is
+    // kept in the signature because callers (and the old implementation)
+    // reasonably expect reproducibility to be expressible here.
+    (void)seed;
+
+    auto net = std::unique_ptr<Net, NetDeleter>(new Net());
+    net->hidden = hiddenLayers;
 
     int previous = static_cast<int>(AIObservation::featureCount());
     for (const int width : hiddenLayers) {
-        m_layers.push_back(buildLayer(previous, width));
+        net->model.add(std::make_unique<nn::Linear>(previous, width));
+        // Tanh, matching what this policy has always used for hidden layers:
+        // the observation is normalised to [-1, 1] and a zero-centred
+        // activation keeps the hidden representation in that same world.
+        net->model.add(nn::Activation::Tanh());
         previous = width;
     }
-    m_layers.push_back(buildLayer(previous, kActionBits));
+    net->model.add(std::make_unique<nn::Linear>(previous, kActionBits));
+    // Sigmoid, NOT softmax: a real action is a *set* of buttons — running right
+    // while jumping is three at once — and one-of-N cannot express that.
+    net->model.add(nn::Activation::Sigmoid());
 
-    std::cout << "[NeuralPolicy] Untrained network: " << AIObservation::featureCount()
-              << " inputs -> " << m_layers.size() << " layers -> " << kActionBits
-              << " buttons. Load weights to make it play." << std::endl;
-}
+    m_net = std::move(net);
+    m_hiddenLayers = hiddenLayers;
+    m_trained = false;
 
-std::vector<float> NeuralPolicy::forward(const std::vector<float>& input) const {
-    std::vector<float> activations = input;
-
-    for (std::size_t index = 0; index < m_layers.size(); ++index) {
-        const Layer& layer = m_layers[index];
-        const bool isOutput = (index + 1 == m_layers.size());
-
-        std::vector<float> next(layer.biases.size(), 0.0f);
-        for (std::size_t out = 0; out < layer.weights.size(); ++out) {
-            float sum = layer.biases[out];
-            const std::vector<float>& row = layer.weights[out];
-            // Guarded rather than assumed: load() validates shapes, but the
-            // constructor and a loaded file are two different sources of truth
-            // and a mismatch here would read off the end of the vector.
-            const std::size_t width = std::min(row.size(), activations.size());
-            for (std::size_t in = 0; in < width; ++in) {
-                sum += row[in] * activations[in];
-            }
-            next[out] = isOutput ? sigmoid(sum) : tanhActivation(sum);
-        }
-        activations = std::move(next);
-    }
-    return activations;
+    std::cout << "[NeuralPolicy] Built " << AIObservation::featureCount()
+              << " inputs -> " << hiddenLayers.size() << " hidden layer(s) -> "
+              << kActionBits << " buttons. Untrained until load() or training."
+              << std::endl;
 }
 
 AIAction NeuralPolicy::decide(const AIObservation& observation) {
-    m_lastOutputs = forward(observation.toFeatureVector());
-
     AIAction action;
-    if (m_lastOutputs.size() < static_cast<std::size_t>(kActionBits)) return action;
+    if (!m_net) return action;
+
+    const std::vector<float> features = observation.toFeatureVector();
+
+    // Inference only: no graph, no gradients. Without this every decide() call
+    // during play would build an autograd graph nobody backpropagates and leak
+    // it for the lifetime of the episode.
+    nn::NoGrad noGrad;
+
+    nn::Tensor input(features, {1, static_cast<int>(features.size())});
+    nn::Tensor output = m_net->model.forward(input);
+
+    m_lastOutputs.assign(static_cast<std::size_t>(kActionBits), 0.0f);
+    for (int i = 0; i < kActionBits && i < output.size(); ++i) {
+        m_lastOutputs[static_cast<std::size_t>(i)] = output.flat(i);
+    }
 
     // Multi-label: each button is its own independent decision.
     action.moveLeft    = m_lastOutputs[0] > 0.5f;
@@ -102,18 +122,48 @@ AIAction NeuralPolicy::decide(const AIObservation& observation) {
     return action;
 }
 
-bool NeuralPolicy::load(const std::string& path) {
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        std::cerr << "[NeuralPolicy] Cannot open weights '" << path << "'." << std::endl;
+bool NeuralPolicy::saveCheckpoint(const std::string& path) const {
+    if (!m_net) return false;
+
+    if (!nn::Checkpoint::save(path, m_net->model.parameters())) {
+        std::cerr << "[NeuralPolicy] Could not write checkpoint '" << path << "'."
+                  << std::endl;
         return false;
     }
 
-    try {
-        nlohmann::json json;
-        file >> json;
+    nlohmann::json meta;
+    meta["observationVersion"] = kAIObservationVersion;
+    meta["featureCount"] = AIObservation::featureCount();
+    meta["hiddenLayers"] = m_hiddenLayers;
+    meta["actionBits"] = kActionBits;
 
-        const int version = json.value("observationVersion", -1);
+    std::ofstream file(sidecarPath(path));
+    if (!file) {
+        std::cerr << "[NeuralPolicy] Wrote weights but could not write "
+                  << sidecarPath(path) << "; the checkpoint is unusable without "
+                     "it, because nothing else records what it was trained against."
+                  << std::endl;
+        return false;
+    }
+    file << meta.dump(2) << std::endl;
+    return true;
+}
+
+bool NeuralPolicy::load(const std::string& path) {
+    std::ifstream metaFile(sidecarPath(path));
+    if (!metaFile.is_open()) {
+        std::cerr << "[NeuralPolicy] No metadata beside '" << path
+                  << "'. Refusing to load: without it there is no way to know "
+                     "what observation layout these weights expect." << std::endl;
+        return false;
+    }
+
+    std::vector<int> hidden;
+    try {
+        nlohmann::json meta;
+        metaFile >> meta;
+
+        const int version = meta.value("observationVersion", -1);
         if (version != kAIObservationVersion) {
             std::cerr << "[NeuralPolicy] Weights were trained against observation "
                          "version " << version << ", this build is version "
@@ -123,48 +173,32 @@ bool NeuralPolicy::load(const std::string& path) {
             return false;
         }
 
-        std::vector<Layer> layers;
-        for (const auto& layerJson : json.at("layers")) {
-            Layer layer;
-            for (const auto& row : layerJson.at("weights")) {
-                layer.weights.push_back(row.get<std::vector<float>>());
-            }
-            layer.biases = layerJson.at("biases").get<std::vector<float>>();
-
-            if (layer.weights.empty() || layer.weights.size() != layer.biases.size()) {
-                std::cerr << "[NeuralPolicy] Layer has " << layer.weights.size()
-                          << " weight rows and " << layer.biases.size()
-                          << " biases; they must match." << std::endl;
-                return false;
-            }
-            layers.push_back(std::move(layer));
-        }
-
-        if (layers.empty()) {
-            std::cerr << "[NeuralPolicy] Weight file declares no layers." << std::endl;
+        const std::size_t features = meta.value("featureCount", std::size_t{0});
+        if (features != AIObservation::featureCount()) {
+            std::cerr << "[NeuralPolicy] Weights expect " << features
+                      << " features, the game produces "
+                      << AIObservation::featureCount() << "." << std::endl;
             return false;
         }
-        if (layers.front().weights.front().size() != AIObservation::featureCount()) {
-            std::cerr << "[NeuralPolicy] Input layer expects "
-                      << layers.front().weights.front().size() << " features, the game "
-                         "produces " << AIObservation::featureCount() << "." << std::endl;
-            return false;
-        }
-        if (layers.back().weights.size() != static_cast<std::size_t>(kActionBits)) {
-            std::cerr << "[NeuralPolicy] Output layer has " << layers.back().weights.size()
-                      << " units, expected " << kActionBits << " (one per button)."
-                      << std::endl;
-            return false;
-        }
-
-        m_layers = std::move(layers);
-        m_trained = true;
-        std::cout << "[NeuralPolicy] Loaded " << m_layers.size() << " layers from "
-                  << path << "." << std::endl;
-        return true;
+        hidden = meta.value("hiddenLayers", std::vector<int>{64, 32});
     } catch (const std::exception& error) {
-        std::cerr << "[NeuralPolicy] Malformed weight file '" << path << "': "
+        std::cerr << "[NeuralPolicy] Malformed metadata for '" << path << "': "
                   << error.what() << std::endl;
         return false;
     }
+
+    // Rebuild to the recorded shape before restoring, so the parameter list the
+    // checkpoint is poured into has exactly the geometry it was saved from.
+    build(hidden, 1234u);
+
+    if (!nn::Checkpoint::load(path, m_net->model.parameters())) {
+        std::cerr << "[NeuralPolicy] Could not read weights '" << path << "'."
+                  << std::endl;
+        return false;
+    }
+
+    m_trained = true;
+    std::cout << "[NeuralPolicy] Loaded weights from " << path << " ("
+              << hidden.size() << " hidden layer(s))." << std::endl;
+    return true;
 }

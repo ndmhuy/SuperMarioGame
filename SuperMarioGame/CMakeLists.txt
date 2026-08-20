@@ -77,7 +77,8 @@ function(add_verify_test name source)
     target_link_libraries(${name} PRIVATE
         SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
         ImGui-SFML::ImGui-SFML
-        nlohmann_json::nlohmann_json)
+        nlohmann_json::nlohmann_json
+    nn)
     if (NOT AVT_NO_CTEST)
         add_test(NAME ${name} COMMAND ${name})
         # Assets resolve relative to the source tree, not the build directory.
@@ -123,6 +124,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::Network
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
+    nn
 )
 
 # ---------------------------------------------------------
@@ -236,6 +238,57 @@ target_link_libraries(generate_game_levels PRIVATE
     SFML::Network
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
+    nn
+)
+
+# ---------------------------------------------------------
+# 16b. Vendored neural network framework (nn::)
+# ---------------------------------------------------------
+# The author's own from-scratch deep learning library, copied in from CS200-Cpp
+# rather than referenced by path so the repository stays self-contained (see
+# third_party/nn/README.md for what was copied and the one patch applied).
+#
+# Built as C++20 IN ISOLATION: the framework uses concepts, while this project
+# is C++17 by AGENTS.md directive 5 and stays that way. NeuralPolicy.hpp uses
+# PIMPL so no nn/ header ever reaches C++17 game code.
+file(GLOB_RECURSE NN_SOURCES "third_party/nn/src/*.cpp")
+add_library(nn STATIC ${NN_SOURCES})
+target_include_directories(nn PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nn/include)
+set_target_properties(nn PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+
+# Optimise the math library even in a Debug build of the game.
+#
+# This is measured, not assumed. One training step of the actual policy network
+# (1899 -> 64 -> 32 -> 7, forward + backward + SGD):
+#
+#     no flags (Debug, as the game builds)   12.77 ms   = 77% of a 60Hz frame
+#     -O2                                     0.97 ms   =  6% of a frame
+#     -O3 -mcpu=native                        0.30 ms   =  1.8% of a frame
+#
+# 42x. Unoptimised, live in-game training is impossible — one step would eat
+# three quarters of the frame budget the renderer needs. It also explains the
+# 0.01x-vs-PyTorch figures in upstream's benchmark_results.md: NEON intrinsics
+# and expression templates depend entirely on inlining, and a -O0 build gets
+# none of it. Upstream sets no optimisation flags and no default build type.
+#
+# Only this target is affected. Game code stays at the project's build type so
+# it remains debuggable; nothing about float semantics is relaxed (no
+# -ffast-math), so results stay reproducible.
+target_compile_options(nn PRIVATE -O3)
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-mcpu=native" NN_HAS_MCPU_NATIVE)
+if(NN_HAS_MCPU_NATIVE)
+    # Lets the scheduler target this machine's NEON pipeline. Guarded because
+    # -mcpu=native is not accepted by every compiler/architecture combination,
+    # and a hard failure here would break the build for a grader on x86.
+    target_compile_options(nn PRIVATE -mcpu=native)
+endif()
+
+# The single game translation unit that talks to nn:: must also be C++20.
+# Everything else in APP_SOURCES stays C++17.
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Entities/NeuralPolicy.cpp"
+    PROPERTIES COMPILE_FLAGS "-std=c++20"
 )
 
 # ---------------------------------------------------------
@@ -263,6 +316,7 @@ target_link_libraries(eval_level PRIVATE
     SFML::Network
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json
+    nn
 )
 
 

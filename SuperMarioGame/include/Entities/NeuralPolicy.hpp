@@ -2,6 +2,7 @@
 
 #include "Entities/IAIPolicy.hpp"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -33,11 +34,18 @@
 // cannot express that.
 class NeuralPolicy : public IAIPolicy {
 public:
+    // The nn::Sequential behind this policy, kept incomplete on purpose — see
+    // the PIMPL note on m_net below.
+    struct Net;
+
     // Untrained: random small weights for the given hidden layer widths. Plays
     // badly, on purpose — an untrained network that looked competent would mean
     // the observation was not actually reaching it.
     explicit NeuralPolicy(const std::vector<int>& hiddenLayers = {64, 32},
                           unsigned seed = 1234u);
+
+    // Out-of-line: the PIMPL'd network is an incomplete type in this header.
+    ~NeuralPolicy() override;
 
     AIAction decide(const AIObservation& observation) override;
     const char* name() const override { return "NEURAL"; }
@@ -71,16 +79,38 @@ public:
     // One output per button, in AIAction declaration order.
     static constexpr int kActionBits = 7;
 
+    // --- Training access (see docs/mapgen_gan_rl_plan.md §2d) ----------------
+    //
+    // Training runs inside the game so it can be watched, which means the
+    // trainer needs the network itself, not just its decisions. These are the
+    // whole surface it needs, and they are deliberately opaque: `Net` is an
+    // incomplete type out here, so a caller can hold and pass a network without
+    // this header ever pulling in nn/.
+
+    // The underlying nn::Sequential. Null until build() or load(). Only the
+    // trainer (a C++20 translation unit) can do anything with it.
+    Net* network() const { return m_net.get(); }
+
+    // Construct a fresh randomly-initialised network of the given shape.
+    // Called by the trainer before a run; decide() falls back to no-op until
+    // this or load() has happened.
+    void build(const std::vector<int>& hiddenLayers, unsigned seed = 1234u);
+
+    // Persist / restore through nn::Training::Checkpoint (binary), alongside a
+    // sidecar JSON recording the observation version and layer shape — the
+    // binary alone cannot tell you what it was trained against.
+    bool saveCheckpoint(const std::string& path) const;
+
 private:
-    struct Layer {
-        // Row-major [out][in].
-        std::vector<std::vector<float>> weights;
-        std::vector<float> biases;
-    };
+    // PIMPL, and the reason for it: nn/Tensor/Tensor.hpp uses C++20 concepts,
+    // while this game is C++17 by AGENTS.md directive 5 and stays that way.
+    // Hiding the network behind an incomplete type keeps every C++17 include
+    // path in the game free of C++20 constructs; only NeuralPolicy.cpp and the
+    // trainer are compiled as C++20 (see CMakeLists.txt §16b).
+    struct NetDeleter { void operator()(Net*) const; };
 
-    std::vector<float> forward(const std::vector<float>& input) const;
-
-    std::vector<Layer> m_layers;
+    std::unique_ptr<Net, NetDeleter> m_net;
     std::vector<float> m_lastOutputs;
+    std::vector<int> m_hiddenLayers;
     bool m_trained = false;
 };
