@@ -104,7 +104,12 @@ private:
     // Episodes per rendered frame. 1 shows every frame of play; higher values
     // trade watchability for training throughput, which is the whole tuning
     // knob when the point is both to learn and to be seen learning.
-    int m_stepsPerFrame = 1;
+    // Default 8: real-time visual training measured 28 episodes in 100
+    // minutes on this machine — a 600-episode phase would take a day and a
+    // half. Above 1, the world renders only on substantial updates (new best
+    // progress, phase change), which is the compromise the user approved.
+    // The speed keys still adjust it live in both directions.
+    int m_stepsPerFrame = 8;
     float m_blinkPhase = 0.0f;
 
     // Whether to draw the world this frame.

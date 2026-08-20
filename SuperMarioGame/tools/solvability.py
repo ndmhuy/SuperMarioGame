@@ -104,6 +104,22 @@ DEADLY = {lt.HAZARD}
 # these are spaced to give roughly even steps in *height gained* (f^2 * 4 tiles)
 # rather than even steps in f.
 JUMP_HOLD_FRACTIONS = (0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.92, 1.0)
+
+# Trampoline launch speed, from Trampoline::activate() — vel.y = -831.4. The
+# bounce is automatic and full-strength (no variable hold), rising ~6 tiles
+# against the jump's 4.
+TRAMPOLINE_V0 = 831.4
+
+# Entity metadata is in WORLD tile coordinates; the band starts at this row.
+BAND_TOP_META = 9  # == level_tensor.BAND_TOP, restated to avoid an import cycle
+
+# Timing surcharge for device moves. Everything else in this module is pure
+# geometry; boarding a MOVING platform also demands phase (wait at the takeoff
+# until the platform is in the right place, then go). The wait makes the move
+# sound — the platform passes every point of its sweep periodically — but it
+# is a skill a geometric slack of 0.0 would misprice, so device moves cost at
+# least this much.
+DEVICE_DEMAND_FLOOR = 0.25
 H_SPEEDS = (RUN_SPEED, WALK_SPEED, 0.0)
 MAX_AIR_FRAMES = 240          # 4 s; longer than any arc the physics can produce
 
@@ -116,6 +132,29 @@ class Level:
         self.meta = meta
         self.h = len(grid)
         self.w = len(grid[0]) if grid else 0
+
+        # Device footholds, in band coordinates. A moving platform contributes
+        # its whole sweep: every cell its top passes over is a place the
+        # player can stand (having waited for the platform's phase — see
+        # DEVICE_DEMAND_FLOOR). sweeps[i] is the set of foothold cells of one
+        # platform, so riding connects them; platform_cells is their union.
+        self.sweeps = []
+        for platform in meta.get("movingPlatforms", []):
+            x0, y0 = int(platform["x"]), int(platform["y"]) - BAND_TOP_META
+            dx, dy = float(platform.get("rangeX", 4.0)), float(platform.get("rangeY", 0.0))
+            steps = max(int(round(max(abs(dx), abs(dy)))), 0)
+            sweep = set()
+            for i in range(steps + 1):
+                t = i / max(steps, 1)
+                # Foothold = the cell ABOVE the platform's body.
+                sweep.add((int(round(x0 + dx * t)), int(round(y0 + dy * t)) - 1))
+            self.sweeps.append(sweep)
+        self.platform_cells = set().union(*self.sweeps) if self.sweeps else set()
+
+        # Trampoline footholds: stand here and the next jump launches at
+        # TRAMPOLINE_V0 instead of JUMP_V0.
+        self.trampolines = {(int(t["x"]), int(t["y"]) - BAND_TOP_META)
+                            for t in meta.get("trampolines", [])}
 
     @classmethod
     def load(cls, path: str) -> "Level":
@@ -161,9 +200,12 @@ class Level:
         return False
 
     def standing(self, tx: int, ty: int) -> bool:
-        """A valid foothold: the box fits, and something solid is underfoot."""
+        """A valid foothold: the box fits, and something solid is underfoot —
+        or this is a device foothold (platform sweep cell, trampoline top)."""
         if self.box_blocked(tx, ty):
             return False
+        if (tx, ty) in self.platform_cells or (tx, ty + 1) in self.trampolines:
+            return True
         return any(self.solid(tx + dx, ty + PLAYER_H) for dx in range(PLAYER_W))
 
     def below_void(self, ty: int) -> bool:
@@ -214,6 +256,16 @@ def _simulate(level: Level, tx: int, ty: int, vx: float, v0: float):
             # Hit a ceiling: stop rising, keep drifting.
             vy = 0.0
             ny = y
+        elif vy > 0 and ((ntx, nty) in level.platform_cells or
+                         (ntx, nty + 1) in level.trampolines):
+            # Falling into a device foothold: a platform sweep cell (the
+            # platform can be there — DEVICE_DEMAND_FLOOR prices the wait) or
+            # a trampoline top. Tiles would have blocked; devices catch.
+            if not level.box_deadly(ntx, nty):
+                yield (ntx, nty, frame,
+                       (start_y - highest) / TILE,
+                       abs(ntx - tx))
+            return
 
         x, y = nx, ny
 
@@ -258,16 +310,31 @@ def _moves_from(level: Level, node: tuple[int, int]):
                 moves.append(((lx, ly), run / _max_run(), "fall"))
 
     # Jumps: every combination of hold length, horizontal speed, direction.
-    for hold in JUMP_HOLD_FRACTIONS:
+    # Standing on a trampoline, the launch is the bounce: full TRAMPOLINE_V0,
+    # no variable hold, and the envelope it is judged against is its own.
+    on_trampoline = (tx, ty + 1) in level.trampolines
+    launch_v0s = ((TRAMPOLINE_V0,) if on_trampoline
+                  else tuple(JUMP_V0 * hold for hold in JUMP_HOLD_FRACTIONS))
+    max_rise = (TRAMPOLINE_V0 ** 2 / (2.0 * GRAVITY)) / TILE if on_trampoline         else JUMP_HEIGHT / TILE
+    max_run = _max_run(TRAMPOLINE_V0) if on_trampoline else _max_run()
+    for v0 in launch_v0s:
         for speed in H_SPEEDS:
             for direction in ((-1, 1) if speed else (0,)):
-                for land in _simulate(level, tx, ty,
-                                      direction * speed, JUMP_V0 * hold):
+                for land in _simulate(level, tx, ty, direction * speed, v0):
                     lx, ly, _f, rise, run = land
                     # Slack: how much of the maximum envelope this used.
                     # 0 is trivial, 1 is at the physical limit.
-                    used = max(run / _max_run(), rise / (JUMP_HEIGHT / TILE))
+                    used = max(run / max_run, rise / max_rise)
+                    if (lx, ly) in level.platform_cells or on_trampoline:
+                        used = max(used, DEVICE_DEMAND_FLOOR)
                     moves.append(((lx, ly), min(used, 1.0), "jump"))
+
+    # Riding: aboard a platform, the rest of its sweep comes for the wait.
+    for sweep in level.sweeps:
+        if (tx, ty) in sweep:
+            for target in sweep:
+                if target != (tx, ty) and not level.box_blocked(*target):
+                    moves.append((target, DEVICE_DEMAND_FLOOR, "ride"))
 
     return moves
 
@@ -318,9 +385,9 @@ def reachable(level: Level, start: tuple[int, int]):
     return labels, parents
 
 
-def _max_run() -> float:
-    """Horizontal tiles covered by a full-height jump at run speed."""
-    air = 2.0 * JUMP_V0 / GRAVITY
+def _max_run(v0: float = JUMP_V0) -> float:
+    """Horizontal tiles covered by a full-height launch at run speed."""
+    air = 2.0 * v0 / GRAVITY
     return (RUN_SPEED * air) / TILE
 
 
@@ -411,8 +478,15 @@ def _bottleneck(labels: dict, parents: dict, route: list) -> dict:
         prev_label = max(prev_label, label)
     if worst_at is None:
         return {}
-    return {"x": worst_at[0], "y": worst_at[1] + lt.BAND_TOP,
-            "demand": round(worst, 4)}
+    # Both ends of the hardest edge, so a repair tool knows where the move
+    # STARTS as well as where it lands — a stepping stone goes between them.
+    origin = route[route.index(worst_at) - 1] if worst_at in route else None
+    result = {"x": worst_at[0], "y": worst_at[1] + lt.BAND_TOP,
+              "demand": round(worst, 4)}
+    if origin is not None:
+        result["fromX"] = origin[0]
+        result["fromY"] = origin[1] + lt.BAND_TOP
+    return result
 
 
 def render(level: Level) -> str:
@@ -470,6 +544,8 @@ def main(argv: list[str] | None = None) -> int:
 
     failures = 0
     for path in args.levels:
+        if path.endswith(".waypoints.json"):
+            continue   # sidecar, not a level — globs catch these
         level = Level.load(path)
         report = analyse(level)
         if args.waypoints:

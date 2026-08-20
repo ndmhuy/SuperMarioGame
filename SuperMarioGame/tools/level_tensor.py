@@ -188,6 +188,21 @@ def encode(level: dict) -> tuple[list[list[int]], dict]:
             ({"x": int(e["x"]), "y": int(e["y"])}
              for e in level.get("entities", []) if e.get("type") == "flagpole"),
             level.get("flagpole", {"x": width - 2, "y": 18})),
+        # Traversal devices, for the oracle. The grid's PLATFORM class says
+        # "something rideable rests here"; these carry what the class cannot:
+        # the sweep a moving platform patrols (rangeX/rangeY in tiles — files
+        # saved before the schema carried it get the engine's 4-tile
+        # horizontal default), and where the trampolines stand.
+        "movingPlatforms": [
+            {"x": int(e["x"]), "y": int(e["y"]),
+             "rangeX": float(e.get("rangeX", 4.0)),
+             "rangeY": float(e.get("rangeY", 0.0))}
+            for e in level.get("entities", [])
+            if e.get("type") == "moving_platform"],
+        "trampolines": [
+            {"x": int(e["x"]), "y": int(e["y"])}
+            for e in level.get("entities", [])
+            if e.get("type") == "trampoline"],
     }
     return grid, meta
 

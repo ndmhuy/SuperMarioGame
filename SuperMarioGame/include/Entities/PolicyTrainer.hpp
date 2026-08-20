@@ -3,6 +3,7 @@
 #include "Entities/IAIPolicy.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -102,7 +103,12 @@ public:
         // samples at 2844 floats would be 2 GB. 12k samples is ~136 MB and
         // still spans dozens of episodes, so early competent states stay in the
         // training distribution.
-        std::size_t aggregateCapacity = 12000;
+        // Sized for TEN levels, not one. 12k was enough to hold ~13 episodes
+        // of level_1 and reach teacher parity there; spread over a 10-level
+        // rotation it held ~1.3 episodes per level, and the forgetting
+        // signature returned (jump agreement 0.99 -> 0.82 over 400 episodes).
+        // Quantized storage (below) makes 48k cost what 12k float did.
+        std::size_t aggregateCapacity = 48000;
         // Samples drawn from the buffer per update, alongside the new one.
         // Minibatches are also 2.45x more efficient per sample than batch 1.
         int replayBatch = 16;
@@ -220,15 +226,23 @@ private:
     };
     std::vector<Transition> m_episode;
 
-    // The aggregated dataset. A ring buffer: once full, the oldest transition
-    // is replaced, which keeps a moving window of the states the learner has
-    // actually visited rather than only the most recent ones.
+    // The aggregated dataset — a RESERVOIR, not a FIFO ring. DAgger's
+    // guarantee comes from training on the union of everything ever
+    // collected; a ring buffer keeps only the most recent window, which on a
+    // 10-level rotation is a recency monoculture. Reservoir sampling
+    // (Algorithm R) keeps a uniform sample of ALL history in fixed memory:
+    // once full, the n-th sample replaces a uniformly random slot with
+    // probability capacity/n, or is dropped.
+    //
+    // Features are stored quantized to int8 (value * 127): the one-hots are
+    // exact, velocities and scalars get 1/127 steps — sensor noise, not
+    // signal loss — and each sample costs 4.4KB instead of 17.7KB.
     struct Sample {
-        std::vector<float> features;
+        std::vector<std::int8_t> features;
         std::vector<float> target;
     };
     std::vector<Sample> m_aggregate;
-    std::size_t m_aggregateNext = 0;
+    std::size_t m_samplesSeen = 0;
     // Running mean return, used as the REINFORCE baseline. Subtracting a
     // baseline leaves the gradient unbiased while cutting its variance, which
     // is the difference between this converging and thrashing.

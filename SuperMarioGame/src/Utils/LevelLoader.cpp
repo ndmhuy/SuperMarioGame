@@ -24,6 +24,7 @@
 #include "Entities/POWBlock.hpp"
 #include "Entities/Trampoline.hpp"
 #include "Entities/Pipe.hpp"
+#include "Entities/MovingPlatform.hpp"
 #include "Entities/QuestionBlock.hpp"
 
 #include <nlohmann/json.hpp>
@@ -140,6 +141,18 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
                 float exitX = entityJson.value("exitX", tx + 2.0f);
                 float exitY = entityJson.value("exitY", ty);
                 entity = std::make_unique<Pipe>(position, pipeId, sf::Vector2f(exitX * Constants::TILE_SIZE, exitY * Constants::TILE_SIZE), targetLevel, isEntrance);
+            } else if (typeStr == "moving_platform" && entityJson.contains("rangeX")) {
+                // Patrol carried by the schema (in tiles). Files without it
+                // fall through to the factory and its 4-tile default, so old
+                // levels keep behaving exactly as they did.
+                const float rangeX = entityJson.value("rangeX", 4.0f);
+                const float rangeY = entityJson.value("rangeY", 0.0f);
+                const float speed = entityJson.value("speed", 50.0f);
+                entity = std::make_unique<MovingPlatform>(
+                    position,
+                    sf::Vector2f(rangeX * Constants::TILE_SIZE,
+                                 rangeY * Constants::TILE_SIZE),
+                    speed);
             } else {
                 EntityType eType = SerializationUtils::parseEntityTypeName(typeStr);
                 entity = EntityFactory::create(eType, position);
@@ -252,6 +265,18 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
             if (typeStr == "flagpole") {
                 j["flagpole"]["x"] = entObj["x"];
                 j["flagpole"]["y"] = entObj["y"];
+            }
+
+            // A moving platform's identity IS its patrol. The schema never
+            // carried it, so every save/load flattened whatever the generator
+            // or editor placed back to the factory's 4-tile horizontal
+            // default — and the solvability oracle cannot model a sweep it
+            // cannot read. Written in tiles, like every coordinate here.
+            if (const auto* platform = dynamic_cast<const MovingPlatform*>(entity.get())) {
+                const sf::Vector2f range = platform->getTravelRange();
+                entObj["rangeX"] = range.x / Constants::TILE_SIZE;
+                entObj["rangeY"] = range.y / Constants::TILE_SIZE;
+                entObj["speed"] = platform->getPatrolSpeed();
             }
 
             if (auto qBlock = dynamic_cast<const QuestionBlock*>(entity.get())) {

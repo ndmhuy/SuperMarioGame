@@ -10,7 +10,7 @@
 #include "nn/Tensor/Tensor.hpp"
 
 #include <algorithm>
-#include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <fstream>
@@ -121,11 +121,26 @@ float PolicyTrainer::learn(const AIObservation& observation,
     m_loss->setWeights(weights);
 
     // Aggregate first, so the new sample is eligible for its own update.
+    // Reservoir (Algorithm R): the buffer stays a UNIFORM sample of every
+    // transition ever seen, so no level and no training era crowds out the
+    // others. Quantize on the way in.
+    auto quantize = [](const std::vector<float>& values) {
+        std::vector<std::int8_t> q(values.size());
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            q[i] = static_cast<std::int8_t>(
+                std::lround(std::clamp(values[i], -1.0f, 1.0f) * 127.0f));
+        }
+        return q;
+    };
+    ++m_samplesSeen;
     if (m_aggregate.size() < m_config.aggregateCapacity) {
-        m_aggregate.push_back(Sample{features, target});
+        m_aggregate.push_back(Sample{quantize(features), target});
     } else if (!m_aggregate.empty()) {
-        m_aggregate[m_aggregateNext % m_aggregate.size()] = Sample{features, target};
-        ++m_aggregateNext;
+        const std::size_t j = static_cast<std::size_t>(
+            nextRandom() * static_cast<float>(m_samplesSeen));
+        if (j < m_aggregate.size()) {
+            m_aggregate[j] = Sample{quantize(features), target};
+        }
     }
 
     nn::Tensor prediction = net->model.forward(input);
@@ -183,8 +198,9 @@ float PolicyTrainer::learn(const AIObservation& observation,
                 static_cast<std::size_t>(nextRandom() * static_cast<float>(m_aggregate.size())),
                 m_aggregate.size() - 1);
             const Sample& sample = m_aggregate[pick];
-            batchFeatures.insert(batchFeatures.end(), sample.features.begin(),
-                                 sample.features.end());
+            for (const std::int8_t q : sample.features) {
+                batchFeatures.push_back(static_cast<float>(q) / 127.0f);
+            }
             batchTargets.insert(batchTargets.end(), sample.target.begin(),
                                 sample.target.end());
         }

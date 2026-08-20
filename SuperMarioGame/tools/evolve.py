@@ -129,6 +129,45 @@ def signature_distance(a, b) -> float:
     return d / n
 
 
+def _solid_tile_type(level_json: dict) -> str:
+    """The level's own ground vocabulary, for repairs that match its theme."""
+    from collections import Counter
+    solid_types = [t["type"] for t in level_json.get("tiles", [])
+                   if lt._TILE_TO_CLASS.get(t["type"]) in (lt.SOLID,)]
+    return Counter(solid_types).most_common(1)[0][0] if solid_types else "ground"
+
+
+def repair(path: Path, report: dict) -> bool:
+    """One oracle-guided repair: a stepping stone inside the hardest edge.
+
+    The bottleneck names both ends of the move that sets the level's required
+    difficulty. A solid tile halfway along it splits that move into two easier
+    ones — repeat, and required difficulty descends stepwise. This is the
+    repair instruction the oracle's docstring promises: the level is edited at
+    the exact cells the analysis names, never blindly.
+    """
+    bn = report.get("bottleneck") or {}
+    if "fromX" not in bn:
+        return False
+    mx = (bn["fromX"] + bn["x"]) // 2
+    # Midpoint in HEIGHT too. The first version put the stone at the lower
+    # foothold's height, which splits a long flat jump but does nothing for a
+    # rise-dominated one — a 3-up-4-across bottleneck kept its full 3-tile
+    # climb and the descent never descended. Halfway up, it becomes two
+    # half-climbs.
+    my = (bn["fromY"] + bn["y"]) // 2
+    if mx in (bn["fromX"], bn["x"]):
+        return False                         # edge too short to split
+    level_json = json.loads(path.read_text())
+    stone = {"type": _solid_tile_type(level_json), "x": int(mx), "y": int(my) + 1}
+    for t in level_json.get("tiles", []):    # never double-place
+        if t["x"] == stone["x"] and t["y"] == stone["y"]:
+            return False
+    level_json["tiles"].append(stone)
+    path.write_text(json.dumps(level_json))
+    return True
+
+
 def evaluate(genome: dict, band: tuple, kept_signatures: list, workdir: Path,
              index: int) -> dict:
     """Render + oracle. Returns dict with fitness and the analysis report."""
@@ -145,6 +184,35 @@ def evaluate(genome: dict, band: tuple, kept_signatures: list, workdir: Path,
         return {"fitness": 0.0, "reason": "broken", "report": report}
 
     lo, hi = band
+
+    # Repair descent: a winnable level that is too HARD for the band gets
+    # stepping stones at its bottleneck until it fits (or repairs stop
+    # helping). The generator's grammar has a difficulty floor (~0.685 — some
+    # standard chunk always demands a near-5-tile jump), so without repair the
+    # easy bands are simply unreachable: a 6x16 search returned zero levels
+    # under 0.25.
+    # A level is usually limited by SEVERAL copies of the same hard chunk, so
+    # the required number only drops once every copy is repaired. Keep going
+    # while each repair either lowers the number or MOVES the bottleneck to a
+    # new cell; stop only when a repair changes nothing (same cell, same
+    # demand), breaks the level, or the budget runs out.
+    repairs = 0
+    while report["requiredDifficulty"] > hi and repairs < 24:
+        before = (report["bottleneck"].get("x"), report["bottleneck"].get("y"),
+                  report["requiredDifficulty"]) if report.get("bottleneck") else None
+        if not repair(out, report):
+            break
+        level = solvability.Level.load(str(out))
+        new_report = solvability.analyse(level)
+        if not new_report["winnable"]:
+            break                    # a stone must never break the level
+        after = (new_report["bottleneck"].get("x"), new_report["bottleneck"].get("y"),
+                 new_report["requiredDifficulty"]) if new_report.get("bottleneck") else None
+        if after == before:
+            report = new_report
+            break                    # stone placed, nothing changed: stuck
+        report = new_report
+        repairs += 1
     d = report["requiredDifficulty"]
     # Inside the band scores 1; outside decays linearly to 0 at band-width away.
     width = max(hi - lo, 1e-6)
@@ -162,8 +230,9 @@ def evaluate(genome: dict, band: tuple, kept_signatures: list, workdir: Path,
     optional_gap = max(0.0, report["hardestOptional"] - d)
 
     fitness = band_score * (0.6 + 0.3 * diversity + 0.1 * min(optional_gap * 2, 1.0))
-    return {"fitness": fitness, "reason": "ok", "report": report,
-            "signature": sig, "path": out}
+    fitness -= 0.02 * repairs   # prefer genomes that are natively in band
+    return {"fitness": max(fitness, 0.0), "reason": "ok", "report": report,
+            "signature": sig, "path": out, "repairs": repairs}
 
 
 def main(argv=None) -> int:

@@ -11,6 +11,12 @@ public:
 
     std::string getTypeName() const override { return "moving_platform"; }
 
+    // Patrol geometry, for serialization and for the solvability oracle:
+    // the platform sweeps from its spawn position to spawn + travelRange and
+    // back. A route that rides it can reach anywhere along that sweep.
+    sf::Vector2f getTravelRange() const { return m_travelRange; }
+    float getPatrolSpeed() const { return m_speed; }
+
     void onHitFromBelow(Player& player) override;
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
