@@ -4,6 +4,7 @@
 #include "Utils/Constants.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
+#include <algorithm>
 
 KoopaTroopa::KoopaTroopa(sf::Vector2f position, bool isRed)
     : Enemy(position, 200), m_isRed(isRed) {
@@ -15,6 +16,10 @@ KoopaTroopa::KoopaTroopa(sf::Vector2f position, bool isRed)
 }
 
 void KoopaTroopa::update(float dt) {
+    if (m_kickGrace > 0.0f) {
+        m_kickGrace = std::max(0.0f, m_kickGrace - dt);
+    }
+
     if (m_isFlipped) {
         Enemy::update(dt);
     } else {
@@ -48,6 +53,14 @@ void KoopaTroopa::update(float dt) {
                 velocity.x = -velocity.x;
                 onWall = false;
             }
+            // Hold the speed. PhysicsEngine applies friction to every Character,
+            // and an Enemy is a Character — but a shelled Koopa runs no strategy,
+            // so nothing re-asserted its velocity and the decay was unopposed. A
+            // kicked shell slid a short way, stopped, and then the player walked
+            // back into a "moving shell" and took damage from it. Shell chains
+            // could not work either: the shell never reached the next enemy.
+            const float direction = (velocity.x >= 0.0f) ? 1.0f : -1.0f;
+            velocity.x = direction * Constants::KOOPA_SHELL_KICK_SPEED;
         }
         boundingBox.x = position.x;
         boundingBox.y = position.y;
@@ -126,6 +139,8 @@ void KoopaTroopa::onHitByFireball() {
 void KoopaTroopa::kick(sf::Vector2f velocity) {
     m_state = KoopaState::ShellKicked;
     this->velocity = velocity;
+    // Long enough for the shell to clear the player who launched it.
+    m_kickGrace = 0.35f;
 }
 
 void KoopaTroopa::pickUp(Player* holder) {

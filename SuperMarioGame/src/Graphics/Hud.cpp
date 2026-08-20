@@ -24,27 +24,43 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
     // Initialize text attributes
     m_scoreText.setCharacterSize(24);
     m_scoreText.setFillColor(sf::Color::White);
+    m_scoreText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_scoreText.setOutlineThickness(2.0f);
 
     m_coinsText.setCharacterSize(24);
     m_coinsText.setFillColor(sf::Color::White);
+    m_coinsText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_coinsText.setOutlineThickness(2.0f);
 
     m_worldText.setCharacterSize(24);
     m_worldText.setFillColor(sf::Color::Red);
+    m_worldText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_worldText.setOutlineThickness(2.0f);
 
     m_timeLeftText.setCharacterSize(24);
     m_timeLeftText.setFillColor(sf::Color::White);
+    m_timeLeftText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_timeLeftText.setOutlineThickness(2.0f);
 
     m_livesText.setCharacterSize(24);
     m_livesText.setFillColor(sf::Color::White);
+    m_livesText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_livesText.setOutlineThickness(2.0f);
 
     m_comboCountText.setCharacterSize(36);
     m_comboCountText.setFillColor(sf::Color::Green);
+    m_comboCountText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_comboCountText.setOutlineThickness(2.0f);
 
     m_pSwitchTimeText.setCharacterSize(24);
     m_pSwitchTimeText.setFillColor(sf::Color::Yellow);
+    m_pSwitchTimeText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_pSwitchTimeText.setOutlineThickness(2.0f);
 
     m_bossNameText.setCharacterSize(20);
     m_bossNameText.setFillColor(sf::Color::Red);
+    m_bossNameText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_bossNameText.setOutlineThickness(2.0f);
 
     // Configure health bar background
     m_healthBarOuter.setSize(sf::Vector2f(300.f, 20.f));

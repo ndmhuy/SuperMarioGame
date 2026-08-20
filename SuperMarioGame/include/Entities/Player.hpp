@@ -99,6 +99,34 @@ public:
     // shell was carried for the rest of the level with no way to put it down.
     bool throwHeldEntity();
 
+    // --- Carrying a form across a level load ------------------------------
+    //
+    // A warp discards the Player object and builds a new one, which reset the
+    // power-up form every time: Fire Mario went down a pipe and came back Small.
+    // These name the base form as a plain value so it can be re-applied to the
+    // replacement without moving the state object between two owners.
+    enum class Form { Small, Super, Fire, Cape, Mini };
+    Form getForm() const;
+    void setForm(Form form);
+
+    // --- Dying ---------------------------------------------------------------
+    //
+    // The classic death: a pop upward, then a fall clean through the level and
+    // off the bottom of the screen, and only then a respawn. Death used to
+    // teleport the player to the spawn point on the same frame they touched the
+    // pit, which read as a glitch rather than as dying.
+    //
+    // A dying player also stops colliding with anything and stops taking input,
+    // which is what makes the fall-through work and what stops a second death
+    // being registered on the way down.
+    void beginDeathFall();
+    bool isDying() const { return m_dying; }
+    void endDeathFall() { m_dying = false; }
+    void moveLeft() override;
+    void moveRight() override;
+    bool collidesWithTiles() const override { return !m_dying; }
+    bool isCollidable() const override { return !m_dying; }
+
     // --- Cape ---------------------------------------------------------------
     //
     // Which pad drives this player, so a state can ask the InputManager about
@@ -150,6 +178,7 @@ protected:
     float m_fireballCooldownTimer = 0.0f;
     Entity* m_heldEntity = nullptr;
     bool m_gliding = false;
+    bool m_dying = false;
     float m_capeSpinTimer = 0.0f;
 
     std::unique_ptr<Animator> m_animator;

@@ -203,6 +203,13 @@ void PlayingState::enter() {
         }
     });
 
+    // A player death reported from anywhere — an enemy killing Small Mario, the
+    // debug key, a script — runs the one death sequence. killPlayer() re-enters
+    // through this subscription when it publishes, and its phase guard absorbs
+    // that immediately.
+    m_playerDiedSubId = EventBus::getInstance().subscribe(
+        EventType::PlayerDied, [this](const GameEvent&) { killPlayer("was defeated"); });
+
     m_starCoinsCollected = {false, false, false};
     m_starCoinSubId = EventBus::getInstance().subscribe(EventType::StarCoinCollected, [this](const GameEvent& ev) {
         for (int i = 0; i < 3; ++i) {
@@ -315,6 +322,10 @@ void PlayingState::exit() {
     if (m_checkpointSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_checkpointSubId);
         m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_playerDiedSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_playerDiedSubId);
+        m_playerDiedSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
     if (m_fireballSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_fireballSubId);
@@ -452,7 +463,8 @@ void PlayingState::update(float dt) {
 
     // 1. Update trackers
     StatisticsTracker::getInstance().update(dt);
-    AchievementManager::getInstance().update(dt);
+    // Toast fading is advanced by Game::run, so it keeps running across a state
+    // change. Ticking it here as well would fade them at double speed.
 
     // 0a. Replay playback. Applied instead of simulating: physics and AI stay
     // switched off for the frame, so what is shown is what was recorded rather
@@ -543,6 +555,16 @@ void PlayingState::update(float dt) {
     }
     m_entities.erase(deadBegin, m_entities.end());
 
+    // 3b1. Death sequence. While it runs, the corpse is falling through the
+    // level on purpose, so none of the hazard checks below may fire again.
+    if (m_deathPhase != DeathPhase::None) {
+        updateDeathSequence(dt);
+        m_camera.update(dt);
+        m_background.update(dt);
+        ScreenTransitionManager::getInstance().update(dt);
+        return;
+    }
+
     // 3b2. Lava burns. A Lava tile is not solid — you fall into it, you do not
     // stand on it — so nothing in the physics engine would ever have noticed it.
     // Checked against the player's feet, which is the part that touches first.
@@ -555,7 +577,7 @@ void PlayingState::update(float dt) {
             // lava does not drain every life in one frame; Small Mario touching
             // it still dies outright, which is the intent.
             m_player->takeDamage(1);
-            if (m_player->getLives() <= 0) {
+            if (m_player->getLives() <= 0 || m_player->isDying()) {
                 killPlayer("fell into the lava");
                 return;
             }
@@ -787,13 +809,36 @@ void PlayingState::render(sf::RenderTarget& target) {
 
                 switch (tileType) {
                     case TileType::Ground: {
-                        // Use grass-top tile on exposed top row, dirt fill otherwise
-                        bool isTopExposed = (y == 0) || (m_tileMap.getTileType(x, y - 1) == TileType::Empty);
-                        frameKey = isTopExposed ? "solid_block_brown" : "solid_block_grey";
+                        // Themed terrain. This used to be brown-on-grey for every
+                        // level in the game, so an ice cavern and a castle floor
+                        // and a grass field all looked identical — and a
+                        // generated level looked like nothing in particular.
+                        const bool isTopExposed =
+                            (y == 0) || (m_tileMap.getTileType(x, y - 1) == TileType::Empty);
+                        switch (m_background.getTheme()) {
+                            case BackgroundTheme::Underground:
+                                frameKey = isTopExposed ? "solid_block_grey" : "brick_grey_inside";
+                                break;
+                            case BackgroundTheme::Castle:
+                                frameKey = isTopExposed ? "castle_brick_white" : "brick_grey_inside";
+                                break;
+                            case BackgroundTheme::Ice:
+                                frameKey = isTopExposed ? "solid_block_blue" : "brick_blue_inside";
+                                break;
+                            case BackgroundTheme::Overworld:
+                            default:
+                                frameKey = isTopExposed ? "solid_block_brown" : "brick_brown_inside";
+                                break;
+                        }
                         break;
                     }
                     case TileType::Brick:
-                        frameKey = "brick_brown_side";
+                        frameKey = (m_background.getTheme() == BackgroundTheme::Ice)
+                                       ? "brick_blue_one_side"
+                                       : (m_background.getTheme() == BackgroundTheme::Underground ||
+                                          m_background.getTheme() == BackgroundTheme::Castle)
+                                             ? "brick_grey_one_side"
+                                             : "brick_brown_side";
                         break;
                     case TileType::Question:
                         frameKey = "question_block_" + std::to_string(questionFrame % 3);
@@ -1109,13 +1154,18 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
         return false;
     }
 
+    // Everything that has to survive the swap. loadLevelByPath destroys the
+    // Player and builds a new one, so anything not captured here is lost: the
+    // power-up form was, which is why Fire Mario came out of a pipe as Small.
     int savedLives = Constants::INITIAL_LIVES;
     int savedCoins = 0;
     int savedScore = 0;
+    Player::Form savedForm = Player::Form::Small;
     if (m_player) {
         savedLives = m_player->getLives();
         savedCoins = m_player->getCoins();
         savedScore = m_player->getScore();
+        savedForm  = m_player->getForm();
     }
 
     cleanupTestScene();
@@ -1159,6 +1209,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     spawnSelectedPlayer(spawnPos);
     if (m_player) {
         m_player->restoreStats(savedLives, savedCoins, savedScore);
+        m_player->setForm(savedForm);
     }
 
     Game::getInstance().setTileMap(&m_tileMap);
@@ -1423,53 +1474,104 @@ void PlayingState::syncBossHud(HudData& hudData) const {
 void PlayingState::killPlayer(const char* reason) {
     if (!m_player) return;
 
-    SoundManager::getInstance().playSound("lost_life");
-    m_player->dropHeldEntity();   // a carried shell must not follow a corpse
+    // One death per death. This used to run its whole body every frame the
+    // player was still out of bounds: the pit check fires again next frame
+    // because nothing has moved the corpse, so "lost_life" played sixty times a
+    // second and — worse — fadeOut() was restarted every frame, which resets its
+    // elapsed time. The fade therefore never completed, its callback never ran,
+    // and the game-over screen never appeared. Falling into the void simply hung
+    // the game with a scream.
+    if (m_deathPhase != DeathPhase::None) return;
+
+    std::cout << "[PlayingState] Player " << reason << "." << std::endl;
+
+    // Set the phase BEFORE publishing: the PlayerDied subscription calls back
+    // into here, and the guard above is what absorbs it.
+    m_deathPhase  = DeathPhase::Falling;
+    m_deathTimer  = DEATH_FALL_SECONDS;
+    m_deathReason = reason;
+
+    // Pop up, then fall through the level. The respawn happens when the fall is
+    // over, not on the frame of the hit.
+    m_player->beginDeathFall();
+
+    // SoundManager's PlayerDied handler stops the music and plays the jingle, so
+    // this does not do it a second time.
+    EventBus::getInstance().publish({EventType::PlayerDied, m_player});
+}
+
+void PlayingState::updateDeathSequence(float dt) {
+    if (m_deathPhase != DeathPhase::Falling || !m_player) return;
+
+    m_deathTimer -= dt;
+
+    // Either the timer runs out or the corpse has visibly left the screen,
+    // whichever comes first — a death high above the ground should not make the
+    // player wait out a fall they cannot see.
+    const float offScreenY = m_camera.getVisibleBounds().y +
+                             m_camera.getVisibleBounds().height + 96.0f;
+    const bool fallFinished = m_deathTimer <= 0.0f || m_player->getPosition().y > offScreenY;
+    if (!fallFinished) return;
+
+    m_deathPhase = DeathPhase::None;
+    m_player->endDeathFall();
     m_player->loseLife();
 
     // In versus, one player running out does not end the run — the other is
     // still playing, and ending it early would hand them the win by default.
     if (m_twoPlayer && m_player->getLives() <= 0 && !allPlayersOut()) {
-        std::cout << "[PlayingState] Player 1 is out (" << reason
-                  << "); Player 2 continues." << std::endl;
+        std::cout << "[PlayingState] Player 1 is out; Player 2 continues." << std::endl;
         return;
     }
 
     if (m_player->getLives() > 0) {
-        // Respawn at the last checkpoint if one was reached, otherwise at the
-        // level's own spawn point — never at a hardcoded corner.
-        sf::Vector2f respawn = m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint;
-        // If the spawn point is itself in the void, respawning there is an
-        // infinite death loop that drains every life in a second — and plays the
-        // death sound every frame while it does.
-        const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
-        const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
-        if (respawn.y > mapBottom || respawn.x < 0.0f || respawn.x > mapRight) {
-            respawn = {Constants::TILE_SIZE * 3.0f, Constants::TILE_SIZE * 2.0f};
-            std::cerr << "[PlayingState] Respawn point was outside the map; "
-                         "using the top-left of the level instead." << std::endl;
-        }
-        m_player->setPosition(respawn);
-        m_player->setVelocity({0.0f, 0.0f});
-        m_camera.snapTo(respawn);
-
-        // A fresh clock per life, so a timeout death is recoverable.
-        m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
-        m_timeWarningFired = false;
-
-        std::cout << "[PlayingState] Player " << reason << ". Lives remaining: "
-                  << m_player->getLives() << std::endl;
-    } else {
-        std::cout << "[PlayingState] Game Over — " << reason << "." << std::endl;
-        EventBus::getInstance().publish({EventType::GameOver, 0});
-
-        // The summary has to be taken *now*: by the time the fade completes the
-        // callback runs, this state is being replaced and m_player is gone.
-        RunSummary summary = buildRunSummary();
-        ScreenTransitionManager::getInstance().fadeOut(0.6f, [summary]() {
-            Game::getInstance().changeState(std::make_unique<GameOverState>(summary));
-        });
+        respawnAtCheckpoint();
+        return;
     }
+
+    std::cout << "[PlayingState] Game Over — " << m_deathReason << "." << std::endl;
+    EventBus::getInstance().publish({EventType::GameOver, 0});
+
+    // Taken *now*: by the time the fade completes and the callback runs, this
+    // state is being replaced and m_player is gone.
+    const RunSummary summary = buildRunSummary();
+    m_deathPhase = DeathPhase::GameOver;   // nothing else may start a transition
+    ScreenTransitionManager::getInstance().fadeOut(0.6f, [summary]() {
+        Game::getInstance().changeState(std::make_unique<GameOverState>(summary));
+    });
+}
+
+void PlayingState::respawnAtCheckpoint() {
+    if (!m_player) return;
+
+    // The last checkpoint if one was reached, otherwise the level's own spawn
+    // point — never a hardcoded corner.
+    sf::Vector2f respawn = m_hasCheckpoint ? m_checkpointPosition : m_levelSpawnPoint;
+
+    // If the spawn point is itself in the void, respawning there is an infinite
+    // death loop that drains every life in a second.
+    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+    const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
+    if (respawn.y > mapBottom || respawn.x < 0.0f || respawn.x > mapRight) {
+        respawn = {Constants::TILE_SIZE * 3.0f, Constants::TILE_SIZE * 2.0f};
+        std::cerr << "[PlayingState] Respawn point was outside the map; "
+                     "using the top-left of the level instead." << std::endl;
+    }
+
+    m_player->setPosition(respawn);
+    m_player->setVelocity({0.0f, 0.0f});
+    m_player->setGrounded(false);
+    m_camera.snapTo(respawn);
+
+    // A fresh clock per life, so a timeout death is recoverable.
+    m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_timeWarningFired = false;
+
+    SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
+    ScreenTransitionManager::getInstance().fadeIn(0.35f);
+
+    std::cout << "[PlayingState] Respawned. Lives remaining: "
+              << m_player->getLives() << std::endl;
 }
 
 RunSummary PlayingState::buildRunSummary() const {

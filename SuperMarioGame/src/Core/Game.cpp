@@ -6,6 +6,7 @@
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Graphics/UiRenderer.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
 #include <SFML/System/Clock.hpp>
@@ -124,6 +125,10 @@ void Game::run() {
         // 2. Fixed Timestep Update
         while (lag >= timeStep) {
             m_gsm.update(timeStep);
+            // Toasts fade on their own clock. PlayingState used to be the only
+            // thing advancing it, so a toast raised as a level ended froze on
+            // screen once the state changed.
+            AchievementManager::getInstance().update(timeStep);
             lag -= timeStep;
         }
 
@@ -148,6 +153,12 @@ void Game::run() {
         m_window.clear(sf::Color(100, 149, 237)); // Cornflower Blue
         
         m_gsm.render(m_window);
+
+        // Above every state, below ImGui. An achievement can unlock during play,
+        // on the victory tally or on the world map, and the popup should show in
+        // all three.
+        m_window.setView(m_window.getDefaultView());
+        UiRenderer::drawAchievementToasts(m_window);
         
         ImGui::SFML::Render(m_window);
         m_window.display();

@@ -58,6 +58,12 @@ public:
                               unsigned int charSize, float valueColumnX = 0.0f,
                               float blinkPhase = 0.0f);
 
+    // Achievement toasts, drawn in screen space in the top-right. Lives here
+    // rather than in the HUD so any state can show them: they were an ImGui
+    // window in the dev panel before, which meant they only ever appeared while
+    // the dev overlay was up and never during ordinary play.
+    static void drawAchievementToasts(sf::RenderTarget& target);
+
     // Width in pixels the given string would occupy, for manual layout.
     static float measureTextWidth(const std::string& text, unsigned int size);
 

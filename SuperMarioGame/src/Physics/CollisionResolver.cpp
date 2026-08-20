@@ -12,6 +12,7 @@
 #include "Entities/Hammer.hpp"
 #include "Entities/KoopaTroopa.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/InputManager.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -193,6 +194,12 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
                 return;
             }
 
+            // A shell you just launched slides out from under you. Without
+            // this, kicking or throwing one hurt you on the very next frame.
+            if (koopaState == KoopaState::ShellKicked && koopa->isHarmlessToKicker()) {
+                return;
+            }
+
             if (koopaState == KoopaState::ShellIdle) {
                 // Side contact with a resting shell. Holding run picks it up to
                 // carry; otherwise it is kicked away, which is what happens if
@@ -201,7 +208,15 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
                                  koopa->getBoundingBox().getCenter().x;
                 const float away = (dx >= 0.0f) ? -1.0f : 1.0f;
 
-                if (player.isRunRequested() && !player.getHeldEntity()) {
+                // Either "B button". The originals use one button for run and
+                // fire; this game splits them, and requiring specifically the
+                // run key made carrying a shell feel like it did not work.
+                InputManager& input = InputManager::getInstance();
+                const int pad = player.getPlayerIndex();
+                const bool grabHeld = player.isRunRequested() ||
+                                      input.isActionHeld("run", pad) ||
+                                      input.isActionHeld("fire", pad);
+                if (grabHeld && !player.getHeldEntity()) {
                     koopa->pickUp(&player);
                     player.holdEntity(koopa);
                 } else {

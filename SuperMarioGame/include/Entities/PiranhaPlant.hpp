@@ -25,6 +25,10 @@ public:
     // plant still damaged anyone standing on the pipe.
     bool isCollidable() const override;
 
+    // How many pixels of the plant are currently outside the pipe. Public so a
+    // test can watch the whole emergence cycle rather than eyeball it.
+    float artworkVisibleHeight() const { return emergedHeight(); }
+
 private:
     float emergedHeight() const;
 

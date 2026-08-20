@@ -59,6 +59,7 @@
 #include "Entities/StarCoin.hpp"
 #include "Entities/Item.hpp"
 #include "Entities/Block.hpp"
+#include "Entities/PiranhaPlant.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -2124,6 +2125,17 @@ void testKoopaContactFollowsTheSeriesRules() {
         KoopaTroopa koopa({200.0f, 200.0f});
         koopa.onStomped();
         koopa.kick({300.0f, 0.0f});
+
+        // Straight after the kick it is harmless to whoever launched it — it is
+        // still overlapping them. Check that first, so the grace window is not
+        // silently what makes the damage check below pass or fail.
+        const int livesAtKick = player.getLives();
+        sideContact(player, koopa);
+        check(player.getInvincibilityTimer() <= 0.0f && player.getLives() == livesAtKick,
+              "a shell you just kicked does not hurt you on the way out");
+
+        // Once the grace expires it is a hazard like any other.
+        for (int i = 0; i < 40; ++i) koopa.update(1.0f / 60.0f);
         const int livesBefore = player.getLives();
         sideContact(player, koopa);
         check(player.getInvincibilityTimer() > 0.0f || player.getLives() < livesBefore,
@@ -2507,6 +2519,137 @@ void testDefeatingABossDoesNotDangle() {
           "and deactivates itself once the sequence finishes, so the prune takes it");
 }
 
+// Dying used to teleport the player to the spawn point on the frame they touched
+// the pit, and — for a fatal fall — killPlayer() ran its whole body again every
+// following frame, restarting the game-over fade so it never completed.
+void testDeathIsASequenceThatEnds() {
+    section("playtest  death falls, then respawns; the last one reaches game over");
+
+    Mario player({100.0f, 100.0f});
+    check(!player.isDying(), "a live player is not dying");
+    check(player.collidesWithTiles(), "and collides with the level");
+
+    player.beginDeathFall();
+    check(player.isDying(), "beginDeathFall marks the player dying");
+    check(player.getVelocity().y < 0.0f, "with an upward pop first");
+    check(!player.collidesWithTiles() && !player.isCollidable(),
+          "and no collision at all, so the corpse falls through the level");
+
+    // Input and damage are both ignored on the way down.
+    player.moveRight();
+    player.jump();
+    check(!player.isMoveRightRequested(), "a dying player ignores movement input");
+    const int livesBefore = player.getLives();
+    player.takeDamage(1);
+    check(player.getLives() == livesBefore, "and cannot be killed twice on the way down");
+
+    player.endDeathFall();
+    check(!player.isDying() && player.collidesWithTiles(), "ending the fall restores it");
+}
+
+// Small Mario being hit by an enemy called loseLife() inside powerDown() and
+// published PlayerDied, which nothing in PlayingState listened to. He lost a
+// life and carried on standing there.
+void testSmallMarioDyingReportsItInsteadOfSelfAccounting() {
+    section("playtest  an enemy killing Small Mario reports a death, once");
+
+    int deaths = 0;
+    const auto sub = EventBus::getInstance().subscribe(
+        EventType::PlayerDied, [&deaths](const GameEvent&) { ++deaths; });
+
+    Mario player({100.0f, 100.0f});
+    const int livesBefore = player.getLives();
+    player.takeDamage(1);   // Small -> death
+
+    check(deaths == 1, "the death is announced exactly once");
+    check(player.getLives() == livesBefore,
+          "and powerDown() no longer docks the life itself — PlayingState owns that, "
+          "because only it knows about checkpoints and game over");
+}
+
+// A warp discards the Player and builds a new one. Everything not explicitly
+// carried across is lost, and the power-up form was.
+void testAFormSurvivesBeingRebuilt() {
+    section("playtest  a power-up form survives the rebuild a warp performs");
+
+    Mario before({100.0f, 100.0f});
+    before.powerUp(1);                                   // FireFlower
+    check(before.getForm() == Player::Form::Fire, "Fire Mario reports the Fire form");
+    check(before.canShootFireball(), "and can shoot");
+
+    // What loadLevelByPath does: capture, destroy, rebuild, restore.
+    const Player::Form carried = before.getForm();
+    Mario after({100.0f, 100.0f});
+    check(after.getForm() == Player::Form::Small, "a fresh player starts Small");
+    after.setForm(carried);
+    check(after.getForm() == Player::Form::Fire,
+          "and comes out of the pipe still holding the fire flower");
+    check(after.canShootFireball(), "with the ability that goes with it");
+
+    // Every form round-trips, not just the one that was reported.
+    for (Player::Form form : {Player::Form::Small, Player::Form::Super,
+                              Player::Form::Fire, Player::Form::Cape, Player::Form::Mini}) {
+        Mario probe({100.0f, 100.0f});
+        probe.setForm(form);
+        if (probe.getForm() != form) {
+            check(false, "a form failed to round-trip");
+            return;
+        }
+    }
+    check(true, "all five forms round-trip through getForm/setForm");
+}
+
+// The piranha plant sat in full view on the pipe mouth the whole time it was
+// supposed to be hidden. The first attempt at this computed the visible height
+// with two terms that cancelled, so it reported the plant fully visible while
+// retracted — the exact state it was meant to hide.
+void testPiranhaPlantHidesInsideItsPipe() {
+    section("playtest  the piranha plant is invisible and harmless inside the pipe");
+
+    PiranhaPlant plant({320.0f, 608.0f});
+
+    // The cycle is 7s: 0-2 retracted, 2-3 emerging, 3-6 out, 6-7 retreating.
+    auto runTo = [&plant](float seconds) {
+        // Restart from zero each time by constructing fresh would lose the
+        // strategy's timer, so step forward from wherever we are instead.
+        for (int i = 0; i < static_cast<int>(seconds * 60.0f); ++i) {
+            plant.update(1.0f / 60.0f);
+        }
+    };
+
+    check(plant.artworkVisibleHeight() <= 0.01f,
+          "at rest it shows nothing at all");
+    check(!plant.isCollidable(), "and cannot bite from inside the pipe");
+
+    runTo(4.0f);   // well into the emerged window
+    check(plant.artworkVisibleHeight() > 16.0f, "once out, it is visible");
+    check(plant.isCollidable(), "and dangerous");
+
+    runTo(3.1f);   // past the 7s wrap, back to retracted
+    check(plant.artworkVisibleHeight() <= 0.01f, "and it hides again on the way back down");
+    check(!plant.isCollidable(), "harmless again once inside");
+}
+
+// Kicking a shell left it overlapping the kicker, and PhysicsEngine's friction
+// applies to every Character — including an enemy running no strategy — so the
+// shell stopped dead and the player walked back into a "moving shell".
+void testAKickedShellKeepsGoingAndSparesItsKicker() {
+    section("playtest  a kicked shell travels, and does not punish whoever kicked it");
+
+    KoopaTroopa koopa({300.0f, 300.0f});
+    koopa.onStomped();                       // -> ShellIdle
+    koopa.kick({Constants::KOOPA_SHELL_KICK_SPEED, 0.0f});
+
+    check(koopa.isHarmlessToKicker(),
+          "immediately after the kick the shell cannot hurt the player who kicked it");
+
+    // Friction would otherwise drag this to zero.
+    for (int i = 0; i < 120; ++i) koopa.update(1.0f / 60.0f);
+    check(std::abs(koopa.getVelocity().x) >= Constants::KOOPA_SHELL_KICK_SPEED - 1.0f,
+          "two seconds later it is still travelling at kick speed");
+    check(!koopa.isHarmlessToKicker(), "and by then it is dangerous again");
+}
+
 int main() {
     std::cout << "Audit regression suite\n";
 
@@ -2581,6 +2724,11 @@ int main() {
     testCapeActuallyDoesSomething();
     testEveryEntityTypeDrawsRealArt();
     testDefeatingABossDoesNotDangle();
+    testDeathIsASequenceThatEnds();
+    testSmallMarioDyingReportsItInsteadOfSelfAccounting();
+    testAFormSurvivesBeingRebuilt();
+    testPiranhaPlantHidesInsideItsPipe();
+    testAKickedShellKeepsGoingAndSparesItsKicker();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

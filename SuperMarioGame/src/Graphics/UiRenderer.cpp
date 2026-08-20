@@ -1,4 +1,7 @@
 #include "Graphics/UiRenderer.hpp"
+#include <cstdint>
+#include <algorithm>
+#include "Core/AchievementManager.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Utils/Constants.hpp"
 
@@ -94,4 +97,31 @@ float UiRenderer::measureTextWidth(const std::string& text, unsigned int size) {
     probe.setString(text);
     probe.setCharacterSize(size);
     return probe.getLocalBounds().size.x;
+}
+
+void UiRenderer::drawAchievementToasts(sf::RenderTarget& target) {
+    const auto& toasts = AchievementManager::getInstance().getActiveToasts();
+    if (toasts.empty()) return;
+
+    constexpr float CARD_W = 300.0f;
+    constexpr float CARD_H = 56.0f;
+    constexpr float MARGIN = 16.0f;
+
+    float y = MARGIN;
+    for (const AchievementToast& toast : toasts) {
+        const auto fade = [&toast](sf::Color c) {
+            c.a = static_cast<std::uint8_t>(
+                std::clamp(toast.alpha, 0.0f, 1.0f) * static_cast<float>(c.a));
+            return c;
+        };
+
+        const float x = static_cast<float>(Constants::WINDOW_WIDTH) - CARD_W - MARGIN;
+        drawPanel(target, {x, y}, {CARD_W, CARD_H},
+                  fade(sf::Color(0, 0, 0, 220)), fade(sf::Color(255, 216, 0, 240)));
+        drawText(target, "ACHIEVEMENT UNLOCKED", {x + 14.0f, y + 12.0f}, 9,
+                 fade(sf::Color(255, 216, 0)));
+        drawText(target, toast.name, {x + 14.0f, y + 30.0f}, 12,
+                 fade(sf::Color(255, 255, 255)));
+        y += CARD_H + 8.0f;
+    }
 }

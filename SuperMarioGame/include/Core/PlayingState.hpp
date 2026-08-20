@@ -15,6 +15,7 @@
 #include "Core/TimeRewindManager.hpp"
 #include "Core/DevPanel.hpp"
 #include "Utils/Constants.hpp"
+#include <string>
 #include <vector>
 #include <memory>
 
@@ -72,12 +73,32 @@ private:
     std::vector<std::unique_ptr<Entity>> m_entities;
     MapEditor m_mapEditor;
     EventBus::SubscriptionId m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_playerDiedSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_powerUpSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_levelCompleteSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_entitySpawnSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
     // One press of the crouch key is one warp, not one per frame.
     float m_warpCooldown = 0.0f;
+
+    // --- Dying ---------------------------------------------------------------
+    //
+    // Death is a sequence, not an instant. killPlayer() starts it; the player
+    // pops up and falls off the bottom of the screen; only then does the run
+    // either continue at the checkpoint or end.
+    //
+    // The phase is also the re-entry guard. killPlayer() used to run in full
+    // every frame the player was still out of bounds, restarting the game-over
+    // fade each time — so the fade never finished, its callback never fired, and
+    // falling into the void hung the game instead of showing the end screen.
+    enum class DeathPhase { None, Falling, GameOver };
+    static constexpr float DEATH_FALL_SECONDS = 1.6f;
+    DeathPhase m_deathPhase = DeathPhase::None;
+    float m_deathTimer = 0.0f;
+    std::string m_deathReason;
+
+    void updateDeathSequence(float dt);
+    void respawnAtCheckpoint();
 
     Player* m_player = nullptr;
 

@@ -32,10 +32,17 @@ void PiranhaPlant::setupAnimations(const SpriteSheet* spriteSheet) {
 float PiranhaPlant::emergedHeight() const {
     const auto* emergence = dynamic_cast<const TimerEmergenceStrategy*>(getStrategy());
     if (!emergence) return m_targetSize.y;      // no strategy: draw it whole
-    const float mouthY = emergence->getAnchorPos().y + m_targetSize.y;
-    const float bottomY = position.y + m_targetSize.y;
-    // bottomY == mouthY when fully retracted; it climbs as the plant rises.
-    return std::clamp(mouthY - bottomY + m_targetSize.y, 0.0f, m_targetSize.y);
+
+    // How far the plant has risen above its anchor. The anchor IS the pipe
+    // mouth: the strategy parks the plant exactly there when retracted and
+    // lifts it two tiles to emerge. So "risen" is also "how much of the plant is
+    // out of the pipe".
+    //
+    // The first version of this computed the same quantity with two extra terms
+    // that cancelled to +m_targetSize.y, so it reported the plant fully visible
+    // while retracted — which is the state it was supposed to hide.
+    const float risen = emergence->getAnchorPos().y - position.y;
+    return std::clamp(risen, 0.0f, m_targetSize.y);
 }
 
 void PiranhaPlant::render(sf::RenderTarget& target) {

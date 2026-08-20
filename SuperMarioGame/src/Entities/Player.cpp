@@ -19,6 +19,7 @@ void Player::performJump() {
 }
 
 void Player::jump() {
+    if (m_dying) return;
     if (onGround || coyoteFramesLeft > 0) {
         performJump();
     } else {
@@ -29,6 +30,7 @@ void Player::jump() {
 }
 
 void Player::run() {
+    if (m_dying) return;
     m_runRequested = true;
 }
 
@@ -68,6 +70,49 @@ bool Player::canShootFireball() const {
     // getBaseState() unwraps Star and Mega, so an invincible or giant Fire Mario
     // keeps his fireballs — the decorators wrap the form, they do not replace it.
     return dynamic_cast<FireState*>(getBaseState()) != nullptr;
+}
+
+Player::Form Player::getForm() const {
+    IPlayerState* base = getBaseState();
+    if (dynamic_cast<SuperState*>(base)) return Form::Super;
+    if (dynamic_cast<FireState*>(base))  return Form::Fire;
+    if (dynamic_cast<CapeState*>(base))  return Form::Cape;
+    if (dynamic_cast<MiniState*>(base))  return Form::Mini;
+    return Form::Small;
+}
+
+void Player::setForm(Form form) {
+    switch (form) {
+        case Form::Super: setBaseState(std::make_unique<SuperState>()); break;
+        case Form::Fire:  setBaseState(std::make_unique<FireState>());  break;
+        case Form::Cape:  setBaseState(std::make_unique<CapeState>());  break;
+        case Form::Mini:  setBaseState(std::make_unique<MiniState>());  break;
+        case Form::Small: setBaseState(std::make_unique<SmallState>()); break;
+    }
+}
+
+void Player::moveLeft() {
+    if (m_dying) return;
+    Character::moveLeft();
+}
+
+void Player::moveRight() {
+    if (m_dying) return;
+    Character::moveRight();
+}
+
+void Player::beginDeathFall() {
+    if (m_dying) return;
+    m_dying = true;
+    dropHeldEntity();
+    clearMovementRequests();
+    // Up first, then gravity takes it down through the floor: collidesWithTiles()
+    // is false for the whole fall.
+    velocity = {0.0f, -420.0f};
+    onGround = false;
+    m_gliding = false;
+    m_capeSpinTimer = 0.0f;
+    invincibilityTimer = 0.0f;
 }
 
 int Player::getPlayerIndex() const {
@@ -182,6 +227,7 @@ void Player::powerUp(int itemType) {
 }
 
 void Player::takeDamage(int amount) {
+    if (m_dying) return;
     if (invincibilityTimer > 0.0f) return;
     dropHeldEntity();
     Character::takeDamage(amount);
@@ -219,7 +265,12 @@ void Player::powerDown() {
         setBaseState(std::make_unique<SmallState>());
         EventBus::getInstance().publish({EventType::PlayerDamaged, this});
     } else if (dynamic_cast<SmallState*>(state)) {
-        loseLife();
+        // Report the death; do not account for it. Life accounting and the
+        // death sequence belong to PlayingState, which is the only thing that
+        // knows about checkpoints and game over. This used to call loseLife()
+        // here and publish an event nothing in PlayingState subscribed to, so
+        // an enemy killing Small Mario silently docked a life and left him
+        // standing where he was.
         EventBus::getInstance().publish({EventType::PlayerDied, this});
     }
 }

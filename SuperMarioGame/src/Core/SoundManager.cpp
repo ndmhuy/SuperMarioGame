@@ -110,6 +110,9 @@ void SoundManager::setupEventSubscriptions() {
     bus.subscribe(EventType::GroundPoundSlam, [this](const GameEvent&) { playSound("stomp"); });
     bus.subscribe(EventType::TimeWarning, [this](const GameEvent&) { playSound("time_warning"); });
     bus.subscribe(EventType::PauseToggled, [this](const GameEvent&) { playSound("pause"); });
+    // An achievement unlocking was completely silent; the only feedback was an
+    // ImGui window that normal play never shows.
+    bus.subscribe(EventType::AchievementUnlocked, [this](const GameEvent&) { playSound("one_up"); });
 }
 
 void SoundManager::playSound(const std::string& id) {

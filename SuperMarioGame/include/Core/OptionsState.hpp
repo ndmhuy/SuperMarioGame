@@ -18,7 +18,12 @@
 // closing it pops back to whichever pushed it.
 class OptionsState : public IGameState {
 public:
+    // Which page it opens on. The main menu's RECORDS row wants Statistics, the
+    // OPTIONS row wants Settings, and Tab cycles all four either way.
+    enum class Page { Settings, HighScores, Statistics, Achievements };
+
     OptionsState() = default;
+    explicit OptionsState(Page startPage) : m_page(startPage) {}
     ~OptionsState() override = default;
 
     void enter() override;
@@ -30,8 +35,6 @@ public:
     bool isOverlay() const override { return true; }
 
 private:
-    enum class Page { Settings, HighScores };
-
     // Row kinds drive what Left/Right and Enter do on the selected line.
     enum class RowKind { Volume, Difficulty, Toggle, Binding, Action };
 
@@ -47,6 +50,8 @@ private:
     void activateSelected();
     std::string valueTextFor(const Row& row) const;
     void close();
+    void renderStatisticsPage(sf::RenderTarget& target) const;
+    void renderAchievementsPage(sf::RenderTarget& target) const;
 
     Page m_page = Page::Settings;
     std::vector<Row> m_rows;
@@ -62,5 +67,7 @@ private:
     float m_noticeTimer = 0.0f;
 
     std::vector<HighScoreEntry> m_highScores;
+    // Achievements can outnumber the panel; the list scrolls.
+    int m_achievementScroll = 0;
     bool m_closing = false;
 };

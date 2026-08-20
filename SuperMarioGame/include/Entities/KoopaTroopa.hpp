@@ -35,6 +35,12 @@ public:
     // back to resting on the spot, with its wake-up timer restarted.
     void release();
 
+    // Seconds left in which this shell cannot hurt the player. Kicking a shell
+    // leaves it overlapping the person who kicked it, sliding, and the resolver
+    // read that as "you ran into a moving shell" and hurt you on the same frame.
+    // Throwing one you were carrying had the identical problem.
+    bool isHarmlessToKicker() const { return m_kickGrace > 0.0f; }
+
     // Getters for state/unit testing
     bool isRed() const { return m_isRed; }
     KoopaState getState() const { return m_state; }
@@ -47,6 +53,7 @@ protected:
     bool m_isRed;
     KoopaState m_state = KoopaState::Walking;
     float m_shellTimer = 0.0f;
+    float m_kickGrace = 0.0f;
     // isFlipped()/m_isFlipped deliberately NOT redeclared here.
     //
     // This class used to shadow both with its own copy. onHitByFireball() then

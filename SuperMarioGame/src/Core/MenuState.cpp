@@ -1,4 +1,5 @@
 #include "Core/MenuState.hpp"
+#include "Core/AchievementManager.hpp"
 #include "Core/CharacterSelectState.hpp"
 #include "Core/OptionsState.hpp"
 #include "Core/PlayingState.hpp"
@@ -22,7 +23,7 @@ namespace {
 
 // Main-menu rows, in display order.
 enum MainRow { ROW_START = 0, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
-               ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
+               ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
 constexpr int kThemeCount = 4;
@@ -60,7 +61,16 @@ void MenuState::enter() {
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
-    m_mainItems.emplace_back("OPTIONS & SCORES");
+    // Achievement progress on the row itself, so the player can see there is
+    // something to chase without opening the page first.
+    {
+        const auto& achievements = AchievementManager::getInstance().getAchievements();
+        int unlocked = 0;
+        for (const auto& a : achievements) if (a.unlocked) ++unlocked;
+        m_mainItems.emplace_back("RECORDS", std::to_string(unlocked) + "/" +
+                                            std::to_string(achievements.size()));
+    }
+    m_mainItems.emplace_back("OPTIONS");
     m_mainItems.emplace_back("QUIT");
 
     // Returning here from a finished run must not leave the screen unusable.
@@ -158,6 +168,12 @@ void MenuState::activateSelection() {
             case ROW_GENERATOR:
                 m_page = Page::Generator;
                 m_genSelected = 0;
+                break;
+            case ROW_RECORDS:
+                // Same screen, opened on the statistics page. Everything it
+                // shows was already being tracked and persisted with nowhere in
+                // the game to see it.
+                game.pushState(std::make_unique<OptionsState>(OptionsState::Page::Statistics));
                 break;
             case ROW_OPTIONS:
                 // Overlay: it pops straight back to this menu.
@@ -295,9 +311,11 @@ void MenuState::render(sf::RenderTarget& target) {
         UiRenderer::drawMenuItems(target, m_mainItems, m_mainSelected,
                                   {centerX - 270.0f, PANEL_TOP + PADDING}, ROW_HEIGHT, 15,
                                   centerX + 40.0f, m_elapsed);
-        UiRenderer::drawText(target, "UP/DOWN  SELECT      ENTER  CONFIRM",
-                             {centerX, PANEL_TOP + panelHeight + 18.0f}, 11,
-                             sf::Color(255, 255, 255), true);
+        // Shadowed: this line sits over the parallax bushes, and plain white
+        // text on light green foliage is unreadable.
+        UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  CONFIRM",
+                                     {centerX, PANEL_TOP + panelHeight + 20.0f}, 11,
+                                     sf::Color(255, 255, 255), true);
         return;
     }
 
@@ -320,6 +338,6 @@ void MenuState::render(sf::RenderTarget& target) {
     UiRenderer::drawMenuItems(target, rows, m_genSelected,
                               {centerX - 210.0f, 262.0f}, 36.0f, 13,
                               centerX + 110.0f, m_elapsed);
-    UiRenderer::drawText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
-                         {centerX, 570.0f}, 11, sf::Color(200, 200, 200), true);
+    UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
+                                 {centerX, 570.0f}, 11, sf::Color(220, 220, 220), true);
 }

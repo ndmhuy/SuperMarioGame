@@ -1,4 +1,8 @@
 #include "Core/OptionsState.hpp"
+#include <utility>
+#include <cstdio>
+#include "Core/StatisticsTracker.hpp"
+#include "Core/AchievementManager.hpp"
 #include "Core/Game.hpp"
 #include "Core/InputManager.hpp"
 #include "Core/SoundManager.hpp"
@@ -14,6 +18,8 @@ namespace {
 
 constexpr float PANEL_W = 760.0f;
 constexpr float PANEL_H = 560.0f;
+// Achievement rows that fit inside the panel; the rest scroll.
+constexpr int kAchievementRows = 9;
 
 const char* const kDifficulties[] = {"easy", "normal", "hard"};
 constexpr int kDifficultyCount = 3;
@@ -199,9 +205,13 @@ void OptionsState::handleInput(const sf::Event& event) {
     }
 
     switch (keyPressed->code) {
-        case Key::Tab:
-            m_page = (m_page == Page::Settings) ? Page::HighScores : Page::Settings;
+        case Key::Tab: {
+            // Settings -> High Scores -> Statistics -> Achievements -> back.
+            constexpr int kPageCount = 4;
+            m_page = static_cast<Page>((static_cast<int>(m_page) + 1) % kPageCount);
+            m_achievementScroll = 0;
             break;
+        }
         case Key::Escape:
         case Key::Backspace:
             close();
@@ -211,6 +221,8 @@ void OptionsState::handleInput(const sf::Event& event) {
             if (m_page == Page::Settings && !m_rows.empty()) {
                 const int n = static_cast<int>(m_rows.size());
                 m_selected = (m_selected - 1 + n) % n;
+            } else if (m_page == Page::Achievements) {
+                m_achievementScroll = std::max(0, m_achievementScroll - 1);
             }
             break;
         case Key::Down:
@@ -218,6 +230,11 @@ void OptionsState::handleInput(const sf::Event& event) {
             if (m_page == Page::Settings && !m_rows.empty()) {
                 const int n = static_cast<int>(m_rows.size());
                 m_selected = (m_selected + 1) % n;
+            } else if (m_page == Page::Achievements) {
+                const int total = static_cast<int>(
+                    AchievementManager::getInstance().getAchievements().size());
+                m_achievementScroll = std::min(std::max(0, total - kAchievementRows),
+                                               m_achievementScroll + 1);
             }
             break;
         case Key::Left:
@@ -258,10 +275,32 @@ void OptionsState::render(sf::RenderTarget& target) {
     const float centerX = Constants::WINDOW_WIDTH * 0.5f;
     const bool settings = (m_page == Page::Settings);
 
-    UiRenderer::drawShadowedText(target, settings ? "OPTIONS" : "HIGH SCORES",
-                                 {centerX, py + 28.0f}, 24, sf::Color(255, 216, 0), true);
-    UiRenderer::drawText(target, "TAB  SWITCH PAGE", {centerX, py + 64.0f}, 10,
+    const char* title = "OPTIONS";
+    switch (m_page) {
+        case Page::HighScores:   title = "HIGH SCORES";  break;
+        case Page::Statistics:   title = "STATISTICS";   break;
+        case Page::Achievements: title = "ACHIEVEMENTS"; break;
+        case Page::Settings:     break;
+    }
+    UiRenderer::drawShadowedText(target, title, {centerX, py + 28.0f}, 24,
+                                 sf::Color(255, 216, 0), true);
+
+    // Which of the four pages is showing, so Tab is discoverable rather than
+    // something you have to already know about.
+    const char* const kPageNames[] = {"OPTIONS", "SCORES", "STATS", "AWARDS"};
+    std::string tabs;
+    for (int i = 0; i < 4; ++i) {
+        if (i) tabs += "   ";
+        tabs += (static_cast<int>(m_page) == i) ? std::string("[") + kPageNames[i] + "]"
+                                                : std::string(" ") + kPageNames[i] + " ";
+    }
+    UiRenderer::drawText(target, tabs, {centerX, py + 62.0f}, 10,
                          sf::Color(150, 150, 150), true);
+    UiRenderer::drawText(target, "TAB  SWITCH PAGE", {centerX, py + 78.0f}, 9,
+                         sf::Color(110, 110, 110), true);
+
+    if (m_page == Page::Statistics)   { renderStatisticsPage(target);   return; }
+    if (m_page == Page::Achievements) { renderAchievementsPage(target); return; }
 
     if (settings) {
         std::vector<UiMenuItem> items;
@@ -319,4 +358,113 @@ void OptionsState::render(sf::RenderTarget& target) {
 
     UiRenderer::drawText(target, "ESC BACK", {centerX, py + PANEL_H - 36.0f}, 10,
                          sf::Color(160, 160, 160), true);
+}
+
+namespace {
+
+// "3m 04s", or "1h 12m" once a run gets long. Raw seconds read as noise.
+std::string formatDuration(float seconds) {
+    const int total = std::max(0, static_cast<int>(seconds));
+    const int hours = total / 3600;
+    const int mins  = (total % 3600) / 60;
+    const int secs  = total % 60;
+    char buffer[32];
+    if (hours > 0) std::snprintf(buffer, sizeof(buffer), "%dh %02dm", hours, mins);
+    else           std::snprintf(buffer, sizeof(buffer), "%dm %02ds", mins, secs);
+    return buffer;
+}
+
+} // namespace
+
+void OptionsState::renderStatisticsPage(sf::RenderTarget& target) const {
+    // The tracker has been counting all along — every one of these numbers was
+    // already being maintained and persisted, with nowhere in the game to see it
+    // except a collapsed ImGui panel in the dev overlay.
+    const GameStatistics& stats = StatisticsTracker::getInstance().getStats();
+
+    const float px = (Constants::WINDOW_WIDTH - PANEL_W) * 0.5f;
+    const float py = (Constants::WINDOW_HEIGHT - PANEL_H) * 0.5f;
+    const float centerX = Constants::WINDOW_WIDTH * 0.5f;
+
+    const std::vector<std::pair<std::string, std::string>> lines = {
+        {"ENEMIES DEFEATED", std::to_string(stats.totalEnemiesDefeated)},
+        {"COINS COLLECTED",  std::to_string(stats.totalCoinsCollected)},
+        {"DEATHS",           std::to_string(stats.totalDeaths)},
+        {"BEST COMBO",       std::to_string(stats.highestCombo)},
+        {"TIME PLAYED",      formatDuration(stats.totalTimePlayed)},
+    };
+
+    float y = py + 130.0f;
+    for (const auto& [label, value] : lines) {
+        UiRenderer::drawText(target, label, {px + 70.0f, y}, 13, sf::Color(220, 220, 220));
+        UiRenderer::drawText(target, value, {px + PANEL_W - 70.0f -
+                                             UiRenderer::measureTextWidth(value, 13), y},
+                             13, sf::Color(255, 216, 0));
+        y += 44.0f;
+    }
+
+    // A derived line is worth more than another counter: it says something the
+    // raw numbers do not.
+    const int runs = std::max(1, stats.totalDeaths);
+    const std::string perLife = std::to_string(stats.totalEnemiesDefeated / runs);
+    UiRenderer::drawText(target, "ENEMIES PER LIFE LOST", {px + 70.0f, y}, 13,
+                         sf::Color(150, 200, 255));
+    UiRenderer::drawText(target, perLife, {px + PANEL_W - 70.0f -
+                                           UiRenderer::measureTextWidth(perLife, 13), y},
+                         13, sf::Color(150, 200, 255));
+
+    UiRenderer::drawText(target, "ESC  BACK", {centerX, py + PANEL_H - 36.0f}, 10,
+                         sf::Color(150, 150, 150), true);
+}
+
+void OptionsState::renderAchievementsPage(sf::RenderTarget& target) const {
+    const auto& achievements = AchievementManager::getInstance().getAchievements();
+
+    const float px = (Constants::WINDOW_WIDTH - PANEL_W) * 0.5f;
+    const float py = (Constants::WINDOW_HEIGHT - PANEL_H) * 0.5f;
+    const float centerX = Constants::WINDOW_WIDTH * 0.5f;
+
+    int unlocked = 0;
+    for (const auto& a : achievements) if (a.unlocked) ++unlocked;
+
+    const std::string progress = std::to_string(unlocked) + " / " +
+                                 std::to_string(achievements.size()) + " UNLOCKED";
+    UiRenderer::drawText(target, progress, {centerX, py + 104.0f}, 12,
+                         sf::Color(120, 255, 140), true);
+
+    // Progress bar: the count alone does not show how close you are.
+    const float barW = PANEL_W - 140.0f;
+    const float filled = achievements.empty()
+        ? 0.0f : barW * (static_cast<float>(unlocked) / static_cast<float>(achievements.size()));
+    UiRenderer::drawPanel(target, {px + 70.0f, py + 126.0f}, {barW, 10.0f},
+                          sf::Color(40, 40, 40, 255), sf::Color(90, 90, 90, 255));
+    if (filled > 0.0f) {
+        UiRenderer::drawPanel(target, {px + 70.0f, py + 126.0f}, {filled, 10.0f},
+                              sf::Color(120, 255, 140, 220), sf::Color(120, 255, 140, 240));
+    }
+
+    const int total = static_cast<int>(achievements.size());
+    const int first = std::clamp(m_achievementScroll, 0, std::max(0, total - kAchievementRows));
+    const int last  = std::min(total, first + kAchievementRows);
+
+    float y = py + 156.0f;
+    for (int i = first; i < last; ++i) {
+        const Achievement& a = achievements[static_cast<std::size_t>(i)];
+        // A locked achievement still shows its condition: hiding it would make
+        // the list a wall of question marks with nothing to aim at.
+        const sf::Color colour = a.unlocked ? sf::Color(255, 216, 0) : sf::Color(120, 120, 120);
+        UiRenderer::drawText(target, a.unlocked ? "*" : "-", {px + 60.0f, y}, 12, colour);
+        UiRenderer::drawText(target, a.name, {px + 84.0f, y}, 12, colour);
+        UiRenderer::drawText(target, a.condition, {px + 84.0f, y + 16.0f}, 9,
+                             a.unlocked ? sf::Color(170, 170, 170) : sf::Color(90, 90, 90));
+        y += 40.0f;
+    }
+
+    if (total > kAchievementRows) {
+        UiRenderer::drawText(target, "UP/DOWN  SCROLL      ESC  BACK",
+                             {centerX, py + PANEL_H - 36.0f}, 10, sf::Color(150, 150, 150), true);
+    } else {
+        UiRenderer::drawText(target, "ESC  BACK", {centerX, py + PANEL_H - 36.0f}, 10,
+                             sf::Color(150, 150, 150), true);
+    }
 }
