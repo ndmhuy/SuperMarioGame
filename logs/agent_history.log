@@ -3566,3 +3566,73 @@ Summary of Changes:
 - Peach's float and the pipe's crouch check named physical keys rather than the
   bound action, so rebinding silently broke both. Both use isActionHeld() now.
 ---
+[2026-08-20 11:30:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 202bb40 (before) → f8a5777 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
+Prompt: "should preserve state when moving into the pipe. Complete the logic when
+dying is to drop then respawn. And when not have life anymore to show the end menu
+(especially when falling into the void so that the game continue properly).
+Complete the menu and things in map gen for better visual" + mid-turn: "the
+thwomper (or else) is still visible inside the pipe which is should not be. the
+shell hasn't been fixed that it still create damage after died and cannot pickup"
++ mid-turn: "should implement the achievement and the tracker properly, that will
+have popup, and some place to watch"
+Files Modified:
+- SuperMarioGame/src/Core/{PlayingState,Game,MenuState,OptionsState,SoundManager}.cpp
+- SuperMarioGame/include/Core/{PlayingState,OptionsState}.hpp
+- SuperMarioGame/src/Entities/{Player,KoopaTroopa,PiranhaPlant}.cpp + headers
+- SuperMarioGame/src/{Physics/CollisionResolver,Graphics/UiRenderer,Graphics/Hud}.cpp
+- SuperMarioGame/tests/verify_regressions.cpp
+Reachable From Main: yes — main() → MenuState → RECORDS opens the new pages;
+death and warps are on the ordinary play path.
+Verified By: ctest (2/2 — verify_regressions 403/403, up from 377;
+verify_frontend_states 34/34). The two new screens, an achievement toast, and
+generated levels in all four themes were rendered off-screen and inspected as
+PNGs. NOT verified by playing the built game.
+Summary of Changes:
+- ROOT CAUSE, "void but not dying / game does not continue": killPlayer() had no
+  re-entry guard. The pit check fires every frame because nothing moves the
+  corpse, so killPlayer ran in full each time — and ScreenTransitionManager::
+  fadeOut() resets m_elapsedTime, so restarting it every frame meant the fade
+  NEVER completed and its callback (the game-over screen) never ran. The death
+  sound played 60x/second underneath. Replaced with a DeathPhase state machine
+  whose phase doubles as the guard.
+- Death is now the classic sequence the user asked for: pop up, stop colliding,
+  fall through the level, off screen, then respawn or game over.
+- SECOND BUG found while wiring it: Player::powerDown() called loseLife() itself
+  and published PlayerDied, which NOTHING in PlayingState subscribed to. An enemy
+  killing Small Mario docked a life and left him standing there. Moved the
+  accounting to PlayingState and added the subscription.
+- Warp state loss: loadLevelByPath destroys the Player and rebuilds it, so
+  anything not captured is lost. Added Player::Form + getForm/setForm and carried
+  it alongside lives/coins/score.
+- I WAS WRONG TWICE, and the user caught both:
+  * The piranha fix I shipped last session was a no-op. emergedHeight() computed
+    `mouthY - bottomY + targetSize.y` where the first two cancel when retracted,
+    so it returned FULL height for the state it was supposed to hide. I had not
+    checked the value, only that it compiled and the tests I wrote passed — and
+    the tests did not cover the retracted state. Corrected to a single term and
+    added a test that walks the whole 7s cycle.
+  * The shell "damages after death" report was also real, and not what I assumed.
+    PhysicsEngine applies friction to every Character; an Enemy is a Character;
+    and a shelled Koopa runs no strategy, so nothing re-asserted its velocity. A
+    kicked shell decelerated to a stop within a second and the player caught up
+    to a "moving shell" and took damage. Shell chains could never have worked.
+    Fixed by holding kick speed while ShellKicked, plus a 0.35s grace so the
+    shell cannot hurt whoever launched it while it is still overlapping them.
+  LESSON: both were cases where I verified the code path but never the VALUE it
+  produced. Printing the actual number over the actual cycle found both in
+  minutes.
+- Achievements/statistics (plan tasks 7.9 and 7.10, previously never built):
+  both were fully tracked and persisted with no in-game view — the only surface
+  was a collapsed ImGui panel in the dev overlay, and toasts were an ImGui window
+  that ordinary play never renders. Added a RECORDS main-menu row with unlock
+  progress, statistics and scrolling-achievement pages on OptionsState (Tab
+  cycles four pages now), real SFML toasts drawn from Game::run so they show in
+  every state, and an unlock sound. Moved the toast tick to Game::run so a toast
+  raised as a level ends does not freeze when the state changes.
+- Visual: ground and brick tiles now follow the level theme (everything drew
+  brown-on-grey before, so ice/castle/grass were indistinguishable); HUD labels
+  carry a black outline (red on a light castle ceiling was unreadable); the main
+  menu hint is shadowed because it sits over the parallax bushes.
+---
