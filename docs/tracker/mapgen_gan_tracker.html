@@ -441,7 +441,7 @@ footer {
     </div>
     <div class="tile is-live">
       <span class="num">0<span style="color:var(--ink-3);font-size:19px">/4</span></span>
-      <span class="cap">shipped levels the agent can finish</span>
+      <span class="cap">levels the agent finishes — traced to the engine, not the policy</span>
     </div>
     <div class="tile">
       <span class="num">7/7</span>
@@ -480,6 +480,39 @@ footer {
         The oracle put <code>level_1</code>'s hardest forced move at column 26. The agent
         stalls at column 24.25 — at the foot of it. The prediction was independent: the oracle
         never runs an agent.
+      </p>
+    </div>
+
+    <div class="sechead" style="margin-top:14px">
+      <p class="eyebrow">Follow-up · traced frame by frame</p>
+      <h2>The agent is not the thing that is broken</h2>
+    </div>
+
+    <div class="note">
+      <p>
+        A <code>--trace</code> flag on the eval runner turned the stall from a guess into a
+        measurement. The policy is doing exactly the right thing: it reports
+        <code>climbing</code> on every single frame of the stall, and the jump velocity is
+        visibly applied — <code>vy = -678.8</code>, on alternate frames, forever.
+      </p>
+      <p>
+        <strong>The position never changes, and <code>onGround</code> reads false the entire
+        time</strong> — while the tile directly below is solid and the 24×30 box is sitting
+        flush on top of it. So <code>canJump</code> is only ever true through flickering coyote
+        frames, and every jump is cancelled by something underneath the policy.
+      </p>
+      <p>
+        Ruled out along the way: exact-tangency false collisions (<code>AABB::intersects</code>
+        uses strict comparisons), the 0.01px pushback at x=775.99 (ordinary wall resolution),
+        and a ceiling above the agent (the cell is empty, and there is no entity there either).
+        What cancels the applied upward velocity is still open, with the false
+        <code>onGround</code> as prime suspect.
+      </p>
+      <p>
+        <strong>Deliberately not fixed here.</strong> The fix lives in
+        <code>PhysicsEngine</code> / <code>CollisionResolver</code> — main-path code — and this
+        branch is contained as a side project. Which branch carries it is a call to make
+        before editing, not after.
       </p>
     </div>
 
