@@ -444,6 +444,79 @@ jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class=
   </div>
 </div>
 
+
+<!-- ======================= SESSION 5 ======================= -->
+<div>
+  <div class="session-h"><h2>Session 5 · Certified routes, observation v4, evolutionary map-gen</h2><span>21 Aug · the map-gen train departs</span></div>
+  <div class="steps" style="margin-top:14px">
+
+    <article class="step ok"><div class="step-head"><span class="n">01</span>
+      <h3>The eval metric was lying — and so was every level's goal</h3><span class="verdict ok">Fixed</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Defect 1</span><div class="v"><code>eval_level</code> reported the <strong>final</strong> episode's progress, not the best:
+          respawn reset <code>furthestX</code> and the report copied it straight in. bonus_1 read 9.2% while all 89 of its full episodes reached 17.7%.
+          <strong>Every previously reported progress number understated.</strong> Honest teacher baseline: 37.8 / 75.3 / 21.4 / 17.8.</div></div>
+        <div class="field"><span class="k">Defect 2</span><div class="v"><code>saveLevel</code> stamped flagpole meta as <code>width−2</code> regardless of the entity:
+          level_1's real flag x=185, meta said 198 — <strong>behind the victory castle</strong>. The oracle trusted the meta, so every certified route ended in the same
+          castle-roof jump (constant 0.7071 demand = a 5-tile gap / 7.07-tile max run-jump). Writer and reader both fixed; all sidecars regenerated.</div></div>
+        <div class="field"><span class="k">Defect 3</span><div class="v">Teacher-driven imitation episodes supervised <strong>"don't jump" on exactly the frames the
+          teacher jumped</strong>: <code>actuate()</code> consumes one-shot flags inside <code>m_action</code>, and the trainer read <code>lastAction()</code> after.
+          Fixed with an unconsumed copy.</div></div>
+      </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">02</span>
+      <h3>The oracle's route feeds the goal channel</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Implementation</span><div class="v"><code>solvability.py --waypoints</code> writes a certified-route sidecar per level;
+          <code>AIWaypoints</code> loads it; <code>AIController</code> follows it — <code>dyToGoal</code> was a hardcoded 0, now it says <em>"the route climbs here"</em>.
+          Consumption needs height parity (walking under a hill must not eat its summit nodes); a route with zero progress for 8&nbsp;s is declared lost and the goal
+          falls back to the right edge for that life.</div></div>
+        <div class="field"><span class="k">Reasoning</span><div class="v">This is the two-network hierarchy tested with a <strong>perfect</strong> high-level policy before
+          training a second network: the oracle plans, the reactive/learned policy executes.</div></div>
+      </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">03</span>
+      <h3>Observation v4: motion planes, item identity, the wall-jump</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Maths</span><div class="v">Cell layout [one-hot ×12, vx, vy] · featureCount 2844 → 4422 · scalars +onWall, powerTier,
+          invincibility. A moving platform was <strong>byte-identical</strong> to a parked one in a single-frame observation — the same information-theoretic wall as the
+          Goomba/Spiny merge. Velocity is signed, so direction rides with speed.</div></div>
+        <div class="field"><span class="k">Behaviours unlocked</span><div class="v">Jump button = wall-jump when airborne + onWall (no new action dimension). Teacher:
+          <em>scaling wall</em> (ratcheting wall-jumps, tried before backing off) and <em>awaiting platform</em> (stand still while a moving solid approaches — waiting is
+          an action now). Escape aborts at lethal drops: its hazard probe saw one row down; level_3's lava trough was four.</div></div>
+        <div class="field"><span class="k">Teacher outcome</span><div class="v"><strong>level_1 37.8 → 53.4</strong> (deaths 18→8) · level_2 75.3 = ·
+          <strong>level_3 43.0 honest</strong> (the old 43.0 was the suicidal escape flinging the agent across lava, 15 deaths; now wall-jumps) ·
+          <strong>bonus_1 17.8 → 74.1</strong> (deaths 89→11).</div></div>
+      </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">04</span>
+      <h3>The map-gen train: evolution with a certified fitness</h3><span class="verdict ok">Running</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Loop</span><div class="v">genome → <code>render_genome</code> → level.json → oracle → fitness. Nine genes (pit, pipe, enemy,
+          coin, roughness, theme, difficulty, lava, moving, seed); tournament selection, blend crossover, Gaussian mutation, seed rerolls. Fitness: winnable is a
+          <strong>hard gate</strong>, closeness to a target <code>requiredDifficulty</code> band is the curriculum knob, column-histogram distance is diversity pressure.
+          No agent plays anything.</div></div>
+        <div class="field"><span class="k">Outcome</span><div class="v">6 generations × 16: fitness 0.657 → 0.808, <strong>16/16 winnable</strong>, 6 levels kept in the
+          0.35–0.55 band with sidecars. Difficulty is naturally <strong>quantized</strong> by integer gap widths (n/7.07: 0.141, 0.283, 0.424…) — the band picks the quantum.
+          Training now rotates over <strong>10 levels</strong> (4 campaign + 6 evolved).</div></div>
+        <div class="field"><span class="k">External validation</span><div class="v">VGLC corpus imported (15 real SMB levels): the oracle certifies <strong>13/15 winnable
+          under our physics</strong>, and both failures are honest model gaps — mario-2-1 stops exactly at its spring, mario-3-1 at its elevator platforms. Neither move
+          exists in the oracle yet.</div></div>
+      </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">05</span>
+      <h3>v4 retraining, visualized, in progress</h3><span class="verdict ok">Live</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Setup</span><div class="v">Fresh 4422-input network (v3 weights refused by the version gate), DAgger imitation for 600 episodes,
+          one level per episode round-robin, honest jump labels, void-death-after-a-leap fine (−8 on top of −10; a leap into a pit is a chosen risk, a bigger flat death
+          penalty measurably teaches standing still). Launch: <code>./SuperMarioGame --train</code>.</div></div>
+        <div class="field"><span class="k">Early signal</span><div class="v">Agreement ≈0.98, jump-agreement ≈0.97 within the first dozen episodes; half of episodes end
+          <em>died</em>, half <em>stuck</em> — deaths reset the level in the same frame, which is why enemies appear not to kill.</div></div>
+      </div></article>
+
+  </div>
+</div>
+
 <section>
   <p class="eyebrow">Where to pick up</p>
   <div class="step" style="border-left-color:var(--info)">
@@ -455,7 +528,8 @@ jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class=
         per-button agreement rather than one average — would have made this failure visible in one episode instead of 219.</div></div>
       <div class="field"><span class="k">3 · Upstream fixes</span><div class="v">Two patches to relay to CS200-Cpp: <code>Activation.cpp</code> not compiling at HEAD, and
         the missing optimisation flags that make its published benchmarks 42× pessimistic.</div></div>
-      <div class="field"><span class="k">4 · Corpus</span><div class="v">VGLC download still awaits your go-ahead; Conv layers are only needed once the GAN starts, not before.</div></div>
+      <div class="field"><span class="k">4 · Corpus</span><div class="v">VGLC downloaded and certified (13/15). Next for map-gen: teach the oracle spring and
+        moving-platform moves (its two admitted gaps), then the GAN as a genome→level replacement — the fitness stays.</div></div>
     </div>
   </div>
 </section>
