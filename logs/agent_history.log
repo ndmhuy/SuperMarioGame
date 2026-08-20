@@ -3984,3 +3984,22 @@ Summary of Changes:
 - Plan shape: Phase 0 shared substrate (--eval headless runner + versioned stats report, level tensor contract, corpus) → Phase 1 GAN with heuristic-agent-as-critic (independent of RL) → Phase 2 RL trained on campaign ∪ generated pool → Phase 3 curriculum loop (band-targeted, PAIRED fine-tuning as stretch). Markov/WFC baseline kept as de-risk.
 - No code written; plan is a proposal for user review per Directive 4. Branch not pushed (Directive: never push without being asked).
 ---
+[2026-08-20 12:00:00] Branch: A/mapgen-gan-plan (off A/rl-neural-policy, side project)
+Git Fingerprint: bbada58 (before, on dev base) → 10c6ccd (after rebase onto A/rl-neural-policy) → f03c9fc (after)
+Fetched Remotes: yes, at session start
+Prompt: Refine the RL side project by pairing it with a GAN map generator; set both up to progress together; keep it off the main path; maintain an HTML tracker; ensure the agent can learn to win, maps are winnable, and difficulty is handled; find a breakthrough beyond the cited literature.
+Files Modified: docs/mapgen_gan_rl_plan.md (new), docs/level_tensor_contract.md (new), docs/tracker/mapgen_gan_tracker.html (new), SuperMarioGame/tools/level_tensor.py (new), SuperMarioGame/tools/solvability.py (new), SuperMarioGame/tools/eval_level.cpp (new), SuperMarioGame/CMakeLists.txt
+Reachable From Main: no — deliberately. eval_level is a standalone tools/ target; the Python tools are outside the game; nothing on the default game path changed. This is a side project stacked on A/rl-neural-policy, per user directive.
+Verified By: ran the tools — eval_level built and run against all 4 campaign levels x 3 archetypes (12 runs); solvability.py and level_tensor.py run against all 7 shipped levels; tracker HTML rendered and checked in a browser. The GAME itself was NOT run this session and was not modified.
+Summary of Changes:
+- Rebased the branch off dev onto A/rl-neural-policy after user correction that this must stay a side project, not a main-path feature. Documented the containment rules (§0 of the plan).
+- level_tensor.py + contract: level JSON <-> 14-row, 9-class semantic tile grid. Band (y=9..22) and vocabulary measured against the shipped levels, and the band matches the VGLC corpus height. Roundtrips 7/7 levels.
+- eval_level.cpp: headless AI playthrough -> versioned JSON report. Built as a separate harness because PlayingState cannot run headless (reads ImGui::GetIO() at PlayingState.cpp:545, no arbitrary-level entry, AIController only attaches to a CPU Player 2, and its update path writes saves and pushes states). Five gameplay rules ported explicitly with source-line markers.
+- CRITICAL FINDING: the heuristic agent finishes NONE of the 4 shipped levels — stalls at 10.8/13.8/21.4/46.4%, all archetypes, zero deaths, then stays stuck ~145s. An agent used as a winnability oracle therefore cannot distinguish a broken level from one it cannot play.
+- solvability.py: geometric reachability + difficulty from the engine's own physics constants, no agent. Says all 7 levels are 100% reachable — proving the levels are fine and the agent is not. Difficulty formulated as a bottleneck (minimax over the reachability graph): the hardest forced move on the kindest route. Independently localised level_1's bottleneck to column 26; the agent stalls at column 24.25.
+- FINDINGS: level_2 and level_3 require a 96%-of-maximum jump to finish (no margin); difficulty is a cliff (0.14 sub-levels vs 0.71-0.96 campaign), not a curve. Both trace to MapGenerator rolling step heights independently of what a player can clear.
+- Amended the RL design: reward's rightward-progress term is wrong (pays the agent for pressing into walls); replace with progress along the reachability graph. Training only on oracle-verified reachable levels is what makes winning learnable.
+- OPEN DEFECT, not fixed and not papered over: the heuristic policy stalls dead at a 3-tile step the oracle says is clearable. Logged for decision when the RL run trains.
+- HTML tracker published as an Artifact for the user; source kept in docs/tracker/.
+- Nothing pushed (per directive: never push without being asked).
+---
