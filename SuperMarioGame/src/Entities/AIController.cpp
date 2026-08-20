@@ -1,4 +1,5 @@
 #include "Entities/AIController.hpp"
+#include "Entities/QuestionBlock.hpp"
 
 #include "Entities/Enemy.hpp"
 #include "Entities/HeuristicPolicy.hpp"
@@ -164,22 +165,43 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
         switch (entity->getCategory()) {
             case EntityCategory::Enemy: state = AICellState::Enemy;  break;
             case EntityCategory::Item:  state = AICellState::Reward; break;
-            // Projectiles in flight are threats worth dodging; blocks are
-            // already covered by the tile pass or are scenery.
+            // Projectiles in flight are threats worth dodging.
             case EntityCategory::Projectile: state = AICellState::Hazard; break;
+            // Entity-form blocks — pipes, question blocks, moving and falling
+            // platforms — are solid to the physics but live outside the tile
+            // map, so the tile pass cannot see them. Skipping them here (the
+            // original code did, on the wrong belief that the tile pass covered
+            // them) made every pipe an invisible wall: in bonus_1 the agent
+            // stood flush against the pipe at x=58 reading "advancing" for 190
+            // seconds, because its vision grid said the way was clear.
+            // A question block is a reward as well as a surface, and the tile
+            // pass classifies question TILES as Reward, so the entity form gets
+            // the same answer.
+            case EntityCategory::Block:
+                state = dynamic_cast<QuestionBlock*>(entity.get())
+                            ? AICellState::Reward
+                            : AICellState::Solid;
+                break;
             default: continue;
         }
 
+        // Paint the entity's whole footprint, not its centre cell. A pipe is
+        // 2x2 tiles: centre-painting marked one cell inside it and left the
+        // face the agent actually collides with unmarked.
         const AABB other = entity->getBoundingBox();
-        const sf::Vector2i cell = tileMap.worldToGrid(other.x + other.width * 0.5f,
-                                                     other.y + other.height * 0.5f);
-        const int dx = cell.x - origin.x;
-        const int dy = cell.y - origin.y;
-        if (std::abs(dx) > m_visionRadiusX || std::abs(dy) > m_visionRadiusY) continue;
-
-        const std::size_t index =
-            static_cast<std::size_t>(dy + halfH) * kAIVisionWidth + (dx + halfW);
-        m_observation.grid[index] = state;
+        const sf::Vector2i topLeft = tileMap.worldToGrid(other.x + 1.0f, other.y + 1.0f);
+        const sf::Vector2i bottomRight = tileMap.worldToGrid(other.x + other.width - 1.0f,
+                                                             other.y + other.height - 1.0f);
+        for (int gy = topLeft.y; gy <= bottomRight.y; ++gy) {
+            for (int gx = topLeft.x; gx <= bottomRight.x; ++gx) {
+                const int dx = gx - origin.x;
+                const int dy = gy - origin.y;
+                if (std::abs(dx) > m_visionRadiusX || std::abs(dy) > m_visionRadiusY) continue;
+                const std::size_t index =
+                    static_cast<std::size_t>(dy + halfH) * kAIVisionWidth + (dx + halfW);
+                m_observation.grid[index] = state;
+            }
+        }
     }
 
     // --- Scalars -------------------------------------------------------------

@@ -24,6 +24,9 @@ void HeuristicPolicy::reset() {
     m_lastDirection = 1;
     m_commitTicks = 0;
     m_lastReason = "idle";
+    m_escapeTicks = 0;
+    m_escapeDirection = 0;
+    m_stuckTicks = 0;
 }
 
 const char* HeuristicPolicy::name() const {
@@ -57,6 +60,28 @@ bool HeuristicPolicy::obstacleAhead(const AIObservation& obs, int direction) {
     // at either means walking forward will not work.
     return obs.at(direction, 0) == AICellState::Solid ||
            obs.at(direction, -1) == AICellState::Solid;
+}
+
+int HeuristicPolicy::wallHeight(const AIObservation& obs, int direction) {
+    int height = 0;
+    while (height < 4 && obs.at(direction, -height) == AICellState::Solid) {
+        ++height;
+    }
+    return height;
+}
+
+bool HeuristicPolicy::raisedGroundAhead(const AIObservation& obs, int direction) {
+    for (int step = 2; step <= 5; ++step) {
+        const int dx = direction * step;
+        for (int rise = 1; rise <= 3; ++rise) {
+            // Solid at -rise with clear air above it: a surface, not a ceiling.
+            if (obs.at(dx, -rise) == AICellState::Solid &&
+                obs.at(dx, -rise - 1) != AICellState::Solid) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool HeuristicPolicy::gapAhead(const AIObservation& obs, int direction) {
@@ -156,7 +181,28 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
 
     const float rightUtility = directionalUtility(1);
     const float leftUtility = directionalUtility(-1);
-    const int direction = (rightUtility >= leftUtility) ? 1 : -1;
+    int direction = (rightUtility >= leftUtility) ? 1 : -1;
+
+    // --- Escape from unclimbable walls ----------------------------------------
+    // Pinned (no horizontal speed) against a wall too tall for the physics to
+    // ever clear: stop pressing into it and walk away for a while. kEscape
+    // decisions at the Hard cadence is about 1.3 seconds — roughly six tiles of
+    // backtrack, enough to bring the previous platform or block into reach.
+    constexpr int kEscapeDecisions = 80;
+    constexpr int kStuckDecisions = 120;   // ~2s of no horizontal motion
+    if (std::abs(obs.vx) < 0.05f) ++m_stuckTicks; else m_stuckTicks = 0;
+    const bool pinned = std::abs(obs.vx) < 0.05f &&
+                        obstacleAhead(obs, direction) &&
+                        wallHeight(obs, direction) >= 4;
+    if ((pinned || m_stuckTicks >= kStuckDecisions) && m_escapeTicks == 0) {
+        m_escapeTicks = kEscapeDecisions;
+        m_escapeDirection = -direction;
+        m_stuckTicks = 0;
+    }
+    if (m_escapeTicks > 0) {
+        direction = m_escapeDirection;
+        --m_escapeTicks;
+    }
 
     if (direction != m_lastDirection) {
         m_commitTicks = kCommitDecisions;
@@ -180,7 +226,20 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     const bool rewardAbove = obs.at(0, -2) == AICellState::Reward ||
                              obs.at(direction, -2) == AICellState::Reward;
 
-    if (obs.canJump && (wall || gap || stompable ||
+    // A wall only earns a jump if the physics can actually clear it — jumping
+    // at a 4-tile face is the exact futile loop the escape state exists to
+    // break, so the two must agree on what "climbable" means.
+    const bool climbableWall = wall && wallHeight(obs, direction) <= 3;
+    // A jump from an edge toward raised ground beyond it. An earlier version
+    // also pressed run here, to stretch the arc toward level_3's wall top —
+    // measured result: every gap-jump in every level became a 300px/s dive,
+    // and bonus_1's agent overflew its falling platform into the same pit 59
+    // times in a row. The run-boost helped one hand-analysed jump and endangered
+    // all the others, so it is gone; the walk-speed arc crosses every pit the
+    // old policy crossed.
+    const bool launchJump = gap && raisedGroundAhead(obs, direction);
+
+    if (obs.canJump && (climbableWall || gap || stompable ||
                         (rewardAbove && m_weights.reward > 0.5f))) {
         action.jump = true;
     }
@@ -188,6 +247,15 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     // --- Run -----------------------------------------------------------------
     // Running into an unseen gap is how a bot kills itself, so the run button is
     // gated on the ground ahead being known-good.
+    // Two speed gates were tried here and both measurably backfired: a
+    // jump-only-at-walk-speed rule broke level_2 (ice halves deceleration, so
+    // the bot could never slow enough to be ALLOWED to jump), and a
+    // no-run-in-mid-air rule traded level_3 +18 / bonus_1 +47 for level_1 -16 /
+    // level_2 -73. Measured conclusion, kept here so nobody re-walks the loop:
+    // this policy's outcomes are chaotically sensitive to speed tweaks — each
+    // one reshuffles WHICH level fails instead of removing failures. That is a
+    // ceiling of reactive control, and it is the concrete case for the learned
+    // policy this seam exists to host.
     const bool clearAhead = !wall && !gap && threat == 0;
     if (clearAhead && m_weights.runBias > 0.5f) {
         action.run = true;
@@ -204,8 +272,14 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     } else if (threat > 0 && threat <= kStrikeRange) {
         action.shoot = true;
         m_lastReason = stompable ? "stomping" : "clearing";
+    } else if (m_escapeTicks > 0) {
+        m_lastReason = "backing off";
+    } else if (launchJump) {
+        m_lastReason = "launch jump";
     } else if (gap) {
         m_lastReason = "crossing gap";
+    } else if (wall && !climbableWall) {
+        m_lastReason = "wall too tall";
     } else if (wall) {
         m_lastReason = "climbing";
     } else if (m_weights.reward > 0.5f && rewardDirection(obs) != 0) {

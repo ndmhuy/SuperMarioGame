@@ -50,11 +50,17 @@ inline constexpr int kAICellStateCount = 6;
 // dxToOpponent, dyToOpponent, vx, vy, onGround, canJump, isPoweredUp.
 inline constexpr int kAIScalarFeatures = 9;
 
-// Bumped whenever the feature layout changes. Weight files record the version
-// they were trained against and are refused if it does not match: a silently
-// mismatched input layer yields a policy that acts confidently and arbitrarily,
-// which is the hardest possible thing to diagnose from the outside.
-inline constexpr int kAIObservationVersion = 1;
+// Bumped whenever the feature layout OR its semantics change. Weight files
+// record the version they were trained against and are refused if it does not
+// match: a silently mismatched input layer yields a policy that acts
+// confidently and arbitrarily, which is the hardest possible thing to diagnose
+// from the outside.
+//
+// v2: entity-form blocks (pipes, question blocks, platforms) are now painted
+// into the grid as Solid/Reward across their full footprint. The layout is
+// unchanged, but cells that always read Unknown/Empty under v1 now carry
+// information, so v1-trained weights would misread every level with a pipe.
+inline constexpr int kAIObservationVersion = 2;
 
 struct AIObservation {
     // Row-major, centred on the agent's own tile. grid[y * W + x], with the

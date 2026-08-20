@@ -49,6 +49,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -286,24 +287,34 @@ int main(int argc, char** argv) {
     Game::getInstance().setTileMap(&tileMap);
 
     // --- the agent ----------------------------------------------------------
-    AIController controller(*player, opt.difficulty, opt.archetype);
-    if (!opt.weightsPath.empty()) {
-        auto net = std::make_unique<NeuralPolicy>();
-        if (!net->load(opt.weightsPath)) {
-            std::cerr << "[eval] could not load weights '" << opt.weightsPath
-                      << "' — refusing to fall back to the heuristic silently, "
-                         "because a report that says 'neural' about a heuristic run "
-                         "is worse than no report.\n";
-            return 1;
+    // Held in an optional because AIController binds the controlled player by
+    // reference, and a death replaces the player object (see the respawn path):
+    // the controller is rebuilt around the new player, exactly as the game
+    // rebuilds it on level load.
+    std::optional<AIController> controller;
+    const auto buildController = [&](Player& forPlayer) -> bool {
+        controller.emplace(forPlayer, opt.difficulty, opt.archetype);
+        if (!opt.weightsPath.empty()) {
+            auto net = std::make_unique<NeuralPolicy>();
+            if (!net->load(opt.weightsPath)) {
+                std::cerr << "[eval] could not load weights '" << opt.weightsPath
+                          << "' — refusing to fall back to the heuristic silently, "
+                             "because a report that says 'neural' about a heuristic run "
+                             "is worse than no report.\n";
+                return false;
+            }
+            controller->setPolicy(std::move(net));
         }
-        controller.setPolicy(std::move(net));
-    }
-    // Scores the run without writing a dataset. The reward is a useful summary
-    // even when nothing is training: it is the one number that folds progress,
-    // damage and dawdling together.
-    controller.enableLearning();
+        // Scores the run without writing a dataset. The reward is a useful
+        // summary even when nothing is training: it is the one number that
+        // folds progress, damage and dawdling together.
+        controller->enableLearning();
+        return true;
+    };
+    if (!buildController(*player)) return 1;
+    float rewardBanked = 0.0f;   // reward from lives already spent
 
-    const std::string policyName = controller.policyName();
+    const std::string policyName = controller->policyName();
 
     // --- outcome signals ----------------------------------------------------
     Report report;
@@ -339,12 +350,12 @@ int main(int argc, char** argv) {
     }
 
     while (simTime < opt.maxSeconds) {
-        controller.update(kDt, nullptr, tileMap, entities);
+        controller->update(kDt, nullptr, tileMap, entities);
 
         if (report.frames >= opt.traceFrom && report.frames < opt.traceTo) {
             const sf::Vector2f p = player->getPosition();
             const sf::Vector2f v = player->getVelocity();
-            const AIObservation& obs = controller.lastObservation();
+            const AIObservation& obs = controller->lastObservation();
             const AABB b = player->getBoundingBox();
             const int tx = int(b.x / Constants::TILE_SIZE);
             const int ty = int(b.y / Constants::TILE_SIZE);
@@ -361,7 +372,7 @@ int main(int argc, char** argv) {
                       << " " << b.width << "x" << b.height
                       << "  up=" << tile(0, -1) << " right=" << tile(1, 0)
                       << " upright=" << tile(1, -1) << " down=" << tile(0, 1)
-                      << "  " << controller.reason() << "\n";
+                      << "  " << controller->reason() << "\n";
         }
 
         for (auto& e : entities) {
@@ -430,12 +441,25 @@ int main(int argc, char** argv) {
                 report.outcome = "died";
                 break;
             }
-            // Respawn at the start rather than a checkpoint: a generated level
-            // has no checkpoints, and a fitness score for "can this be finished"
-            // should not be helped by one.
-            player->setPosition(levelData.spawnPoint);
-            player->setVelocity({0.0f, 0.0f});
-            controller.reset();
+            // Respawn reloads the whole level, exactly as the real game does.
+            // The first version only reset the player, which silently made
+            // every retry harder than the game's: level_3's falling platforms
+            // are one-shot, so after two attempts its only route was consumed
+            // and the trough became a lava-walled dead end the level itself
+            // would never present. A fitness score has to describe the level
+            // the player actually replays.
+            rewardBanked += controller->episodeReward();
+            LevelData freshData;
+            if (!loader.loadLevel(opt.levelPath, tileMap, freshData)) {
+                std::cerr << "[eval] reload after death failed.\n";
+                break;
+            }
+            entities = std::move(freshData.entities);
+            auto respawned = std::make_unique<Mario>(freshData.spawnPoint);
+            player = respawned.get();
+            entities.insert(entities.begin(), std::move(respawned));
+            Game::getInstance().setPlayer(player);
+            if (!buildController(*player)) break;
             furthestX = startX;
             stallTime = 0.0f;
         }
@@ -447,7 +471,7 @@ int main(int argc, char** argv) {
     }
 
     report.simSeconds = simTime;
-    report.episodeReward = controller.episodeReward();
+    report.episodeReward = rewardBanked + controller->episodeReward();
     report.progressFraction =
         levelWidthPx > 0.0f
             ? std::clamp((report.maxProgressX - startX) / (levelWidthPx - startX), 0.0f, 1.0f)
