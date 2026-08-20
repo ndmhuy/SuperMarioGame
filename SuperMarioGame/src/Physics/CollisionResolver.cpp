@@ -40,12 +40,33 @@ void CollisionResolver::resolveEntityVsTile(Entity& entity, const CollisionInfo&
         if (character) {
             character->onWall = true;
 
-            // Air wall friction & sliding mechanics
-            if (!character->onGround) {
-                if (entity.velocity.y < 0.0f) {
-                    entity.velocity.y = 0.0f; // Eliminate upward momentum on wall impact
-                } else if (entity.velocity.y > Constants::WALL_SLIDE_SPEED) {
-                    entity.velocity.y = Constants::WALL_SLIDE_SPEED; // Cap downward slide velocity
+            // Wall slide: falling slowly while pressed against a wall.
+            //
+            // Two things here were wrong, and together they made it impossible
+            // to jump while walking into a wall — so no character could climb
+            // any step it was touching.
+            //
+            //  1. The airborne test asked onGround, which PhysicsEngine has
+            //     already cleared for this frame and does not set again until
+            //     the Y pass, *after* this one. It therefore read false for a
+            //     character standing firmly on the ground, and the rule fired
+            //     every time anyone walked into a wall. wasOnGround is the
+            //     state this frame started in, which is the real question.
+            //
+            //  2. It cancelled *vertical* velocity on a purely *horizontal*
+            //     collision. A wall is vertical; touching one says nothing
+            //     about upward motion, and moving up alongside a wall is
+            //     ordinary platforming. A genuine ceiling is what the Y pass's
+            //     normal.y == 1 case is for, and it already handles it.
+            //
+            // So only the downward cap survives, and only when genuinely
+            // airborne. Found by tools/eval_level.cpp: an AI walked into the
+            // 3-tile step at column 25 of level_1, jumped correctly every other
+            // frame for 145 seconds, and never moved a pixel, because the jump
+            // velocity was erased here before it could ever be integrated.
+            if (!character->onGround && !character->wasOnGround) {
+                if (entity.velocity.y > Constants::WALL_SLIDE_SPEED) {
+                    entity.velocity.y = Constants::WALL_SLIDE_SPEED;
                 }
             }
         }

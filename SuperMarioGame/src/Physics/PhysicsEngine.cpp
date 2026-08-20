@@ -145,7 +145,11 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             // by the time the resolver looked. Cleared at the end of update()
             // instead, once everything that consumes them has run.
 
-            // Reset ground/wall flags for the new collision detection pass
+            // Reset ground/wall flags for the new collision detection pass.
+            // Preserve the incoming value first: the X pass runs before the Y
+            // pass that recomputes onGround, so it would otherwise see false for
+            // every character, grounded or not.
+            character->wasOnGround = character->onGround;
             character->onGround = false;
             character->onWall = false;
         } else if (auto item = dynamic_cast<Item*>(entity.get())) {

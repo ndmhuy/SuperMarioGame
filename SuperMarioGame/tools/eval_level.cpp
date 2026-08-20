@@ -367,7 +367,20 @@ int main(int argc, char** argv) {
         for (auto& e : entities) {
             if (e && e->isActive()) e->update(kDt);
         }
+        const sf::Vector2f prePos = player->getPosition();
+        const sf::Vector2f preVel = player->getVelocity();
+
         physics.update(entities, tileMap, kDt);
+
+        if (report.frames >= opt.traceFrom && report.frames < opt.traceTo) {
+            std::cout << std::fixed << std::setprecision(2)
+                      << "        physics: y " << prePos.y << " -> "
+                      << player->getPosition().y
+                      << " | vy " << preVel.y << " -> " << player->getVelocity().y
+                      << " | x " << prePos.x << " -> " << player->getPosition().x
+                      << " | ground " << (player->isOnGround() ? "yes" : "no")
+                      << "\n";
+        }
 
         entities.erase(std::remove_if(entities.begin(), entities.end(),
                                       [player](const std::unique_ptr<Entity>& e) {
