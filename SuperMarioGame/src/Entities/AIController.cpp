@@ -113,6 +113,16 @@ void AIController::reset() {
     m_reason = "idle";
     m_observation.grid.fill(AICellState::Unknown);
     if (m_policy) m_policy->reset();
+    // A respawn is a new episode: the progress mark has to move to where the
+    // agent now is, or the first observe() after it credits the whole distance
+    // back to the checkpoint as though the agent had just run it.
+    if (m_learning) m_reward.reset(m_player.getPosition());
+}
+
+void AIController::enableLearning(const std::string& logPath) {
+    m_learning = true;
+    m_reward.reset(m_player.getPosition());
+    if (!logPath.empty()) m_experience.open(logPath);
 }
 
 void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMap,
@@ -261,6 +271,11 @@ void AIController::update(float dt, const Player* opponent, const TileMap& tileM
     // and driving it mid-fall fights the death sequence.
     if (!m_player.isActive() || m_player.isDying()) return;
 
+    // Reward accrues every frame — progress and the per-step cost — but is only
+    // *consumed* when a decision is made, so a transition carries everything
+    // that happened while the previous action was in effect.
+    if (m_learning) m_reward.observe(m_player.getPosition());
+
     m_decisionTimer -= dt;
     if (m_decisionTimer <= 0.0f) {
         // Reaction latency is the gap between decisions, so Hard's 0ms means one
@@ -279,6 +294,15 @@ void AIController::update(float dt, const Player* opponent, const TileMap& tileM
 
         if (auto* heuristic = dynamic_cast<HeuristicPolicy*>(m_policy.get())) {
             m_reason = heuristic->lastReason();
+        }
+
+        // One row per decision. Logged with the observation the decision was
+        // made from and the action as finally chosen — after the noise, because
+        // the noise is part of the behaviour policy and a learner told the
+        // pre-noise action would be learning from something that never happened.
+        if (m_learning && m_experience.isOpen()) {
+            const bool terminal = m_player.isDying() || m_player.getLives() <= 0;
+            m_experience.record(m_observation, m_action, m_reward.consume(), terminal);
         }
     }
 

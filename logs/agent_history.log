@@ -3844,6 +3844,57 @@ Summary of Changes:
   Spawned as a separate task rather than fixed here.
 - Not pushed, per policy. dev remains 30 commits ahead of origin/dev locally.
 ---
+[2026-08-20 12:04:30] Branch: A/rl-neural-policy
+Git Fingerprint: 0c9c173 (before, branched off A/shadow-mario-ai-multiplayer) → see commit below (after)
+Fetched Remotes: no — branch created locally from a branch fetched at 10:24; no repository-state reporting in this task
+Prompt: Keep the reinforcement-learning work diverged from the main line so it can be included in or dropped from the submission.
+Files Modified: New: include/Entities/{NeuralPolicy,RewardTracker,ExperienceLog}.hpp,
+  src/Entities/{NeuralPolicy,RewardTracker,ExperienceLog,IAIPolicy}.cpp,
+  tests/verify_rl_policy.cpp, docs/rl_training.md.
+  Modified: include/Entities/{IAIPolicy,AIController}.hpp,
+  src/Entities/AIController.cpp, src/Core/DevPanel.cpp, CMakeLists.txt.
+Reachable From Main: yes, but only through a dev-panel button — "Match: Shadow &
+  CPU" → Learning → Start recording experience / Swap in neural policy. Nothing
+  constructs a NeuralPolicy or a RewardTracker during ordinary play, by design:
+  the branch must cost a normal match nothing. Verified inert by running the
+  versus_cpu script and confirming no experience log is written.
+Verified By: ctest verify_rl_policy (7 cases) — including one that drives the
+  real AIController::enableLearning path, because the dev-panel button's three
+  lines would otherwise have been the only untested part of the seam. Also ran
+  the game (scripted) to confirm the branch plays identically to its parent.
+  14/14 suites pass; every target builds.
+Summary of Changes:
+- Diverged deliberately: A/rl-neural-policy sits on top of
+  A/shadow-mario-ai-multiplayer and nothing on the parent depends on it. The
+  parent ships the IAIPolicy seam and the heuristic and plays fine alone, so this
+  branch can be submitted or dropped without touching the coursework.
+- AIObservation::toFeatureVector() lives HERE, not on the parent, because its
+  only caller is here. Putting it on the parent would have shipped a function
+  nothing calls — the exact failure mode audit B-9 records five times over.
+- 1899 features: 315 cells (21x15) x 6 one-hot states + 9 scalars. Fixed width at
+  every difficulty (an Easy agent's unseen cells encode as Unknown rather than
+  shortening the vector), so one trained network accepts all three tiers.
+- NeuralPolicy: MLP, tanh hidden, sigmoid output, inference only. Multi-label
+  head rather than softmax, because an action is a SET of buttons — running right
+  while jumping is three at once — which a one-of-N softmax cannot express.
+  Refuses weight files whose observationVersion does not match, since a silently
+  misaligned input layer yields a policy that acts confidently and arbitrarily.
+- Training is deliberately NOT in the game. What is in the game is the half that
+  has to be: encode, forward pass, actuate, plus the two things a trainer needs
+  from the game — RewardTracker (an EventBus subscriber, so no gameplay code
+  knows a reward exists) and ExperienceLog (JSONL transitions).
+- Reward pays for NEW ground only, measured against the furthest point reached.
+  Paying per rightward step and charging per leftward one nets to zero over a
+  round trip in theory; in practice an agent finds the asymmetry and paces.
+- The action space is deliberately the same seven buttons PlayerFramePacket
+  records for Shadow Mario, so a recorded HUMAN session is imitation-learning
+  data for free. That was a choice made on the parent branch, not a coincidence
+  discovered here.
+- STILL MISSING for serious training, stated plainly in docs/rl_training.md
+  rather than implied: a headless accelerated stepping mode (PlayingState assumes
+  a render target in several places), and determinism — ReplayRecorder's own
+  header documents that the simulation is not reproducible from inputs alone,
+  which is survivable for model-free RL and rules out exact trajectory replay.
 [2026-08-20 12:46:42] Branch: A/shadow-mario-ai-multiplayer
 Git Fingerprint: 0c9c173 (before) → see commit below (after)
 Fetched Remotes: yes, 12:46

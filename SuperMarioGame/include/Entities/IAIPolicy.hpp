@@ -46,6 +46,16 @@ inline constexpr int kAIVisionCells = kAIVisionWidth * kAIVisionHeight;
 // whatever consumes it.
 inline constexpr int kAICellStateCount = 6;
 
+// Scalar features appended after the grid, in this order: dxToGoal, dyToGoal,
+// dxToOpponent, dyToOpponent, vx, vy, onGround, canJump, isPoweredUp.
+inline constexpr int kAIScalarFeatures = 9;
+
+// Bumped whenever the feature layout changes. Weight files record the version
+// they were trained against and are refused if it does not match: a silently
+// mismatched input layer yields a policy that acts confidently and arbitrarily,
+// which is the hardest possible thing to diagnose from the outside.
+inline constexpr int kAIObservationVersion = 1;
+
 struct AIObservation {
     // Row-major, centred on the agent's own tile. grid[y * W + x], with the
     // agent at (kAIVisionWidth / 2, kAIVisionHeight / 2).
@@ -78,14 +88,23 @@ struct AIObservation {
         return grid[static_cast<std::size_t>(y) * kAIVisionWidth + x];
     }
 
-    // NOTE: the flattening to a [-1, 1] float vector that a neural policy needs
-    // is deliberately NOT here. It has exactly one caller, and that caller lives
-    // on the reinforcement-learning branch, so defining it on this branch would
-    // ship a function nothing calls — the failure mode audit item B-9 records
-    // five times over. The branch adds `toFeatureVector()` alongside the policy
-    // that consumes it. Everything it needs to be well-defined — a fixed cell
-    // count, a fixed state count, normalized scalars — is guaranteed above.
+    // Flattened, normalized feature vector: the grid one-hot encoded cell by
+    // cell in row-major order, then the nine scalars in the order they are
+    // declared above. Length is always featureCount(), for every difficulty —
+    // an Easy agent's unseen cells encode as the Unknown one-hot rather than
+    // shortening the vector.
+    //
+    // This is the network's input layer, so the layout is a contract: changing
+    // the cell order, the one-hot order or the scalar order invalidates every
+    // trained weight file. If it must change, bump kAIObservationVersion.
+    std::vector<float> toFeatureVector() const;
+
+    static constexpr std::size_t featureCount() {
+        return static_cast<std::size_t>(kAIVisionCells) * kAICellStateCount +
+               kAIScalarFeatures;
+    }
 };
+
 
 // The agent's discrete action space. Deliberately the same buttons a human has,
 // and the same set PlayerFramePacket records (property 2 above).

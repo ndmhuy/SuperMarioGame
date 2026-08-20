@@ -259,6 +259,10 @@ add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 # no window and no assets.
 add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
 
+# The reinforcement-learning seam: observation encoding, the neural policy's
+# drop-in contract, the reward function and the transition log.
+add_verify_test(verify_rl_policy "tests/verify_rl_policy.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------

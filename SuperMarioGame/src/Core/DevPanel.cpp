@@ -11,6 +11,7 @@
 #include "Entities/Luigi.hpp"
 #include "Entities/ShadowMario.hpp"
 #include "Entities/AIController.hpp"
+#include "Entities/NeuralPolicy.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Mushroom.hpp"
 #include "Entities/FireFlower.hpp"
@@ -221,6 +222,34 @@ void DevPanel::drawMatchPanel(PlayingState& state) {
                 if (s.m_aiController) s.m_aiController->setActionNoise(requested);
             });
         }
+
+        // --- Reinforcement learning (A/rl-neural-policy) --------------------
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.5f, 0.9f, 1.0f, 1.0f), "Learning");
+        if (ai.isLearning()) {
+            ImGui::Text("Episode reward: %.2f", ai.episodeReward());
+            ImGui::Text("Transitions logged: %zu", ai.transitionsLogged());
+        } else if (ImGui::Button("Start recording experience")) {
+            queue([](PlayingState& s) {
+                if (s.m_aiController) {
+                    s.m_aiController->enableLearning("saves/experience/session.jsonl");
+                }
+            });
+        }
+
+        if (ImGui::Button("Swap in neural policy")) {
+            // The whole point of the seam: the brain is replaced and nothing
+            // else changes. Untrained weights play badly, which is the honest
+            // result and is why isTrained() is reported next to it.
+            queue([](PlayingState& s) {
+                if (!s.m_aiController) return;
+                auto policy = std::make_unique<NeuralPolicy>();
+                policy->load("assets/config/ai_weights.json");
+                s.m_aiController->setPolicy(std::move(policy));
+            });
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(loads assets/config/ai_weights.json if present)");
 
         ImGui::Checkbox("Draw vision grid", &m_showAiVision);
         if (m_showAiVision) {
