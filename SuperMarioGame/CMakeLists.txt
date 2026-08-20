@@ -99,13 +99,22 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 set(APP_SOURCES ${SOURCES})
 list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 
+# ${SOURCES} already globs every src/*.cpp, so nothing below needs to be named
+# here — the .cpp entries are duplicates CMake de-duplicates and the .hpp entries
+# do not compile at all. They are kept only so the headers show up as target
+# sources in IDEs.
+#
+# Do not hand-type a source path here. `src/Graphics/HUD.cpp` sat in this list
+# for months while the file is `Hud.cpp`: macOS resolves that, Linux does not, so
+# every CI run failed at the generate step with "Cannot find source file" while
+# the local build was fine. If you must add a path, copy it from `git ls-files`.
 add_executable(${PROJECT_NAME} ${SOURCES}
     src/Entities/EntityFactory.cpp
     include/Graphics/SpriteSheet.hpp
     src/Graphics/AnimationManager.cpp
     include/Graphics/Animator.hpp
     src/Graphics/Animator.cpp
-    src/Graphics/HUD.cpp
+    src/Graphics/Hud.cpp
     include/Graphics/Minimap.hpp
     include/Graphics/ParticleSystem.hpp
     src/Graphics/ParticleSystem.cpp
