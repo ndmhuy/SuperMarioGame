@@ -168,6 +168,35 @@ def repair(path: Path, report: dict) -> bool:
     return True
 
 
+def add_safety_nets(path: Path, report: dict) -> bool:
+    """Floor tiles under the route's punishing edges.
+
+    The oracle names every required edge whose failure lands in hazard or the
+    void (punishingEdges). A net 4 tiles below the edge's foothold turns that
+    death into a survivable drop WITHOUT changing the jump itself — the demand
+    stays, the punishment goes, which is precisely the forgiveness the fitness
+    asks for and mutation of generator knobs cannot deliver.
+    """
+    edges = report.get("punishingEdges") or []
+    if not edges:
+        return False
+    level_json = json.loads(path.read_text())
+    tile_type = _solid_tile_type(level_json)
+    existing = {(t["x"], t["y"]) for t in level_json.get("tiles", [])}
+    added = 0
+    for edge in edges:
+        nx, ny = int(edge["x"]), int(edge["y"]) + 4
+        for candidate in ((nx, ny), (nx - 1, ny), (nx + 1, ny)):
+            if candidate not in existing:
+                level_json["tiles"].append(
+                    {"type": tile_type, "x": candidate[0], "y": candidate[1]})
+                existing.add(candidate)
+                added += 1
+    if added:
+        path.write_text(json.dumps(level_json))
+    return added > 0
+
+
 def evaluate(genome: dict, band: tuple, kept_signatures: list, workdir: Path,
              index: int) -> dict:
     """Render + oracle. Returns dict with fitness and the analysis report."""
@@ -217,6 +246,24 @@ def evaluate(genome: dict, band: tuple, kept_signatures: list, workdir: Path,
     # Inside the band scores 1; outside decays linearly to 0 at band-width away.
     width = max(hi - lo, 1e-6)
     band_score = 1.0 if lo <= d <= hi else max(0.0, 1.0 - abs(d - (lo if d < lo else hi)) / width)
+
+    # Forgiveness repair: nets under the punishing edges, then re-certify —
+    # iterated, because each pass surfaces the NEXT-worst edges (one pass took
+    # a level 0.794 -> 0.825; the bar is 0.85). Reverted (by keeping the old
+    # report) if the nets somehow broke the level or pushed the required
+    # difficulty out of band — a net can shortcut.
+    for _pass in range(4):
+        if report.get("forgiveness", 1.0) >= 0.85:
+            break
+        if not add_safety_nets(out, report):
+            break
+        netted = solvability.analyse(solvability.Level.load(str(out)))
+        if not (netted["winnable"] and lo <= netted["requiredDifficulty"] <= hi + 1e-9):
+            break
+        if netted.get("forgiveness", 1.0) <= report.get("forgiveness", 1.0):
+            report = netted
+            break
+        report = netted
 
     sig = tile_signature(out)
     if kept_signatures:
@@ -287,9 +334,17 @@ def main(argv=None) -> int:
                   f"(difficulty {best[2].get('report', {}).get('requiredDifficulty', '-')}), "
                   f"{winnable}/{len(scored)} winnable")
 
-            # Bank this generation's elite into the keep pool.
+            # Bank this generation's elite into the keep pool — but never a
+            # reskin. The soft diversity term only DISCOURAGED clones, and the
+            # pool ended up holding the same level three times (signature
+            # distance 0.00 between easy_01/03/04); their identical eval
+            # numbers were one level measured thrice. Distance >= 1.0 to every
+            # already-kept level is a hard constraint at the door.
             for fitness, genome, result in scored[:3]:
                 if fitness <= 0.0 or "path" not in result:
+                    continue
+                if any(signature_distance(result["signature"], sig) < 1.0
+                       for sig in kept_signatures):
                     continue
                 kept.append((fitness, genome, result))
                 kept_signatures.append(result["signature"])
