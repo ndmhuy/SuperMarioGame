@@ -34,6 +34,7 @@ failure was visible only in behaviour measured against something the agent was
 | 8 | Motion is not optional: observation v4 | representation |
 | 9 | A FIFO buffer is not a dataset: forgetting returns at 10 levels | implementation |
 | 10 | A generator with a certified fitness, and the first completion | positive |
+| 11 | The argmax of a stochastic policy is a different policy | evaluation |
 
 Findings 1–5 were reported first (Part I); findings 6–10 (Part II) were made
 while acting on Part I's future-work list. Finding 6 is an erratum on Part I's
@@ -506,9 +507,49 @@ Training now rotates over 16 levels: 4 campaign, 6 mid-band (0.35–0.55),
 
 ---
 
-## 12. Discussion
+## 12. Finding 11 — The argmax of a stochastic policy is a different policy
 
-### 12.1 Every failure was a specification failure
+The reservoir run (599 imitation episodes, 16-level rotation, honest labels,
+mean agreement 0.949) produced a checkpoint that **reached flags 33 times**
+in training rollouts — and evaluated deterministically at a flat 8.2 % on
+every level, frozen at the first staircase, forever. The trace names the
+freeze exactly: pressed against the wall, route saying *climb* (dy = −0.2),
+the network's jump output sits at 0.24 — under the 0.5 cut, under even its
+calibrated 0.264 cut — and with zero evaluation noise nothing ever breaks the
+loop.
+
+Per-button threshold calibration (the midpoint of class-conditional
+prediction means, now maintained by the trainer and persisted in the
+checkpoint sidecar) was necessary but not sufficient: 0.24 vs 0.264 is a
+near-miss that a different level would turn into a hit, which is no way to
+act. The categorical fix is to stop projecting: the trained object is a
+*distribution* over button sets — during training the learner acted by
+sampling from it — and evaluating its argmax evaluates a policy that was
+never trained. Seeded Bernoulli sampling (`eval_level --stochastic`)
+evaluates the policy that was, reproducibly:
+
+| Level | teacher | student, argmax | **student, as trained** |
+| :--- | ---: | ---: | :--- |
+| `level_1` | 72.6 % | 8.2 % | 44.8 %, 12 deaths |
+| `level_2` | 75.3 % | 8.2 % | 38.6 %, 9 deaths |
+| `level_3` | 43.0 % | 8.2 % | 34.7 %, 14 deaths |
+| `bonus_1` | 74.1 %, 11 deaths, never finished | 13.9 % | **86.6 % — COMPLETED, 0 deaths** |
+| easy `evolved_02` | completed, 1 death | 8.2 % | **completed, 1 death** |
+
+Two results stand out. **The student completes levels** — the project's first
+learned-policy completions, on a campaign level and on a generated one. And on
+`bonus_1` it **surpasses its teacher**: the teacher never finished that level
+and spent 11 lives not finishing it; the student finished it without dying
+once. Its path tells the more interesting story: **16 % route coverage**, mean
+deviation 4.5 tiles — it barely touched the certified route and found its own
+line. The oracle's route is a proof that a path exists, not a prescription;
+the learner generalised past it.
+
+---
+
+## 13. Discussion
+
+### 13.1 Every failure was a specification failure
 
 | Failure | Located in | Visible in the optimised metric? |
 | :--- | :--- | :--- |
@@ -522,13 +563,14 @@ Training now rotates over 16 levels: 4 campaign, 6 mid-band (0.35–0.55),
 | Moving platform = parked platform | observation | No |
 | FIFO recency monoculture | buffer structure | Partly — jump agreement decayed |
 | Generator difficulty floor | generator grammar | No — every level "winnable" |
+| Argmax of a sampled policy | evaluation protocol | No — training rollouts completed levels |
 
 None was a bug in the model, optimiser, or framework. The diagnostic that worked
 every time was **behavioural evaluation against a measure the agent was not
 trained on** — jumps per 1800 frames, progress through the level — while
 training curves were uninformative or actively misleading.
 
-### 12.2 Capacity and framework are not the constraints
+### 13.2 Capacity and framework are not the constraints
 
 The network reaches 99.9 % agreement at 0.0010 loss, so it is not
 capacity-limited; scaling to 2844‑512‑256‑7 costs 6.3× the compute to fit a
@@ -536,7 +578,7 @@ function already fit. The network is 10.7 % of an inference step, so replacing
 the tensor library optimises the smaller part. The one framework-level change
 that mattered was a build flag, worth 42×.
 
-### 12.3 Limitations
+### 13.3 Limitations
 
 - **Field of view.** The agent sees 21 × 15 tiles = 672 × 480 px against the
   human's 1280 × 720 — **52 % of the screen width**, 10.5 % of a level. It is
@@ -547,7 +589,7 @@ that mattered was a build flag, worth 42×.
 - **Scale.** Hundreds of episodes, not millions. Negative results bound these
   hyperparameters here; they do not bound the methods in general.
 
-### 12.4 Future work, in priority order
+### 13.4 Future work, in priority order
 
 Items 1 and 4 of Part I's list are done (Findings 7 and 10); item 2's premise
 changed — the curriculum now exists, so exploration pressure comes from the
@@ -571,7 +613,7 @@ certified band rather than from noise shaping. The list as it stands:
 
 ---
 
-## 13. Reproduction
+## 14. Reproduction
 
 ```bash
 mkdir build && cd build && cmake .. && make -j8
@@ -598,7 +640,7 @@ run destroyed a working 22.2 % imitation policy by sharing a filename.
 
 ---
 
-## 14. Summary of measurements
+## 15. Summary of measurements
 
 | Configuration | level_1 | jumps/1800 | deaths |
 | :--- | ---: | ---: | ---: |
@@ -620,11 +662,16 @@ are kept for internal comparison only. Part II, honest metric:
 | + observation v4 (wall-jump, waiting) | 53.4 % | 75.3 % | **43.0 %** | 74.1 % |
 | + ride/bounce-certified routes | **72.6 %** | 75.3 % | 43.0 % | 74.1 % |
 | Student, FIFO-12k, 442 ep (drifted) | 8.2 % | 8.2 % | 8.2 % | 13.9 % |
-| Student, reservoir-48k | *training at time of writing* | | | |
+| Student, reservoir-48k, argmax | 8.2 % | 8.2 % | 8.2 % | 13.9 % |
+| **Student, reservoir-48k, as trained** | **44.8 %** | **38.6 %** | **34.7 %** | **86.6 % ✓ completed** |
 
 Generator: 16/16 winnable by generation 1 in-band 0.35–0.55; easy band
 0 → 6 levels via repair descent (floor 0.685 → 0.283); VGLC 13/15 certified;
-**first completion**: teacher on repair-descended `evolved_02`.
+forgiveness metric validated on first contact (completed level highest at
+0.94, six-lives-one-pit level lowest at 0.84) and folded into fitness.
+**Completions**: teacher on repair-descended `evolved_02`; student (as
+trained) on `evolved_02` and on campaign `bonus_1` — the latter with zero
+deaths, surpassing a teacher that never finished it.
 
 ### References
 
