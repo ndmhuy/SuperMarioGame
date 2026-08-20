@@ -12,7 +12,11 @@ Peach::Peach(sf::Vector2f pos) : Player(pos) {
     health = 1;
     
     boundingBox = AABB{pos.x, pos.y, 32.0f, 32.0f};
-    changeState(std::make_unique<SmallState>());
+    // Starting form, not a form *change*: the constructor's position is the one
+    // the caller asked for and must be preserved. changeState() here shifted it
+    // by the placeholder-box height difference (2px), so no character ever
+    // spawned exactly where it was constructed.
+    setStartingForm(Form::Small);
 }
 
 void Peach::setupAnimations(const SpriteSheet* spriteSheet) {

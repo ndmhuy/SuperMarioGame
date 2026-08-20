@@ -378,10 +378,10 @@ int main() {
 
             if (ePos.x <= roomMinX) {
                 ePos.x = roomMinX;
-                enemies[i]->onWall = true; 
+                enemies[i]->setOnWall(true); 
             } else if (ePos.x + box.width >= roomMaxX) {
                 ePos.x = roomMaxX - box.width;
-                enemies[i]->onWall = true; 
+                enemies[i]->setOnWall(true); 
             }
 
             // Flying enemies (Boo = index 3, Lakitu = index 7) do not clamp to ground
@@ -398,9 +398,9 @@ int main() {
                     ePos.y = currentGround - box.height;
                     vel.y = 0.0f;
                     enemies[i]->setVelocity(vel);
-                    enemies[i]->onGround = true;
+                    enemies[i]->setGrounded(true);
                 } else {
-                    enemies[i]->onGround = false;
+                    enemies[i]->setGrounded(false);
                 }
             }
 
@@ -410,10 +410,10 @@ int main() {
             if (ePos.y + box.height > 480.0f && ePos.y < 560.0f) {
                 if (ePos.x + box.width >= wallLeft && ePos.x < wallLeft) {
                     ePos.x = wallLeft - box.width;
-                    enemies[i]->onWall = true;
+                    enemies[i]->setOnWall(true);
                 } else if (ePos.x <= wallRight && ePos.x + box.width > wallRight) {
                     ePos.x = wallRight;
-                    enemies[i]->onWall = true;
+                    enemies[i]->setOnWall(true);
                 }
             }
 

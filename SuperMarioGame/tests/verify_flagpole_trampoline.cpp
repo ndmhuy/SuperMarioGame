@@ -75,17 +75,17 @@ int main() {
         Trampoline trampoline(trampPos);
         Mario mario(sf::Vector2f(400.0f, 368.0f));
 
-        assert(!trampoline.isCompressed());
+        assert(!trampoline.isBouncing());
 
         // Activate trampoline
         trampoline.activate(mario);
 
-        assert(trampoline.isCompressed());
+        assert(trampoline.isBouncing());
         assert(mario.getVelocity().y == -831.4f); // High spring jump impulse
 
         // Update trampoline timer
         trampoline.update(0.3f); // 300ms > 250ms compress duration
-        assert(!trampoline.isCompressed());
+        assert(!trampoline.isBouncing());
 
         std::cout << "[PASS] Test 3: Trampoline spring compression and bounce impulse verified." << std::endl;
     }
@@ -106,7 +106,7 @@ int main() {
         CollisionResolver resolver;
         resolver.resolvePlayerVsItem(mario, trampoline, topLandingInfo);
 
-        assert(trampoline.isCompressed());
+        assert(trampoline.isBouncing());
         assert(mario.getVelocity().y == -831.4f);
 
         std::cout << "[PASS] Test 4: Trampoline directional top collision landing verified." << std::endl;

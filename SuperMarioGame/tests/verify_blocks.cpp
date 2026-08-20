@@ -10,61 +10,14 @@
 #include "Entities/Player.hpp"
 #include "Entities/IPlayerState.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/GameSnapshot.hpp"
 #include "Physics/CollisionResolver.hpp"
 #include "Physics/CollisionDetector.hpp"
 
-// Mock singletons/stubs to link without full game framework
-#include "Core/Game.hpp"
-#include "Core/SoundManager.hpp"
-#include "Utils/TileMap.hpp"
-
-Game& Game::getInstance() {
-    static Game instance;
-    return instance;
-}
-Player* Game::getPlayer() const { return m_player; }
-void Game::setPlayer(Player* player) { m_player = player; }
-TileMap* Game::getTileMap() const { return m_tileMap; }
-void Game::setTileMap(TileMap* tileMap) { m_tileMap = tileMap; }
-void Game::run() {}
-void Game::quit() {}
-void Game::pushState(std::unique_ptr<IGameState> state) {}
-void Game::popState() {}
-void Game::changeState(std::unique_ptr<IGameState> state) {}
-void Game::initWindow() {}
-void Game::initImGui() {}
-void Game::shutdown() {}
-
-GameStateManager::~GameStateManager() = default;
-
-// TileMap stubs
-const TileInfo& TileMap::getInfo(TileType type) {
-    static TileInfo info;
-    return info;
-}
-void TileMap::render(sf::RenderTarget& target, Camera& camera) {}
-TileType TileMap::getTileAt(float px, float py) const { return TileType::Empty; }
-sf::Vector2i TileMap::worldToGrid(float px, float py) const { return {0,0}; }
-sf::Vector2f TileMap::gridToWorld(int gx, int gy) const { return {0.f, 0.f}; }
-TileType TileMap::getTileSurfaceType(float px, float py) const { return TileType::Empty; }
-void TileMap::swapBricksAndCoins() {}
-void TileMap::initialize(int width, int height) {}
-void TileMap::setTile(int gx, int gy, TileType type) {}
-
-// SoundManager stubs
-SoundManager& SoundManager::getInstance() {
-    static SoundManager instance;
-    return instance;
-}
-void SoundManager::playSound(const std::string& id) {}
-void SoundManager::playMusic(const std::string& path) {}
-void SoundManager::stopMusic() {}
-void SoundManager::pauseMusic() {}
-void SoundManager::resumeMusic() {}
-void SoundManager::shutdown() {}
-void SoundManager::setSFXVolume(float volume) {}
-void SoundManager::setMusicVolume(float volume) {}
-SoundManager::SoundManager() {}
+// The stub Game, TileMap and SoundManager that used to live here are gone: the
+// target links the whole engine, so every stub collided with the real
+// definition and this harness had not built in a long time. Running against the
+// real classes is also the only way its assertions describe shipped behaviour.
 
 // Minimal Player subclass for testing
 class TestPlayer : public Player {
@@ -108,15 +61,18 @@ int main() {
 
         // Brick must still be active and trigger bump animation
         assert(brick.isActive());
-        // Small state means height is 32.f
-        assert(smallPlayer.getBoundingBox().height == 32.0f);
+        // SmallState is 24x30 — 32 was the placeholder box from before the
+        // states owned their own sizes.
+        assert(smallPlayer.getBoundingBox().height == 30.0f);
         
         // 1.2: Super player hitting brick
         BrickBlock brick2(blockPos, 0);
         TestPlayer superPlayer;
         superPlayer.changeState(std::make_unique<SuperState>());
         superPlayer.setPosition({ 100.f, 164.f }); 
-        assert(superPlayer.getBoundingBox().height == 64.0f);
+        // SuperState is 24x60 — 64 was the placeholder box from before the
+        // player states owned their own sizes.
+        assert(superPlayer.getBoundingBox().height == 60.0f);
 
         bool blockBrokenEvent = false;
         auto subId = EventBus::getInstance().subscribe(EventType::BlockBroken, [&](const GameEvent& event) {
@@ -161,11 +117,17 @@ int main() {
 
         assert(!qBlock.isEmpty());
 
+        // PowerUpRequested, not PowerUpCollected. The block asks for an item to
+        // be spawned on top of it; PowerUpCollected is the *pickup*
+        // notification. It used to publish the pickup event and nothing
+        // listened for it as a spawn request, so all 59 question blocks in the
+        // game awarded points and produced nothing (audit B-2). This test
+        // asserted the broken behaviour.
         bool powerupSpawned = false;
         int spawnedType = -1;
-        auto subId = EventBus::getInstance().subscribe(EventType::PowerUpCollected, [&](const GameEvent& event) {
+        auto subId = EventBus::getInstance().subscribe(EventType::PowerUpRequested, [&](const GameEvent& event) {
             powerupSpawned = true;
-            spawnedType = std::any_cast<int>(event.data);
+            spawnedType = std::any_cast<PowerUpRequest>(event.data).itemType;
         });
 
         resolver.resolveCharacterVsBlock(player, qBlock, info);

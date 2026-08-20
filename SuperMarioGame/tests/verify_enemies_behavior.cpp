@@ -295,7 +295,7 @@ int main() {
         // Revive mechanics for testing
         if (Player* p = getPlayer()) {
             if (!p->isActive() || p->getLives() <= 0) {
-                p->active = true;
+                p->revive();
                 p->setPosition(sf::Vector2f(400.0f, 512.0f));
                 p->setVelocity(sf::Vector2f(0.0f, 0.0f));
             }

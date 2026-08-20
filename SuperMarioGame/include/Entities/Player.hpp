@@ -106,6 +106,14 @@ public:
     // These name the base form as a plain value so it can be re-applied to the
     // replacement without moving the state object between two owners.
     enum class Form { Small, Super, Fire, Cape, Mini };
+
+    // Applies `form` as the starting form, sizing the bounding box to it without
+    // the feet-planting shift a later form change performs. Character
+    // constructors set a placeholder 32x32 box and then changed state, so
+    // applyStateSize() shifted them by the difference — every character was
+    // spawned 2px below the position it was constructed with, and a save/load
+    // round trip drifted by the same amount each time.
+    void setStartingForm(Form form);
     Form getForm() const;
     void setForm(Form form);
 

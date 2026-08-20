@@ -81,6 +81,12 @@ Player::Form Player::getForm() const {
     return Form::Small;
 }
 
+void Player::setStartingForm(Form form) {
+    const sf::Vector2f keep = position;
+    setForm(form);
+    setPosition(keep);
+}
+
 void Player::setForm(Form form) {
     switch (form) {
         case Form::Super: setBaseState(std::make_unique<SuperState>()); break;

@@ -302,9 +302,17 @@ bool Serializer::loadGame(int slot, std::unique_ptr<Player>& player, int& levelI
         player->score = j["player"]["score"];
         player->lives = j["player"]["lives"];
 
-        // Restore state
+        // Restore state, THEN the position.
+        //
+        // Changing the base form runs applyStateSize(), which shifts position.y
+        // by the height difference so the feet stay planted — correct when a
+        // mushroom makes you grow mid-level, wrong when restoring a snapshot
+        // whose position already belongs to that form. Loading a saved Super
+        // Mario therefore moved him by the Small/Super height difference, and
+        // every save/load round trip drifted him further.
         std::string stateName = j["player"]["state"];
         restorePlayerState(*player, stateName);
+        player->setPosition(sf::Vector2f(px, py));
 
         // 2. Restore level parameters
         levelId = j["level"]["id"];

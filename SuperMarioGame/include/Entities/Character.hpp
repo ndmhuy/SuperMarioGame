@@ -26,6 +26,9 @@ public:
     // in through friendship.
     void setGrounded(bool grounded) { onGround = grounded; }
     bool isOnWall() const { return onWall; }
+    // Companion to setGrounded(): lets a harness stage a wall contact without
+    // reaching through friendship into a protected member.
+    void setOnWall(bool touching) { onWall = touching; }
     bool isFacingRight() const { return facingRight; }
     void setFacingRight(bool facing) { facingRight = facing; }
 

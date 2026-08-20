@@ -9,29 +9,16 @@
 #include "Core/EventBus.hpp"
 #include "Utils/Constants.hpp"
 
-// A dummy implementation of Game singleton because our tests might call Game::getInstance()
 #include "Core/Game.hpp"
 #include "Utils/TileMap.hpp"
 
-Game& Game::getInstance() {
-    static Game instance;
-    return instance;
-}
-Player* Game::getPlayer() const { return m_player; }
-void Game::setPlayer(Player* player) { m_player = player; }
-TileMap* Game::getTileMap() const { return m_tileMap; }
-void Game::setTileMap(TileMap* tileMap) { m_tileMap = tileMap; }
-void Game::run() {}
-void Game::quit() {}
-void Game::pushState(std::unique_ptr<IGameState> state) {}
-void Game::popState() {}
-void Game::changeState(std::unique_ptr<IGameState> state) {}
-void Game::initWindow() {}
-void Game::initImGui() {}
-void Game::shutdown() {}
-
-GameStateManager::~GameStateManager() = default;
-TileType TileMap::getTileAt(float px, float py) const { return TileType::Empty; }
+// The stub Game and TileMap that used to live here are gone.
+//
+// They existed so this harness could link against a handful of entity files
+// rather than the engine. The CMake target links the engine, so every stub
+// collided with the real definition and the target had not built in a long
+// time. Running against the real classes is what the other harnesses do, and it
+// is the only way these assertions describe the shipped behaviour.
 
 // We need to make sure the EventBus is clear for each test
 void clearEventBus() {
@@ -65,8 +52,8 @@ int main() {
         goomba.onStomped();
 
         assert(goomba.isSquished());
-        assert(goomba.velocity.x == 0.0f);
-        assert(goomba.velocity.y == 0.0f);
+        assert(goomba.getVelocity().x == 0.0f);
+        assert(goomba.getVelocity().y == 0.0f);
         assert(pointsReceived);
         assert(receivedPoints == 100);
 
@@ -74,7 +61,11 @@ int main() {
         goomba.update(0.3f);
         assert(goomba.isActive()); // still active at 0.3s
         goomba.update(0.3f);
-        assert(!goomba.isActive()); // destroyed at 0.6s total
+        // Defeated, not deleted: a squashed Goomba holds its squish frame and a
+        // fireballed one flips off screen before the prune takes it. This used
+        // to assert !isActive() on the same frame, from before there was any
+        // death animation to see.
+        assert(goomba.isDeadOrDying()); // destroyed at 0.6s total
 
         EventBus::getInstance().unsubscribe(subId);
 
@@ -88,12 +79,15 @@ int main() {
         goomba2.onHitByFireball();
         assert(goomba2.isFlipped());
         assert(!goomba2.isSquished());
-        assert(goomba2.velocity.y == -300.0f);
+        assert(goomba2.getVelocity().y == -300.0f);
         assert(fireballPoints);
 
-        // Bounding box should be empty on flipped/squished
-        AABB box = goomba2.getBoundingBox();
-        assert(box.width == 0.0f && box.height == 0.0f);
+        // A flipped enemy opts out of collision rather than reporting an empty
+        // box — a degenerate AABB in the spatial hash is what isCollidable()
+        // exists to avoid (audit B-14). The box stays real so the death
+        // animation still has something to draw and move.
+        assert(!goomba2.isCollidable());
+        assert(goomba2.getBoundingBox().width > 0.0f);
 
         EventBus::getInstance().unsubscribe(subId);
         std::cout << "[TEST] Goomba tests PASSED!" << std::endl;
@@ -120,7 +114,7 @@ int main() {
         // Stomp from walking to shell idle
         koopa.onStomped();
         assert(koopa.getState() == KoopaState::ShellIdle);
-        assert(koopa.velocity.x == 0.0f);
+        assert(koopa.getVelocity().x == 0.0f);
         assert(pointsReceived);
         assert(points == 200);
 
@@ -129,18 +123,18 @@ int main() {
         // Kick shell
         koopa.kick(sf::Vector2f(Constants::KOOPA_SHELL_KICK_SPEED, 0.f));
         assert(koopa.getState() == KoopaState::ShellKicked);
-        assert(koopa.velocity.x == Constants::KOOPA_SHELL_KICK_SPEED);
+        assert(koopa.getVelocity().x == Constants::KOOPA_SHELL_KICK_SPEED);
 
         // Wall bounce
-        koopa.onWall = true;
+        koopa.setOnWall(true);
         koopa.update(0.1f);
-        assert(koopa.velocity.x == -Constants::KOOPA_SHELL_KICK_SPEED);
-        assert(!koopa.onWall);
+        assert(koopa.getVelocity().x == -Constants::KOOPA_SHELL_KICK_SPEED);
+        assert(!koopa.isOnWall());
 
         // Stomp while kicked stops it
         koopa.onStomped();
         assert(koopa.getState() == KoopaState::ShellIdle);
-        assert(koopa.velocity.x == 0.0f);
+        assert(koopa.getVelocity().x == 0.0f);
 
         // Shell wake timer (5.0s)
         koopa.update(4.0f);
@@ -164,9 +158,9 @@ int main() {
 
         // Sine wave fly movement check (vertical speed changes)
         paratroopa.update(0.0f); // Init
-        float initialVelY = paratroopa.velocity.y;
+        float initialVelY = paratroopa.getVelocity().y;
         paratroopa.update(0.1f);
-        float nextVelY = paratroopa.velocity.y;
+        float nextVelY = paratroopa.getVelocity().y;
         // Verify FlyStrategy is active (velocity.y changed or sinusoidal)
         assert(initialVelY != nextVelY || std::abs(nextVelY) > 0.0f);
 
@@ -192,6 +186,11 @@ int main() {
             pointsReceived = true;
             points = std::any_cast<int>(event.data);
         });
+
+        // Losing the wings grants a one-second grace, so a single stomp cannot
+        // be counted twice by an overlap that persists for several frames. The
+        // test used to stomp again on the same frame and expected it to land.
+        for (int i = 0; i < 70; ++i) paratroopa.update(1.0f / 60.0f);
 
         paratroopa.onStomped();
         assert(paratroopa.getState() == KoopaState::ShellIdle);

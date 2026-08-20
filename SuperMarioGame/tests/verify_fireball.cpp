@@ -52,8 +52,12 @@ int main() {
         sf::Vector2f initialVel(350.0f, 0.0f);
         Fireball fireball(spawnPos, initialVel);
 
-        // Simulate 3.1 seconds
+        // Simulate 3.1 seconds: the lifetime expires and the burst starts.
         fireball.update(3.1f);
+        // An expired fireball burns out over ~0.24s rather than vanishing, so it
+        // is still active for that burst. This asserted !isActive() from before
+        // there was an impact animation to play.
+        for (int i = 0; i < 20; ++i) fireball.update(1.0f / 60.0f);
         assert(!fireball.isActive());
 
         std::cout << "[PASS] Test 3: Fireball 3.0s lifetime expiration verified." << std::endl;
@@ -75,9 +79,19 @@ int main() {
         info.normal = sf::Vector2f(1.0f, 0.0f);
 
         CollisionResolver resolver;
-        resolver.resolveFireballVsEnemy(fireball, goomba, info);
+        // resolveFireballVsEnemy is gone: projectiles go through the generic
+        // category dispatch now, so a hammer is never static_cast to a Fireball.
+        resolver.resolveEntityVsEntity(fireball, goomba, info);
 
-        // Fireball should be destroyed on enemy hit
+        // And the enemy must actually die. This assertion is the point of the
+        // test and it was missing: it only ever checked the fireball, which is
+        // how three enemies shipped with a shadowed m_isFlipped that made them
+        // survive being hit.
+        assert(goomba.isDeadOrDying());
+
+        // The fireball bursts rather than vanishing, so let the burst finish
+        // before asserting it is gone.
+        for (int i = 0; i < 20; ++i) fireball.update(1.0f / 60.0f);
         assert(!fireball.isActive());
 
         std::cout << "[PASS] Test 4: Fireball vs Enemy collision impact verified." << std::endl;

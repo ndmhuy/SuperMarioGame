@@ -1,12 +1,11 @@
 {
-    "colorblindMode": false,
-    "difficulty": "normal",
+    "colorblindMode": true,
+    "difficulty": "hard",
     "keyBindings": {
-        "fire": "F",
-        "jump": "W",
-        "left": "A",
-        "right": "D"
+        "jump": "Space",
+        "left": "Left",
+        "right": "Right"
     },
-    "musicVolume": 60.0,
-    "sfxVolume": 80.0
+    "musicVolume": 35.0,
+    "sfxVolume": 45.0
 }

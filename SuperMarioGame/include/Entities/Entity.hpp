@@ -42,6 +42,12 @@ public:
     virtual const AABB& getBoundingBox() const;
     virtual bool isActive() const;
     virtual void destroy();
+
+    // Brings a destroyed entity back. The object pool needs this (a recycled
+    // object is reactivated rather than reconstructed) and so do the harnesses
+    // that respawn a test player, both of which used to assign to the protected
+    // `active` flag through friendship.
+    void revive() { active = true; }
     virtual float getGravityMultiplier() const { return 1.0f; }
 
     // What kind of thing this is, for collision dispatch. Overridden once per

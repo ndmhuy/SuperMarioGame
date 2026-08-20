@@ -63,18 +63,28 @@ enable_testing()
 
 # Registers a headless test executable and its ctest case in one step, instead
 # of repeating the add_executable / include / link block per target.
+# Builds a harness and, unless NO_CTEST is given, registers it as a ctest case.
+#
+# NO_CTEST is for the harnesses that open an sf::RenderWindow and run until it is
+# closed — the *_visual ones plus verify_hud_boss and verify_enemies_behavior. They
+# wait for a human
+# to look at it, so `ctest` hung forever on the first one. They are inspection
+# tools, not tests — built by `make`, run by hand.
 function(add_verify_test name source)
+    cmake_parse_arguments(AVT "NO_CTEST" "" "" ${ARGN})
     add_executable(${name} "${source}" ${APP_SOURCES})
     target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_libraries(${name} PRIVATE
         SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
         ImGui-SFML::ImGui-SFML
         nlohmann_json::nlohmann_json)
-    add_test(NAME ${name} COMMAND ${name})
-    # Assets resolve relative to the source tree, not the build directory.
-    set_tests_properties(${name} PROPERTIES
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        TIMEOUT 120)
+    if (NOT AVT_NO_CTEST)
+        add_test(NAME ${name} COMMAND ${name})
+        # Assets resolve relative to the source tree, not the build directory.
+        set_tests_properties(${name} PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            TIMEOUT 120)
+    endif()
 endfunction()
 
 # ---------------------------------------------------------
@@ -120,249 +130,53 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # ---------------------------------------------------------
 list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 
-add_executable(verify_all
-    ${SOURCES}
-    tests/verify_all.cpp
-)
-target_include_directories(verify_all PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(verify_all PRIVATE
-    SFML::Graphics
-    SFML::Window
-    SFML::System
-    SFML::Audio
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_all "tests/verify_all.cpp")
 
-add_executable(verify_map_editor 
-    ${SOURCES} 
-    tests/verify_map_editor.cpp
-)
-target_include_directories(verify_map_editor PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(verify_map_editor PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_map_editor "tests/verify_map_editor.cpp" NO_CTEST)
 
-add_executable(verify_save_load 
-    tests/verify_save_load.cpp
-    ${SOURCES}
-)
-target_include_directories(verify_save_load PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(verify_save_load PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_save_load "tests/verify_save_load.cpp")
 
-add_executable(verify_enemies 
-    "tests/verify_enemies.cpp"
-    ${SOURCES}
-)
-target_include_directories(verify_enemies PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(verify_enemies PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_enemies "tests/verify_enemies.cpp")
 
 # ---------------------------------------------------------
 # 4. Verification Test Target (verify_blocks)
 # ---------------------------------------------------------
-add_executable(verify_blocks 
-    "tests/verify_blocks.cpp"
-    ${SOURCES}
-)
-
-target_include_directories(verify_blocks PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_blocks PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_blocks "tests/verify_blocks.cpp")
 
 # ---------------------------------------------------------
 # 5. Verification Test Target (verify_enemies_new - Phase 3.9)
 # ---------------------------------------------------------
-add_executable(verify_enemies_new
-    "tests/verify_enemies_new.cpp"
-    ${SOURCES}
-)
-
-target_include_directories(verify_enemies_new PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_enemies_new PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_enemies_new "tests/verify_enemies_new.cpp")
 
 # ---------------------------------------------------------
 # 6. Verification Test Target (verify_blocks_new - Phase 3.13)
 # ---------------------------------------------------------
-add_executable(verify_blocks_new
-    "tests/verify_blocks_new.cpp"
-    ${SOURCES}
-)
-
-target_include_directories(verify_blocks_new PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_blocks_new PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_blocks_new "tests/verify_blocks_new.cpp")
 
 # ---------------------------------------------------------
 # 7. Verification Test Target (verify_graphics)
 # ---------------------------------------------------------
-add_executable(verify_graphics
-    "tests/verify_graphics.cpp"
-    "src/Graphics/SpriteSheet.cpp"
-    "src/Graphics/Animator.cpp"
-    "src/Graphics/AnimationManager.cpp"
-    "src/Core/ResourceManager.cpp"
-)
-
-target_include_directories(verify_graphics PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_graphics PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_graphics "tests/verify_graphics.cpp")
 
 # ---------------------------------------------------------
 # 8. Verification Test Target (verify_graphics_visual)
 # ---------------------------------------------------------
-add_executable(verify_graphics_visual
-    "tests/verify_graphics_visual.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_graphics_visual PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_graphics_visual PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_graphics_visual "tests/verify_graphics_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 9. Verification Test Target (verify_hud_boss)
 # ---------------------------------------------------------
-add_executable(verify_hud_boss
-    "tests/verify_hud_boss.cpp"
-    "src/Graphics/HUD.cpp"
-    "src/Core/ResourceManager.cpp"
-    "src/Core/EventBus.cpp"
-)
-
-target_include_directories(verify_hud_boss PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_hud_boss PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_hud_boss "tests/verify_hud_boss.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 13. Verification Test Target (verify_fireball)
 # ---------------------------------------------------------
-add_executable(verify_fireball
-    ${SOURCES}
-    tests/verify_fireball.cpp
-)
-target_include_directories(verify_fireball PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(verify_fireball PRIVATE
-    SFML::Graphics
-    SFML::Window
-    SFML::System
-    SFML::Audio
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_fireball "tests/verify_fireball.cpp")
 
 # ---------------------------------------------------------
 # 14. Verification Test Target (verify_flagpole_trampoline)
 # ---------------------------------------------------------
-add_executable(verify_flagpole_trampoline
-    ${SOURCES}
-    tests/verify_flagpole_trampoline.cpp
-)
-target_include_directories(verify_flagpole_trampoline PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(verify_flagpole_trampoline PRIVATE
-    SFML::Graphics
-    SFML::Window
-    SFML::System
-    SFML::Audio
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_flagpole_trampoline "tests/verify_flagpole_trampoline.cpp")
 
 # ---------------------------------------------------------
 # 10. Verification Test Target (verify_minimap_visual)
@@ -370,156 +184,37 @@ target_link_libraries(verify_flagpole_trampoline PRIVATE
 set(APP_SOURCES ${SOURCES})
 list(REMOVE_ITEM APP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp" "src/main.cpp")
 
-add_executable(verify_minimap_visual
-    "tests/verify_minimap_visual.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_minimap_visual PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_minimap_visual PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_minimap_visual "tests/verify_minimap_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 11. Verification Test Target (verify_particles_visual)
 # ---------------------------------------------------------
-add_executable(verify_particles_visual
-    "tests/verify_particles_visual.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_particles_visual PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_particles_visual PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_particles_visual "tests/verify_particles_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 12. Verification Test Target (verify_player_animation_visual)
 # ---------------------------------------------------------
-add_executable(verify_player_animation_visual
-    "tests/verify_player_animation_visual.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_player_animation_visual PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_player_animation_visual PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_player_animation_visual "tests/verify_player_animation_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 13. Verification Test Target (verify_enemies_visual)
 # ---------------------------------------------------------
-add_executable(verify_enemies_visual
-    "tests/verify_enemies_visual.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_enemies_visual PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_enemies_visual PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_enemies_visual "tests/verify_enemies_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 14. Verification Test Target (verify_all_entities_visual)
 # ---------------------------------------------------------
-add_executable(verify_all_entities_visual
-    "tests/verify_all_entities_visual.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_all_entities_visual PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_all_entities_visual PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_all_entities_visual "tests/verify_all_entities_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 15. Verification Test Target (verify_map_generator)
 # ---------------------------------------------------------
-add_executable(verify_map_generator
-    "tests/verify_map_generator.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_map_generator PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_map_generator PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_map_generator "tests/verify_map_generator.cpp")
 
 # ---------------------------------------------------------
 # 16. Verification Test Target (verify_enemies_behavior)
 # ---------------------------------------------------------
-add_executable(verify_enemies_behavior
-    "tests/verify_enemies_behavior.cpp"
-    ${APP_SOURCES}
-)
-
-target_include_directories(verify_enemies_behavior PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_link_libraries(verify_enemies_behavior PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+add_verify_test(verify_enemies_behavior "tests/verify_enemies_behavior.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
 # 17. Level Generation Utility Target (generate_game_levels)

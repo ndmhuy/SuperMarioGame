@@ -29,9 +29,12 @@ public:
     // test can watch the whole emergence cycle rather than eyeball it.
     float artworkVisibleHeight() const { return emergedHeight(); }
 
-private:
-    float emergedHeight() const;
-
+    // Anchored in its pipe: neither gravity nor the tilemap moves it, the
+    // emergence strategy does. Public because they are part of what this entity
+    // reports about itself, and a test cannot ask through a private override.
     float getGravityMultiplier() const override { return 0.0f; }
     bool collidesWithTiles() const override { return false; }
+
+private:
+    float emergedHeight() const;
 };

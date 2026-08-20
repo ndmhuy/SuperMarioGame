@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <cstdlib>
 #include <cmath>
 #include <SFML/System/Vector2.hpp>
@@ -29,55 +30,15 @@
         } \
     } while (0)
 
-// Singletons / Stubs definition
-Game& Game::getInstance() {
-    static Game instance;
-    return instance;
-}
-Player* Game::getPlayer() const { return m_player; }
-void Game::setPlayer(Player* player) { m_player = player; }
-TileMap* Game::getTileMap() const { return m_tileMap; }
-void Game::setTileMap(TileMap* tileMap) { m_tileMap = tileMap; }
-void Game::run() {}
-void Game::quit() {}
-void Game::pushState(std::unique_ptr<IGameState> state) {}
-void Game::popState() {}
-void Game::changeState(std::unique_ptr<IGameState> state) {}
-void Game::initWindow() {}
-void Game::initImGui() {}
-void Game::shutdown() {}
-
-GameStateManager::~GameStateManager() = default;
-
-// TileMap stubs
-const TileInfo& TileMap::getInfo(TileType type) {
-    static TileInfo info;
-    return info;
-}
-void TileMap::render(sf::RenderTarget& target, Camera& camera) {}
-TileType TileMap::getTileAt(float px, float py) const { return TileType::Empty; }
-sf::Vector2i TileMap::worldToGrid(float px, float py) const { return {0,0}; }
-sf::Vector2f TileMap::gridToWorld(int gx, int gy) const { return {0.f, 0.f}; }
-TileType TileMap::getTileSurfaceType(float px, float py) const { return TileType::Empty; }
-void TileMap::swapBricksAndCoins() {}
-void TileMap::initialize(int width, int height) {}
-void TileMap::setTile(int gx, int gy, TileType type) {}
-
-// SoundManager stubs
-SoundManager& SoundManager::getInstance() {
-    static SoundManager instance;
-    return instance;
-}
-void SoundManager::playSound(const std::string& id) {}
-void SoundManager::playMusic(const std::string& path) {}
-void SoundManager::stopMusic() {}
-void SoundManager::pauseMusic() {}
-void SoundManager::resumeMusic() {}
-void SoundManager::shutdown() {}
-void SoundManager::setSFXVolume(float volume) {}
-void SoundManager::setMusicVolume(float volume) {}
-SoundManager::SoundManager() {}
-
+// No stubs here any more.
+//
+// This harness used to define its own Game, TileMap and SoundManager so it could
+// link against a handful of entity files instead of the engine. The CMake target
+// links the whole engine, so every stub collided with the real definition — 35
+// duplicate symbols — and the target has not built in a long time. Running
+// against the real classes is also what the other harnesses do, and it is the
+// only way these assertions describe the shipped behaviour rather than the
+// stubs' behaviour.
 // Custom TestPlayer
 class TestPlayer : public Player {
 public:
@@ -97,6 +58,11 @@ public:
     void takeDamage(int amount) override {
         damageTaken += amount;
     }
+
+    // Player gained a pure virtual getCharacterName() when the save system
+    // started recording who the run belonged to. This harness was never updated,
+    // so TestPlayer stayed abstract and the target has not compiled since.
+    std::string getCharacterName() const override { return "test"; }
 };
 
 int main() {
@@ -198,7 +164,12 @@ int main() {
         });
 
         bill.onStomped();
-        TEST_ASSERT(!bill.isActive());
+        // A stomped Bullet Bill flips and flies off screen before it is pruned;
+        // it is dying, not gone. This used to assert !isActive() on the same
+        // frame, which was true back when a stomp deleted the enemy outright and
+        // there was no death animation to watch.
+        TEST_ASSERT(bill.isDeadOrDying());
+        TEST_ASSERT(!bill.collidesWithTiles());
         TEST_ASSERT(pointsReceived);
 
         EventBus::getInstance().unsubscribe(subId);
@@ -298,7 +269,10 @@ int main() {
         spiny.onHitByFireball();
         TEST_ASSERT(spiny.isFlipped());
         TEST_ASSERT(pointsReceived);
-        TEST_ASSERT(spiny.getBoundingBox().width == 0.f); // empty box when flipped
+        // Opts out of collision rather than reporting an empty box: a degenerate
+        // AABB in the spatial hash is what isCollidable() exists to avoid
+        // (audit B-14).
+        TEST_ASSERT(!spiny.isCollidable());
 
         EventBus::getInstance().unsubscribe(subId);
         std::cout << "[TEST] Lakitu & Spiny tests PASSED!" << std::endl;
