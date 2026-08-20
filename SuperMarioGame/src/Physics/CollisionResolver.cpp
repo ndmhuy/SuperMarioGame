@@ -11,7 +11,7 @@
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/KoopaTroopa.hpp"
-#include "Entities/KoopaTroopa.hpp"
+#include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -149,6 +149,15 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
     if (!enemy.isActive() || enemy.isDeadOrDying()) return;
     if (player.getInvincibilityTimer() > 0.0f) return; // Ignore all enemy contact (damage & stomp) during hurt i-frames
 
+    // A cape swing clears whatever it reaches. Checked before the stomp test so
+    // a spin connects from any direction, which is the point of having it.
+    if (player.isSpinningCape() && !enemy.isDeadOrDying()) {
+        enemy.onHitByFireball();   // the existing "knocked out sideways" path
+        player.incrementCombo();
+        player.addScore(enemy.getScoreValue() * player.getComboCounter());
+        return;
+    }
+
     // A stomp is any contact where the player is descending onto the enemy's upper band.
     // The feet-vs-top test is more forgiving than the raw collision normal at high speed.
     float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
@@ -156,22 +165,55 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
     bool isStomp = (player.getVelocity().y > -50.0f && playerFeetY <= enemyTopY) ||
                    (info.normal.y == -1.0f && player.getVelocity().y >= 0.0f);
 
-    // Touching any unflipped Koopa picks it up and prevents damage
+    // --- Koopa Troopas and their shells ------------------------------------
+    //
+    // This branch used to pick up ANY unflipped Koopa on any non-stomp contact.
+    // Walking into a live, patrolling Koopa handed you the Koopa instead of
+    // hurting you, and running into a shell someone had just kicked did the
+    // same — so Koopas were the one enemy in the game that could not hurt you
+    // at all, and a kicked shell was harmless to its own kicker.
+    //
+    // The rules below are the ones the series has always used:
+    //   walking Koopa   stomp -> shell;      side/below -> damage
+    //   idle shell      stomp -> kick;       side  -> kick, or carry if running
+    //   sliding shell   stomp -> stop;       side  -> damage
     if (auto koopa = dynamic_cast<KoopaTroopa*>(&enemy)) {
         if (!koopa->isFlipped() && koopa->getState() != KoopaState::ShellHeld) {
-            if (isStomp && koopa->getState() == KoopaState::Walking) {
-                // Stomping a walking Koopa from above executes the standard stomp bounce
+            const KoopaState koopaState = koopa->getState();
+
+            if (isStomp) {
+                // onStomped() already knows all three cases: shell a walker,
+                // kick an idle shell, stop a sliding one.
                 player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
                 koopa->onStomped();
-                player.incrementCombo();
-                player.addScore(enemy.getScoreValue() * player.getComboCounter());
-                return;
-            } else {
-                // Touching sideways/below (or touching an idle/kicked shell from any angle) picks it up
-                koopa->pickUp(&player);
-                player.holdEntity(koopa);
+                if (koopaState == KoopaState::Walking) {
+                    player.incrementCombo();
+                    player.addScore(enemy.getScoreValue() * player.getComboCounter());
+                }
                 return;
             }
+
+            if (koopaState == KoopaState::ShellIdle) {
+                // Side contact with a resting shell. Holding run picks it up to
+                // carry; otherwise it is kicked away, which is what happens if
+                // you simply walk into one.
+                const float dx = player.getBoundingBox().getCenter().x -
+                                 koopa->getBoundingBox().getCenter().x;
+                const float away = (dx >= 0.0f) ? -1.0f : 1.0f;
+
+                if (player.isRunRequested() && !player.getHeldEntity()) {
+                    koopa->pickUp(&player);
+                    player.holdEntity(koopa);
+                } else {
+                    koopa->kick({away * Constants::KOOPA_SHELL_KICK_SPEED,
+                                 koopa->getVelocity().y});
+                    SoundManager::getInstance().playSound("kick");
+                }
+                return;
+            }
+
+            // A walking Koopa or a shell already sliding: falls through to the
+            // ordinary side-contact damage path below, like every other enemy.
         }
     }
 

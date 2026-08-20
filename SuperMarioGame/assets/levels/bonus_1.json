@@ -21,20 +21,20 @@
       "y": 16
     },
     {
-      "exitX": 64,
-      "exitY": 20,
-      "isEntrance": true,
+      "exitX": 0,
+      "exitY": 0,
+      "isEntrance": false,
       "pipeId": 1,
-      "targetLevel": "assets/levels/level_1_sub.json",
+      "targetLevel": "",
       "type": "pipe",
       "x": 58,
       "y": 19
     },
     {
+      "itemType": 1,
       "type": "question_block",
       "x": 60,
-      "y": 18,
-      "itemType": 1
+      "y": 18
     },
     {
       "type": "trampoline",
@@ -42,40 +42,40 @@
       "y": 20
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 26,
-      "y": 15,
-      "itemType": 0
+      "y": 15
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 31,
-      "y": 15,
-      "itemType": 0
+      "y": 15
     },
     {
+      "itemType": 1,
       "type": "question_block",
       "x": 37,
-      "y": 16,
-      "itemType": 1
+      "y": 16
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 42,
-      "y": 16,
-      "itemType": 0
+      "y": 16
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 49,
-      "y": 16,
-      "itemType": 0
+      "y": 16
     },
     {
+      "itemType": 2,
       "type": "question_block",
       "x": 54,
-      "y": 16,
-      "itemType": 2
+      "y": 16
     },
     {
       "type": "goomba",
@@ -88,40 +88,40 @@
       "y": 18
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 78,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 79,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 3,
       "type": "question_block",
       "x": 85,
-      "y": 17,
-      "itemType": 3
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 86,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 92,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 4,
       "type": "question_block",
       "x": 95,
-      "y": 17,
-      "itemType": 4
+      "y": 17
     },
     {
       "type": "flagpole",
@@ -181,11 +181,6 @@
     {
       "type": "coin_tile",
       "x": 30,
-      "y": 15
-    },
-    {
-      "type": "brick",
-      "x": 31,
       "y": 15
     },
     {

@@ -40,6 +40,12 @@ public:
     // game is in the background.
     void noteKeyEvent(const sf::Event& event);
     bool isHeld(sf::Keyboard::Key key) const;
+
+    // Is the key currently bound to `action` for this player held down? Callers
+    // that need "is jump held" want this rather than isHeld(Key::W): Peach's
+    // float and the cape glide both read the *action*, so rebinding jump keeps
+    // working. Peach used to name W and Space directly.
+    bool isActionHeld(const std::string& action, int playerIndex = 0) const;
     // Called on focus loss: a key released while another window had focus never
     // reaches us, and would otherwise stay held forever.
     void clearHeldKeys();

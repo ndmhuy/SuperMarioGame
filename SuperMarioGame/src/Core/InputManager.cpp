@@ -1,4 +1,5 @@
 #include "Core/InputManager.hpp"
+#include <string>
 #include "Entities/Player.hpp"
 
 // Include all commands
@@ -181,6 +182,14 @@ std::string InputManager::getActionForKey(const std::string& key, int playerInde
         if (bound == code) return action;
     }
     return "";
+}
+
+bool InputManager::isActionHeld(const std::string& action, int playerIndex) const {
+    if (playerIndex < 0 || playerIndex > 1) return false;
+    const auto& table = m_boundKey[playerIndex];
+    auto it = table.find(action);
+    if (it == table.end()) return false;
+    return isHeld(it->second);
 }
 
 std::string InputManager::getBoundKeyName(const std::string& action, int playerIndex) const {

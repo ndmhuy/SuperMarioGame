@@ -12,7 +12,7 @@ Spiny::Spiny(sf::Vector2f position, bool isEgg)
     boundingBox = AABB{ position.x, position.y, Constants::TILE_SIZE, Constants::TILE_SIZE };
 
     // PatrolStrategy: Spiny patrols back and forth on platforms/ground
-    setStrategy(std::make_unique<PatrolStrategy>(false, false));
+    setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
 }
 
 void Spiny::setupAnimations(const SpriteSheet* spriteSheet) {

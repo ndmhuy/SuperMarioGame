@@ -21,7 +21,6 @@ public:
     // Getters for state/unit testing
     bool isRed() const { return m_isRed; }
     bool isSquished() const { return m_isSquished; }
-    bool isFlipped() const { return m_isFlipped; }
     float getSquishTimer() const { return m_squishTimer; }
 
     const AABB& getBoundingBox() const override;
@@ -31,7 +30,14 @@ public:
 private:
     bool m_isRed;
     bool m_isSquished = false;
-    bool m_isFlipped = false;
+    // isFlipped()/m_isFlipped deliberately NOT redeclared here.
+    //
+    // This class used to shadow both with its own copy. onHitByFireball() then
+    // set the *derived* flag while Enemy::isDeadOrDying() and
+    // Enemy::collidesWithTiles() kept reading the base one — so a fireball
+    // launched this enemy into the air and it never actually died, and it went
+    // on colliding with tiles the whole time. That is why "the fireball must
+    // kill the enemy": it hit, it knocked them back, and nothing else happened.
     float m_squishTimer = 0.0f;
     Animation m_squishAnim;
 };

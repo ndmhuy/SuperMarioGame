@@ -1,4 +1,6 @@
 #include "Entities/Player.hpp"
+#include "Entities/KoopaTroopa.hpp"
+#include "Core/InputManager.hpp"
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/GameSnapshot.hpp"
@@ -68,7 +70,50 @@ bool Player::canShootFireball() const {
     return dynamic_cast<FireState*>(getBaseState()) != nullptr;
 }
 
+int Player::getPlayerIndex() const {
+    // Two pads, and the InputManager is the only thing that knows which is which.
+    return (this == InputManager::getInstance().getPlayer(1)) ? 1 : 0;
+}
+
+bool Player::spinCape() {
+    if (!dynamic_cast<CapeState*>(getBaseState())) return false;
+    if (m_capeSpinTimer > 0.0f) return true;   // already mid-swing
+    m_capeSpinTimer = 0.35f;
+    SoundManager::getInstance().playSound("kick");
+    return true;
+}
+
+bool Player::throwHeldEntity() {
+    if (!m_heldEntity) return false;
+
+    // Only Koopa shells are carryable today, but the hook is on Player so the
+    // rule stays "throw what you are holding" rather than "throw a shell".
+    if (auto* koopa = dynamic_cast<KoopaTroopa*>(m_heldEntity)) {
+        m_heldEntity = nullptr;
+        koopa->throwShell();
+        return true;
+    }
+
+    m_heldEntity = nullptr;
+    return true;
+}
+
+void Player::dropHeldEntity() {
+    if (!m_heldEntity) return;
+    if (auto* koopa = dynamic_cast<KoopaTroopa*>(m_heldEntity)) {
+        koopa->release();
+    }
+    m_heldEntity = nullptr;
+}
+
 void Player::shootFireball() {
+    // One button, three meanings, in the order the originals use:
+    //   carrying something -> throw it
+    //   wearing the cape   -> swing it
+    //   fire form          -> shoot
+    if (throwHeldEntity()) return;
+    if (spinCape()) return;
+
     if (!canShootFireball()) return;
 
     EventBus::getInstance().publish({EventType::PlayerShotFireball, this});
@@ -138,6 +183,7 @@ void Player::powerUp(int itemType) {
 
 void Player::takeDamage(int amount) {
     if (invincibilityTimer > 0.0f) return;
+    dropHeldEntity();
     Character::takeDamage(amount);
     powerDown();
 }
@@ -342,6 +388,12 @@ void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std:
 }
 
 void Player::update(float dt) {
+    if (m_capeSpinTimer > 0.0f) {
+        m_capeSpinTimer -= dt;
+        if (m_capeSpinTimer < 0.0f) m_capeSpinTimer = 0.0f;
+    }
+    if (onGround) m_gliding = false;
+
     if (m_animator && m_hasAnimation) {
         Animation* targetAnim = &m_animIdle;
         if (invincibilityTimer > 1.7f && invincibilityTimer < 9000.0f) {

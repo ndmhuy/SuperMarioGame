@@ -87,6 +87,33 @@ public:
     void holdEntity(Entity* entity) { m_heldEntity = entity; }
     void releaseHeldEntity() { m_heldEntity = nullptr; }
 
+    // Throws whatever is being carried in the facing direction and returns true
+    // if something was thrown. Nothing used to clear m_heldEntity, so a picked-up
+    // shell was carried for the rest of the level with no way to put it down.
+    bool throwHeldEntity();
+
+    // --- Cape ---------------------------------------------------------------
+    //
+    // Which pad drives this player, so a state can ask the InputManager about
+    // the *bound* jump key rather than naming a physical one.
+    int getPlayerIndex() const;
+
+    // Set by CapeState while the player is drifting down under the cape. Read by
+    // the animation picker and by the physics glide clamp.
+    bool isGliding() const { return m_gliding; }
+    void setGliding(bool gliding) { m_gliding = gliding; }
+
+    // Swings the cape. Returns false when the player is not caped, so the fire
+    // button can fall through to the fireball. While the spin lasts, touching an
+    // enemy defeats it instead of hurting the player.
+    bool spinCape();
+    bool isSpinningCape() const { return m_capeSpinTimer > 0.0f; }
+    float getCapeSpinTimer() const { return m_capeSpinTimer; }
+
+    // Drops it in place without launching it. Used when the player is hurt or
+    // dies: a carried shell must not follow a corpse around.
+    void dropHeldEntity();
+
     // Encapsulated Memento pattern methods
     PlayerSnapshot createSnapshot() const;
     void restoreMemento(const PlayerSnapshot& snapshot);
@@ -115,6 +142,8 @@ protected:
     bool m_isImmortal = false;
     float m_fireballCooldownTimer = 0.0f;
     Entity* m_heldEntity = nullptr;
+    bool m_gliding = false;
+    float m_capeSpinTimer = 0.0f;
 
     std::unique_ptr<Animator> m_animator;
     const SpriteSheet* m_spriteSheet = nullptr;

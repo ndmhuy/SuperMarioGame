@@ -11,7 +11,7 @@ KoopaTroopa::KoopaTroopa(sf::Vector2f position, bool isRed)
     boundingBox = AABB{ position.x, position.y, Constants::TILE_SIZE, Constants::TILE_SIZE };
     
     // Start with PatrolStrategy
-    setStrategy(std::make_unique<PatrolStrategy>(m_isRed, false));
+    setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
 }
 
 void KoopaTroopa::update(float dt) {
@@ -41,7 +41,7 @@ void KoopaTroopa::update(float dt) {
             if (m_shellTimer <= 0.0f) {
                 m_state = KoopaState::Walking;
                 speed = Constants::ENEMY_KOOPA_SPEED;
-                setStrategy(std::make_unique<PatrolStrategy>(m_isRed, false));
+                setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
             }
         } else if (m_state == KoopaState::ShellKicked) {
             if (onWall) {
@@ -136,6 +136,13 @@ void KoopaTroopa::pickUp(Player* holder) {
     if (m_animator && m_hasAnimation) {
         m_animator->play(&m_shellAnim);
     }
+}
+
+void KoopaTroopa::release() {
+    m_holder = nullptr;
+    m_state = KoopaState::ShellIdle;
+    velocity = sf::Vector2f(0.0f, 0.0f);
+    m_shellTimer = Constants::KOOPA_SHELL_WAKE_TIME;
 }
 
 void KoopaTroopa::throwShell(float speed, float angleDeg) {

@@ -10,7 +10,12 @@ Goomba::Goomba(sf::Vector2f position, bool isRed)
     boundingBox = AABB{ position.x, position.y, Constants::TILE_SIZE, Constants::TILE_SIZE };
     
     // Set PatrolStrategy: ledge-aware if red goomba
-    setStrategy(std::make_unique<PatrolStrategy>(m_isRed, false));
+    // Ledge-aware, always. Only the red variants used to turn at a drop, so green
+    // Koopas, Spinies and ordinary Goombas walked off the first ledge they met
+    // and were gone before the player ever reached them — on levels built around
+    // pits, most of the cast deleted itself. Authentic to the originals, but
+    // those levels were designed around it and these are not.
+    setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
 }
 
 void Goomba::update(float dt) {

@@ -6,7 +6,8 @@
 // One entry of the campaign, in play order.
 struct LevelEntry {
     std::string path;         // asset-relative JSON path
-    std::string displayName;  // "1-1", "1-1 Sub", ... as shown on menus and summaries
+    std::string displayName;  // "1-1", "1-2", ... as shown on menus and summaries
+    std::string longName;     // "World 1-1: Grassland Overworld", for the dev dropdown
 };
 
 // The campaign order in one place.
@@ -26,6 +27,14 @@ public:
 
     // Display name for `index`, or "?" when out of range.
     static const std::string& nameFor(int index);
+
+    // Long descriptive name for `index`, or "?" when out of range. The dev
+    // panel's dropdown used to hold its own array of these, which is how it
+    // ended up offering seven levels after the campaign dropped to four.
+    static const std::string& longNameFor(int index);
+
+    // Every longName in play order, as C strings, for ImGui::Combo.
+    static const std::vector<const char*>& longNameItems();
 
     static bool isValidIndex(int index);
 };

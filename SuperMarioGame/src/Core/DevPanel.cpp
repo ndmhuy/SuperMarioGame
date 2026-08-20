@@ -23,6 +23,7 @@
 #include "Entities/IMovementStrategy.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
+#include "Utils/LevelCatalog.hpp"
 #include "Utils/MapGenerator.hpp"
 
 #include <imgui.h>
@@ -36,18 +37,9 @@
 
 namespace {
 
-// Shared by both level dropdowns so they cannot drift apart — they were two
-// identical literal arrays before.
-const char* const kCampaignLevels[] = {
-    "World 1-1: Grassland Overworld",
-    "World 1-1 Sub: Underground Vault",
-    "World 1-2: Ice Cavern Path",
-    "World 1-2 Sub: Sky Platform Canopy",
-    "World 1-3: Bowser's Castle Fortress",
-    "World 1-3 Sub: Secret Castle Vault",
-    "Bonus Stage 1: Coin Paradise"
-};
-constexpr int kLevelCount = 7;
+// The campaign order lives in LevelCatalog. This file used to hold its own copy
+// of it, which is how the dropdown kept offering seven levels after the campaign
+// dropped to four.
 
 const char* const kCharacters[] = { "Mario (Red)", "Luigi (Green)", "Toad (Blue)", "Peach (Pink)" };
 
@@ -168,7 +160,9 @@ void DevPanel::drawNavigationPanel(PlayingState& state) {
     ImGui::Text("Select Campaign Level:");
     int levelIdx = state.m_selectedLevelIndex;
     ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::Combo("##SelectLevel", &levelIdx, kCampaignLevels, kLevelCount)) {
+    const auto& levelItems = LevelCatalog::longNameItems();
+    if (ImGui::Combo("##SelectLevel", &levelIdx, levelItems.data(),
+                     static_cast<int>(levelItems.size()))) {
         queue([levelIdx](PlayingState& s) {
             s.m_selectedLevelIndex = levelIdx;
             s.m_isProcedural = false;
@@ -301,7 +295,9 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
 
     ImGui::Text("Select Active Level:");
     int levelIdx = state.m_selectedLevelIndex;
-    if (ImGui::Combo("Level", &levelIdx, kCampaignLevels, kLevelCount)) {
+    const auto& playgroundLevelItems = LevelCatalog::longNameItems();
+    if (ImGui::Combo("Level", &levelIdx, playgroundLevelItems.data(),
+                     static_cast<int>(playgroundLevelItems.size()))) {
         queue([levelIdx](PlayingState& s) {
             s.m_selectedLevelIndex = levelIdx;
             s.m_isProcedural = false;

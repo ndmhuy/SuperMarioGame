@@ -56,8 +56,8 @@
       "y": 16
     },
     {
-      "exitX": 104,
-      "exitY": 20,
+      "exitX": 5,
+      "exitY": 16,
       "isEntrance": true,
       "pipeId": 1,
       "targetLevel": "assets/levels/level_1_sub.json",
@@ -66,10 +66,10 @@
       "y": 19
     },
     {
+      "itemType": 1,
       "type": "question_block",
       "x": 100,
-      "y": 18,
-      "itemType": 1
+      "y": 18
     },
     {
       "type": "trampoline",
@@ -77,40 +77,40 @@
       "y": 20
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 72,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 75,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 1,
       "type": "question_block",
       "x": 83,
-      "y": 17,
-      "itemType": 1
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 84,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 114,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 2,
       "type": "question_block",
       "x": 118,
-      "y": 17,
-      "itemType": 2
+      "y": 17
     },
     {
       "type": "goomba",
@@ -118,28 +118,28 @@
       "y": 20
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 126,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 129,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 3,
       "type": "question_block",
       "x": 144,
-      "y": 17,
-      "itemType": 3
+      "y": 17
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 146,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
       "type": "goomba",
@@ -147,16 +147,16 @@
       "y": 20
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 159,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
+      "itemType": 4,
       "type": "question_block",
       "x": 162,
-      "y": 17,
-      "itemType": 4
+      "y": 17
     },
     {
       "type": "koopa_troopa",
@@ -164,10 +164,10 @@
       "y": 20
     },
     {
+      "itemType": 0,
       "type": "question_block",
       "x": 174,
-      "y": 17,
-      "itemType": 0
+      "y": 17
     },
     {
       "type": "flagpole",

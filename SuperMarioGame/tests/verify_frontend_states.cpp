@@ -14,6 +14,7 @@
 
 #include "Core/CharacterSelectState.hpp"
 #include "Core/PlayingState.hpp"
+#include "Utils/LevelCatalog.hpp"
 #include "Utils/MapGenerator.hpp"
 #include "Core/Game.hpp"
 #include "Core/GameOverState.hpp"
@@ -244,7 +245,9 @@ void testGameOverRecordsTheRun(sf::RenderTexture* target) {
     const std::vector<HighScoreEntry> scores = Serializer::loadHighScores();
     check(!scores.empty() && scores.front().score == 7777,
           "the lost run's score reached the table");
-    check(!scores.empty() && scores.front().levelName == "1-2",
+    // Asked of the catalog rather than spelled out: this line used to hardcode
+    // "1-2" and went stale the moment the campaign order changed.
+    check(!scores.empty() && scores.front().levelName == LevelCatalog::nameFor(summary.levelIndex),
           "tagged with the level it ended on, via LevelCatalog");
 
     check(!gameOver.isOverlay(), "game over owns the screen rather than overlaying the corpse");

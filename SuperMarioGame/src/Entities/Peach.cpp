@@ -24,15 +24,10 @@ void Peach::update(float dt) {
         m_hoverTimer = 0.0f;
         m_isHovering = false;
     } else {
-        bool isP1 = (this == InputManager::getInstance().getPlayer(0));
-        bool isP2 = (this == InputManager::getInstance().getPlayer(1));
-        
-        bool jumpHeld = false;
-        if (isP1) {
-            jumpHeld = InputManager::getInstance().isHeld(sf::Keyboard::Key::W) || InputManager::getInstance().isHeld(sf::Keyboard::Key::Space);
-        } else if (isP2) {
-            jumpHeld = InputManager::getInstance().isHeld(sf::Keyboard::Key::Up);
-        }
+        // Asks for the *bound* jump key. This used to name W, Space and Up
+        // directly, so rebinding jump silently disabled Peach's float.
+        const bool jumpHeld =
+            InputManager::getInstance().isActionHeld("jump", getPlayerIndex());
 
         if (jumpHeld && m_hoverTimer < 1.5f && velocity.y >= 0.0f) {
             m_isHovering = true;

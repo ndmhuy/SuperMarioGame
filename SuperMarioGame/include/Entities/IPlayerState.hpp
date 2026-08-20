@@ -54,6 +54,18 @@ public:
     sf::Vector2f getSize() const override;
 };
 
+// The cape is the one form whose entire point is a behaviour rather than a
+// sprite, and every method here used to be an empty body — picking up a Cape
+// Feather changed how Mario looked and nothing else. Two behaviours now live
+// here, which is what having a State subclass per form is for:
+//
+//   glide  holding jump while falling slows the descent to a drift, so a cape
+//          run can cross a gap no other form can
+//   spin   the fire button swings the cape (Player::spinCape), which kills
+//          anything the player touches for a moment instead of hurting them
+//
+// Full P-meter flight is deliberately not here: it needs a run-charge meter and
+// a launch, which is a physics feature rather than a state behaviour.
 class CapeState : public IPlayerState {
 public:
     void enter(Player& player) override;
@@ -61,6 +73,10 @@ public:
     void handleInput(Player& player, const sf::Event& event) override;
     void update(Player& player, float dt) override;
     sf::Vector2f getSize() const override;
+
+    // Descent speed while gliding, px/s. Terminal velocity is 600, so this is a
+    // drift rather than a fall.
+    static constexpr float GLIDE_FALL_SPEED = 90.0f;
 };
 
 class MiniState : public IPlayerState {

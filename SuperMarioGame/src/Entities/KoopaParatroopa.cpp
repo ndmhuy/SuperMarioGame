@@ -78,7 +78,7 @@ void KoopaParatroopa::onStomped() {
         setScoreValue(200); // Subsequent stomps give standard Koopa Troopa points
         
         // Change strategy to PatrolStrategy (ledge-aware if red Koopa)
-        setStrategy(std::make_unique<PatrolStrategy>(m_isRed, false));
+        setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
         if (m_animator) {
             m_animator->play(&m_animation); // Switch to ground walking animation
         }

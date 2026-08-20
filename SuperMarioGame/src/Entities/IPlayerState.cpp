@@ -1,6 +1,7 @@
 #include "Entities/IPlayerState.hpp"
 #include "Entities/Player.hpp"
 #include "Utils/Constants.hpp"
+#include "Core/InputManager.hpp"
 
 // --- SmallState ---
 void SmallState::enter(Player& player) {}
@@ -25,9 +26,33 @@ sf::Vector2f FireState::getSize() const { return sf::Vector2f{24.0f, 60.0f}; }
 
 // --- CapeState ---
 void CapeState::enter(Player& player) {}
-void CapeState::exit(Player& player) {}
+
+void CapeState::exit(Player& player) {
+    // Losing the cape mid-glide must not leave the flag set: the animation and
+    // the HUD both read it.
+    player.setGliding(false);
+}
+
 void CapeState::handleInput(Player& player, const sf::Event& event) {}
-void CapeState::update(Player& player, float dt) {}
+
+void CapeState::update(Player& player, float dt) {
+    // Glide, not hover: the player still descends, just slowly, and only while
+    // already falling. Holding jump on the way up does nothing, so a cape jump
+    // is a normal jump that turns into a drift at the apex.
+    const bool falling = !player.isOnGround() && player.getVelocity().y > 0.0f;
+    const bool jumpHeld =
+        InputManager::getInstance().isActionHeld("jump", player.getPlayerIndex());
+
+    if (falling && jumpHeld) {
+        player.setGliding(true);
+        if (player.getVelocity().y > GLIDE_FALL_SPEED) {
+            player.setVelocity({player.getVelocity().x, GLIDE_FALL_SPEED});
+        }
+    } else {
+        player.setGliding(false);
+    }
+}
+
 sf::Vector2f CapeState::getSize() const { return sf::Vector2f{24.0f, 60.0f}; }
 
 // --- MiniState ---

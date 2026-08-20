@@ -1338,6 +1338,7 @@ void PlayingState::killPlayer(const char* reason) {
     if (!m_player) return;
 
     SoundManager::getInstance().playSound("lost_life");
+    m_player->dropHeldEntity();   // a carried shell must not follow a corpse
     m_player->loseLife();
 
     // In versus, one player running out does not end the run — the other is

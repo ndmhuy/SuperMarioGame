@@ -50,6 +50,12 @@
 #include "Entities/Hammer.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/Pipe.hpp"
+#include "Entities/Spiny.hpp"
+#include "Entities/PatrolStrategy.hpp"
+#include "Physics/PhysicsEngine.hpp"
+#include "Physics/CollisionResolver.hpp"
+#include "Core/RunCommand.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -92,6 +98,12 @@ std::string levelPath(const std::string& name) {
         if (std::filesystem::exists(r + name)) return r + name;
     }
     return "assets/levels/" + name;
+}
+
+// TileMap answers "what tile is at this point"; solidity is a property of the
+// tile's TileInfo. Water and lava are tiles but nothing stands on them.
+bool solidAt(const TileMap& map, float x, float y) {
+    return TileMap::getInfo(map.getTileAt(x, y)).isSolid;
 }
 
 int countTiles(const TileMap& map, TileType type) {
@@ -649,8 +661,12 @@ void testStateOperationsAreDeferred() {
 void testLevelCatalogCoversTheCampaign() {
     section("7.7 the campaign order is one list, and every level in it exists");
 
-    check(LevelCatalog::count() == 7, "seven levels, matching advanceToNextLevel()");
-    check(!LevelCatalog::isValidIndex(-1) && !LevelCatalog::isValidIndex(7),
+    // Four main-path levels. The three *_sub rooms used to be listed here as
+    // ordinary campaign stages; they carry no flagpole, so the campaign advanced
+    // into one and could never leave. They are reached through their pipes now,
+    // which is what testCampaignPathContainsOnlyCompletableLevels() guards.
+    check(LevelCatalog::count() == 4, "four main-path levels, matching advanceToNextLevel()");
+    check(!LevelCatalog::isValidIndex(-1) && !LevelCatalog::isValidIndex(LevelCatalog::count()),
           "out-of-range indices are rejected, not clamped silently");
 
     int found = 0;
@@ -1993,6 +2009,402 @@ void testHeldKeysComeFromEventsNotTheOs() {
 
 } // namespace
 
+// ---------------------------------------------------------------------------
+// Reported by playtest: bosses fall out of the level, enemies walk into pits,
+// the pipe to a sub-level "diverges", fireballs do not kill, and a picked-up
+// shell can never be put down.
+// ---------------------------------------------------------------------------
+
+// A fireball had a passing unit test that called resolveFireballVsEnemy directly
+// and only asserted the *fireball* died. Nothing checked the enemy, and nothing
+// went through the dispatch the game actually uses. This drives the whole
+// pipeline: PhysicsEngine broadphase -> resolveEntityVsEntity -> category
+// dispatch -> Fireball::onHitEnemy.
+void testFireballKillsThroughTheRealPipeline() {
+    section("playtest  a fireball fired into a Goomba actually kills it");
+
+    TileMap map;
+    map.initialize(40, 20);
+    for (int x = 0; x < 40; ++x) map.setTile(x, 18, TileType::Ground);
+
+    std::vector<std::unique_ptr<Entity>> entities;
+    entities.push_back(std::make_unique<Goomba>(sf::Vector2f{300.0f, 544.0f}));
+    entities.push_back(std::make_unique<Fireball>(sf::Vector2f{200.0f, 548.0f},
+                                                 sf::Vector2f{350.0f, 0.0f}));
+    Goomba* goomba = static_cast<Goomba*>(entities[0].get());
+
+    PhysicsEngine physics;
+    bool goombaDied = false;
+    for (int frame = 0; frame < 60 && !goombaDied; ++frame) {
+        physics.update(entities, map, 1.0f / 60.0f);
+        for (auto& e : entities) if (e) e->update(1.0f / 60.0f);
+        goombaDied = goomba->isDeadOrDying();
+    }
+
+    check(goombaDied, "the fireball travelled into the Goomba and killed it");
+
+    // And the same pipeline must NOT let a hammer do it — the category dispatch
+    // is shared, so this is the pair that keeps damagesEnemies() honest.
+    std::vector<std::unique_ptr<Entity>> hammerScene;
+    hammerScene.push_back(std::make_unique<Goomba>(sf::Vector2f{300.0f, 544.0f}));
+    hammerScene.push_back(std::make_unique<Hammer>(sf::Vector2f{200.0f, 548.0f},
+                                                  sf::Vector2f{350.0f, 0.0f}));
+    Goomba* survivor = static_cast<Goomba*>(hammerScene[0].get());
+    for (int frame = 0; frame < 60; ++frame) {
+        physics.update(hammerScene, map, 1.0f / 60.0f);
+        for (auto& e : hammerScene) if (e) e->update(1.0f / 60.0f);
+    }
+    check(!survivor->isDeadOrDying(), "a thrown hammer passing through does not");
+}
+
+// Touching any unflipped Koopa used to pick it up, so a patrolling Koopa could
+// not hurt the player at all and a shell someone had just kicked was harmless.
+void testKoopaContactFollowsTheSeriesRules() {
+    section("playtest  Koopa contact: walkers hurt, resting shells are kicked or carried");
+
+    CollisionResolver resolver;
+    CollisionInfo side;
+    side.collided = true;
+    side.normal = sf::Vector2f(1.0f, 0.0f);
+
+    auto sideContact = [&resolver, &side](Mario& player, KoopaTroopa& koopa) {
+        // Side contact: level with the Koopa and moving, never descending onto it.
+        player.setPosition({koopa.getPosition().x - 20.0f, koopa.getPosition().y});
+        player.setVelocity({80.0f, 0.0f});
+        resolver.resolvePlayerVsEnemy(player, koopa, side);
+    };
+
+    {   // A walking Koopa hurts you, like every other enemy.
+        Mario player({0.0f, 0.0f});
+        KoopaTroopa koopa({200.0f, 200.0f});
+        const int livesBefore = player.getLives();
+        sideContact(player, koopa);
+        check(player.getInvincibilityTimer() > 0.0f || player.getLives() < livesBefore,
+              "walking into a live Koopa damages the player rather than handing it over");
+        check(player.getHeldEntity() == nullptr,
+              "and does not put the Koopa in the player's hands");
+    }
+
+    {   // A resting shell you simply walk into gets kicked away.
+        Mario player({0.0f, 0.0f});
+        KoopaTroopa koopa({200.0f, 200.0f});
+        koopa.onStomped();                       // walking -> ShellIdle
+        check(koopa.getState() == KoopaState::ShellIdle, "a stomp shells the Koopa");
+        sideContact(player, koopa);
+        check(koopa.getState() == KoopaState::ShellKicked,
+              "walking into a resting shell kicks it");
+        check(std::abs(koopa.getVelocity().x) > 100.0f, "and it actually moves off");
+    }
+
+    {   // Holding run picks it up instead.
+        Mario player({0.0f, 0.0f});
+        KoopaTroopa koopa({200.0f, 200.0f});
+        koopa.onStomped();
+        RunCommand run;
+        run.execute(player);   // the same command the run key is bound to
+        sideContact(player, koopa);
+        check(koopa.getState() == KoopaState::ShellHeld,
+              "holding run picks the shell up instead of kicking it");
+        check(player.getHeldEntity() == &koopa, "and the player is carrying it");
+
+        // The whole point of carrying: you can put it down again. Nothing ever
+        // cleared m_heldEntity, so a shell was carried for the rest of the level.
+        player.setFacingRight(true);
+        const bool threw = player.throwHeldEntity();
+        check(threw && player.getHeldEntity() == nullptr, "the fire button throws it");
+        check(koopa.getState() == KoopaState::ShellKicked && koopa.getVelocity().x > 0.0f,
+              "and it flies off in the direction the player is facing");
+    }
+
+    {   // A shell already sliding hurts you.
+        Mario player({0.0f, 0.0f});
+        KoopaTroopa koopa({200.0f, 200.0f});
+        koopa.onStomped();
+        koopa.kick({300.0f, 0.0f});
+        const int livesBefore = player.getLives();
+        sideContact(player, koopa);
+        check(player.getInvincibilityTimer() > 0.0f || player.getLives() < livesBefore,
+              "running into a shell that is already sliding damages the player");
+    }
+
+    {   // Being hurt while carrying puts the shell down rather than dragging it.
+        Mario player({0.0f, 0.0f});
+        KoopaTroopa koopa({200.0f, 200.0f});
+        koopa.onStomped();
+        koopa.pickUp(&player);
+        player.holdEntity(&koopa);
+        player.takeDamage(1);
+        check(player.getHeldEntity() == nullptr && koopa.getState() == KoopaState::ShellIdle,
+              "taking damage drops the shell instead of carrying it around");
+    }
+}
+
+// "Many entities tend to move to the void": only the red variants turned at a
+// ledge, so most of the cast walked off the first drop and was gone before the
+// player arrived.
+void testGroundPatrolsTurnAtLedgesAndHazards() {
+    section("playtest  ground patrols turn at a ledge instead of walking into the void");
+
+    TileMap map;
+    map.initialize(30, 20);
+    // Floor from x=0..9, then a pit, so an enemy walking right must turn at x=9.
+    for (int x = 0; x <= 9; ++x) map.setTile(x, 18, TileType::Ground);
+    // A lava surface further left: "not Empty" but nothing to stand on.
+    for (int x = 12; x <= 20; ++x) map.setTile(x, 18, TileType::Lava);
+    Game::getInstance().setTileMap(&map);
+
+    struct Case { const char* name; std::unique_ptr<Enemy> enemy; };
+    std::vector<Case> cases;
+    cases.push_back({"Goomba",       std::make_unique<Goomba>(sf::Vector2f{32.0f, 544.0f})});
+    cases.push_back({"green Koopa",  std::make_unique<KoopaTroopa>(sf::Vector2f{32.0f, 544.0f}, false)});
+    cases.push_back({"Spiny",        std::make_unique<Spiny>(sf::Vector2f{32.0f, 544.0f})});
+
+    for (auto& c : cases) {
+        Enemy* enemy = c.enemy.get();
+        // Aim it at the pit.
+        if (auto* patrol = dynamic_cast<PatrolStrategy*>(
+                const_cast<IMovementStrategy*>(enemy->getStrategy()))) {
+            patrol->setMovingRight(true);
+        }
+
+        bool fellOff = false;
+        for (int frame = 0; frame < 600; ++frame) {
+            // Held grounded on purpose: the ledge test, not gravity, is what is
+            // under examination here.
+            enemy->setGrounded(true);
+            enemy->update(1.0f / 60.0f);
+            enemy->setPosition({enemy->getPosition().x + enemy->getVelocity().x / 60.0f,
+                                enemy->getPosition().y});
+            if (enemy->getPosition().x > 10.0f * Constants::TILE_SIZE ||
+                enemy->getPosition().x < -Constants::TILE_SIZE) {
+                fellOff = true;
+                break;
+            }
+        }
+        check(!fellOff, std::string("a ") + c.name + " turns back at the ledge");
+    }
+
+    Game::getInstance().setTileMap(nullptr);
+}
+
+// The boss was authored inside a solid 5x5 pillar with a one-tile slot in it.
+void testBossesStandOnOpenArenaFloor() {
+    section("playtest  each boss stands on its arena floor, not inside a block");
+
+    struct Case { const char* file; const char* bossType; };
+    const Case cases[] = {
+        {"level_2.json", "boom_boom"},
+        {"level_3.json", "bowser"},
+    };
+
+    for (const Case& c : cases) {
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!loader.loadLevel(levelPath(c.file), map, data)) {
+            check(false, std::string("could not load ") + c.file);
+            continue;
+        }
+
+        Boss* boss = nullptr;
+        for (const auto& e : data.entities) {
+            if (auto* b = dynamic_cast<Boss*>(e.get())) { boss = b; break; }
+        }
+        if (!boss) {
+            check(false, std::string(c.file) + " contains no boss");
+            continue;
+        }
+
+        const AABB box = boss->getBoundingBox();
+        // Nothing solid may overlap the boss's own body.
+        bool embedded = false;
+        for (float y = box.y; y < box.y + box.height; y += Constants::TILE_SIZE * 0.5f) {
+            for (float x = box.x; x < box.x + box.width; x += Constants::TILE_SIZE * 0.5f) {
+                if (solidAt(map, x, y)) embedded = true;
+            }
+        }
+        check(!embedded, std::string(c.bossType) + " is not buried inside a solid tile");
+
+        // And there must be ground under it within a short fall.
+        bool hasFloor = false;
+        const float footX = box.x + box.width * 0.5f;
+        for (float y = box.y + box.height; y < box.y + box.height + 3.0f * Constants::TILE_SIZE;
+             y += 4.0f) {
+            if (solidAt(map, footX, y)) { hasFloor = true; break; }
+        }
+        check(hasFloor, std::string(c.bossType) + " has floor beneath it instead of a void");
+
+        // The arena must be walkable rather than a wall of blocks: the boss
+        // patrols it, and the player has to fight in it.
+        check(boss->hasArena(), std::string(c.bossType) + " declares an arena");
+        const AABB arena = boss->getArena();
+        int solidAtHeadHeight = 0;
+        for (float x = arena.x; x < arena.x + arena.width; x += Constants::TILE_SIZE) {
+            if (solidAt(map, x, box.y)) ++solidAtHeadHeight;
+        }
+        check(solidAtHeadHeight == 0,
+              std::string("the ") + c.bossType + " arena is clear at fighting height");
+    }
+}
+
+// Entering a sub-level teleported the player to tile 104 of a 65-tile level, and
+// coming back landed six tiles behind the pipe you had just left.
+void testWarpPipesLandInsideTheirDestination() {
+    section("playtest  every warp pipe lands the player inside the level it targets");
+
+    const char* files[] = {
+        "level_1.json", "level_1_sub.json",
+        "level_2.json", "level_2_sub.json",
+        "level_3.json", "level_3_sub.json",
+        "bonus_1.json",
+    };
+
+    for (const char* file : files) {
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!loader.loadLevel(levelPath(file), map, data)) continue;
+
+        for (const auto& e : data.entities) {
+            auto* pipe = dynamic_cast<Pipe*>(e.get());
+            if (!pipe || pipe->getTargetLevel().empty()) continue;
+
+            TileMap target;
+            LevelData targetData;
+            LevelLoader targetLoader;
+            const std::string targetName =
+                pipe->getTargetLevel().substr(pipe->getTargetLevel().find_last_of('/') + 1);
+            if (!targetLoader.loadLevel(levelPath(targetName), target, targetData)) {
+                check(false, std::string(file) + " warps to a level that will not load");
+                continue;
+            }
+
+            const sf::Vector2f exit = pipe->getExitPosition();
+            const bool inside =
+                exit.x >= 0.0f && exit.x < target.getWidth() * Constants::TILE_SIZE &&
+                exit.y >= 0.0f && exit.y < target.getHeight() * Constants::TILE_SIZE;
+            check(inside, std::string(file) + " -> " + targetName + ": the exit is inside the map");
+
+            if (!inside) continue;
+            bool hasFloor = false;
+            for (float y = exit.y; y < target.getHeight() * Constants::TILE_SIZE; y += 4.0f) {
+                if (solidAt(target, exit.x, y)) { hasFloor = true; break; }
+            }
+            check(hasFloor, std::string(file) + " -> " + targetName + ": and has ground under it");
+        }
+    }
+}
+
+// The campaign listed the *_sub levels as ordinary stages. They carry no
+// flagpole, so nothing in them can publish LevelComplete: finishing 1-1 advanced
+// the player into "1-1 Sub" and the campaign could never move again.
+void testCampaignPathContainsOnlyCompletableLevels() {
+    section("playtest  every campaign level can actually be finished");
+
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        const std::string path = LevelCatalog::pathFor(i);
+        const std::string name = path.substr(path.find_last_of('/') + 1);
+        if (!loader.loadLevel(levelPath(name), map, data)) {
+            check(false, "campaign level " + LevelCatalog::nameFor(i) + " loads");
+            continue;
+        }
+
+        bool hasGoal = false;
+        for (const auto& e : data.entities) {
+            if (dynamic_cast<Flagpole*>(e.get())) hasGoal = true;
+        }
+        check(hasGoal, "campaign level " + LevelCatalog::nameFor(i) +
+                       " has a flagpole, so the campaign can advance past it");
+        check(name.find("_sub") == std::string::npos,
+              "and " + name + " is a main-path level, not a pipe side room");
+    }
+}
+
+// The cape was a costume. CapeState's enter/exit/handleInput/update were all
+// empty bodies, so a Cape Feather changed the sprite and nothing else — the one
+// power-up whose entire point is a behaviour had none.
+void testCapeActuallyDoesSomething() {
+    section("playtest  the cape glides and swings, instead of only changing the sprite");
+
+    InputManager& input = InputManager::getInstance();
+    Mario player({100.0f, 100.0f});
+    input.registerPlayer(&player, 0);
+    player.powerUp(2);                   // CapeFeather -> CapeState
+    check(dynamic_cast<CapeState*>(player.getBaseState()) != nullptr,
+          "a cape feather puts the player in CapeState");
+
+    // --- glide -------------------------------------------------------------
+    const sf::Keyboard::Key jumpKey = sf::Keyboard::Key::W;
+    auto pressJump = [&input, jumpKey](bool down) {
+        if (down) {
+            sf::Event::KeyPressed pressed; pressed.code = jumpKey;
+            input.noteKeyEvent(sf::Event(pressed));
+        } else {
+            sf::Event::KeyReleased released; released.code = jumpKey;
+            input.noteKeyEvent(sf::Event(released));
+        }
+    };
+
+    auto fallFor = [&player](int frames) {
+        for (int i = 0; i < frames; ++i) {
+            player.setGrounded(false);
+            // Gravity, the same expression PhysicsEngine uses.
+            player.setVelocity({player.getVelocity().x,
+                                player.getVelocity().y +
+                                    Constants::GRAVITY * Constants::GRAVITY_SCALE / 60.0f});
+            player.update(1.0f / 60.0f);
+        }
+        return player.getVelocity().y;
+    };
+
+    pressJump(false);
+    player.setVelocity({0.0f, 0.0f});
+    const float freeFall = fallFor(30);
+
+    pressJump(true);
+    player.setVelocity({0.0f, 0.0f});
+    const float gliding = fallFor(30);
+    pressJump(false);
+
+    check(freeFall > gliding * 2.0f,
+          "holding jump while falling in the cape slows the descent sharply");
+    check(gliding <= CapeState::GLIDE_FALL_SPEED + 1.0f,
+          "the glide is capped at the drift speed rather than accelerating");
+    check(player.isGliding(), "and the player reports gliding, so the art can follow");
+
+    // Landing clears it, or the flag would stick for the rest of the level.
+    player.setGrounded(true);
+    player.update(1.0f / 60.0f);
+    check(!player.isGliding(), "landing ends the glide");
+
+    // --- spin --------------------------------------------------------------
+    check(player.spinCape() && player.isSpinningCape(),
+          "the fire button swings the cape instead of doing nothing");
+
+    Goomba victim({100.0f, 100.0f});
+    CollisionResolver resolver;
+    CollisionInfo side;
+    side.collided = true;
+    side.normal = sf::Vector2f(1.0f, 0.0f);
+    player.setVelocity({40.0f, 0.0f});
+    resolver.resolvePlayerVsEnemy(player, victim, side);
+    check(victim.isDeadOrDying(), "a spinning cape defeats an enemy it touches");
+
+    // And it is a swing, not a permanent aura.
+    for (int i = 0; i < 40; ++i) player.update(1.0f / 60.0f);
+    check(!player.isSpinningCape(), "the swing ends on its own");
+
+    // A player with no cape gets no free kills out of the same button.
+    Mario plain({100.0f, 100.0f});
+    check(!plain.spinCape(), "a player without the cape cannot spin");
+
+    input.registerPlayer(nullptr, 0);
+    input.clearHeldKeys();
+}
+
 int main() {
     std::cout << "Audit regression suite\n";
 
@@ -2058,6 +2470,13 @@ int main() {
     testHeldKeysComeFromEventsNotTheOs();
     testEventBusSurvivesHandlersThatMutateIt();
     testScopedSubscriptionCannotBeForgotten();
+    testFireballKillsThroughTheRealPipeline();
+    testKoopaContactFollowsTheSeriesRules();
+    testGroundPatrolsTurnAtLedgesAndHazards();
+    testBossesStandOnOpenArenaFloor();
+    testWarpPipesLandInsideTheirDestination();
+    testCampaignPathContainsOnlyCompletableLevels();
+    testCapeActuallyDoesSomething();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";
