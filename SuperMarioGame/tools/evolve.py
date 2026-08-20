@@ -229,7 +229,15 @@ def evaluate(genome: dict, band: tuple, kept_signatures: list, workdir: Path,
     # better level (the completionist gap), worth a small bonus.
     optional_gap = max(0.0, report["hardestOptional"] - d)
 
-    fitness = band_score * (0.6 + 0.3 * diversity + 0.1 * min(optional_gap * 2, 1.0))
+    # Forgiveness joins the quality terms: a level that puts death under its
+    # own required moves trains (and entertains) worse than one that lets a
+    # muffed jump be retried. Measured basis: the one level ever completed
+    # scored highest (0.94); the level that ate six lives at one pit scored
+    # lowest (0.84).
+    forgiveness = report.get("forgiveness", 1.0)
+    fitness = band_score * (0.45 + 0.25 * diversity +
+                            0.2 * forgiveness +
+                            0.1 * min(optional_gap * 2, 1.0))
     fitness -= 0.02 * repairs   # prefer genomes that are natively in band
     return {"fitness": max(fitness, 0.0), "reason": "ok", "report": report,
             "signature": sig, "path": out, "repairs": repairs}
@@ -308,7 +316,8 @@ def main(argv=None) -> int:
             manifest.append({"file": name, "fitness": round(fitness, 4),
                              "genome": genome,
                              "requiredDifficulty": result["report"]["requiredDifficulty"],
-                             "hardestOptional": result["report"]["hardestOptional"]})
+                             "hardestOptional": result["report"]["hardestOptional"],
+                             "forgiveness": result["report"].get("forgiveness", 1.0)})
             print(f"kept {dest}  fitness={fitness:.3f} "
                   f"difficulty={result['report']['requiredDifficulty']}")
         (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=1))

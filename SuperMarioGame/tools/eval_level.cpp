@@ -77,6 +77,13 @@ struct Options {
     AIArchetype archetype = AIArchetype::Speedrunner;
     float maxSeconds = 300.0f;        // in-game seconds, not wall clock
     bool quiet = false;
+    // Where to write the agent's PATH: one (x, y) sample every quarter second
+    // of sim time, per life, plus death positions. The path is the evaluation
+    // the progress scalar cannot be: compared against the certified route it
+    // says WHERE the agent left the intended line, which is at once an agent
+    // diagnostic and a map-quality signal (tools/path_report.py).
+    std::string pathOut;
+
     // Per-frame state dump over [traceFrom, traceTo). Off unless asked for.
     // A stalled agent is invisible in a summary — the report says "stuck" and
     // nothing about why — so the runner has to be able to show its working.
@@ -166,6 +173,10 @@ bool parseArgs(int argc, char** argv, Options& opt) {
                 std::cerr << "[eval] --max-seconds must be positive.\n";
                 return false;
             }
+        } else if (arg == "--path") {
+            const char* v = next("an output path like saves/eval/path.json");
+            if (!v) return false;
+            opt.pathOut = v;
         } else if (arg == "--trace") {
             const char* v = next("a frame range like 600:660");  if (!v) return false;
             const std::string range = v;
@@ -349,6 +360,11 @@ int main(int argc, char** argv) {
     float furthestX = startX;
     report.maxProgressX = startX;
 
+    // Path samples: lives[i] is one life's polyline. Kept small — 4 Hz — so a
+    // 300 s run is at most 1200 points per life.
+    std::vector<std::vector<sf::Vector2f>> pathLives(1);
+    std::vector<sf::Vector2f> pathDeaths;
+
     if (opt.traceFrom >= 0) {
         std::cout << "# frame      x       y      vx      vy  ground  canJump  "
                      "tile(x,y)  reason\n";
@@ -408,6 +424,10 @@ int main(int argc, char** argv) {
         simTime += kDt;
         ++report.frames;
 
+        if (!opt.pathOut.empty() && report.frames % 15 == 0) {
+            pathLives.back().push_back(player->getPosition());
+        }
+
         // Progress, measured against the furthest point reached rather than the
         // previous frame — the same rule RewardTracker uses, so the report and
         // the reward never disagree about what progress means.
@@ -450,6 +470,10 @@ int main(int argc, char** argv) {
 
         if (inVoid || player->isDying() || player->getLives() <= 0) {
             ++report.deaths;
+            if (!opt.pathOut.empty()) {
+                pathDeaths.push_back(player->getPosition());
+                pathLives.emplace_back();
+            }
             if (player->getLives() <= 0) {
                 report.outcome = "died";
                 break;
@@ -484,6 +508,28 @@ int main(int argc, char** argv) {
     }
 
     report.simSeconds = simTime;
+
+    if (!opt.pathOut.empty()) {
+        std::ofstream pathFile(opt.pathOut);
+        if (pathFile) {
+            pathFile << "{\n  \"version\": 1,\n  \"level\": \"" << opt.levelPath
+                     << "\",\n  \"policy\": \"" << policyName << "\",\n  \"lives\": [";
+            for (std::size_t life = 0; life < pathLives.size(); ++life) {
+                pathFile << (life ? ",\n    [" : "\n    [");
+                for (std::size_t i = 0; i < pathLives[life].size(); ++i) {
+                    pathFile << (i ? "," : "") << "[" << pathLives[life][i].x
+                             << "," << pathLives[life][i].y << "]";
+                }
+                pathFile << "]";
+            }
+            pathFile << "\n  ],\n  \"deaths\": [";
+            for (std::size_t i = 0; i < pathDeaths.size(); ++i) {
+                pathFile << (i ? "," : "") << "[" << pathDeaths[i].x << ","
+                         << pathDeaths[i].y << "]";
+            }
+            pathFile << "]\n}\n";
+        }
+    }
     report.episodeReward = rewardBanked + controller->episodeReward();
     report.progressFraction =
         levelWidthPx > 0.0f

@@ -543,6 +543,20 @@ jumps in 1800 frames:  heuristic <span class="g">62</span>   neural <span class=
         <div class="field"><span class="k">Why this answers "RL is hard"</span><div class="v">Completion is a sparse reward an agent that never wins cannot climb toward.
           The generator turns it dense: evolve levels the agent CAN complete, let it win, ratchet the certified band upward.</div></div>
       </div></article>
+
+    <article class="step ok"><div class="step-head"><span class="n">08</span>
+      <h3>Path tracking: the agent's line vs the certified route</h3><span class="verdict ok">Shipped</span></div>
+      <div class="fields">
+        <div class="field"><span class="k">Instrument</span><div class="v"><code>eval_level --path</code> records the agent's trajectory (4&nbsp;Hz per life + death
+          positions); <code>tools/path_report.py</code> scores it against the waypoint sidecar — route coverage, first-divergence tile, death clusters — and renders a
+          minimap SVG (blue = certified route, yellow = agent lives, red = deaths) in <code>docs/tracker/paths/</code>.</div></div>
+        <div class="field"><span class="k">First readings (teacher)</span><div class="v">level_1: coverage 73.9 %, <strong>all 6 deaths in one pit</strong> (x=142)
+          directly under the route's one mandatory climb · level_2: 79.4 %, deaths at x=145 · level_3: 56.1 %, deaths at the new frontier x=87 · bonus_1: 60 %, 11 deaths
+          at x=89 · easy_02 (the completed level): zero deaths.</div></div>
+        <div class="field"><span class="k">New quality metric</span><div class="v"><strong>Forgiveness</strong>: the demand-weighted fraction of required route edges whose
+          failure is survivable (scan down from each demanding edge — does a muffed jump find floor, or hazard/void?). First contact validates it: the one completed level
+          scores highest (0.94), the six-lives-in-one-pit level lowest (0.84). Now the third term of the generator's fitness.</div></div>
+      </div></article>
   </div>
 </div>
 

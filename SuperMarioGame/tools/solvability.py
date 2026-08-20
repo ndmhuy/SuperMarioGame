@@ -435,6 +435,40 @@ def analyse(level: Level) -> dict:
     # who want it, an easy line for the ones who do not.
     hardest_optional = max(labels.values()) if labels else 0.0
 
+    # Forgiveness: what failing a REQUIRED move costs. For each demanding edge
+    # on the winning route, scan straight down from the edge's midpoint: if
+    # the fall ends in hazard or the void before any floor, a muffed jump is a
+    # death — the geometry punishes the exact move it requires. Measured
+    # instance: level_1's teacher lost six of seven lives to one pit directly
+    # under the route's one mandatory climb. Good levels put pits under
+    # OPTIONAL challenges. forgiveness = the demand-weighted fraction of
+    # required edges whose failure is survivable.
+    punishing = []
+    demanding_total = 0.0
+    punishing_total = 0.0
+    for a, b in zip(route, route[1:]):
+        demand = labels.get(b, 0.0)
+        if demand < 0.2:
+            continue                      # failing a trivial move is rare
+        demanding_total += demand
+        mx = (a[0] + b[0]) // 2
+        my = max(a[1], b[1])
+        deadly_below = False
+        for y in range(my + 1, level.h + 2):
+            if y >= level.h:
+                deadly_below = True       # fell out of the level: the void
+                break
+            if level.deadly(mx, y):
+                deadly_below = True
+                break
+            if level.solid(mx, y):
+                break                     # a floor catches the fall
+        if deadly_below:
+            punishing_total += demand
+            punishing.append({"x": mx, "y": my + lt.BAND_TOP,
+                              "demand": round(demand, 4)})
+    forgiveness = (1.0 - punishing_total / demanding_total) if demanding_total > 0 else 1.0
+
     return {
         "winnable": winnable,
         "reason": "" if winnable else "reachability stops short of the goal",
@@ -449,6 +483,8 @@ def analyse(level: Level) -> dict:
         "difficulty": round(required, 4),
         "hardestOptional": round(hardest_optional, 4),
         "slackAtGoal": round(1.0 - required, 4),
+        "forgiveness": round(forgiveness, 4),
+        "punishingEdges": punishing[:8],
         "routeLength": len(route),
         # The winning route itself, in WORLD tile coordinates (band offset
         # already applied). Each node is a foothold the kindest route stands
@@ -572,6 +608,7 @@ def main(argv: list[str] | None = None) -> int:
               f"reach={report['widthFraction']*100:5.1f}%  "
               f"required={report['requiredDifficulty']:.3f}  "
               f"optional={report['hardestOptional']:.3f}  "
+              f"forgive={report.get('forgiveness', 1.0):.2f}  "
               f"tiles={report['reachableTiles']:<5} "
               f"bottleneck@{where}")
     return 1 if failures else 0
