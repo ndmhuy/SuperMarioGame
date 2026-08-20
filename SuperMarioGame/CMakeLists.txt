@@ -70,6 +70,17 @@ enable_testing()
 # wait for a human
 # to look at it, so `ctest` hung forever on the first one. They are inspection
 # tools, not tests — built by `make`, run by hand.
+# Everything `ctest` will try to run, as one target. CI builds this instead of
+# naming binaries by hand.
+#
+# It has to exist because the hand-written list drifted: the workflow built
+# SuperMarioGame and verify_regressions, while ctest ran thirteen cases, so the
+# other eleven reported "***Not Run" and the job failed on every commit — on
+# `dev` too. Every run in this repository's history was red, and the real defects
+# underneath were invisible behind that noise. Depending on the registration
+# itself means adding a test cannot reintroduce the gap.
+add_custom_target(ctest_binaries)
+
 function(add_verify_test name source)
     cmake_parse_arguments(AVT "NO_CTEST" "" "" ${ARGN})
     add_executable(${name} "${source}" ${APP_SOURCES})
@@ -84,6 +95,7 @@ function(add_verify_test name source)
         set_tests_properties(${name} PROPERTIES
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             TIMEOUT 120)
+        add_dependencies(ctest_binaries ${name})
     endif()
 endfunction()
 

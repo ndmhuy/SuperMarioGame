@@ -43,9 +43,26 @@ jobs:
         working-directory: SuperMarioGame
         run: cmake --build build --target SuperMarioGame -j$(nproc)
 
-      - name: Build regression suite
+      # `ctest_binaries` depends on every case add_verify_test registers, so this
+      # cannot fall behind the test list again. It previously built only
+      # verify_regressions while ctest ran thirteen cases, and the eleven missing
+      # binaries reported "***Not Run" — every run in this repository was red for
+      # that reason alone, including on dev.
+      - name: Build test binaries
         working-directory: SuperMarioGame
-        run: cmake --build build --target verify_regressions -j$(nproc)
+        run: cmake --build build --target ctest_binaries -j$(nproc)
+
+      # The harnesses construct SoundManager, and SFML opens a playback device
+      # when they do. A GitHub runner has no sound card, so ALSA fails, miniaudio
+      # reports "Failed to open backend device", and verify_regressions died with
+      # SIGABRT before its first check. snd-dummy is a real loopback device and is
+      # preferred; the null ALSA default is the fallback for runners that will not
+      # load the module.
+      - name: Provide an audio device
+        run: |
+          sudo apt-get install -y alsa-utils libasound2-plugins
+          sudo modprobe snd-dummy || echo "snd-dummy unavailable, falling back to the null device"
+          printf 'pcm.!default { type null }\nctl.!default { type null }\n' > "$HOME/.asoundrc"
 
       - name: Run tests
         working-directory: SuperMarioGame
