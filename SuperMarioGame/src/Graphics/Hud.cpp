@@ -5,10 +5,11 @@
 #include <SFML/Graphics/RenderStates.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Text.hpp>
-#include <cmath>
-#include <iostream>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <iostream>
 
 Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteSheet* playerSheet)
     : m_scoreText(ResourceManager::getInstance().getFont("PressStart2P")),

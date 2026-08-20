@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>

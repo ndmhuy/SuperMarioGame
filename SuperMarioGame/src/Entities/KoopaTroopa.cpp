@@ -5,6 +5,7 @@
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 #include <algorithm>
+#include <cmath>
 
 KoopaTroopa::KoopaTroopa(sf::Vector2f position, bool isRed)
     : Enemy(position, 200), m_isRed(isRed) {

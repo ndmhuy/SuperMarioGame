@@ -2,6 +2,7 @@
 #include "Entities/Enemy.hpp"
 #include "Entities/Player.hpp"
 #include "Core/Game.hpp"
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 

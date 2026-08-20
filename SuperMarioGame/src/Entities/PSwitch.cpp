@@ -2,6 +2,7 @@
 #include "Entities/Player.hpp"
 #include "Core/EventBus.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
+#include <algorithm>
 #include <cmath>
 
 PSwitch::PSwitch(sf::Vector2f pos) : Item(pos) {

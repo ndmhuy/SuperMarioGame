@@ -1,12 +1,13 @@
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
 #include <imgui-SFML.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <vector>
-#include <cmath>
-#include <algorithm>
 #include <typeinfo>
+#include <vector>
 
 #include "Entities/Goomba.hpp"
 #include "Entities/KoopaTroopa.hpp"

@@ -1,8 +1,9 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 

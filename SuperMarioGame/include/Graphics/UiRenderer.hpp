@@ -6,6 +6,7 @@
 #include <SFML/System/Vector2.hpp>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 // One selectable row of a screen-space menu. `value` is the right-hand column

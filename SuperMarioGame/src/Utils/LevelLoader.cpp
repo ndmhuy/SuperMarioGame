@@ -27,11 +27,12 @@
 #include "Entities/QuestionBlock.hpp"
 
 #include <nlohmann/json.hpp>
-#include <fstream>
-#include <filesystem>
-#include <iostream>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
     std::string filename = std::filesystem::path(jsonPath).filename().string();

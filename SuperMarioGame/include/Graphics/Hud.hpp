@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <memory>
+#include <string>
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Text.hpp>

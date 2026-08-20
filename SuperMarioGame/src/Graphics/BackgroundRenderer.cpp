@@ -5,6 +5,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 namespace {

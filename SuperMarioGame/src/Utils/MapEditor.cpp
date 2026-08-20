@@ -6,9 +6,10 @@
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include <imgui.h>
-#include <iostream>
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <iostream>
 
 MapEditor::MapEditor() {
     m_active = false;

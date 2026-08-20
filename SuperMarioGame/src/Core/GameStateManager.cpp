@@ -1,3 +1,5 @@
+#include <utility>
+
 #include "Core/GameStateManager.hpp"
 
 GameStateManager::~GameStateManager() {

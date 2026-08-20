@@ -1,5 +1,6 @@
 #include "Core/StatisticsTracker.hpp"
 #include <any>
+#include <exception>
 #include <iostream>
 
 StatisticsTracker& StatisticsTracker::getInstance() {

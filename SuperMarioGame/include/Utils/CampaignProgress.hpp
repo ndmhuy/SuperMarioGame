@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <string>
 #include <vector>
 
 // Per-level campaign progress, persisted across runs.

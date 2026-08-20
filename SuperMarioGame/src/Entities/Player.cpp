@@ -8,6 +8,8 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
 
 void Player::performJump() {

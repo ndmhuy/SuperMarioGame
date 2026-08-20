@@ -7,14 +7,15 @@
 #include "Entities/IPlayerState.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
-#include <fstream>
-#include <filesystem>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
-#include <iostream>
-#include <ctime>
 #include <algorithm>
+#include <chrono>
+#include <ctime>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <vector>
 
 // Helper to get active character name

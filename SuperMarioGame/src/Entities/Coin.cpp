@@ -1,6 +1,7 @@
 #include "Entities/Coin.hpp"
 #include "Entities/Player.hpp"
 #include <SFML/Graphics/CircleShape.hpp>
+#include <algorithm>
 #include <cmath>
 
 Coin::Coin(sf::Vector2f pos) : Item(pos) {
