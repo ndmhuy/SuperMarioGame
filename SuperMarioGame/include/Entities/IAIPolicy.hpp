@@ -31,9 +31,23 @@ enum class AICellState {
     Unknown,   // outside this difficulty's vision radius — not the same as empty
     Empty,
     Solid,     // ground, brick, pipe: stands on, blocks, can be jumped onto
-    Hazard,    // lava, and anything that damages on contact
-    Reward,    // coins, items, question blocks
-    Enemy
+    Hazard,    // lava, water, and enemy projectiles
+    Coin,      // coins and coin tiles: worth a detour, never worth a death
+    PowerUp,   // mushrooms, flowers, stars, question blocks: change what the
+               // player IS, so they are worth more than a coin and sometimes
+               // worth a risk
+    // The enemy split is not cosmetic. Stomping a Goomba kills it; stomping a
+    // Spiny calls player->takeDamage(1). Under the previous single Enemy state
+    // those two cells were byte-identical in the observation, so no policy —
+    // heuristic or learned, at any capacity — could tell "jump on this for
+    // reward" from "jump on this and get hurt". That is an
+    // information-theoretic limit, not a training problem.
+    EnemyStompable,  // Goomba, Koopa, HammerBro, Lakitu, BulletBill, bosses
+    EnemyDangerous,  // Spiny, PiranhaPlant, Thwomp, ChainChomp, Boo
+    // A projectile that cannot hurt the player — its own fireball, or a
+    // team-mate's. Previously every Projectile encoded as Hazard, so an agent
+    // that shot a fireball then fled from its own shot.
+    FriendlyProjectile
 };
 
 // The vision grid is always this size — a full screen's worth of tiles, which is
@@ -44,7 +58,7 @@ inline constexpr int kAIVisionCells = kAIVisionWidth * kAIVisionHeight;
 // One-hot width per cell: the six AICellState values. Only the neural side needs
 // this, but it is stated here because it is a property of the observation, not of
 // whatever consumes it.
-inline constexpr int kAICellStateCount = 6;
+inline constexpr int kAICellStateCount = 9;
 
 // Scalar features appended after the grid, in this order: dxToGoal, dyToGoal,
 // dxToOpponent, dyToOpponent, vx, vy, onGround, canJump, isPoweredUp.
@@ -57,10 +71,13 @@ inline constexpr int kAIScalarFeatures = 9;
 // from the outside.
 //
 // v2: entity-form blocks (pipes, question blocks, platforms) are now painted
-// into the grid as Solid/Reward across their full footprint. The layout is
-// unchanged, but cells that always read Unknown/Empty under v1 now carry
-// information, so v1-trained weights would misread every level with a pipe.
-inline constexpr int kAIObservationVersion = 2;
+// into the grid as Solid/Reward across their full footprint.
+// v3: the cell vocabulary grew from 6 states to 9 — Reward split into
+// Coin/PowerUp, Enemy split into EnemyStompable/EnemyDangerous, and the
+// agent's own fireballs separated from Hazard. This changes the FEATURE COUNT
+// (315 cells x 9 = 2835 + 9 scalars = 2844), so a v2 weight file is not merely
+// mis-scaled, it is the wrong shape.
+inline constexpr int kAIObservationVersion = 3;
 
 struct AIObservation {
     // Row-major, centred on the agent's own tile. grid[y * W + x], with the

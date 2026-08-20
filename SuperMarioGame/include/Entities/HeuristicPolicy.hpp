@@ -60,6 +60,14 @@ private:
     static bool gapAhead(const AIObservation& obs, int direction);
     // Nearest enemy within striking distance ahead, in tiles, or 0 if none.
     static int enemyAhead(const AIObservation& obs, int direction);
+    // Same, but only enemies a stomp actually defeats. The two are separate
+    // because "something is in my way" and "I can jump on it" are different
+    // questions: the first says slow down, the second says jump. Before the
+    // observation split these were indistinguishable, so this policy happily
+    // jumped onto Spinies.
+    static int stompableAhead(const AIObservation& obs, int direction);
+    static bool isEnemy(AICellState state);
+    static bool isReward(AICellState state);
     // Signed tile offset to the most attractive Reward cell in view, or 0.
     static int rewardDirection(const AIObservation& obs);
 

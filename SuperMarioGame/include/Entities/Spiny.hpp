@@ -12,6 +12,8 @@ public:
     std::string getTypeName() const override { return "spiny"; }
 
     void onStomped() override;
+    // Spikes: onStomped() damages the player.
+    bool isStompSafe() const override { return false; }
     void onHitByFireball() override;
     void update(float dt) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;

@@ -14,6 +14,8 @@ public:
 
     void setupAnimations(const SpriteSheet* spriteSheet) override;
     void onStomped() override;
+    // Toothed: onStomped() damages the player.
+    bool isStompSafe() const override { return false; }
     void onHitByFireball() override;
 
     // Drawn clipped to the part that has actually left the pipe. The plant used

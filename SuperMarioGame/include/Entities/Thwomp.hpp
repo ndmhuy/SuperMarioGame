@@ -14,6 +14,8 @@ public:
     void update(float dt) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
     void onStomped() override;
+    // Stone: onStomped() damages the player.
+    bool isStompSafe() const override { return false; }
     void onHitByFireball() override;
 
     float getGravityMultiplier() const override { return 0.0f; }

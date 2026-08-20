@@ -29,6 +29,16 @@ public:
 
     // Virtual interaction handlers
     virtual void onStomped() = 0;
+
+    // Is jumping on this enemy a way to defeat it, or a way to get hurt?
+    //
+    // Derived from what onStomped() actually does, not from taste: the four
+    // enemies that return false here call player->takeDamage(1) from their
+    // onStomped(), and Boo ignores the stomp entirely so it can never be
+    // removed that way. The AI observation encodes this distinction
+    // (AICellState::EnemyStompable vs EnemyDangerous) because without it no
+    // policy can tell a Goomba from a Spiny.
+    virtual bool isStompSafe() const { return true; }
     virtual void onHitByFireball() = 0;
 
     EntityCategory getCategory() const override { return EntityCategory::Enemy; }

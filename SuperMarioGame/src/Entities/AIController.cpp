@@ -1,10 +1,13 @@
 #include "Entities/AIController.hpp"
 #include "Entities/QuestionBlock.hpp"
+#include "Entities/Coin.hpp"
+#include "Entities/Enemy.hpp"
+#include "Entities/Player.hpp"
+#include "Entities/Projectile.hpp"
 
 #include "Entities/Enemy.hpp"
 #include "Entities/HeuristicPolicy.hpp"
 #include "Entities/Item.hpp"
-#include "Entities/Player.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/TileMap.hpp"
 
@@ -21,9 +24,11 @@ constexpr int kHardRadiusX = kAIVisionWidth / 2, kHardRadiusY = kAIVisionHeight 
 
 // Which tiles read as which cell state.
 AICellState classifyTile(TileType tile) {
-    if (tile == TileType::Lava) return AICellState::Hazard;
-    // A question block or a coin tile is worth going out of the way for.
-    if (tile == TileType::Question || tile == TileType::Coin) return AICellState::Reward;
+    if (tile == TileType::Lava || tile == TileType::Water) return AICellState::Hazard;
+    // A coin is worth a small detour; a question block might hold a power-up
+    // and is also a platform, so it is worth more and is worth a jump.
+    if (tile == TileType::Coin) return AICellState::Coin;
+    if (tile == TileType::Question) return AICellState::PowerUp;
     return TileMap::getInfo(tile).isSolid ? AICellState::Solid : AICellState::Empty;
 }
 } // namespace
@@ -163,10 +168,32 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
 
         AICellState state;
         switch (entity->getCategory()) {
-            case EntityCategory::Enemy: state = AICellState::Enemy;  break;
-            case EntityCategory::Item:  state = AICellState::Reward; break;
-            // Projectiles in flight are threats worth dodging.
-            case EntityCategory::Projectile: state = AICellState::Hazard; break;
+            case EntityCategory::Enemy: {
+                // Stompable or not — see Enemy::isStompSafe(). This is the
+                // distinction that decides whether jumping on the thing in
+                // front of you is a kill or a hit.
+                const Enemy* enemy = static_cast<const Enemy*>(entity.get());
+                state = enemy->isStompSafe() ? AICellState::EnemyStompable
+                                             : AICellState::EnemyDangerous;
+                break;
+            }
+            case EntityCategory::Item:
+                // A coin is a small, safe gain; anything else an Item can be —
+                // mushroom, flower, star, 1-up — changes the player's state and
+                // is worth more.
+                state = dynamic_cast<const Coin*>(entity.get()) ? AICellState::Coin
+                                                                : AICellState::PowerUp;
+                break;
+            case EntityCategory::Projectile: {
+                // Ask the projectile who it can hurt rather than who threw it —
+                // "does this damage me" is the question the policy actually
+                // needs, and Projectile already answers it. A Hammer Bro's
+                // hammer is a hazard; the agent's own fireball is not.
+                const Projectile* shot = static_cast<const Projectile*>(entity.get());
+                state = shot->damagesPlayer() ? AICellState::Hazard
+                                              : AICellState::FriendlyProjectile;
+                break;
+            }
             // Entity-form blocks — pipes, question blocks, moving and falling
             // platforms — are solid to the physics but live outside the tile
             // map, so the tile pass cannot see them. Skipping them here (the
@@ -179,7 +206,7 @@ void AIController::scanEnvironment(const Player* opponent, const TileMap& tileMa
             // the same answer.
             case EntityCategory::Block:
                 state = dynamic_cast<QuestionBlock*>(entity.get())
-                            ? AICellState::Reward
+                            ? AICellState::PowerUp
                             : AICellState::Solid;
                 break;
             default: continue;

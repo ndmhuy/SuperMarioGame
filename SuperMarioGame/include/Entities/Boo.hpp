@@ -16,6 +16,8 @@ public:
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     void onStomped() override;
+    // Invulnerable to stomp — onStomped() is a no-op, so a stomp can never remove it.
+    bool isStompSafe() const override { return false; }
     void onHitByFireball() override;
 
     float getGravityMultiplier() const override { return 0.0f; }

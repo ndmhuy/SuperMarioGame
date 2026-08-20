@@ -266,12 +266,18 @@ void DevPanel::drawMatchPanel(PlayingState& state) {
                 for (int dx = -halfW; dx <= halfW; ++dx) {
                     if (dx == 0 && dy == 0) { row += '@'; continue; }
                     switch (obs.at(dx, dy)) {
-                        case AICellState::Solid:   row += '#'; break;
-                        case AICellState::Enemy:   row += '^'; break;
-                        case AICellState::Reward:  row += '$'; break;
-                        case AICellState::Hazard:  row += '!'; break;
-                        case AICellState::Empty:   row += '.'; break;
-                        case AICellState::Unknown: row += '?'; break;
+                        case AICellState::Solid:             row += '#'; break;
+                        // Stompable and dangerous get distinct glyphs: telling
+                        // them apart at a glance is the whole point of the
+                        // v3 observation split.
+                        case AICellState::EnemyStompable:    row += '^'; break;
+                        case AICellState::EnemyDangerous:    row += 'X'; break;
+                        case AICellState::Coin:              row += 'o'; break;
+                        case AICellState::PowerUp:           row += '$'; break;
+                        case AICellState::Hazard:            row += '!'; break;
+                        case AICellState::FriendlyProjectile:row += '*'; break;
+                        case AICellState::Empty:             row += '.'; break;
+                        case AICellState::Unknown:           row += '?'; break;
                     }
                 }
                 ImGui::TextUnformatted(row.c_str());

@@ -16,5 +16,7 @@ public:
 
     void setupAnimations(const SpriteSheet* spriteSheet) override;
     void onStomped() override;
+    // onStomped() damages the player.
+    bool isStompSafe() const override { return false; }
     void onHitByFireball() override;
 };

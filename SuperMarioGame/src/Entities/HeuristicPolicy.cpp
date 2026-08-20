@@ -95,11 +95,30 @@ bool HeuristicPolicy::gapAhead(const AIObservation& obs, int direction) {
     return !footing(direction) && !footing(direction * 2);
 }
 
+bool HeuristicPolicy::isEnemy(AICellState state) {
+    return state == AICellState::EnemyStompable || state == AICellState::EnemyDangerous;
+}
+
+bool HeuristicPolicy::isReward(AICellState state) {
+    return state == AICellState::Coin || state == AICellState::PowerUp;
+}
+
 int HeuristicPolicy::enemyAhead(const AIObservation& obs, int direction) {
     for (int step = 1; step <= kStrikeRange; ++step) {
         const int dx = direction * step;
         // Same row or one above: an enemy on the ground the agent is walking on.
-        if (obs.at(dx, 0) == AICellState::Enemy || obs.at(dx, -1) == AICellState::Enemy) {
+        if (isEnemy(obs.at(dx, 0)) || isEnemy(obs.at(dx, -1))) {
+            return step;
+        }
+    }
+    return 0;
+}
+
+int HeuristicPolicy::stompableAhead(const AIObservation& obs, int direction) {
+    for (int step = 1; step <= kStrikeRange; ++step) {
+        const int dx = direction * step;
+        if (obs.at(dx, 0) == AICellState::EnemyStompable ||
+            obs.at(dx, -1) == AICellState::EnemyStompable) {
             return step;
         }
     }
@@ -117,7 +136,7 @@ int HeuristicPolicy::rewardDirection(const AIObservation& obs) {
 
     for (int dy = -halfH; dy <= halfH; ++dy) {
         for (int dx = -halfW; dx <= halfW; ++dx) {
-            if (obs.at(dx, dy) != AICellState::Reward) continue;
+            if (!isReward(obs.at(dx, dy))) continue;
             const int distance = std::abs(dx) + std::abs(dy);
             if (distance < bestDistance || (distance == bestDistance && dx > 0)) {
                 bestDistance = distance;
@@ -163,6 +182,14 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
         }
 
         // Caution: walking into a hazard or off a ledge is worth less than not.
+        //
+        // A dangerous enemy is deliberately NOT counted here. It was, briefly,
+        // and it cost level_2 73 percentage points (75.3% -> 1.8%): a Spiny on
+        // the route made the goal pull negative, so the agent turned round and
+        // spent the episode oscillating. The correct response to a Spiny is to
+        // jump OVER it, which is a jump trigger (below), not a reason to
+        // reverse. Fleeing is right for lava, which cannot be jumped from
+        // standing; it is wrong for something one tile tall.
         if (obs.at(direction, 0) == AICellState::Hazard ||
             obs.at(direction, 1) == AICellState::Hazard) {
             utility -= m_weights.caution * 4.0f;
@@ -218,13 +245,22 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     const bool wall = obstacleAhead(obs, direction);
     const bool gap = gapAhead(obs, direction);
     const int threat = enemyAhead(obs, direction);
-    // An enemy is a jump target rather than an obstacle: landing on it is worth
-    // points to every archetype, and worth a bounce towards the opponent to a
-    // Hunter. Only jump once it is close enough that the arc will actually land.
-    const bool stompable = threat > 0 && threat <= 2;
+    // A STOMPABLE enemy is a jump target rather than an obstacle: landing on it
+    // is worth points to every archetype. A dangerous one (Spiny, Piranha,
+    // Thwomp, ChainChomp, Boo) is not — jumping on it costs a hit — so it is
+    // only ever an obstacle, and the caution term below handles it.
+    const int stompTarget = stompableAhead(obs, direction);
+    const bool stompable = stompTarget > 0 && stompTarget <= 2;
+    // A dangerous enemy close ahead must be cleared, not landed on. Same jump,
+    // different intent — and because it is not in `stompable`, the policy will
+    // not aim for its head.
+    const bool mustClear = (obs.at(direction, 0) == AICellState::EnemyDangerous) ||
+                           (obs.at(direction * 2, 0) == AICellState::EnemyDangerous);
     // Reward directly overhead — a question block to punch, or a coin to reach.
-    const bool rewardAbove = obs.at(0, -2) == AICellState::Reward ||
-                             obs.at(direction, -2) == AICellState::Reward;
+    // Only a power-up is worth an unprompted jump; a floating coin is not
+    // worth leaving the ground for on its own.
+    const bool rewardAbove = obs.at(0, -2) == AICellState::PowerUp ||
+                             obs.at(direction, -2) == AICellState::PowerUp;
 
     // A wall only earns a jump if the physics can actually clear it — jumping
     // at a 4-tile face is the exact futile loop the escape state exists to
@@ -239,7 +275,7 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     // old policy crossed.
     const bool launchJump = gap && raisedGroundAhead(obs, direction);
 
-    if (obs.canJump && (climbableWall || gap || stompable ||
+    if (obs.canJump && (climbableWall || gap || stompable || mustClear ||
                         (rewardAbove && m_weights.reward > 0.5f))) {
         action.jump = true;
     }
@@ -278,6 +314,8 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
         m_lastReason = "launch jump";
     } else if (gap) {
         m_lastReason = "crossing gap";
+    } else if (mustClear) {
+        m_lastReason = "clearing spikes";
     } else if (wall && !climbableWall) {
         m_lastReason = "wall too tall";
     } else if (wall) {
@@ -292,7 +330,7 @@ AIAction HeuristicPolicy::decide(const AIObservation& obs) {
     // Only ever as a fast way down onto something worth landing on, and only
     // from a height. A bot that ground-pounds on the flat just stops moving.
     if (!obs.onGround && obs.vy > 0.2f && threat > 0 &&
-        obs.at(0, 2) == AICellState::Enemy) {
+        obs.at(0, 2) == AICellState::EnemyStompable) {
         action.groundPound = true;
     }
 
