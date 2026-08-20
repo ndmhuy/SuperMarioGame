@@ -3971,3 +3971,16 @@ Summary of Changes:
   something I cannot demonstrate is broken.
 - Not pushed, per policy.
 ---
+[2026-08-20 00:00:00] Branch: A/mapgen-gan-plan (new, off dev)
+Git Fingerprint: f6fc8bc (before, on A/teammate-fixes) → 4917a21 (after, on A/mapgen-gan-plan)
+Fetched Remotes: yes, at session start
+Prompt: Refine the RL side-project idea — pair it with a GAN for map generation (current MapGenerator plays badly) and design how to set both up so they progress together.
+Files Modified: docs/mapgen_gan_rl_plan.md (new)
+Reachable From Main: n/a — documentation only, no runtime code
+Verified By: n/a — no code changed; assessment grounded by reading MapGenerator.cpp, tools/generate_game_levels.cpp, two_player_ai_plan.md §6, and rl_training.md on A/rl-neural-policy
+Summary of Changes:
+- Wrote docs/mapgen_gan_rl_plan.md: proposal pairing GAN level generation with the RL agent.
+- Key findings feeding the plan: campaign levels are MapGenerator output at fixed seeds (no hand-authored corpus — GAN must train on VGLC + editor levels, not our own levels); MapGenerator is independent per-column rolls, so it cannot express rhythm/difficulty curves; the --script runner is 80% of the headless eval harness both projects need.
+- Plan shape: Phase 0 shared substrate (--eval headless runner + versioned stats report, level tensor contract, corpus) → Phase 1 GAN with heuristic-agent-as-critic (independent of RL) → Phase 2 RL trained on campaign ∪ generated pool → Phase 3 curriculum loop (band-targeted, PAIRED fine-tuning as stretch). Markov/WFC baseline kept as de-risk.
+- No code written; plan is a proposal for user review per Directive 4. Branch not pushed (Directive: never push without being asked).
+---
