@@ -3636,3 +3636,55 @@ Summary of Changes:
   carry a black outline (red on a light castle ceiling was unreadable); the main
   menu hint is shadowed because it sits over the parallax bushes.
 ---
+[2026-08-20 13:10:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 94a25c8 (before) → 9e035e8 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
+Prompt: "anything else to do"
+Files Modified:
+- SuperMarioGame/CMakeLists.txt (every verify_* target)
+- SuperMarioGame/tests/ (10 harnesses)
+- SuperMarioGame/src/Utils/Serializer.cpp
+- SuperMarioGame/src/Entities/{Mario,Luigi,Peach,Toad,Player}.cpp
+- SuperMarioGame/include/Entities/{Player,Entity,Character,Trampoline,PiranhaPlant}.hpp
+Reachable From Main: the spawn-drift and save/load fixes are; the rest is build
+and test infrastructure.
+Verified By: `cmake --build build` with no target now succeeds for all 22
+targets (six did not compile and two hung before); ctest 12/12, up from 2
+registered cases. NOT verified by playing.
+Summary of Changes:
+- Answering "anything else to do" honestly meant building everything rather than
+  the two targets I habitually build. Six harnesses did not compile and two hung.
+- REAL BUG FOUND: every character spawned 2px below the position it was
+  constructed with. The constructors set a placeholder 32x32 box then called
+  changeState(SmallState); applyStateSize() shifts position.y by the height
+  difference to keep the feet planted, which is right for a mushroom mid-level
+  and wrong for the initial form. This also made save/load LOSSY: the save wrote
+  the drifted position and the load drifted it again, so a round trip moved the
+  player every time. Added Player::setStartingForm() and made loadGame restore
+  the position after the form. Two harnesses had been failing on exactly this
+  assertion and nobody could see it because they did not build.
+- WHY THE HARNESSES ROTTED: four defined their own stub Game/TileMap/SoundManager
+  to link a few entity files, while their CMake targets linked the whole engine —
+  35 duplicate symbols each. Two more hand-picked source lists that had drifted
+  (verify_hud_boss compiled Hud.cpp without SpriteSheet.cpp). Deleted the stubs
+  and routed every target through the add_verify_test helper that already
+  existed, so a harness cannot drift from the engine again.
+- Added NO_CTEST to the helper for harnesses that open an sf::RenderWindow and
+  loop until it closes. Registering those as tests is what made `ctest` hang on
+  the first one; they are inspection tools, not tests.
+- ELEVEN STALE ASSERTIONS, every one describing behaviour that was deliberately
+  changed and improved: death animations mean an enemy is dying rather than
+  instantly inactive; isCollidable() replaced the zero-sized-AABB idiom (B-14);
+  a hidden block is always collidable because hitting it is how you find it
+  (B-3); a question block publishes PowerUpRequested rather than the pickup
+  event nothing listened to (B-2) — that test was asserting the bug; player
+  states own their sizes (24x30, 24x60); a fireball bursts before vanishing; a
+  paratroopa has a one-second grace so one stomp cannot count twice.
+- verify_fireball's enemy-death assertion was MISSING: it drove a resolver method
+  that no longer exists and only ever checked the fireball. That is the exact
+  gap that let three enemies ship with a shadowed m_isFlipped. It now drives the
+  real dispatch and asserts the Goomba dies.
+- LESSON: "the tests pass" meant "the two targets I build pass". A test that does
+  not compile is worse than no test — it looks like coverage in the file listing.
+  Build every target before claiming a suite is green.
+---
