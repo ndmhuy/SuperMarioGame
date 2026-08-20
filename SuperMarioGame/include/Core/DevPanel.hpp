@@ -53,11 +53,17 @@ private:
     void drawAchievementToasts();
     // Task 9.1's AI debug overlay: what every live enemy is doing and why.
     void drawAiOverlay(PlayingState& state);
+    // Live tunables for the two-player modes: the shadow's delay and drift
+    // correction, and the CPU opponent's skill, style, reaction and noise. These
+    // are the numbers docs/two_player_ai_plan.md picks values for, and picking
+    // them by feel needs them on sliders rather than in a rebuild.
+    void drawMatchPanel(PlayingState& state);
 
     std::vector<Action> m_pending;
 
     // Purely presentational state — owned here, not by PlayingState.
     bool m_showAABB = false;
     bool m_showAiOverlay = false;
+    bool m_showAiVision = false;
     int  m_selectedPipeIndex = 0;
 };

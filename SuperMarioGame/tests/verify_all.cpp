@@ -235,23 +235,28 @@ void testSettings() {
     float sfx = 45.0f, music = 35.0f;
     std::string diff = "hard";
     std::unordered_map<std::string, std::string> bindings = { {"jump", "Space"}, {"left", "Left"}, {"right", "Right"} };
+    std::unordered_map<std::string, std::string> bindings2 = { {"jump", "Up"}, {"fire", "M"} };
     bool colorblind = true;
 
-    bool saveSuccess = Serializer::saveSettings(sfx, music, diff, bindings, colorblind);
+    bool saveSuccess = Serializer::saveSettings(sfx, music, diff, bindings, bindings2, colorblind);
     assert(saveSuccess && "Failed to save settings");
 
     float loadedSfx, loadedMusic;
     std::string loadedDiff;
     std::unordered_map<std::string, std::string> loadedBindings;
+    std::unordered_map<std::string, std::string> loadedBindings2;
     bool loadedColorblind;
 
-    bool loadSuccess = Serializer::loadSettings(loadedSfx, loadedMusic, loadedDiff, loadedBindings, loadedColorblind);
+    bool loadSuccess = Serializer::loadSettings(loadedSfx, loadedMusic, loadedDiff, loadedBindings, loadedBindings2, loadedColorblind);
     assert(loadSuccess && "Failed to load settings");
 
     assert(floatsEqual(loadedSfx, sfx));
     assert(floatsEqual(loadedMusic, music));
     assert(loadedDiff == diff);
     assert(loadedBindings == bindings);
+    // Player 2's pad round-trips too: it is a separate table, and a
+    // schema that wrote one and dropped the other would look correct here.
+    assert(loadedBindings2 == bindings2);
     assert(loadedColorblind == colorblind);
 
     std::cout << "  -> testSettings PASSED!" << std::endl;

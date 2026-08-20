@@ -117,7 +117,7 @@ void BoomBoom::updateBehaviour(float dt) {
     switch (m_action) {
         case Action::Charging: {
             // Aim at the player and commit; a charge that steers is not a charge.
-            if (const Player* player = Game::getInstance().getPlayer()) {
+            if (const Player* player = Game::getInstance().getNearestPlayer(getPosition())) {
                 const float toPlayer = player->getPosition().x - position.x;
                 if (std::abs(toPlayer) > 4.0f) {
                     facingRight = toPlayer > 0.0f;

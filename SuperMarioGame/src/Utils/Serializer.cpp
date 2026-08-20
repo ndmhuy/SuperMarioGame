@@ -254,13 +254,15 @@ bool Serializer::saveGame(int slot, const Player& player, int levelId, const std
         float sfx = 80.0f, music = 60.0f;
         std::string diff = "normal";
         std::unordered_map<std::string, std::string> bindings;
+        std::unordered_map<std::string, std::string> bindings2;
         bool colorblind = false;
-        loadSettings(sfx, music, diff, bindings, colorblind);
+        loadSettings(sfx, music, diff, bindings, bindings2, colorblind);
 
         j["settings"]["sfxVolume"] = sfx;
         j["settings"]["musicVolume"] = music;
         j["settings"]["difficulty"] = diff;
         j["settings"]["keyBindings"] = bindings;
+        j["settings"]["keyBindings2"] = bindings2;
         j["settings"]["colorblindMode"] = colorblind;
 
         std::ofstream file(path);
@@ -386,8 +388,9 @@ bool Serializer::deleteSlot(int slot) {
     return false;
 }
 
-bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty, 
+bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty,
                              const std::unordered_map<std::string, std::string>& keyBindings,
+                             const std::unordered_map<std::string, std::string>& keyBindings2,
                              bool colorblindMode) {
     try {
         std::string path = getSettingsFilePath();
@@ -401,6 +404,7 @@ bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::str
         j["musicVolume"] = musicVolume;
         j["difficulty"] = difficulty;
         j["keyBindings"] = keyBindings;
+        j["keyBindings2"] = keyBindings2;
         j["colorblindMode"] = colorblindMode;
 
         std::ofstream file(path);
@@ -412,8 +416,9 @@ bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::str
     }
 }
 
-bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty, 
+bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty,
                              std::unordered_map<std::string, std::string>& keyBindings,
+                             std::unordered_map<std::string, std::string>& keyBindings2,
                              bool& colorblindMode) {
     try {
         std::string path = getSettingsFilePath();
@@ -423,6 +428,10 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
             musicVolume = 60.0f;
             difficulty = "normal";
             keyBindings = { {"jump", "W"}, {"left", "A"}, {"right", "D"}, {"fire", "F"} };
+            // Empty rather than a default layout: InputManager already ships the
+            // arrow-key defaults, and applyBindings() only overrides what it is
+            // given. Naming them here would be a second source of truth.
+            keyBindings2.clear();
             colorblindMode = false;
             return true;
         }
@@ -437,6 +446,12 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
         musicVolume = j["musicVolume"];
         difficulty = j["difficulty"];
         keyBindings = j["keyBindings"].get<std::unordered_map<std::string, std::string>>();
+        // Optional: a config.json written before Player 2 was configurable has no
+        // such key, and must not be an exception that discards every setting.
+        keyBindings2.clear();
+        if (j.contains("keyBindings2")) {
+            keyBindings2 = j["keyBindings2"].get<std::unordered_map<std::string, std::string>>();
+        }
         if (j.contains("colorblindMode")) {
             colorblindMode = j["colorblindMode"];
         } else {

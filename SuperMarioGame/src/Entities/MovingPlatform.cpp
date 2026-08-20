@@ -49,7 +49,7 @@ void MovingPlatform::update(float dt) {
     setPosition(newPos);
 
     // Apply carrying logic if player is standing on top
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         AABB pBox = player->getBoundingBox();
         AABB platBox = getBoundingBox();

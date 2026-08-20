@@ -20,7 +20,11 @@ class OptionsState : public IGameState {
 public:
     // Which page it opens on. The main menu's RECORDS row wants Statistics, the
     // OPTIONS row wants Settings, and Tab cycles all four either way.
-    enum class Page { Settings, HighScores, Statistics, Achievements };
+    // Controls became a page of its own when Player 2's pad was exposed. Both
+    // pads is fourteen binding rows plus captions, which does not fit under the
+    // volume and difficulty rows in a 560px panel — the last several lines drew
+    // straight through the bottom of it.
+    enum class Page { Settings, Controls, HighScores, Statistics, Achievements };
 
     OptionsState() = default;
     explicit OptionsState(Page startPage) : m_page(startPage) {}
@@ -43,9 +47,18 @@ private:
         std::string label;
         std::string actionId;   // Binding rows: the InputManager action name
         bool isMusic = false;   // Volume rows: music vs sfx
+        // Binding rows: which pad this control belongs to. Player 2's bindings
+        // have existed in InputManager since it was written and were never
+        // reachable from any screen — so a second player at the same keyboard
+        // could not see, let alone change, the keys they had been given.
+        int playerIndex = 0;
+        // Header rows are drawn but not selectable.
+        bool selectable = true;
     };
 
     void buildRows();
+    // Move the cursor, skipping rows that are captions rather than controls.
+    void moveRow(int delta);
     void adjustSelected(int direction);
     void activateSelected();
     std::string valueTextFor(const Row& row) const;

@@ -45,7 +45,7 @@ void ProximityTriggerStrategy::calculateTarget(Enemy& enemy, float dt) {
     }
 
     if (m_state == ProximityState::Idle) {
-        Player* player = Game::getInstance().getPlayer();
+        Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
         if (player) {
             float hDist = std::abs(player->position.x - enemy.position.x);
             bool playerBelow = (player->position.y > enemy.position.y);

@@ -3688,3 +3688,67 @@ Summary of Changes:
   not compile is worse than no test — it looks like coverage in the file listing.
   Build every target before claiming a suite is green.
 ---
+[2026-08-20 10:26:19] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → a59d435 (after — branch created off A/complete-game-tiers-1-4, no commits; planning session)
+Fetched Remotes: yes, 10:24
+Prompt: Diverge onto a new branch, read docs/two_player_ai_plan.md, and propose what to implement for Shadow Mario and AI multiplayer.
+Files Modified: logs/agent_history.log only
+Reachable From Main: n/a — planning session, no runtime code written
+Verified By: n/a — no code changes; findings verified by reading source on this branch after fetch
+Summary of Changes:
+- Created branch A/shadow-mario-ai-multiplayer off A/complete-game-tiers-1-4
+  (which contains dev + 14 commits; branching off bare dev would have dropped
+  the Tier 1-4 work this feature builds on). Note: local dev is 30 commits
+  ahead of origin/dev (unpushed merges).
+- Surveyed the engine for 2P/AI/Shadow readiness. Key findings:
+  * Shared-screen Versus (TASKS.md 11.1) is real and load-bearing: P2 bindings,
+    registerPlayer(idx), m_player2, versus camera/HUD, player-vs-player
+    collision all exist.
+  * BUG: PlayingState::handleInput never dispatches press events for m_player2
+    — P2 cannot jump. Also the M key is both P2 fire and the minimap toggle.
+  * BUG: GameSnapshot captures P1 only — rewind/replay silently desync in 2P.
+  * Enemies target P1 only (strategies call Game::getPlayer()).
+  * ReplayRecorder is state-based and decimated to every 6th frame — NOT
+    suitable to drive Shadow Mario; a new 60Hz PlayerFramePacket deque is
+    needed. TASK_DIVISION.md's "extends Replay system" rationale for Bonus C
+    is therefore wrong.
+  * IMovementStrategy takes Enemy& and cannot drive a Player; a separate
+    AIController (as the plan doc proposes) is the cheaper path.
+  * SpriteColorFilter is still dead code (audit B-9) and is exactly what a
+    dark translucent shadow sprite needs.
+  * Camera is non-copyable/non-movable, no viewport support — split-screen is
+    expensive; shared-screen modes are nearly free.
+- Proposed a 3-phase plan to the user (fix 2P foundations → Shadow Mario
+  Chase → AI opponent; split-screen deferred). Flagged that Bonus C is
+  assigned to Member B in TASK_DIVISION.md while this session runs as
+  Member A — ownership needs the user's call. No code implemented; awaiting
+  user confirmation per Plan Deviations directive.
+---
+[2026-08-20 10:38:00] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → c142645 (after)
+Fetched Remotes: no — fetched at 10:24 this session; no repository-state reporting in this task
+Prompt: Add per-mode GUI adaptation to the plan, and plan a seam for a future neural-network reinforcement-learning AI side project.
+Files Modified: docs/two_player_ai_plan.md, logs/agent_history.log
+Reachable From Main: n/a — documentation only
+Verified By: n/a — no code changes
+Summary of Changes:
+- Added §5 "GUI & UX Adaptation Per Mode" to docs/two_player_ai_plan.md: mode
+  picker off ROW_VERSUS, opponent picker (Human/CPU + difficulty/archetype),
+  CharacterSelectState forwarding the mode, per-mode HUD (generalized versus
+  HUD with CPU labels, co-op shared pool, shadow-delay gauge, minimap second
+  marker), mode-aware Victory/GameOver headlines, pause freezing the AI
+  decision timer, OptionsState exposing the existing P2 bindings and fixing
+  the M-key minimap collision, and ImGui DevPanel sliders per AGENTS.md
+  tunability rule.
+- Added §6 "RL-Ready Policy Seam": AIController delegates decisions to an
+  IAIPolicy interface (HeuristicPolicy now, NeuralPolicy later). Fixed-size
+  normalized AIObservation, AIAction mirroring PlayerFramePacket (recorded
+  human play doubles as imitation-learning data), epsilon-noise applied
+  outside the policy (maps to epsilon-greedy), reward function as an EventBus
+  subscriber. Headless training mode explicitly deferred to its own proposal.
+- Updated §4 sketch (m_policy member replaces "neural network inference"
+  comment) and renumbered Next Steps to §7 with GUI-pass and policy-seam-first
+  items.
+- Committed as c142645. Not pushed (per policy). Implementation still awaiting
+  the user's phase green-light and the Member A/B ownership call on Bonus C.
+---

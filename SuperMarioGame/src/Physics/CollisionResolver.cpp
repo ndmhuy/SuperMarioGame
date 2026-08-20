@@ -13,6 +13,7 @@
 #include "Entities/KoopaTroopa.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/InputManager.hpp"
+#include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
 
@@ -71,6 +72,15 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
     // collision normal flipped, because the normal points from e1 towards e2.
     const EntityCategory c1 = e1.getCategory();
     const EntityCategory c2 = e2.getCategory();
+
+    // A contact hazard — Shadow Mario — takes part in exactly one pairing: the
+    // one where it touches a real player. Anything else passes straight through
+    // it, so it cannot farm the level for the human it is chasing.
+    if (e1.isContactHazard() || e2.isContactHazard()) {
+        const bool bothPlayers = (c1 == EntityCategory::Player && c2 == EntityCategory::Player);
+        // Two hazards cannot meaningfully collide, and there is only ever one.
+        if (!bothPlayers || (e1.isContactHazard() && e2.isContactHazard())) return;
+    }
 
     auto flipped = [&info] {
         CollisionInfo f = info;
@@ -288,6 +298,38 @@ void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const Co
 }
 
 void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const CollisionInfo& info) {
+    // Shadow Mario. Touching your own past costs you: no pushback, no stomp, no
+    // bounce — the shadow is unmoved by the collision because it is replaying a
+    // path, and shoving it off that path would desync it from the recording it
+    // is driven by.
+    if (p1.isContactHazard() != p2.isContactHazard()) {
+        Player& hazard = p1.isContactHazard() ? p1 : p2;
+        Player& victim = p1.isContactHazard() ? p2 : p1;
+        if (victim.getInvincibilityTimer() <= 0.0f) {
+            victim.takeDamage(1);
+            SoundManager::getInstance().playSound("damage");
+            // The hazard is told it was the cause. Whoever reports the death
+            // then has a fact to report rather than a guess.
+            hazard.onContactWithPlayer();
+        }
+        return;
+    }
+
+    // Co-op: jumping on your partner is a boost, not an attack. The bounce is
+    // taller than the versus stomp — it is the mode's traversal mechanic, meant
+    // to get a partner onto ledges they cannot reach alone — and the player
+    // underneath is not pushed down or stunned.
+    if (Game::getInstance().matchConfig().isCoop() && info.normal.y != 0.0f) {
+        Player& upper = (info.normal.y == -1.0f) ? p1 : p2;
+        Player& lower = (info.normal.y == -1.0f) ? p2 : p1;
+        upper.position.y += info.normal.y * info.overlap.y;
+        upper.boundingBox.y = upper.position.y;
+        upper.velocity.y = -Constants::PLAYER_BOUNCE_FORCE * 1.6f;
+        lower.velocity.y = 0.0f;
+        SoundManager::getInstance().playSound("boing");
+        return;
+    }
+
     // Both are dynamic characters; resolve collision by pushing both back by 50% of the overlap
     p1.position.x += info.normal.x * info.overlap.x * 0.5f;
     p1.position.y += info.normal.y * info.overlap.y * 0.5f;

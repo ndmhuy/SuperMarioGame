@@ -45,7 +45,7 @@ void Thwomp::setupAnimations(const SpriteSheet* spriteSheet) {
 
 void Thwomp::onStomped() {
     // Stone: cannot be stomped, inflicts damage
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         player->takeDamage(1);
     }

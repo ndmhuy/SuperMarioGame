@@ -20,7 +20,7 @@ void HammerThrowStrategy::setThrowCallbackVel(std::function<void(sf::Vector2f po
 }
 
 void HammerThrowStrategy::calculateTarget(Enemy& enemy, float dt) {
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
     if (player) {
         enemy.facingRight = (player->position.x > enemy.position.x);
     }

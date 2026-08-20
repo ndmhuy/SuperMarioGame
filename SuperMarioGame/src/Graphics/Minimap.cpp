@@ -66,6 +66,20 @@ void Minimap::draw(sf::RenderTarget& target, sf::RenderStates states) const {
         case EntityType::Item:
             entityDot.setFillColor(ColorPalette::get(ColorPalette::Role::Item));
             break;
+
+        case EntityType::Rival:
+            // The item colour rather than the enemy colour: the other player is
+            // a competitor, not a hazard, and the enemy red is already spoken
+            // for by everything that can actually kill you.
+            entityDot.setFillColor(ColorPalette::get(ColorPalette::Role::Item));
+            break;
+
+        case EntityType::Shadow:
+            // Not from the palette: the shadow's purple is the one colour in the
+            // game that means "this is you, and it will hurt you", and the
+            // colourblind palette has no role for that.
+            entityDot.setFillColor(sf::Color(180, 110, 255));
+            break;
         }
 
         target.draw(entityDot);
@@ -85,6 +99,17 @@ void Minimap::update(float dt, const Player* player, const std::vector<std::uniq
         }
         else if (dynamic_cast<const Item*>(entity.get())) {
             m_entityList.emplace_back(entity->getPosition(), EntityType::Item);
+        }
+        // Other players. The loop used to cast for Enemy and Item only, so in a
+        // two-player match the minimap showed one player and every level hazard
+        // — the one thing a player checks a minimap for in versus is where the
+        // other one is. Detected here rather than passed in, so a rival, a CPU
+        // opponent and a shadow all appear without a new parameter each.
+        else if (auto* other = dynamic_cast<const Player*>(entity.get())) {
+            if (other == player) continue;   // already placed above
+            m_entityList.emplace_back(other->getPosition(),
+                                      other->isContactHazard() ? EntityType::Shadow
+                                                               : EntityType::Rival);
         }
     }
 }

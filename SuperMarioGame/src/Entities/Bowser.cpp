@@ -122,7 +122,7 @@ void Bowser::updateBehaviour(float dt) {
 
     // Face the player when they get behind him, so he is never harmlessly
     // breathing fire at a wall.
-    if (const Player* player = Game::getInstance().getPlayer()) {
+    if (const Player* player = Game::getInstance().getNearestPlayer(getPosition())) {
         const float toPlayer = player->getPosition().x - position.x;
         if (std::abs(toPlayer) > BOWSER_WIDTH) {
             facingRight = toPlayer > 0.0f;

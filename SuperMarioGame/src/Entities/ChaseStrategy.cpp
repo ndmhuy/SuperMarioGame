@@ -6,7 +6,7 @@
 
 void ChaseStrategy::calculateTarget(Enemy& enemy, float dt) {
     m_shouldChase = false;
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
     if (!player) {
         return;
     }

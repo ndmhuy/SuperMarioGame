@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Core/IGameState.hpp"
+#include "Core/GameMode.hpp"
 #include "Graphics/UiRenderer.hpp"
 #include "Utils/MapGenerator.hpp"
+#include <string>
 #include <vector>
 
 // Everything the game-over screen needs to show a summary and to rebuild the
@@ -17,6 +19,19 @@ struct RunSummary {
     std::string characterName = "mario";
     bool isProcedural = false;
     MapGeneratorConfig generatorConfig;
+
+    // Which match ended, and how. Without these the game-over screen shows the
+    // same "GAME OVER" for a solo run, a versus loss and being caught by your
+    // own shadow — and the retry it offers has to guess which mode to rebuild.
+    MatchConfig match;
+    std::string cause;
+    // Whether Shadow Mario was what actually killed the player. The mode is not
+    // the cause: a Shadow Chase run can just as easily end on a Goomba or in a
+    // pit, and the screen said "CAUGHT" for all three.
+    bool caughtByShadow = false;
+    // The opponent's final score, for the versus verdict. Meaningless unless
+    // match.hasSecondPlayer().
+    int opponentScore = 0;
 };
 
 // Task 7.6 — Game Over.

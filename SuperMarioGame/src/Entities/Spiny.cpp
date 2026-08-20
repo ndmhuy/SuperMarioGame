@@ -56,7 +56,7 @@ void Spiny::onStomped() {
     if (m_isFlipped) return;
 
     // Spiky: Stomping deals damage to the player
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         player->takeDamage(1);
     }

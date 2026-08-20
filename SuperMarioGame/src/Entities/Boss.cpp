@@ -90,7 +90,7 @@ void Boss::update(float dt) {
         // for the animation.
         if (!m_defeatAnnounced) {
             m_defeatAnnounced = true;
-            if (Player* player = Game::getInstance().getPlayer()) {
+            if (Player* player = Game::getInstance().getNearestPlayer(getPosition())) {
                 player->addScore(getScoreValue());
             }
             EventBus::getInstance().publish({EventType::BossDefeated, getScoreValue()});

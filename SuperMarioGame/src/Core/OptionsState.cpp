@@ -56,22 +56,51 @@ void OptionsState::exit() {
 
 void OptionsState::buildRows() {
     m_rows.clear();
-    m_rows.push_back({RowKind::Volume,     "MUSIC VOLUME", "", true});
-    m_rows.push_back({RowKind::Volume,     "SFX VOLUME",   "", false});
-    m_rows.push_back({RowKind::Difficulty, "DIFFICULTY",   "", false});
-    m_rows.push_back({RowKind::Toggle,     "COLORBLIND",   "", false});
 
-    // Controls. The action ids are exactly InputManager's bindable actions —
-    // anything else is silently ignored by applyBindings().
-    for (const char* action : {"left", "right", "jump", "run", "crouch", "fire", "groundpound"}) {
-        m_rows.push_back({RowKind::Binding, prettyAction(action), action, false});
+    if (m_page == Page::Controls) {
+        // The action ids are exactly InputManager's bindable actions — anything
+        // else is silently ignored by applyBindings().
+        //
+        // Both pads are listed. Player 2's block is what makes the arrows/M/N
+        // layout discoverable and changeable; before this, the only way to find
+        // out what Player 2's keys were was to read InputManager.cpp.
+        for (int pad = 0; pad < 2; ++pad) {
+            Row header{RowKind::Action, pad == 0 ? "-- PLAYER 1 --" : "-- PLAYER 2 --", "", false};
+            header.selectable = false;
+            m_rows.push_back(header);
+            for (const char* action : {"left", "right", "jump", "run", "crouch", "fire", "groundpound"}) {
+                Row row{RowKind::Binding, prettyAction(action), action, false};
+                row.playerIndex = pad;
+                m_rows.push_back(row);
+            }
+        }
+        // A player who binds a control to a key they cannot find again needs a
+        // way back that is not "edit config.json by hand".
+        m_rows.push_back({RowKind::Action, "RESET CONTROLS", "", false});
+        m_rows.push_back({RowKind::Action, "BACK", "", false});
+    } else {
+        m_rows.push_back({RowKind::Volume,     "MUSIC VOLUME", "", true});
+        m_rows.push_back({RowKind::Volume,     "SFX VOLUME",   "", false});
+        m_rows.push_back({RowKind::Difficulty, "DIFFICULTY",   "", false});
+        m_rows.push_back({RowKind::Toggle,     "COLORBLIND",   "", false});
+        m_rows.push_back({RowKind::Action,     "BACK",         "", false});
     }
 
-    // A player who binds a control to a key they cannot find again needs a way
-    // back that is not "edit config.json by hand".
-    m_rows.push_back({RowKind::Action, "RESET CONTROLS", "", false});
-    m_rows.push_back({RowKind::Action, "BACK", "", false});
-    m_selected = std::min(m_selected, static_cast<int>(m_rows.size()) - 1);
+    m_selected = std::clamp(m_selected, 0, static_cast<int>(m_rows.size()) - 1);
+    // The clamp can land on a caption; step off it.
+    if (!m_rows[static_cast<std::size_t>(m_selected)].selectable) moveRow(1);
+}
+
+void OptionsState::moveRow(int delta) {
+    if (m_rows.empty()) return;
+    const int n = static_cast<int>(m_rows.size());
+    const int step = (delta >= 0) ? 1 : -1;
+    // Step over the "-- PLAYER 1 --" / "-- PLAYER 2 --" captions. A caption the
+    // cursor can land on looks like a row whose Enter key is broken.
+    for (int i = 0; i < n; ++i) {
+        m_selected = (m_selected + step + n) % n;
+        if (m_rows[static_cast<std::size_t>(m_selected)].selectable) return;
+    }
 }
 
 std::string OptionsState::valueTextFor(const Row& row) const {
@@ -90,7 +119,8 @@ std::string OptionsState::valueTextFor(const Row& row) const {
         case RowKind::Toggle:
             return game.getColorblindMode() ? "ON" : "OFF";
         case RowKind::Binding: {
-            const std::string key = InputManager::getInstance().getBoundKeyName(row.actionId, 0);
+            const std::string key =
+                InputManager::getInstance().getBoundKeyName(row.actionId, row.playerIndex);
             return key.empty() ? "-" : key;
         }
         case RowKind::Action:
@@ -144,11 +174,16 @@ void OptionsState::activateSelected() {
             if (row.label == "RESET CONTROLS") {
                 // Applied and persisted through the same path a manual rebind
                 // takes, so the defaults cannot drift from what the game does.
-                const auto defaults = InputManager::getInstance().resetBindingsToDefaults(0);
-                for (const auto& [action, key] : defaults) {
-                    Game::getInstance().setKeyBinding(action, key);
+                // Both pads: resetting one and leaving the other half-rebound is
+                // not what "reset controls" means to anyone reading the button.
+                for (int pad = 0; pad < 2; ++pad) {
+                    const auto defaults =
+                        InputManager::getInstance().resetBindingsToDefaults(pad);
+                    for (const auto& [action, key] : defaults) {
+                        Game::getInstance().setKeyBinding(action, key, pad);
+                    }
                 }
-                m_notice = "CONTROLS RESET TO DEFAULTS";
+                m_notice = "BOTH PADS RESET TO DEFAULTS";
                 m_noticeTimer = 2.5f;
             } else {
                 close();
@@ -183,18 +218,24 @@ void OptionsState::handleInput(const sf::Event& event) {
             // Say so when the key was already taken. applyBindings swaps the two
             // rather than orphaning the other action, but silently moving a
             // control the player did not mention is worse than telling them.
+            // Conflicts are resolved per pad. The two players are at the same
+            // keyboard, but their tables are independent by design: both may
+            // legitimately bind "left" to the same key in a single-player run,
+            // and only the pad being edited should be rearranged.
+            const int pad = row.playerIndex;
             const std::string previousOwner =
-                InputManager::getInstance().getActionForKey(keyText, 0);
+                InputManager::getInstance().getActionForKey(keyText, pad);
             // setKeyBinding both applies the binding live and stores it for
             // saveSettings() to persist at shutdown.
-            Game::getInstance().setKeyBinding(row.actionId, keyText);
+            Game::getInstance().setKeyBinding(row.actionId, keyText, pad);
             if (!previousOwner.empty() && previousOwner != row.actionId) {
                 m_notice = keyText + " SWAPPED WITH " + prettyAction(previousOwner);
                 m_noticeTimer = 2.5f;
                 // The displaced action moved to the key this one vacated, and
                 // Game must persist that too or it reverts on the next launch.
                 Game::getInstance().setKeyBinding(
-                    previousOwner, InputManager::getInstance().getBoundKeyName(previousOwner, 0));
+                    previousOwner,
+                    InputManager::getInstance().getBoundKeyName(previousOwner, pad), pad);
             }
         } else {
             std::cerr << "[OptionsState] That key has no name in the binding table; ignored."
@@ -206,10 +247,14 @@ void OptionsState::handleInput(const sf::Event& event) {
 
     switch (keyPressed->code) {
         case Key::Tab: {
-            // Settings -> High Scores -> Statistics -> Achievements -> back.
-            constexpr int kPageCount = 4;
+            // Settings -> Controls -> High Scores -> Statistics -> Achievements.
+            constexpr int kPageCount = 5;
             m_page = static_cast<Page>((static_cast<int>(m_page) + 1) % kPageCount);
             m_achievementScroll = 0;
+            // Settings and Controls own different row lists, so the list has to
+            // be rebuilt when the page changes rather than only on enter().
+            m_selected = 0;
+            buildRows();
             break;
         }
         case Key::Escape:
@@ -219,8 +264,7 @@ void OptionsState::handleInput(const sf::Event& event) {
         case Key::Up:
         case Key::W:
             if (m_page == Page::Settings && !m_rows.empty()) {
-                const int n = static_cast<int>(m_rows.size());
-                m_selected = (m_selected - 1 + n) % n;
+                moveRow(-1);
             } else if (m_page == Page::Achievements) {
                 m_achievementScroll = std::max(0, m_achievementScroll - 1);
             }
@@ -228,8 +272,7 @@ void OptionsState::handleInput(const sf::Event& event) {
         case Key::Down:
         case Key::S:
             if (m_page == Page::Settings && !m_rows.empty()) {
-                const int n = static_cast<int>(m_rows.size());
-                m_selected = (m_selected + 1) % n;
+                moveRow(1);
             } else if (m_page == Page::Achievements) {
                 const int total = static_cast<int>(
                     AchievementManager::getInstance().getAchievements().size());
@@ -273,10 +316,13 @@ void OptionsState::render(sf::RenderTarget& target) {
     UiRenderer::drawPanel(target, {px, py}, {PANEL_W, PANEL_H});
 
     const float centerX = Constants::WINDOW_WIDTH * 0.5f;
-    const bool settings = (m_page == Page::Settings);
+    // Both list pages draw through the same block below; they differ only in
+    // which rows buildRows() produced and how tightly they have to be packed.
+    const bool settings = (m_page == Page::Settings || m_page == Page::Controls);
 
     const char* title = "OPTIONS";
     switch (m_page) {
+        case Page::Controls:     title = "CONTROLS";     break;
         case Page::HighScores:   title = "HIGH SCORES";  break;
         case Page::Statistics:   title = "STATISTICS";   break;
         case Page::Achievements: title = "ACHIEVEMENTS"; break;
@@ -287,9 +333,9 @@ void OptionsState::render(sf::RenderTarget& target) {
 
     // Which of the four pages is showing, so Tab is discoverable rather than
     // something you have to already know about.
-    const char* const kPageNames[] = {"OPTIONS", "SCORES", "STATS", "AWARDS"};
+    const char* const kPageNames[] = {"OPTIONS", "KEYS", "SCORES", "STATS", "AWARDS"};
     std::string tabs;
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         if (i) tabs += "   ";
         tabs += (static_cast<int>(m_page) == i) ? std::string("[") + kPageNames[i] + "]"
                                                 : std::string(" ") + kPageNames[i] + " ";
@@ -311,11 +357,16 @@ void OptionsState::render(sf::RenderTarget& target) {
             if (m_awaitingBindingRow == static_cast<int>(i)) {
                 value = "PRESS KEY";
             }
-            items.emplace_back(row.label, value);
+            // Captions render as disabled rows, which is what greys them out.
+            items.emplace_back(row.label, value, row.selectable);
         }
 
+        // Eighteen rows on the controls page against five on settings, in the
+        // same 560px panel: the row height has to come from the row count or the
+        // list runs out through the bottom of the frame.
+        const float rowHeight = (m_page == Page::Controls) ? 24.0f : 34.0f;
         UiRenderer::drawMenuItems(target, items, m_selected,
-                                  {px + 60.0f, py + 100.0f}, 34.0f, 13,
+                                  {px + 60.0f, py + 100.0f}, rowHeight, 13,
                                   px + PANEL_W - 200.0f, m_elapsed);
 
         if (!m_notice.empty()) {

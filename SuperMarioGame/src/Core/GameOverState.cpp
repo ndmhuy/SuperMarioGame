@@ -60,9 +60,12 @@ void GameOverState::activateSelection() {
     if (m_selected == 0) {
         // Rebuild the same level with the same character. The lost run's score
         // is gone deliberately — a retry is a fresh attempt.
+        // Same mode, too: retrying a Shadow Chase used to drop the player into
+        // an ordinary single-player level, because the mode was not part of
+        // what a run summary remembered.
         Game::getInstance().changeState(std::make_unique<PlayingState>(
             false, m_summary.isProcedural, m_summary.generatorConfig,
-            m_summary.characterIndex, m_summary.levelIndex));
+            m_summary.characterIndex, m_summary.levelIndex, m_summary.match));
     } else {
         Game::getInstance().changeState(std::make_unique<MenuState>());
     }
@@ -112,14 +115,43 @@ void GameOverState::render(sf::RenderTarget& target) {
                           sf::Color(0, 0, 0, 235), sf::Color(220, 60, 60));
 
     const float centerX = Constants::WINDOW_WIDTH * 0.5f;
-    UiRenderer::drawShadowedText(target, "GAME OVER", {centerX, py + 40.0f}, 32,
-                                 sf::Color(230, 60, 60), true);
+
+    // The headline names the mode's own ending. "GAME OVER" is right for a solo
+    // run and wrong for every other case: losing a versus match is a result, not
+    // a failure, and being caught by your own shadow is the entire point of the
+    // mode rather than an anonymous death.
+    std::string headline = "GAME OVER";
+    sf::Color headlineColor(230, 60, 60);
+    if (m_summary.caughtByShadow) {
+        headline = "CAUGHT";
+        headlineColor = sf::Color(190, 120, 255);
+    } else if (m_summary.match.isVersus()) {
+        const bool cpu = m_summary.match.isCpuOpponent();
+        headline = (m_summary.score > m_summary.opponentScore)
+                       ? "P1 WINS"
+                       : (m_summary.score < m_summary.opponentScore
+                              ? (cpu ? "CPU WINS" : "P2 WINS")
+                              : "DRAW");
+        headlineColor = sf::Color(255, 216, 0);
+    } else if (m_summary.match.isCoop()) {
+        headline = "TEAM DOWN";
+        headlineColor = sf::Color(120, 200, 255);
+    }
+    UiRenderer::drawShadowedText(target, headline, {centerX, py + 40.0f}, 32,
+                                 headlineColor, true);
 
     const std::string levelName = m_summary.isProcedural
         ? "PROCEDURAL"
         : upper(LevelCatalog::nameFor(m_summary.levelIndex));
 
-    float y = py + 120.0f;
+    float y = py + 82.0f;
+    // How the run ended, in the words PlayingState used when it ended it.
+    if (!m_summary.cause.empty()) {
+        UiRenderer::drawText(target, upper(m_summary.cause), {centerX, y}, 12,
+                             sf::Color(200, 160, 160), true);
+    }
+
+    y = py + 120.0f;
     UiRenderer::drawText(target, upper(m_summary.characterName) + "   WORLD " + levelName,
                          {centerX, y}, 12, sf::Color(180, 180, 180), true);
     y += 40.0f;

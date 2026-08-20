@@ -248,8 +248,12 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             } else {
                 m_resolver.resolveEntityVsTile(*entity, maxCollision);
 
-                // Head-butt logic for Player hitting ceiling tiles from below
-                if (auto player = dynamic_cast<Player*>(entity.get())) {
+                // Head-butt logic for Player hitting ceiling tiles from below.
+                // Shadow Mario is excluded: it replays the player's path, so it
+                // would punch out every question block and brick the player had
+                // already jumped under, three seconds behind them.
+                if (auto player = dynamic_cast<Player*>(entity.get());
+                    player && !player->isContactHazard()) {
                     for (const auto& col : collisions) {
                         // Only a ceiling contact counts as a head-butt. The old
                         // condition also accepted `preVelY < 0.0f`, which is true for

@@ -9,6 +9,8 @@
 #include "Entities/Player.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
+#include "Entities/ShadowMario.hpp"
+#include "Entities/AIController.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Mushroom.hpp"
 #include "Entities/FireFlower.hpp"
@@ -71,6 +73,9 @@ void DevPanel::draw(PlayingState& state) {
         if (m_showAiOverlay) {
             drawAiOverlay(state);
         }
+        // Not behind the overlay toggle: this one appears only in the modes it
+        // applies to, so it cannot clutter an ordinary run.
+        drawMatchPanel(state);
     }
 }
 
@@ -131,6 +136,117 @@ void DevPanel::drawAiOverlay(PlayingState& state) {
 
         if (shown == 0) {
             ImGui::TextDisabled("No live enemies in this level.");
+        }
+    }
+
+    ImGui::End();
+}
+
+void DevPanel::drawMatchPanel(PlayingState& state) {
+    // Only present when there is a match to tune. In a single-player run every
+    // control here would be dead, and a window full of greyed-out sliders is
+    // worse than no window.
+    if (!state.m_aiController && !state.m_shadow) return;
+
+    ImGui::SetNextWindowPos(ImVec2(744.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(520.0f, 360.0f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Match: Shadow & CPU");
+
+    if (state.m_shadow) {
+        ImGui::TextColored(ImVec4(0.75f, 0.5f, 1.0f, 1.0f), "Shadow Mario");
+        ImGui::Text("Replaying: %s", state.m_shadow->hasStarted() ? "yes" : "filling buffer");
+        ImGui::Text("Spatial gap: %.2fs", state.shadowProximitySeconds());
+
+        // The delay is the single number that decides whether the mode is tense
+        // or trivial, so it is tunable while the game runs rather than a
+        // recompile away.
+        float delay = state.m_shadow->getDelay();
+        if (ImGui::SliderFloat("Delay (s)", &delay, 0.5f, 8.0f, "%.2f")) {
+            const float requested = delay;
+            queue([requested](PlayingState& s) {
+                if (s.m_shadow) s.m_shadow->setDelay(requested);
+            });
+        }
+
+        static float correctionThreshold = 4.0f;
+        static float correctionFactor = 0.1f;
+        bool changed = ImGui::SliderFloat("Drift threshold (px)", &correctionThreshold, 0.0f, 32.0f, "%.1f");
+        changed |= ImGui::SliderFloat("Drift correction", &correctionFactor, 0.0f, 1.0f, "%.2f");
+        if (changed) {
+            const float threshold = correctionThreshold;
+            const float factor = correctionFactor;
+            queue([threshold, factor](PlayingState& s) {
+                if (s.m_shadow) s.m_shadow->setCorrection(threshold, factor);
+            });
+        }
+        ImGui::TextDisabled("Inputs drive the shadow; the recorded position is the leash.");
+        ImGui::Separator();
+    }
+
+    if (state.m_aiController) {
+        AIController& ai = *state.m_aiController;
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "CPU opponent");
+        ImGui::Text("Policy: %s   Doing: %s", ai.policyName(), ai.reason());
+        ImGui::Text("Vision radius: %d tiles", ai.getVisionRadius());
+
+        int difficulty = static_cast<int>(ai.getDifficulty());
+        if (ImGui::Combo("Skill", &difficulty, "Easy\0Normal\0Hard\0")) {
+            const auto requested = static_cast<AIDifficulty>(difficulty);
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setDifficulty(requested);
+            });
+        }
+        int archetype = static_cast<int>(ai.getArchetype());
+        if (ImGui::Combo("Style", &archetype, "Speedrunner\0Hunter\0Collector\0")) {
+            const auto requested = static_cast<AIArchetype>(archetype);
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setArchetype(requested);
+            });
+        }
+
+        // Both of these are set by the skill preset above; overriding them
+        // afterwards is how the difficulty table's numbers get felt rather than
+        // argued about.
+        float latency = ai.getReactionLatency();
+        if (ImGui::SliderFloat("Reaction (s)", &latency, 0.0f, 1.0f, "%.3f")) {
+            const float requested = latency;
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setReactionLatency(requested);
+            });
+        }
+        float noise = ai.getActionNoise();
+        if (ImGui::SliderFloat("Action noise", &noise, 0.0f, 1.0f, "%.2f")) {
+            const float requested = noise;
+            queue([requested](PlayingState& s) {
+                if (s.m_aiController) s.m_aiController->setActionNoise(requested);
+            });
+        }
+
+        ImGui::Checkbox("Draw vision grid", &m_showAiVision);
+        if (m_showAiVision) {
+            // The grid as the bot sees it, one character per cell. A bot walking
+            // into a wall is much easier to diagnose when you can see that it
+            // believed the wall was empty.
+            ImGui::TextDisabled("# solid  ^ enemy  $ reward  ! hazard  . empty  ? unseen");
+            const AIObservation& obs = ai.lastObservation();
+            const int halfW = kAIVisionWidth / 2;
+            const int halfH = kAIVisionHeight / 2;
+            for (int dy = -halfH; dy <= halfH; ++dy) {
+                std::string row;
+                row.reserve(static_cast<std::size_t>(kAIVisionWidth) + 1);
+                for (int dx = -halfW; dx <= halfW; ++dx) {
+                    if (dx == 0 && dy == 0) { row += '@'; continue; }
+                    switch (obs.at(dx, dy)) {
+                        case AICellState::Solid:   row += '#'; break;
+                        case AICellState::Enemy:   row += '^'; break;
+                        case AICellState::Reward:  row += '$'; break;
+                        case AICellState::Hazard:  row += '!'; break;
+                        case AICellState::Empty:   row += '.'; break;
+                        case AICellState::Unknown: row += '?'; break;
+                    }
+                }
+                ImGui::TextUnformatted(row.c_str());
+            }
         }
     }
 

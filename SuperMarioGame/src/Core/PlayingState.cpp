@@ -35,6 +35,8 @@
 #include "Entities/Player.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
+#include "Entities/ShadowMario.hpp"
+#include "Entities/AIController.hpp"
 #include "Entities/Toad.hpp"
 #include "Entities/Peach.hpp"
 #include "Entities/Mushroom.hpp"
@@ -80,11 +82,17 @@ BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
 } // namespace
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
-                           int characterIndex, int levelIndex, bool twoPlayer)
-    : m_selectedCharIndex(characterIndex),
+                           int characterIndex, int levelIndex, MatchConfig match)
+    : m_match(match),
+      m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
-      m_startInEditor(startInEditor), m_isProcedural(isProcedural), m_twoPlayer(twoPlayer),
-      m_genConfig(genConfig) {}
+      m_startInEditor(startInEditor), m_isProcedural(isProcedural),
+      m_genConfig(genConfig) {
+    // Published now rather than in enter(), because the collision resolver can
+    // be reached by a harness that never enters a state, and a stale co-op flag
+    // there would silently turn a versus stomp into a friendly boost.
+    Game::getInstance().setMatchConfig(m_match);
+}
 
 PlayingState::~PlayingState() {
     exit();
@@ -354,8 +362,17 @@ void PlayingState::exit() {
 
     // Unregister player and tilemap to prevent dangling pointer crashes on exit
     InputManager::getInstance().registerPlayer(nullptr, 0);
+    InputManager::getInstance().registerPlayer(nullptr, 1);
     Game::getInstance().setPlayer(nullptr);
+    Game::getInstance().setSecondPlayer(nullptr);
     Game::getInstance().setTileMap(nullptr);
+    // The match ends with the state. Leaving it set would carry co-op's
+    // friendly-fire rule into the next single-player run, since the collision
+    // resolver reads it from the singleton rather than from this object.
+    Game::getInstance().setMatchConfig(MatchConfig{});
+    m_aiController.reset();
+    m_player2 = nullptr;
+    m_shadow = nullptr;
 }
 
 void PlayingState::handleInput(const sf::Event& event) {
@@ -384,8 +401,14 @@ void PlayingState::handleInput(const sf::Event& event) {
                 Game::getInstance().changeState(std::make_unique<MenuState>());
             }
 
-            // M toggles the minimap. Minimap subscribes to this event itself.
-            if (keyPressed->code == sf::Keyboard::Key::M) {
+            // Tab toggles the minimap. Minimap subscribes to this event itself.
+            //
+            // This was M, which is also Player 2's bound fire key. In a
+            // two-player match one keypress therefore both threw a fireball and
+            // flipped the minimap, and the minimap won the visual argument — so
+            // the collision read as "P2 cannot shoot". Tab is bound to nothing
+            // and is the conventional map key.
+            if (keyPressed->code == sf::Keyboard::Key::Tab) {
                 EventBus::getInstance().publish({EventType::MinimapToggled, 0});
             }
 
@@ -424,8 +447,15 @@ void PlayingState::handleInput(const sf::Event& event) {
         }
     }
 
-    if (!m_mapEditor.isActive() && m_player) {
-        InputManager::getInstance().handleInput(event, *m_player);
+    if (!m_mapEditor.isActive()) {
+        InputManager& input = InputManager::getInstance();
+        if (m_player) input.handleInput(event, *m_player);
+        // Player 2's press actions — jump, fire, ground pound — were never
+        // dispatched: only the *hold* mappings ran, from update(). Player 2
+        // could walk and crouch but could not jump, for the entire life of
+        // two-player mode. A CPU-driven Player 2 never reads the keyboard, so
+        // it is skipped rather than fed Player 2's keys.
+        if (m_player2 && !m_aiController) input.handleInput(event, *m_player2);
     }
 }
 
@@ -516,8 +546,22 @@ void PlayingState::update(float dt) {
 
     if (inputBelongsToGameplay) {
         if (m_player)  InputManager::getInstance().update(*m_player);
-        if (m_player2) InputManager::getInstance().update(*m_player2);
+        // A CPU-driven Player 2 is steered by its controller instead. Polling the
+        // keyboard for it as well would let the human drive both characters.
+        if (m_player2 && !m_aiController) InputManager::getInstance().update(*m_player2);
     }
+
+    // 2b. The CPU opponent decides. Runs in the same slot human input does, so a
+    // bot and a human are subject to the same physics, the same collision pass
+    // and the same frame ordering — the bot has no privileged access to the
+    // world, only a wider view of it than a human can hold in their head.
+    if (m_aiController && m_player2) {
+        m_aiController->update(dt, m_player, m_tileMap, m_entities);
+    }
+
+    // 2c. Shadow Mario samples the human's inputs for this frame. Before the
+    // entity pass, so this frame's packet cannot also be replayed this frame.
+    updateShadow(dt);
 
     // 3. Update all active entities
     for (auto& entity : m_entities) {
@@ -747,6 +791,10 @@ void PlayingState::update(float dt) {
 
         if (m_player) {
             snapshot.playerState = m_player->createSnapshot();
+        }
+        if (m_player2) {
+            snapshot.hasSecondPlayer = true;
+            snapshot.secondPlayerState = m_player2->createSnapshot();
         }
 
         snapshot.entityStates.reserve(m_entities.size());
@@ -989,7 +1037,7 @@ void PlayingState::render(sf::RenderTarget& target) {
             target.draw(*m_minimap);
         }
 
-        renderVersusHud(target);
+        renderMatchHud(target);
 
         if (m_rewindManager.isRewinding()) {
             // Full-screen cyan vignette scanline filter overlay
@@ -1040,11 +1088,16 @@ void PlayingState::render(sf::RenderTarget& target) {
 void PlayingState::onSuspend() {
     m_suspended = true;
     SoundManager::getInstance().pauseMusic();
+    // The bot's decision clock is not the simulation clock. Left running across
+    // a pause it banks the whole paused duration and spends it as a burst of
+    // decisions on the first frame back.
+    if (m_aiController) m_aiController->setPaused(true);
 }
 
 void PlayingState::onResume() {
     m_suspended = false;
     SoundManager::getInstance().resumeMusic();
+    if (m_aiController) m_aiController->setPaused(false);
 }
 
 void PlayingState::setupTestScene() {
@@ -1098,26 +1151,7 @@ void PlayingState::setupTestScene() {
         m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
     }
 
-    // Player 2 joins beside Player 1. Character is whichever of Mario/Luigi
-    // Player 1 did not take, so the two are always visually distinct.
-    if (m_twoPlayer && m_player) {
-        const sf::Vector2f spawn = m_player->getPosition() + sf::Vector2f(48.0f, 0.0f);
-        std::unique_ptr<Player> second = (m_selectedCharIndex == 1)
-            ? std::unique_ptr<Player>(std::make_unique<Mario>(spawn))
-            : std::unique_ptr<Player>(std::make_unique<Luigi>(spawn));
-        second->restoreStats(Game::getInstance().difficulty().startingLives(), 0, 0);
-
-        m_player2 = second.get();
-        admitEntity(m_player2);
-        m_entities.push_back(std::move(second));
-
-        // Player 2's bindings (arrows, M, N) have existed in InputManager since
-        // it was written; nothing had ever registered a second player against
-        // them (task 11.1).
-        InputManager::getInstance().registerPlayer(m_player2, 1);
-        std::cout << "[PlayingState] Two-player versus: P2 is "
-                  << m_player2->getCharacterName() << std::endl;
-    }
+    spawnMatchParticipants();
 
     findActiveBoss();
 
@@ -1130,6 +1164,15 @@ void PlayingState::setupTestScene() {
 void PlayingState::cleanupTestScene() {
     m_entities.clear();
     m_player = nullptr;
+    // Every observer pointer into the vector that was just emptied. m_player2
+    // and m_shadow used to survive a level reload as dangling pointers — the
+    // warp path calls this and then rebuilds, so a two-player warp read freed
+    // memory on the next frame's camera update.
+    m_player2 = nullptr;
+    m_shadow = nullptr;
+    m_aiController.reset();
+    Game::getInstance().setSecondPlayer(nullptr);
+    InputManager::getInstance().registerPlayer(nullptr, 1);
 }
 
 bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride) {
@@ -1280,6 +1323,87 @@ void PlayingState::loadFromSlot(int slot) {
     std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
 }
 
+void PlayingState::spawnMatchParticipants() {
+    if (!m_player) return;
+
+    Game& game = Game::getInstance();
+
+    if (m_match.hasSecondPlayer()) {
+        // Player 2 joins beside Player 1. Character is whichever of Mario/Luigi
+        // Player 1 did not take, so the two are always visually distinct.
+        const sf::Vector2f spawn = m_player->getPosition() + sf::Vector2f(48.0f, 0.0f);
+        std::unique_ptr<Player> second = (m_selectedCharIndex == 1)
+            ? std::unique_ptr<Player>(std::make_unique<Mario>(spawn))
+            : std::unique_ptr<Player>(std::make_unique<Luigi>(spawn));
+        second->restoreStats(game.difficulty().startingLives(), 0, 0);
+
+        m_player2 = second.get();
+        admitEntity(m_player2);
+        m_entities.push_back(std::move(second));
+
+        if (m_match.isCpuOpponent()) {
+            // A bot has no keyboard, so it is deliberately NOT registered with
+            // InputManager: registering it would let Player 2's arrow keys drive
+            // the opponent the human is playing against.
+            m_aiController = std::make_unique<AIController>(
+                *m_player2, m_match.aiDifficulty, m_match.aiArchetype);
+            std::cout << "[PlayingState] " << toString(m_match.mode) << ": CPU is "
+                      << m_player2->getCharacterName() << " ("
+                      << toString(m_match.aiDifficulty) << " "
+                      << toString(m_match.aiArchetype) << ")" << std::endl;
+        } else {
+            // Player 2's bindings (arrows, M, N) have existed in InputManager
+            // since it was written; nothing had ever registered a second player
+            // against them (task 11.1).
+            InputManager::getInstance().registerPlayer(m_player2, 1);
+            std::cout << "[PlayingState] " << toString(m_match.mode) << ": P2 is "
+                      << m_player2->getCharacterName() << std::endl;
+        }
+
+        // Enemy AI targets the nearer of the two from here on. Without this
+        // every enemy in the level chased Player 1 and walked through Player 2.
+        game.setSecondPlayer(m_player2);
+        return;
+    }
+
+    if (m_match.isShadowChase()) {
+        // Spawned on top of the player: for the first three seconds the shadow
+        // has nothing to replay, so it stands exactly where the run began and
+        // then sets off along the path the player took out of it.
+        auto shadow = std::make_unique<ShadowMario>(m_player->getPosition());
+        m_shadow = shadow.get();
+        admitEntity(m_shadow);
+        m_entities.push_back(std::move(shadow));
+        std::cout << "[PlayingState] Shadow Chase: replaying at "
+                  << m_shadow->getDelay() << "s delay." << std::endl;
+    }
+}
+
+void PlayingState::updateShadow(float dt) {
+    (void)dt;
+    if (!m_shadow || !m_player) return;
+
+    // Sampled here, before the entity update pass runs the shadow, so a packet
+    // recorded this frame can never also be consumed this frame. The clock is
+    // the level timer counting down, inverted into elapsed time: it advances
+    // with the simulation and stops with it, which a wall clock would not.
+    const float elapsed = Constants::LEVEL_TIME - m_levelTimer;
+    m_shadow->recordFrame(elapsed, *m_player);
+}
+
+float PlayingState::shadowProximitySeconds() const {
+    if (!m_shadow || !m_player) return -1.0f;
+    if (!m_shadow->hasStarted()) return m_shadow->getDelay();
+
+    // Not the configured delay: the *spatial* gap expressed as time. The shadow
+    // is three seconds behind in the recording, but if the player has doubled
+    // back they can be standing next to it, and that is what the gauge must
+    // warn about.
+    const float gap = std::abs(m_player->getPosition().x - m_shadow->getPosition().x) +
+                      std::abs(m_player->getPosition().y - m_shadow->getPosition().y) * 0.5f;
+    return gap / std::max(1.0f, Constants::RUN_SPEED);
+}
+
 void PlayingState::updateVersusCamera(float dt) {
     if (!m_player || !m_player2) return;
 
@@ -1298,6 +1422,13 @@ void PlayingState::updateVersusCamera(float dt) {
     // overlay in the game would need to learn about viewports.
     const AABB view = m_camera.getVisibleBounds();
     const float margin = Constants::TILE_SIZE;
+    // Versus bounds hard, co-op bounds soft. In versus, whoever falls behind is
+    // shoved along at the left edge — being dragged is the cost of falling
+    // behind. In co-op there is nothing to lose by falling behind, so the
+    // trailing player is left alone and the *leader* is blocked at the right
+    // edge instead: the screen simply stops advancing until their partner
+    // catches up, which is the mechanic the mode is built around.
+    const bool softBounds = m_match.isCoop();
     for (Player* player : {m_player, m_player2}) {
         if (!player) continue;
         const AABB box = player->getBoundingBox();
@@ -1305,6 +1436,7 @@ void PlayingState::updateVersusCamera(float dt) {
         bool moved = false;
 
         if (position.x < view.x + margin) {
+            if (softBounds) continue;
             position.x = view.x + margin;
             moved = true;
         } else if (position.x + box.width > view.x + view.width - margin) {
@@ -1326,30 +1458,98 @@ bool PlayingState::allPlayersOut() const {
     return oneOut && twoOut;
 }
 
-void PlayingState::renderVersusHud(sf::RenderTarget& target) const {
-    if (!m_player2 || !m_player) return;
+void PlayingState::renderMatchHud(sf::RenderTarget& target) const {
+    if (!m_player) return;
 
     // Deliberately drawn here rather than inside Hud: HudData describes one
-    // player, and widening it would push two-player concerns into every
+    // player, and widening it would push multiplayer concerns into every
     // single-player HUD field.
-    const std::string p1 = "P1 " + std::to_string(m_player->getScore()) +
-                           "  x" + std::to_string(m_player->getLives());
-    const std::string p2 = "P2 " + std::to_string(m_player2->getScore()) +
-                           "  x" + std::to_string(m_player2->getLives());
+    constexpr float kRowTop = Constants::WINDOW_HEIGHT - 56.0f;
+    constexpr float kRowBottom = Constants::WINDOW_HEIGHT - 34.0f;
+    const sf::Color kAccent(255, 216, 0);
 
-    UiRenderer::drawText(target, p1, {24.0f, Constants::WINDOW_HEIGHT - 56.0f}, 12,
+    // --- Shadow Chase: one player, and a countdown to your own past ----------
+    if (m_shadow) {
+        const float seconds = shadowProximitySeconds();
+        // Under a second of separation is the warning band: at that range the
+        // shadow is close enough that the player needs to know without looking
+        // away from where they are jumping.
+        const bool danger = seconds >= 0.0f && seconds < 1.0f;
+
+        UiRenderer::drawText(target, m_shadow->hasStarted() ? "SHADOW" : "SHADOW WAKING",
+                             {24.0f, kRowTop}, 12,
+                             danger ? sf::Color(255, 80, 80) : sf::Color(180, 130, 255));
+
+        // The gauge: a bar that empties as the shadow closes in. Three seconds
+        // of separation is full, nothing is contact.
+        constexpr float kBarWidth = 180.0f;
+        constexpr float kBarHeight = 10.0f;
+        const float fill = std::clamp(seconds / m_shadow->getDelay(), 0.0f, 1.0f);
+
+        sf::RectangleShape track({kBarWidth, kBarHeight});
+        track.setPosition({24.0f, kRowBottom});
+        track.setFillColor(sf::Color(0, 0, 0, 180));
+        track.setOutlineColor(sf::Color(180, 130, 255, 200));
+        track.setOutlineThickness(1.0f);
+        target.draw(track);
+
+        sf::RectangleShape level({kBarWidth * fill, kBarHeight});
+        level.setPosition({24.0f, kRowBottom});
+        level.setFillColor(danger ? sf::Color(255, 60, 60) : sf::Color(150, 90, 230));
+        target.draw(level);
+
+        if (danger) {
+            UiRenderer::drawText(target, "BEHIND YOU",
+                                 {Constants::WINDOW_WIDTH * 0.5f, kRowBottom}, 12,
+                                 sf::Color(255, 80, 80), true);
+        }
+        return;
+    }
+
+    if (!m_player2) return;
+
+    // --- Co-op: one shared pool, both forms ----------------------------------
+    if (m_match.isCoop()) {
+        // Shared lives and score, so showing them twice would imply two pools.
+        // The per-player line carries what actually differs: who they are and
+        // what form they are in.
+        const std::string pool = "TEAM " + std::to_string(m_player->getScore() +
+                                                          m_player2->getScore()) +
+                                 "  x" + std::to_string(m_player->getLives() +
+                                                        m_player2->getLives());
+        UiRenderer::drawText(target, pool, {24.0f, kRowTop}, 12, kAccent);
+        const std::string forms = "P1 " + m_player->getCharacterName() +
+                                  "   P2 " + m_player2->getCharacterName();
+        UiRenderer::drawText(target, forms, {24.0f, kRowBottom}, 12,
+                             ColorPalette::get(ColorPalette::Role::Player));
+        return;
+    }
+
+    // --- Versus: two scores and who is ahead ---------------------------------
+    // The second row names the opponent rather than always saying "P2": against
+    // a bot, which archetype is playing changes how you should play, so it is
+    // worth a permanent line rather than a menu the player has already left.
+    const std::string p2Label =
+        m_aiController ? std::string("CPU ") + m_aiController->policyName() : "P2";
+
+    const std::string p1Line = "P1 " + std::to_string(m_player->getScore()) +
+                               "  x" + std::to_string(m_player->getLives());
+    const std::string p2Line = p2Label + " " + std::to_string(m_player2->getScore()) +
+                               "  x" + std::to_string(m_player2->getLives());
+
+    UiRenderer::drawText(target, p1Line, {24.0f, kRowTop}, 12,
                          ColorPalette::get(ColorPalette::Role::Player));
-    UiRenderer::drawText(target, p2, {24.0f, Constants::WINDOW_HEIGHT - 34.0f}, 12,
+    UiRenderer::drawText(target, p2Line, {24.0f, kRowBottom}, 12,
                          ColorPalette::get(ColorPalette::Role::Item));
 
     // Who is winning, which is the whole point of versus.
     const int lead = m_player->getScore() - m_player2->getScore();
     const std::string status = (lead == 0) ? "TIED"
                              : (lead > 0)  ? "P1 LEADS BY " + std::to_string(lead)
-                                           : "P2 LEADS BY " + std::to_string(-lead);
+                                           : p2Label + " LEADS BY " + std::to_string(-lead);
     UiRenderer::drawText(target, status,
-                         {Constants::WINDOW_WIDTH * 0.5f, Constants::WINDOW_HEIGHT - 34.0f},
-                         12, sf::Color(255, 216, 0), true);
+                         {Constants::WINDOW_WIDTH * 0.5f, kRowBottom},
+                         12, kAccent, true);
 }
 
 void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
@@ -1358,6 +1558,12 @@ void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
 
     if (m_player) {
         m_player->restoreMemento(snapshot.playerState);
+    }
+    // Only when the snapshot actually recorded one: replaying a single-player
+    // recording in a two-player level must not zero Player 2's score from a
+    // default-constructed PlayerSnapshot.
+    if (m_player2 && snapshot.hasSecondPlayer) {
+        m_player2->restoreMemento(snapshot.secondPlayerState);
     }
 
     // Restore entities by id, not by index. Between record and restore the prune
@@ -1389,6 +1595,16 @@ void PlayingState::forgetEntity(Entity* entity) {
     // a carry forever, and throwHeldEntity() would dereference freed memory.
     if (m_player && m_player->getHeldEntity() == entity)  m_player->releaseHeldEntity();
     if (m_player2 && m_player2->getHeldEntity() == entity) m_player2->releaseHeldEntity();
+
+    // Same rule as the boss pointer: drop the observer before the unique_ptr
+    // behind it is released. The shadow outlives the level only if nothing
+    // pruned it, and updateShadow() would read freed memory the frame after.
+    if (entity == m_shadow) m_shadow = nullptr;
+    if (entity == m_player2) {
+        m_player2 = nullptr;
+        m_aiController.reset();
+        Game::getInstance().setSecondPlayer(nullptr);
+    }
 }
 
 void PlayingState::releaseBossArena() {
@@ -1491,6 +1707,19 @@ void PlayingState::killPlayer(const char* reason) {
     m_deathTimer  = DEATH_FALL_SECONDS;
     m_deathReason = reason;
 
+    // Attribute the death to the shadow when the shadow actually caused it. The
+    // damage arrives through Player::takeDamage and surfaces as a generic
+    // PlayerDied, which would report "was defeated" for the one death the mode
+    // is entirely about.
+    //
+    // This asked whether the two were overlapping, which is not the same
+    // question: a player killed by a Goomba while standing on the spot their
+    // shadow was parked on was reported as having been caught by it. The shadow
+    // is told when it lands a hit, so this reads a fact.
+    if (m_shadow && m_shadow->caughtPlayerRecently()) {
+        m_deathReason = "was caught by their own shadow";
+    }
+
     // Pop up, then fall through the level. The respawn happens when the fall is
     // over, not on the frame of the hit.
     m_player->beginDeathFall();
@@ -1519,7 +1748,7 @@ void PlayingState::updateDeathSequence(float dt) {
 
     // In versus, one player running out does not end the run — the other is
     // still playing, and ending it early would hand them the win by default.
-    if (m_twoPlayer && m_player->getLives() <= 0 && !allPlayersOut()) {
+    if (m_match.hasSecondPlayer() && m_player->getLives() <= 0 && !allPlayersOut()) {
         std::cout << "[PlayingState] Player 1 is out; Player 2 continues." << std::endl;
         return;
     }
@@ -1563,6 +1792,16 @@ void PlayingState::respawnAtCheckpoint() {
     m_player->setGrounded(false);
     m_camera.snapTo(respawn);
 
+    // The chase restarts with the life. The shadow was left holding the dead
+    // life's path, which the correction lerp then dragged it back across the
+    // level to rejoin — arriving on top of the player and taking the next life
+    // seconds after the respawn.
+    if (m_shadow) m_shadow->resetChase(respawn);
+    // Same reasoning for the bot: a fresh life is a fresh episode, and a policy
+    // that kept its committed direction would walk straight back into whatever
+    // just killed the player.
+    if (m_aiController) m_aiController->reset();
+
     // A fresh clock per life, so a timeout death is recoverable.
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
     m_timeWarningFired = false;
@@ -1582,10 +1821,16 @@ RunSummary PlayingState::buildRunSummary() const {
     summary.generatorConfig = m_genConfig;
     summary.starCoins = static_cast<int>(std::count(m_starCoinsCollected.begin(),
                                                     m_starCoinsCollected.end(), true));
+    summary.match = m_match;
+    summary.cause = m_deathReason;
+    summary.caughtByShadow = m_shadow && m_shadow->caughtPlayerRecently();
     if (m_player) {
         summary.score         = m_player->getScore();
         summary.coins         = m_player->getCoins();
         summary.characterName = m_player->getCharacterName();
+    }
+    if (m_player2) {
+        summary.opponentScore = m_player2->getScore();
     }
     return summary;
 }

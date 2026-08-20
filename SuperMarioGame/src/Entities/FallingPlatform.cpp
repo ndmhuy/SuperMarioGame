@@ -15,7 +15,7 @@ void FallingPlatform::onHitFromBelow(Player& player) {
 }
 
 bool FallingPlatform::isPlayerStandingOnTop() const {
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (!player) return false;
 
     AABB pBox = player->getBoundingBox();
@@ -32,7 +32,7 @@ bool FallingPlatform::isPlayerStandingOnTop() const {
 }
 
 void FallingPlatform::update(float dt) {
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     
     switch (m_state) {
         case FallingPlatformState::Idle: {

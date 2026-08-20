@@ -82,7 +82,7 @@ bool PiranhaPlant::isCollidable() const {
 
 void PiranhaPlant::onStomped() {
     // Spiky/Biting: Cannot be stomped, damages player instead
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         player->takeDamage(1);
     }

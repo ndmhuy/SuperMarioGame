@@ -27,7 +27,7 @@ void ChainChomp::setupAnimations(const SpriteSheet* spriteSheet) {
 
 void ChainChomp::onStomped() {
     // Spiky/Iron ball: cannot be stomped, inflicts damage
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         player->takeDamage(1);
     }

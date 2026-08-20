@@ -16,7 +16,7 @@ void ConveyorBelt::onHitFromBelow(Player& player) {
 void ConveyorBelt::update(float dt) {
     Block::update(dt);
 
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(getPosition());
     if (player) {
         AABB pBox = player->getBoundingBox();
         AABB conveyorBox = getBoundingBox();

@@ -2,6 +2,7 @@
 
 #include "Core/IGameState.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/GameMode.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/MapEditor.hpp"
@@ -30,16 +31,23 @@ class Boss;
 
 class Entity;
 class Player;
+class ShadowMario;
+class AIController;
 
 class PlayingState : public IGameState {
 public:
     // `characterIndex` and `levelIndex` let the front-end states rebuild an exact
     // run: character select picks the first, and Game Over's "Retry Level" needs
     // both to restart what the player just lost.
+    //
+    // `match` replaces what used to be a trailing `bool twoPlayer`. A boolean
+    // could say "there are two bodies on screen" but not which of versus,
+    // co-op, a CPU opponent or a Shadow Mario put them there — and those four
+    // want different cameras, different collision rules and a different HUD.
     explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
                           const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
                           int characterIndex = 0, int levelIndex = 0,
-                          bool twoPlayer = false);
+                          MatchConfig match = MatchConfig{});
     ~PlayingState() override;
 
     void enter() override;
@@ -106,7 +114,40 @@ private:
     // Player 2, or null in a single-player run. m_player stays Player 1
     // throughout, so every existing single-player path keeps working unchanged
     // and only the places that genuinely need both were touched.
+    //
+    // Player 2 is the same kind of object whether a keyboard or an AIController
+    // drives it — which is the whole point of Player exposing verbs rather than
+    // reading input itself. Nothing below this line needs to know which.
     Player* m_player2 = nullptr;
+
+    // --- CPU opponent (Bonus: AI multiplayer) ----------------------------
+    // Non-null exactly when Player 2 is machine-driven. Owned here rather than
+    // by the Player it drives: a controller is not part of what a character is,
+    // and the entity list is rebuilt on every level load while the match's
+    // configuration outlives it.
+    std::unique_ptr<AIController> m_aiController;
+
+    // --- Shadow Mario (Bonus C) ------------------------------------------
+    // The player's own path, three seconds late. An observer pointer into
+    // m_entities, like m_player and m_player2; cleared by forgetEntity().
+    //
+    // Deliberately NOT m_player2: a shadow has no lives, no score and cannot
+    // win, so treating it as a participant would put it in the versus camera's
+    // midpoint, the versus HUD's score line and allPlayersOut()'s verdict.
+    ShadowMario* m_shadow = nullptr;
+
+    // What match this is. Read by the camera, the HUD and the end screens.
+    MatchConfig m_match;
+
+    // Spawn the second participant the mode calls for — a human Player 2, a
+    // CPU-driven Player 2, or a Shadow Mario. Called from setupTestScene() once
+    // Player 1 exists, since all three spawn relative to it.
+    void spawnMatchParticipants();
+    // Feed the shadow this frame's input sample and let it replay a due one.
+    void updateShadow(float dt);
+    // Seconds of grace left before the shadow reaches the player, drawn as a
+    // gauge. Returns -1 when there is no shadow.
+    float shadowProximitySeconds() const;
 
     // Frames both players into one view and shoves whoever falls behind along,
     // so neither can drag the other off-screen. Shared camera rather than split
@@ -115,8 +156,10 @@ private:
     void updateVersusCamera(float dt);
     // Both players' lives are spent before the run is over.
     bool allPlayersOut() const;
-    // Score line for Player 2, drawn beside the single-player HUD.
-    void renderVersusHud(sf::RenderTarget& target) const;
+    // The second participant's status line, drawn beside the single-player HUD:
+    // scores and the lead in versus, a shared pool in co-op, the delay gauge in
+    // Shadow Chase.
+    void renderMatchHud(sf::RenderTarget& target) const;
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
     int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
@@ -193,9 +236,6 @@ private:
 
     bool m_startInEditor = false;
     bool m_isProcedural = false;
-    // Declared here with the other run-configuration flags so the constructor's
-    // initialiser order matches the declaration order.
-    bool m_twoPlayer = false;
     MapGeneratorConfig m_genConfig;
 
     // Sprite Sheet Atlases (owned by PlayingState)

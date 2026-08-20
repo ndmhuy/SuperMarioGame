@@ -56,13 +56,20 @@ public:
     static std::vector<HighScoreEntry> loadHighScores();
     static bool deleteSlot(int slot);
 
-    // Settings save/load
-    static bool saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty, 
+    // Settings save/load.
+    //
+    // `keyBindings2` is Player 2's pad. Written under its own "keyBindings2" key
+    // and treated as optional on load, so a config.json written before two
+    // players were configurable still parses and simply keeps the built-in
+    // arrow-key layout.
+    static bool saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty,
                              const std::unordered_map<std::string, std::string>& keyBindings,
+                             const std::unordered_map<std::string, std::string>& keyBindings2,
                              bool colorblindMode);
 
-    static bool loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty, 
+    static bool loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty,
                              std::unordered_map<std::string, std::string>& keyBindings,
+                             std::unordered_map<std::string, std::string>& keyBindings2,
                              bool& colorblindMode);
 
 private:

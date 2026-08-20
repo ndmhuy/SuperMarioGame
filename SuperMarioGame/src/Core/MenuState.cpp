@@ -37,6 +37,42 @@ std::string percent(float value) {
     return ss.str();
 }
 
+// The multiplayer modes, in the order the page cycles them. Split-screen is
+// absent on purpose rather than shown greyed out: Camera holds a single sf::View
+// and is deliberately non-movable, and every screen-space overlay in the game
+// would need to learn about viewports before a second view could exist. Offering
+// a row that cannot work is worse than not offering it.
+const GameMode kMultiplayerModes[] = {
+    GameMode::VersusHuman, GameMode::VersusCPU, GameMode::CoopHuman,
+    GameMode::ShadowChase
+};
+constexpr int kMultiplayerModeCount = 4;
+
+// One-line explanation per mode, shown under the list. A player choosing
+// "SHADOW CHASE" from a label alone has no way to know what it does.
+const char* modeBlurb(GameMode mode) {
+    switch (mode) {
+        case GameMode::VersusHuman:
+            return "TWO HUMANS, ONE SCREEN. STOMP EACH OTHER.";
+        case GameMode::VersusCPU:
+            return "RACE AND FIGHT AN AI OPPONENT.";
+        case GameMode::CoopHuman:
+            return "SHARED LIVES. BOUNCE OFF YOUR PARTNER.";
+        case GameMode::ShadowChase:
+            return "YOUR OWN PATH, 3 SECONDS BEHIND YOU.";
+        case GameMode::SinglePlayer:
+            break;
+    }
+    return "";
+}
+
+int indexOfMode(GameMode mode) {
+    for (int i = 0; i < kMultiplayerModeCount; ++i) {
+        if (kMultiplayerModes[i] == mode) return i;
+    }
+    return 0;
+}
+
 } // namespace
 
 void MenuState::enter() {
@@ -57,7 +93,7 @@ void MenuState::enter() {
     // The New Game+ cycle is shown on the start row, so a player can see the
     // campaign has reset rather than wondering why 1-2 is locked again.
     m_mainItems.emplace_back("START GAME", MetaGame::newGamePlusLabel());
-    m_mainItems.emplace_back("2P VERSUS", "2 PLAYERS");
+    m_mainItems.emplace_back("MULTIPLAYER", "4 MODES");
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
@@ -92,16 +128,99 @@ void MenuState::applyDifficultyPreset(int index) {
     }
 }
 
+bool MenuState::isMultiplayerRowEnabled(MpRow row) const {
+    switch (row) {
+        case MpRow::Opponent:
+            // Only the two versus modes have an opponent to choose. Co-op is
+            // human-only by definition, and a shadow is not an opponent that can
+            // be configured.
+            return m_match.isVersus();
+        case MpRow::Difficulty:
+        case MpRow::Archetype:
+            return m_match.isCpuOpponent();
+        default:
+            return true;
+    }
+}
+
+std::vector<UiMenuItem> MenuState::buildMultiplayerItems() const {
+    std::vector<UiMenuItem> rows;
+    rows.emplace_back("MODE", toString(m_match.mode));
+    rows.emplace_back("OPPONENT",
+                      m_match.isCpuOpponent() ? "CPU" : "HUMAN",
+                      isMultiplayerRowEnabled(MpRow::Opponent));
+    rows.emplace_back("AI SKILL", toString(m_match.aiDifficulty),
+                      isMultiplayerRowEnabled(MpRow::Difficulty));
+    rows.emplace_back("AI STYLE", toString(m_match.aiArchetype),
+                      isMultiplayerRowEnabled(MpRow::Archetype));
+    rows.emplace_back("START");
+    rows.emplace_back("BACK");
+    return rows;
+}
+
 void MenuState::moveSelection(int delta) {
     if (m_page == Page::Main) {
         m_mainSelected = (m_mainSelected + delta + ROW_COUNT) % ROW_COUNT;
-    } else {
+        return;
+    }
+    if (m_page == Page::Generator) {
         const int n = static_cast<int>(GenRow::COUNT);
         m_genSelected = (m_genSelected + delta + n) % n;
+        return;
+    }
+
+    // Skip over rows this mode does not offer, so the cursor never parks on a
+    // greyed-out line where Left/Right silently does nothing.
+    const int n = static_cast<int>(MpRow::COUNT);
+    const int step = (delta >= 0) ? 1 : -1;
+    for (int i = 0; i < n; ++i) {
+        m_mpSelected = (m_mpSelected + step + n) % n;
+        if (isMultiplayerRowEnabled(static_cast<MpRow>(m_mpSelected))) return;
     }
 }
 
 void MenuState::adjustSelection(int direction) {
+    if (m_page == Page::Multiplayer) {
+        switch (static_cast<MpRow>(m_mpSelected)) {
+            case MpRow::Mode: {
+                const int next = (indexOfMode(m_match.mode) + direction +
+                                  kMultiplayerModeCount) % kMultiplayerModeCount;
+                m_match.mode = kMultiplayerModes[next];
+                // The cursor may now be sitting on a row this mode does not
+                // offer — step it back to somewhere meaningful.
+                if (!isMultiplayerRowEnabled(static_cast<MpRow>(m_mpSelected))) {
+                    m_mpSelected = static_cast<int>(MpRow::Mode);
+                }
+                break;
+            }
+            case MpRow::Opponent:
+                if (!m_match.isVersus()) break;
+                // Two choices, so direction only has to flip it.
+                m_match.mode = m_match.isCpuOpponent() ? GameMode::VersusHuman
+                                                       : GameMode::VersusCPU;
+                break;
+            case MpRow::Difficulty: {
+                if (!m_match.isCpuOpponent()) break;
+                constexpr int kCount = 3;
+                const int next = (static_cast<int>(m_match.aiDifficulty) + direction +
+                                  kCount) % kCount;
+                m_match.aiDifficulty = static_cast<AIDifficulty>(next);
+                break;
+            }
+            case MpRow::Archetype: {
+                if (!m_match.isCpuOpponent()) break;
+                constexpr int kCount = 3;
+                const int next = (static_cast<int>(m_match.aiArchetype) + direction +
+                                  kCount) % kCount;
+                m_match.aiArchetype = static_cast<AIArchetype>(next);
+                break;
+            }
+            default:
+                break;
+        }
+        return;
+    }
+
     if (m_page != Page::Generator) return;
 
     // Sliders move in 1% steps; the ranges match what the old ImGui sliders used.
@@ -145,12 +264,13 @@ void MenuState::activateSelection() {
                 game.changeState(std::make_unique<CharacterSelectState>(false, false));
                 break;
             case ROW_VERSUS:
-                // Straight into 1-1: versus is a score race on one level, and
-                // routing it through the world map would imply a shared campaign
-                // that the two players do not have.
-                m_dismissed = true;
-                game.changeState(std::make_unique<PlayingState>(
-                    false, false, MapGeneratorConfig(), 0, 0, /*twoPlayer=*/true));
+                // Opens the multiplayer page rather than starting a match. This
+                // row used to drop straight into a hardcoded human-vs-human
+                // shared-screen game on 1-1, which was the only match that
+                // existed; there are four modes now and a CPU opponent to
+                // configure.
+                m_page = Page::Multiplayer;
+                m_mpSelected = static_cast<int>(MpRow::Mode);
                 break;
             case ROW_DAILY: {
                 // Date-seeded, so everyone playing today gets the same level —
@@ -184,6 +304,27 @@ void MenuState::activateSelection() {
                 game.quit();
                 break;
             default:
+                break;
+        }
+        return;
+    }
+
+    if (m_page == Page::Multiplayer) {
+        switch (static_cast<MpRow>(m_mpSelected)) {
+            case MpRow::Start:
+                // Straight into 1-1: a multiplayer match is one level, and
+                // routing it through the world map would imply a shared
+                // campaign that these modes do not have.
+                m_dismissed = true;
+                game.changeState(std::make_unique<PlayingState>(
+                    false, false, MapGeneratorConfig(), 0, 0, m_match));
+                break;
+            case MpRow::Back:
+                m_page = Page::Main;
+                break;
+            default:
+                // Value rows confirm as a nudge, so Enter is never a dead key.
+                adjustSelection(1);
                 break;
         }
         return;
@@ -238,8 +379,8 @@ void MenuState::handleInput(const sf::Event& event) {
         case Key::Backspace:
             // From the submenu, back out. From the top level, quitting is the
             // only thing left — but make the player pick it deliberately.
-            if (m_page == Page::Generator) m_page = Page::Main;
-            else                           m_mainSelected = ROW_QUIT;
+            if (m_page != Page::Main) m_page = Page::Main;
+            else                      m_mainSelected = ROW_QUIT;
             break;
         default:
             break;
@@ -316,6 +457,32 @@ void MenuState::render(sf::RenderTarget& target) {
         UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  CONFIRM",
                                      {centerX, PANEL_TOP + panelHeight + 20.0f}, 11,
                                      sf::Color(255, 255, 255), true);
+        return;
+    }
+
+    if (m_page == Page::Multiplayer) {
+        const std::vector<UiMenuItem> rows = buildMultiplayerItems();
+
+        UiRenderer::drawPanel(target, {centerX - 280.0f, 200.0f}, {560.0f, 330.0f},
+                              sf::Color(0, 0, 0, 200));
+        UiRenderer::drawText(target, "MULTIPLAYER", {centerX, 220.0f}, 14,
+                             sf::Color(255, 170, 220), true);
+        UiRenderer::drawMenuItems(target, rows, m_mpSelected,
+                                  {centerX - 210.0f, 262.0f}, 36.0f, 13,
+                                  centerX + 90.0f, m_elapsed);
+
+        // What the highlighted mode actually does. The labels alone do not say.
+        UiRenderer::drawText(target, modeBlurb(m_match.mode), {centerX, 486.0f}, 11,
+                             sf::Color(200, 200, 200), true);
+        // Which keys each participant gets — the one thing a second player at
+        // the same keyboard has to be told before the level starts.
+        if (m_match.mode == GameMode::VersusHuman || m_match.isCoop()) {
+            UiRenderer::drawText(target, "P1  WASD + SPACE      P2  ARROWS + M",
+                                 {centerX, 508.0f}, 11, sf::Color(150, 220, 150), true);
+        }
+        UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
+                                     {centerX, 556.0f}, 11,
+                                     sf::Color(220, 220, 220), true);
         return;
     }
 

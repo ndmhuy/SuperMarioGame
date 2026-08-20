@@ -35,7 +35,7 @@ void TetheredChaseStrategy::calculateTarget(Enemy& enemy, float dt) {
         m_anchorInitialized = true;
     }
 
-    Player* player = Game::getInstance().getPlayer();
+    Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
     if (player) {
         // Calculate player distance to anchor post
         float dx = player->position.x - m_anchorPos.x;

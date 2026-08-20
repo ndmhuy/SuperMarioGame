@@ -48,7 +48,7 @@ void FlyStrategy::applyMovement(Enemy& enemy, float dt) {
         enemy.velocity.y = m_amplitude * m_frequency * std::cos(m_frequency * m_timer);
     }
     else if (m_flyMode == FlyMode::FollowPlayer) {
-        Player* player = Game::getInstance().getPlayer();
+        Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
         if (player) {
             float dx = player->position.x - enemy.position.x;
             const float trackSpeed = enemy.speed;

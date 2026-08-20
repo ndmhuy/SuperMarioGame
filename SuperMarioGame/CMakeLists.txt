@@ -254,6 +254,11 @@ target_link_libraries(generate_game_levels PRIVATE
 add_verify_test(verify_regressions "tests/verify_regressions.cpp")
 add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 
+# Two-player modes, the CPU opponent and Shadow Mario. Headless: it drives the
+# policy and the controller directly against a hand-built TileMap, so it needs
+# no window and no assets.
+add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------

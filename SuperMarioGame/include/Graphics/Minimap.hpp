@@ -23,7 +23,9 @@ private:
     enum class EntityType {
         Player,
         Enemy,
-        Item
+        Item,
+        Rival,   // the other player, human or CPU
+        Shadow   // Shadow Mario, which is a hazard rather than a competitor
     };
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override;

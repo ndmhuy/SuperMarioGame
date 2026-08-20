@@ -6,6 +6,7 @@
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Entities/Player.hpp"
 #include "Graphics/UiRenderer.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/Serializer.hpp"
@@ -26,7 +27,8 @@ void Game::run() {
     initImGui();
 
     // Load settings from config
-    Serializer::loadSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
+    Serializer::loadSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
+                             m_keyBindings2, m_colorblindMode);
     
     // Build the difficulty strategy from what was just loaded. Without this the
     // persisted setting stayed a string nothing consumed (task 9.4).
@@ -41,6 +43,9 @@ void Game::run() {
     // InputManager, so custom bindings were silently ignored and the player kept
     // the hardcoded defaults (audit B-11, GitHub issue #9).
     InputManager::getInstance().applyBindings(m_keyBindings, 0);
+    // Player 2's pad, for the same reason. Empty on a fresh install, in which
+    // case InputManager keeps its built-in arrow-key layout.
+    InputManager::getInstance().applyBindings(m_keyBindings2, 1);
 
     // Initialize tracking systems
     StatisticsTracker::getInstance().init();
@@ -122,6 +127,26 @@ void Game::run() {
             // menu and the main menu both offer it explicitly.
         }
 
+        // 1b. Scripted input, for verification runs. Fed through the same three
+        // steps a real event goes through directly above — held-key tracking,
+        // then the state stack — so a script exercises the actual input path
+        // rather than a parallel one that could agree with it and still be wrong.
+        if (m_inputScript.active()) {
+            std::vector<sf::Event> scripted;
+            std::string shotName;
+            const InputScript::Effect effect =
+                m_inputScript.update(elapsed.asSeconds(), scripted, shotName);
+
+            for (const sf::Event& event : scripted) {
+                InputManager::getInstance().noteKeyEvent(event);
+                if (DebugConsole::getInstance().isVisible()) continue;
+                m_gsm.handleInput(event);
+            }
+
+            if (effect == InputScript::Effect::Screenshot) m_pendingShot = shotName;
+            if (effect == InputScript::Effect::Quit) quit();
+        }
+
         // 2. Fixed Timestep Update
         while (lag >= timeStep) {
             m_gsm.update(timeStep);
@@ -162,6 +187,13 @@ void Game::run() {
         
         ImGui::SFML::Render(m_window);
         m_window.display();
+
+        // After display(), so the capture is the frame the user would see —
+        // including the ImGui overlays, which are drawn last.
+        if (!m_pendingShot.empty()) {
+            saveScreenshot(m_pendingShot);
+            m_pendingShot.clear();
+        }
     }
 
     shutdown();
@@ -169,6 +201,28 @@ void Game::run() {
 
 void Game::quit() {
     m_isRunning = false;
+}
+
+bool Game::loadInputScript(const std::string& path) {
+    return m_inputScript.load(path);
+}
+
+void Game::saveScreenshot(const std::string& name) {
+    sf::Texture texture;
+    if (!texture.resize(m_window.getSize())) {
+        std::cerr << "[Game] Could not allocate a texture for the screenshot." << std::endl;
+        return;
+    }
+    texture.update(m_window);
+
+    std::error_code ignored;
+    std::filesystem::create_directories("saves/shots", ignored);
+    const std::string path = "saves/shots/" + name + ".png";
+    if (texture.copyToImage().saveToFile(path)) {
+        std::cout << "[Game] Screenshot: " << path << std::endl;
+    } else {
+        std::cerr << "[Game] Failed to write " << path << std::endl;
+    }
 }
 
 sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
@@ -238,7 +292,8 @@ void Game::initImGui() {
 
 void Game::shutdown() {
     // Save configuration settings
-    Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings, m_colorblindMode);
+    Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
+                             m_keyBindings2, m_colorblindMode);
 
     // Tear the stack down immediately — pushState/popState are deferred to a
     // frame boundary, and there are no more frames.
@@ -280,6 +335,30 @@ void Game::setPlayer(Player* player) {
     m_player = player;
 }
 
+void Game::setSecondPlayer(Player* player) {
+    m_secondPlayer = player;
+}
+
+Player* Game::getNearestPlayer(sf::Vector2f from) const {
+    // A dying player is falling through the level on its way off the bottom of
+    // the screen. Chasing it would drag every enemy off the map behind it.
+    auto eligible = [](Player* p) { return p && p->isActive() && !p->isDying(); };
+
+    Player* first  = eligible(m_player)       ? m_player       : nullptr;
+    Player* second = eligible(m_secondPlayer) ? m_secondPlayer : nullptr;
+
+    if (!second) return first;
+    if (!first)  return second;
+
+    const sf::Vector2f d1 = first->getPosition() - from;
+    const sf::Vector2f d2 = second->getPosition() - from;
+    // Squared distance: nothing here needs the actual metres, and this runs once
+    // per AI-driven entity per frame.
+    const float sq1 = d1.x * d1.x + d1.y * d1.y;
+    const float sq2 = d2.x * d2.x + d2.y * d2.y;
+    return (sq2 < sq1) ? second : first;
+}
+
 TileMap* Game::getTileMap() const {
     return m_tileMap;
 }
@@ -313,9 +392,11 @@ const IDifficultyStrategy& Game::difficulty() const {
     return *m_difficultyStrategy;
 }
 
-void Game::setKeyBinding(const std::string& action, const std::string& key) {
-    m_keyBindings[action] = key;
+void Game::setKeyBinding(const std::string& action, const std::string& key, int playerIndex) {
+    if (playerIndex < 0 || playerIndex > 1) return;
+    auto& table = (playerIndex == 1) ? m_keyBindings2 : m_keyBindings;
+    table[action] = key;
     // Push straight through so the change is live this frame; shutdown() persists
-    // the map to config.json.
-    InputManager::getInstance().applyBindings({{action, key}}, 0);
+    // both maps to config.json.
+    InputManager::getInstance().applyBindings({{action, key}}, playerIndex);
 }
