@@ -121,6 +121,7 @@ private:
     // switch from imitation to reinforcement — and otherwise the panel alone is
     // updated. At 1x it always draws, because then the point IS to watch.
     bool m_renderWorld = true;
+    float m_lastHeartbeat = 0.0f;   // render pulse clock, see update()
     float m_bestProgressX = 0.0f;
     float m_showWorldUntil = 0.0f;   // seconds of wall time to keep showing
     float m_wallClock = 0.0f;

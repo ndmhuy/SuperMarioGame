@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <limits>
 #include <iostream>
 
 namespace {
@@ -54,7 +55,13 @@ void TrainingState::enter() {
     // negative one, and the default 40-episode handoff would drop a freshly
     // rotating 4-level run into it just as the buffer diversifies.
     PolicyTrainer::Config trainerConfig;
-    trainerConfig.imitationEpisodes = 600;
+    // Imitation, permanently. The 600-episode handoff to REINFORCE was left
+    // in from the default config and quietly spent 2,700 episodes on the
+    // algorithm this project measured as a negative result — the imitation
+    // checkpoint was safe (separate file), but the compute and the on-screen
+    // behaviour were REINFORCE's. DAgger imitation is the working method;
+    // reinforcement returns only as a deliberate, configured experiment.
+    trainerConfig.imitationEpisodes = std::numeric_limits<int>::max();
     m_trainer = std::make_unique<PolicyTrainer>(*m_policy, trainerConfig);
     m_trainer->openLog("saves/ai/training_log.csv");
     m_teacherPolicy = std::make_unique<HeuristicPolicy>(AIArchetype::Speedrunner);
@@ -206,6 +213,15 @@ void TrainingState::update(float dt) {
     if (m_furthestX > m_bestProgressX + 64.0f) {   // two tiles further than ever
         m_bestProgressX = m_furthestX;
         m_showWorldUntil = m_wallClock + 3.0f;
+    }
+    // Heartbeat: even at full speed, draw the world for a beat every couple
+    // of seconds. The pure milestone throttle showed a FROZEN frame for
+    // minutes at a stretch once milestones got rare, which reads as "the
+    // agent stopped moving" — it hadn't; the WINDOW had. One drawn frame per
+    // ~2s costs nothing and keeps the run visibly alive.
+    if (m_wallClock - m_lastHeartbeat > 2.0f) {
+        m_lastHeartbeat = m_wallClock;
+        m_showWorldUntil = std::max(m_showWorldUntil, m_wallClock + 0.35f);
     }
     m_renderWorld = (m_stepsPerFrame <= 1) || (m_wallClock < m_showWorldUntil);
     if (m_paused || !m_player || !m_agent) return;
