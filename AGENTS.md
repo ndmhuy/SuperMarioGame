@@ -392,3 +392,146 @@ Agents must follow these rules when writing weekly reports:
    - Issues & Resolutions (technically detailed problem and resolution).
 4. **Rules Reference**: The full report writing rules are stored in [docs/REPORT_RULES.md](file:///Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/docs/REPORT_RULES.md).
 
+---
+
+<!-- AGENTHUB:L3:BEGIN — generated, do not edit by hand -->
+<!-- Synced by AgentHub 3-Layer Memory Engine at 2026-08-21T08:12:49.050Z -->
+
+## 🥾 BOOT DIGEST — read this first (Tier 0)
+
+> Flash-tier / small-context agents: hold these one-liners and the pointer table; open a pointed file only when the task needs it; do NOT read past the Tier 2 marker.
+
+- **[g-rule-1]** Strict Git Branch Isolation: All feature and bugfix work happens on a branch created off the project's designated development branch (dev...
+- **[g-rule-2]** Defensive Implementation & Zero Superficial Fixes: NEVER mask errors by returning dummy fallbacks, commenting out broken assertions, or s...
+- **[g-rule-3]** Context-Efficient Subagent Execution: Delegate long-running research or deep search tasks to subagents with isolated context windows.
+- **[g-rule-4]** Empirical Log Verification & Audit Trails: Never declare a bug fixed or feature complete without running test/build verification commands...
+- **[g-rule-5]** AI Usage Logging & Declaration: Before concluding any task, append an entry to logs/agent_history.log in the format: [YYYY-MM-DD HH:MM:SS...
+- **[g-rule-6]** Plan Adherence & Deviation Approval: The project's designated plan file (implementation_plan.md, SPEC.md, or TASKS.md) is the source of t...
+- **[g-rule-7]** Human-Owned Integration (No Auto-Merge): Agents implement on their task branch, verify compilation, push the branch to origin, and stop.
+- **[g-rule-8]** Destructive VCS Operation Guard: Before any reset, rebase, checkout that discards changes, clean, stash drop, or merge: run git status an...
+- **[g-rule-9]** Targeted Edits, Never Whole-File Overwrites: Apply changes as targeted replacements that preserve surrounding human-authored content.
+- **[g-rule-10]** Fetch Before You Read the Repository: Before ANY task whose output describes repository state - audits, weekly reports, code review, prog...
+- **[g-rule-11]** "Complete" Means Reachable and Observed: Never mark a task complete because a file exists and compiles.
+- **[g-rule-12]** Commit Per Completed Unit: Commit after completing each subtask, not in one batch at the end.
+- **[g-rule-13]** Automated Verification Gate (CI/CD): Every project containing buildable or testable code carries a CI workflow that builds it and runs it...
+- **[g-rule-14]** Deliverables Export as Local HTML: Any generated deliverable meant for humans to read - a report, audit, guide, or review - is exported a...
+- **[g-rule-15]** One Current Doc - Legacy Goes to the Archive: Each topic has exactly ONE current document.
+- **[g-rule-16]** Tiered Boot Protocol: Load project context in tiers, sized to your model, and stop at the tier you can hold.
+- **[sm-rule-1]** Member Identity Resolution (Project-Specific Mapping): In THIS project: branches prefixed A/ are Member A (Nguyen Dinh Minh Huy - Engine ...
+- **[sm-rule-2]** Strict OOP Design Patterns Enforcing: Enforce 10+ Design Patterns: Factory (EntityFactory), Singleton, State (GameStateManager, IPlayerSt...
+- **[sm-rule-3]** Physics & Coyote Jump Timestep Rules: Timestep 1/60s fixed with interpolated rendering.
+- **[sm-rule-4]** C++17 Standard (Project Constraint): The codebase is written in C++17, not C++20.
+- **[sm-rule-5]** SPEC.md Is the Behavioral Source of Truth: Check SPEC.md for exact values, schemas, and behavioral rules before writing gameplay or physi...
+- **[sm-rule-6]** Weekly Report Policy: Weekly reports go to docs/Group52_XX/52.md every Saturday before 23:59, following the prior week's template (full s...
+- **[sm-rule-7]** imgui.ini Is The Only Discardable File: When a git operation is blocked by local changes, imgui.ini is machine-generated and is the only ...
+
+### Pointers — open on demand, never inline
+
+- Plan / scope source of truth: `TASKS.md`
+- `SPEC.md` — Behavioral source of truth for values and schemas - see sm-rule-5
+- `SuperMarioGame/src/` — Game source (nested one level below the repo root)
+- `SuperMarioGame/CMakeLists.txt` — enable_testing() + add_test() register the ctest regression suite
+- `logs/agent_history.log` — Append-only session log - union on merge conflicts, see g-rule-5
+- `.github/workflows/ci.yml` — Build + regression suite on push to main/dev/A-**/B-** - see g-rule-13
+- `.member_profile.json` — Per-member private instructions - still git-tracked, see open threads
+- `SuperMarioGame/third_party/nn/` — Vendored NeuralNetwork library - the ONLY C++20 target here, see sm-rule-4
+
+---
+
+## 📖 Full rule text (Tier 2 — large-context models)
+
+## 🌐 Layer 3 — Global Universal Rules
+
+### [Git & Branching] Strict Git Branch Isolation
+All feature and bugfix work happens on a branch created off the project's designated development branch (dev where present, otherwise main). Never work directly on the integration branch. Verify the build compiles before pushing. Integration itself is governed by g-rule-7.
+
+### [Architecture & Quality] Defensive Implementation & Zero Superficial Fixes
+NEVER mask errors by returning dummy fallbacks, commenting out broken assertions, or swallowing exceptions. Root cause analysis must precede all code changes.
+
+### [AI Subagent Delegation] Context-Efficient Subagent Execution
+Delegate long-running research or deep search tasks to subagents with isolated context windows. Do not poll in a loop; wait for asynchronous task completion.
+
+### [Documentation & Auditing] Empirical Log Verification & Audit Trails
+Never declare a bug fixed or feature complete without running test/build verification commands and reading un-truncated log outputs.
+
+### [AI Governance] AI Usage Logging & Declaration
+Before concluding any task, append an entry to logs/agent_history.log in the format: [YYYY-MM-DD HH:MM:SS] Branch: <branch> / Prompt: <summary> / Files Modified: <list> / Summary of Changes: <bullets> / Git Fingerprint: <commit before> -> <after>. EVERY field the project's template defines is mandatory: a field you cannot answer is written 'n/a' WITH a reason, never omitted. Report honestly - if code compiles but nothing calls it, say so; if you did not run the program, write 'build only'. An optimistic entry is worse than no entry because it stops anyone looking again. The log is append-only shared history: when it CONFLICTS during a merge, resolve by UNION - keep every entry from both sides sorted by timestamp, never choose a side. Maintain prompts.md where the course requires an AI Usage Declaration.
+
+### [Planning & Scope] Plan Adherence & Deviation Approval
+The project's designated plan file (implementation_plan.md, SPEC.md, or TASKS.md) is the source of truth for scope. Read it before writing code. If you intend to deviate from the approved plan, or to do work not in it, inform the user and obtain confirmation first. Update task checkboxes as work completes.
+
+### [Git & Branching] Human-Owned Integration (No Auto-Merge)
+Agents implement on their task branch, verify compilation, push the branch to origin, and stop. Never merge into dev, never commit directly to main, never open and self-merge a pull request. Code review and integration are the user's decisions.
+
+### [Git & Branching] Destructive VCS Operation Guard
+Before any reset, rebase, checkout that discards changes, clean, stash drop, or merge: run git status and git log to capture the current state, state plainly what will be lost, and obtain explicit confirmation - do NOT proceed without it. Record HEAD before and after the operation in the log. NEVER discard uncommitted work to unblock a git operation: if a merge, pull or checkout is blocked by local changes, the default is to COMMIT them first - committing is reversible, discarding is not. Only 'git checkout -- <file>' a file that is machine-generated, and back it up outside the repo first. Never combine these with --force or --hard while uncommitted work exists.
+
+### [Architecture & Quality] Targeted Edits, Never Whole-File Overwrites
+Apply changes as targeted replacements that preserve surrounding human-authored content. Never regenerate an entire existing file to make a small change, and never write over a file you have not read. This applies to generated artifacts and rule files as much as to source code.
+
+### [Git & Branching] Fetch Before You Read the Repository
+Before ANY task whose output describes repository state - audits, weekly reports, code review, progress summaries, branch analysis, 'what is the status of X' - run 'git fetch --all' first and record it in the log. A local branch is NOT evidence of project state: check 'git rev-list --left-right --count <branch>...origin/<branch>' before drawing conclusions from what is on disk, and check whether work exists on an unmerged branch before declaring it missing.
+
+### [Documentation & Auditing] "Complete" Means Reachable and Observed
+Never mark a task complete because a file exists and compiles. A task is complete only when (a) the code is reachable from the program's real entry point, not solely from a verify_*/test harness, and (b) you have observed it working - a passing test case or an actual run of the program. Building is not verifying. If you implemented something but did not wire it, say so explicitly and leave the checkbox unticked.
+
+### [Git & Branching] Commit Per Completed Unit
+Commit after completing each subtask, not in one batch at the end. Use clear, traceable, conventional messages (e.g. 'feat: implement AABB collision detection', 'fix: resolve jump gravity bug') so history can be followed without reading diffs.
+
+### [Verification & CI] Automated Verification Gate (CI/CD)
+Every project containing buildable or testable code carries a CI workflow that builds it and runs its tests automatically on push and pull request to the integration branches. A rule only a human remembers to apply is not enforced - CI is the mechanism that makes g-rule-11 ('complete means reachable and observed') checkable by something other than good intentions. CI must be HERMETIC: pin dependencies, and never let a test assert against a developer's local paths, mounted drives, or machine state - point the base directory at an empty scratch dir instead. Where the project ships artifacts, a release workflow builds them too. Do not mark CI optional because a project is coursework: the August 2026 SuperMarioGame audit found three critical defects and six inert subsystems that survived precisely because nothing ran automatically.
+
+### [Documentation & Auditing] Deliverables Export as Local HTML
+Any generated deliverable meant for humans to read - a report, audit, guide, or review - is exported as a SELF-CONTAINED local HTML file inside the project (inline CSS, no CDN dependencies), alongside its markdown source when one exists. Local-first: the file must open from disk with no server and no network. Follow the AgentHub pattern (audit.html, guides.html): if the content derives from data, generate it with a script so it cannot drift, and never hand-edit the generated file.
+
+### [Documentation & Auditing] One Current Doc - Legacy Goes to the Archive
+Each topic has exactly ONE current document. When a doc, plan, or artifact is superseded, MOVE it to docs/archive/ (create it if absent) in the same change that supersedes it - prefixed with its supersession date, e.g. docs/archive/2026-08-20_old_plan.md. Never delete it, and never leave it in place looking authoritative: a stale doc that still looks current is worse than no doc, because it is how contradictions like C++17-vs-C++20 survive for months. Scratch and test artifacts (test-*.svg, scratch_*, one-off dumps) either move to the archive or get gitignored - the repo root is not a scratchpad.
+
+### [Context & Boot] Tiered Boot Protocol
+Load project context in tiers, sized to your model, and stop at the tier you can hold. TIER 0 (everyone, always): the BOOT DIGEST at the top of the AgentHub block in AGENTS.md - one line per rule - plus the pointer table. TIER 1 (on demand): open ONLY the pointed file that matches the current task (constants for physics work, report rules for reports, spec for gameplay values). TIER 2 (large-context models only): the full rule text and reference docs. Small or flash-tier agents MUST NOT inline the whole rulebook - holding 10 rules reliably beats holding 40 badly. Authoring side of the same rule: constants, tables, and external links live in ONE pointed file each, never duplicated inline in AGENTS.md; a value that exists in two places is already wrong in one of them.
+
+## 📁 Layer 2 — Project Domain Rules (SuperMarioGame (CS202-Cpp))
+
+**Category**: C++ Game Engine & OOP
+**Tech Stack**: C++17, SFML 3.0.2, ImGui-SFML, CMake, CTest, 10+ Design Patterns
+**Repository**: https://github.com/ndmhuy/SuperMarioGame
+
+### [CRITICAL] Member Identity Resolution (Project-Specific Mapping)
+In THIS project: branches prefixed A/ are Member A (Nguyen Dinh Minh Huy - Engine & Infrastructure); branches prefixed B/ are Member B (Partner - Entities, Gameplay, Level Design, Save/Load). Resolve identity in this precedence: .member_profile.json, then git config user.name, then branch prefix. Do not carry this A/B mapping into any other repository - DesignPatternsGroup52 uses the opposite assignment.
+
+### [MANDATORY] Strict OOP Design Patterns Enforcing
+Enforce 10+ Design Patterns: Factory (EntityFactory), Singleton, State (GameStateManager, IPlayerState), Observer (EventBus), Strategy, Command, Decorator, Memento, Pool, Template Method.
+
+### [STANDARD] Physics & Coyote Jump Timestep Rules
+Timestep 1/60s fixed with interpolated rendering. Gravity 0.5 px/frame², Coyote Time 6 frames (100ms), Jump Buffer 6 frames.
+
+### [CRITICAL] C++17 Standard (Project Constraint)
+The codebase is written in C++17, not C++20. Do not introduce C++20-only features (concepts, ranges, coroutines, consteval) into this project.
+
+### [MANDATORY] SPEC.md Is the Behavioral Source of Truth
+Check SPEC.md for exact values, schemas, and behavioral rules before writing gameplay or physics code. Consult SFML 3.0 documentation only - 2.x tutorials are API-incompatible.
+
+### [STANDARD] Weekly Report Policy
+Weekly reports go to docs/Group52_XX/52.md every Saturday before 23:59, following the prior week's template (full spec: docs/REPORT_RULES.md). Generate them from agent_history.log entries and merged branches for the week - never from memory - and render 52.pdf plus a local HTML copy per g-rule-14. Use the supermario-weekly-report-writer skill.
+
+### [CRITICAL] imgui.ini Is The Only Discardable File
+When a git operation is blocked by local changes, imgui.ini is machine-generated and is the only file safe to 'git checkout --' (back it up outside the repo first). Everything else gets committed, per g-rule-8. Rationale: a previous session ran 'git reset --hard && git clean -fd' and permanently destroyed the Week 8 progress report in docs/Group52_08/; a later session found ~3,100 lines of uncommitted Member A work one careless clean away from the same fate.
+
+### 🛠 Assigned Project Skills
+- `sfml-game-debugging-skill`
+- `supermario-weekly-report-writer`
+
+## ⚡ Layer 1 — Working Context
+
+No active session for this project. Live state lives in `data/session_l1.json`.
+
+### [CRITICAL] Session Identity Resolution
+At session start, resolve the active member using .member_profile.json, then git config user.name, then branch prefix - in that order - and record the result and its source in session_l1.json. Read the A/B mapping from the active project's L2 rules; never assume it from another project.
+
+### [MANDATORY] Single-Project Context Budget
+Load L3 universal rules plus exactly one project's L2 block. Do not load other projects' L2 rules into the same session - cross-project rules conflict (see the inverted A/B mapping) and waste the context window.
+
+### [STANDARD] Session Handoff
+Before concluding, write taskFocus and any unresolved openThreads back to session_l1.json so the next session resumes without re-deriving state. This is L1 only - it is transient and must never be promoted into L2 or L3.
+
+<!-- AGENTHUB:L3:END -->
