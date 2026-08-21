@@ -11,7 +11,22 @@ const std::vector<LevelEntry>& LevelCatalog::levels() {
         {"assets/levels/level_1.json", "1-1",     "World 1-1: Grassland Overworld"},
         {"assets/levels/level_2.json", "1-2",     "World 1-2: Ice Cavern Path"},
         {"assets/levels/level_3.json", "1-3",     "World 1-3: Bowser's Castle Fortress"},
-        {"assets/levels/bonus_1.json", "Bonus 1", "Bonus Stage 1: Coin Paradise"}
+        {"assets/levels/bonus_1.json", "Bonus 1", "Bonus Stage 1: Coin Paradise"},
+        // The generated campaign (A/mapgen-gan-plan): evolved, oracle-certified,
+        // gate-passing levels in a rising difficulty ladder — appended after
+        // the hand campaign so existing save indices stay valid and the world
+        // map unlocks them in order. Difficulty numbers are the oracle's
+        // requiredDifficulty (0..1 of the physics envelope).
+        {"assets/levels/campaign_gen/world_1_1.json", "G1-1",  "World 1-1 (Gen): First Steps"},
+        {"assets/levels/campaign_gen/world_1_2.json", "G1-2",  "World 1-2 (Gen): Gentle Grounds"},
+        {"assets/levels/campaign_gen/world_1_3.json", "G1-3",  "World 1-3 (Gen): Rising Road"},
+        {"assets/levels/campaign_gen/world_2_1.json", "G2-1",  "World 2-1 (Gen): Broken Path"},
+        {"assets/levels/campaign_gen/world_2_2.json", "G2-2",  "World 2-2 (Gen): Long Crossing"},
+        {"assets/levels/campaign_gen/world_2_3.json", "G2-3",  "World 2-3 (Gen): The Climb"},
+        {"assets/levels/campaign_gen/world_3_1.json", "G3-1",  "World 3-1 (Gen): Edge of Reach"},
+        {"assets/levels/campaign_gen/world_3_2.json", "G3-2",  "World 3-2 (Gen): Narrow Margins"},
+        {"assets/levels/campaign_gen/world_3_3.json", "G3-3",  "World 3-3 (Gen): Last Ascent"},
+        {"assets/levels/campaign_gen/bonus_gen.json", "G-Max", "Bonus (Gen): The Limit"}
     };
     return kLevels;
 }

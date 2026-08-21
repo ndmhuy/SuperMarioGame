@@ -665,18 +665,27 @@ void testStateOperationsAreDeferred() {
 void testLevelCatalogCoversTheCampaign() {
     section("7.7 the campaign order is one list, and every level in it exists");
 
-    // Four main-path levels. The three *_sub rooms used to be listed here as
-    // ordinary campaign stages; they carry no flagpole, so the campaign advanced
-    // into one and could never leave. They are reached through their pipes now,
-    // which is what testCampaignPathContainsOnlyCompletableLevels() guards.
-    check(LevelCatalog::count() == 4, "four main-path levels, matching advanceToNextLevel()");
+    // Four hand-made main-path levels first (the three *_sub rooms used to be
+    // listed here, carried no flagpole, and stranded the campaign — they are
+    // reached through their pipes now), then the generated campaign appended
+    // AFTER them, so saved level indices stay valid. The count is therefore
+    // "at least the hand campaign", and the first four entries are pinned.
+    check(LevelCatalog::count() >= 4, "the hand campaign heads the list");
+    check(LevelCatalog::pathFor(0) == "assets/levels/level_1.json" &&
+              LevelCatalog::pathFor(3) == "assets/levels/bonus_1.json",
+          "hand-campaign indices are unchanged by appended levels");
     check(!LevelCatalog::isValidIndex(-1) && !LevelCatalog::isValidIndex(LevelCatalog::count()),
           "out-of-range indices are rejected, not clamped silently");
 
     int found = 0;
     for (int i = 0; i < LevelCatalog::count(); ++i) {
+        // The path relative to the levels directory, subdirectories included —
+        // stripping to the basename lost "campaign_gen/" and reported every
+        // generated level as missing.
         const std::string& rel = LevelCatalog::pathFor(i);
-        const std::string name = rel.substr(rel.find_last_of('/') + 1);
+        const std::string prefix = "assets/levels/";
+        const std::string name = rel.rfind(prefix, 0) == 0 ? rel.substr(prefix.size())
+                                                           : rel;
         if (std::filesystem::exists(levelPath(name))) ++found;
     }
     check(found == LevelCatalog::count(), "every catalogued level file is on disk");
@@ -2321,7 +2330,9 @@ void testCampaignPathContainsOnlyCompletableLevels() {
         LevelData data;
         LevelLoader loader;
         const std::string path = LevelCatalog::pathFor(i);
-        const std::string name = path.substr(path.find_last_of('/') + 1);
+        const std::string prefix = "assets/levels/";
+        const std::string name = path.rfind(prefix, 0) == 0 ? path.substr(prefix.size())
+                                                            : path;
         if (!loader.loadLevel(levelPath(name), map, data)) {
             check(false, "campaign level " + LevelCatalog::nameFor(i) + " loads");
             continue;
