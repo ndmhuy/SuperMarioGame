@@ -1,0 +1,59 @@
+[
+ {
+  "file": "evolved_00.json",
+  "fitness": 0.9458,
+  "genome": {
+   "pit": 0.1219132356873957,
+   "pipe": 0.09540998531300472,
+   "enemy": 0.07342247958747486,
+   "coin": 0.17853929166116694,
+   "rough": 0.141787726088131,
+   "theme": "ice",
+   "difficulty": "hard",
+   "lava": false,
+   "moving": true,
+   "seed": 1114469481
+  },
+  "requiredDifficulty": 0.6853,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.958
+ },
+ {
+  "file": "evolved_01.json",
+  "fitness": 0.9443,
+  "genome": {
+   "pit": 0.05647939431753694,
+   "pipe": 0.0035958679958863204,
+   "enemy": 0.35375870675562765,
+   "coin": 0.331592503151432,
+   "rough": 0.6577449006185876,
+   "theme": "overworld",
+   "difficulty": "easy",
+   "lava": false,
+   "moving": false,
+   "seed": 923080782
+  },
+  "requiredDifficulty": 0.6853,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.9506
+ },
+ {
+  "file": "evolved_02.json",
+  "fitness": 0.937,
+  "genome": {
+   "pit": 0.1256876101816053,
+   "pipe": 0.029498503691787963,
+   "enemy": 0.3184929256597476,
+   "coin": 0.17124969584519786,
+   "rough": 0.36428374004453323,
+   "theme": "ice",
+   "difficulty": "medium",
+   "lava": true,
+   "moving": false,
+   "seed": 645069491
+  },
+  "requiredDifficulty": 0.6853,
+  "hardestOptional": 0.9563,
+  "forgiveness": 0.9142
+ }
+]

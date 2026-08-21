@@ -1,0 +1,62 @@
+[
+ {
+  "slot": "world_1_1",
+  "name": "World 1-1 (Gen): First Steps",
+  "source": "generated_easy_v2/evolved_00",
+  "requiredDifficulty": 0.2828
+ },
+ {
+  "slot": "world_1_2",
+  "name": "World 1-2 (Gen): Gentle Grounds",
+  "source": "generated_easy_v2/evolved_01",
+  "requiredDifficulty": 0.2828
+ },
+ {
+  "slot": "world_1_3",
+  "name": "World 1-3 (Gen): Rising Road",
+  "source": "generated_v3/evolved_00",
+  "requiredDifficulty": 0.4243
+ },
+ {
+  "slot": "world_2_1",
+  "name": "World 2-1 (Gen): Broken Path",
+  "source": "generated_v3/evolved_01",
+  "requiredDifficulty": 0.4243
+ },
+ {
+  "slot": "world_2_2",
+  "name": "World 2-2 (Gen): Long Crossing",
+  "source": "generated_v3/evolved_04",
+  "requiredDifficulty": 0.4243
+ },
+ {
+  "slot": "world_2_3",
+  "name": "World 2-3 (Gen): The Climb",
+  "source": "gen_w23/evolved_00",
+  "requiredDifficulty": 0.5657
+ },
+ {
+  "slot": "world_3_1",
+  "name": "World 3-1 (Gen): Edge of Reach",
+  "source": "gen_w3/evolved_01",
+  "requiredDifficulty": 0.6853
+ },
+ {
+  "slot": "world_3_2",
+  "name": "World 3-2 (Gen): Narrow Margins",
+  "source": "gen_w3/evolved_02",
+  "requiredDifficulty": 0.6853
+ },
+ {
+  "slot": "world_3_3",
+  "name": "World 3-3 (Gen): Last Ascent",
+  "source": "gen_w3/evolved_03",
+  "requiredDifficulty": 0.6853
+ },
+ {
+  "slot": "bonus_gen",
+  "name": "Bonus (Gen): The Limit",
+  "source": "gen_w3/evolved_00",
+  "requiredDifficulty": 0.7071
+ }
+]
