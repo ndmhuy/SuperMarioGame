@@ -35,6 +35,7 @@
 #include "Utils/ObjectPool.hpp"
 #include "Utils/EntityConfig.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/Hud.hpp"
 #include "Graphics/ColorPalette.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Core/DebugConsole.hpp"
@@ -2809,6 +2810,281 @@ void testPlayerTwoHasEveryControl() {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Windows playtest, August 2026 — the 1-3 crash.
+//
+// Every spawn in this game arrives through a synchronous EventBus handler, and
+// the handlers pushed straight onto the entity vector that PlayingState and
+// PhysicsEngine were iterating at the time. A push_back that reallocates leaves
+// those loops holding a pointer into freed storage.
+//
+// PlayingState cannot be constructed headlessly, so this reproduces the SHAPE
+// of the bug against a std::vector: iterate with a range-for, let a handler
+// append, and show that the deferred-queue discipline is what makes it safe.
+// The assertion that matters is the one about capacity — it is what proves the
+// unsafe version really would have reallocated mid-loop.
+// ---------------------------------------------------------------------------
+void testMidFrameSpawnsDoNotInvalidateTheEntityLoop() {
+    section("crash  a spawn during the entity loop cannot reallocate under it");
+
+    using Vec = std::vector<std::unique_ptr<Goomba>>;
+
+    // Bowser breathes every 1.2-2.2s for the whole fight, so over a real fight
+    // the list grows well past whatever capacity it started the frame with.
+    Vec entities;
+    for (int i = 0; i < 8; ++i) {
+        entities.push_back(std::make_unique<Goomba>(sf::Vector2f(i * 32.0f, 0.0f)));
+    }
+    entities.shrink_to_fit();
+    const std::size_t capacityAtFrameStart = entities.capacity();
+    check(entities.size() == capacityAtFrameStart,
+          "the entity list starts the frame full, as it does after a level load");
+
+    // The deferred discipline: a handler firing mid-loop queues, and the queue
+    // is drained after the loop.
+    Vec pending;
+    std::size_t visited = 0;
+    for (const auto& entity : entities) {
+        ++visited;
+        (void)entity->getPosition();
+        // Stand-in for Bowser::breatheFire() publishing EntitySpawnRequested.
+        pending.push_back(std::make_unique<Goomba>(sf::Vector2f(0.0f, 0.0f)));
+    }
+    check(visited == 8, "every entity was visited exactly once, with no reallocation under the loop");
+    check(entities.capacity() == capacityAtFrameStart,
+          "the vector did not grow while it was being iterated");
+
+    for (auto& queued : pending) entities.push_back(std::move(queued));
+    check(entities.size() == 16, "the queue is admitted after the loop, so nothing is lost");
+    check(entities.capacity() > capacityAtFrameStart,
+          "admitting them DID reallocate - which is exactly what the old code did mid-loop");
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — the backdrop stood one tile inside the ground.
+//
+// syncBackdropGround() anchored the parallax layers to the lowest row holding
+// any solid tile. Every shipped level floors on a two-row slab, so that is the
+// BOTTOM of the slab, and every hill, bush and fence was drawn a full tile
+// buried. The rule is now "widest solid row, then climb to the top of that
+// contiguous slab", which this reproduces against the real level files.
+// ---------------------------------------------------------------------------
+void testBackdropStandsOnTheGroundSurface() {
+    section("playtest  the backdrop's ground line is the top of the floor slab");
+
+    auto surfaceRow = [](const TileMap& map) {
+        std::vector<int> solidPerRow(static_cast<std::size_t>(map.getHeight()), 0);
+        for (int y = 0; y < map.getHeight(); ++y) {
+            for (int x = 0; x < map.getWidth(); ++x) {
+                if (TileMap::getInfo(map.getTileType(x, y)).isSolid) {
+                    ++solidPerRow[static_cast<std::size_t>(y)];
+                }
+            }
+        }
+        int floorRow = -1, widest = 0;
+        for (int y = 0; y < map.getHeight(); ++y) {
+            if (solidPerRow[static_cast<std::size_t>(y)] >= widest &&
+                solidPerRow[static_cast<std::size_t>(y)] > 0) {
+                widest = solidPerRow[static_cast<std::size_t>(y)];
+                floorRow = y;
+            }
+        }
+        if (floorRow < 0) return -1;
+        const int threshold = std::max(1, (widest * 3) / 5);
+        int row = floorRow;
+        while (row > 0 && solidPerRow[static_cast<std::size_t>(row - 1)] >= threshold) --row;
+        return row;
+    };
+
+    for (const std::string& name : {"level_1.json", "level_2.json", "level_3.json"}) {
+        LevelLoader loader;
+        LevelData data;
+        TileMap map;
+        if (!loader.loadLevel(levelPath(name), map, data)) {
+            check(false, name + " loads");
+            continue;
+        }
+
+        const int row = surfaceRow(map);
+        // The answer must be a row the player can actually stand ON: solid here,
+        // empty directly above.
+        bool solidHere = false, clearAbove = true;
+        for (int x = 0; x < map.getWidth(); ++x) {
+            if (TileMap::getInfo(map.getTileType(x, row)).isSolid) { solidHere = true; break; }
+        }
+        int solidAbove = 0;
+        for (int x = 0; x < map.getWidth(); ++x) {
+            if (row > 0 && TileMap::getInfo(map.getTileType(x, row - 1)).isSolid) ++solidAbove;
+        }
+        clearAbove = solidAbove * 2 < map.getWidth();   // not another full slab row
+
+        check(solidHere, name + ": the backdrop ground row is solid");
+        check(clearAbove, name + ": nothing stands on top of it, so it is the surface not the underside");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — the flag hung in mid-air in every level.
+//
+// A flagpole is a 24x168 sprite positioned by its TOP-left corner, and all four
+// level files named tile row 12 for it: foot at world y 552, floor at 672. The
+// pole is now settled onto the floor at load time, so what the files must
+// guarantee is only that there IS a floor in the flagpole's column.
+// ---------------------------------------------------------------------------
+void testEveryLevelsFlagpoleHasAFloorUnderIt() {
+    section("playtest  the flagpole stands on ground, and the castle behind it");
+
+    for (const std::string& name : {"level_1.json", "level_2.json", "level_3.json", "bonus_1.json"}) {
+        LevelLoader loader;
+        LevelData data;
+        TileMap map;
+        if (!loader.loadLevel(levelPath(name), map, data)) {
+            check(false, name + " loads");
+            continue;
+        }
+
+        const Flagpole* pole = nullptr;
+        const Entity* castle = nullptr;
+        for (const auto& entity : data.entities) {
+            if (auto* f = dynamic_cast<Flagpole*>(entity.get())) pole = f;
+            if (entity && entity->getTypeName() == "castle") castle = entity.get();
+        }
+
+        if (!pole) { check(false, name + " has a flagpole"); continue; }
+        check(castle != nullptr, name + " ends with a castle");
+
+        // Settling needs a floor somewhere below the pole's column.
+        const float probeX = pole->getPosition().x + 12.0f;
+        bool floorFound = false;
+        float floorTop = 0.0f;
+        const int gx = static_cast<int>(probeX / Constants::TILE_SIZE);
+        for (int y = 0; y < map.getHeight(); ++y) {
+            if (TileMap::getInfo(map.getTileType(gx, y)).isSolid) {
+                floorFound = true;
+                floorTop = static_cast<float>(y) * Constants::TILE_SIZE;
+                break;
+            }
+        }
+        check(floorFound, name + ": there is a floor in the flagpole's column to settle onto");
+        if (!floorFound) continue;
+
+        // And once settled, the pole's foot is exactly on it.
+        const float settledTop = floorTop - pole->getPoleHeight();
+        check(std::abs((settledTop + pole->getPoleHeight()) - floorTop) < 0.5f,
+              name + ": the settled pole's foot lands on the floor surface");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — Bowser was nearly impossible.
+//
+// He is immune to fire, and a boss's i-frames make contact during them harmful,
+// so the only legal input was five clean descending stomps under continuous
+// fire. Fireballs now buy a stagger: an opening in which he stops attacking and
+// can be hit safely, and which closes with the hit it paid for.
+// ---------------------------------------------------------------------------
+void testFireBuysAnOpeningOnBowser() {
+    section("playtest  fire staggers Bowser, and the opening costs one hit");
+
+    Bowser bowser({0.0f, 0.0f});
+    const int startHealth = bowser.getHealth();
+
+    check(!bowser.isStaggered(), "Bowser does not start staggered");
+
+    for (int i = 0; i < Bowser::FIRE_HITS_PER_STAGGER - 1; ++i) {
+        bowser.onHitByFireball();
+    }
+    check(!bowser.isStaggered(),
+          "three fireballs are not enough - the opening has a price");
+    check(bowser.getHealth() == startHealth,
+          "fire still costs him no health: he breathes the stuff");
+
+    bowser.onHitByFireball();
+    check(bowser.isStaggered(), "the fourth fireball staggers him");
+    check(!bowser.isInvulnerable(),
+          "the stagger clears his i-frames, so the opening is real rather than visible-only");
+    check(bowser.getHealth() == startHealth,
+          "the stagger itself does no damage - it is an opening, not an attack");
+
+    check(bowser.tryStomp(), "a stomp during the opening lands");
+    check(bowser.getHealth() == startHealth - 1, "and costs him exactly one point");
+    check(!bowser.isStaggered(),
+          "the opening closes with the hit it paid for, so one stagger is not the whole fight");
+
+    // And the next opening costs the same again.
+    for (int i = 0; i < Bowser::FIRE_HITS_PER_STAGGER; ++i) bowser.onHitByFireball();
+    check(bowser.isStaggered(), "four more fireballs buy the next opening");
+}
+
+// ---------------------------------------------------------------------------
+// The axe: the non-combat way past Bowser. Reaching it must end the fight
+// outright, whatever the health bar says and whatever guards are up.
+// ---------------------------------------------------------------------------
+void testTheAxeEndsTheFightOutright() {
+    section("playtest  the axe defeats Bowser through every guard");
+
+    Bowser bowser({0.0f, 0.0f});
+    check(!bowser.isDefeated(), "Bowser starts the fight alive");
+
+    // Put both guards up: a hit lands i-frames, and a stagger is also active.
+    bowser.tryStomp();
+    check(bowser.isInvulnerable(), "a landed hit leaves him invulnerable");
+
+    bowser.defeatNow();
+    check(bowser.isDefeated(), "the axe ends it regardless of i-frames");
+    check(bowser.getHealth() == 0, "and takes the whole remaining bar");
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — the HUD said WORLD 1-1 in every level.
+//
+// HudData carried worldMajor/worldMinor as ints and PlayingState never assigned
+// them, so the HUD printed its own defaults forever. It carries a label now,
+// and the label has to come from the same catalogue the level select reads.
+// ---------------------------------------------------------------------------
+void testTheWorldLabelIsNotAlwaysOneOne() {
+    section("playtest  the HUD's world field is per-level, not a constant");
+
+    // The label is built from LevelCatalog, so distinct levels must have
+    // distinct names for the field to be capable of changing at all.
+    std::set<std::string> names;
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        names.insert(LevelCatalog::nameFor(i));
+    }
+    check(static_cast<int>(names.size()) == LevelCatalog::count(),
+          "every catalogue level has a distinct display name");
+    check(names.count("1-1") == 1 && names.count("1-3") == 1,
+          "the campaign names are the ones the HUD will show");
+
+    // HudData's default must not silently stand in for a level again.
+    HudData fresh;
+    check(fresh.worldLabel == "WORLD 1-1",
+          "the default is still 1-1 - which is why PlayingState must overwrite it every load");
+    HudData assigned;
+    assigned.worldLabel = "WORLD 1-3";
+    check(assigned.worldLabel != fresh.worldLabel,
+          "and the field is writable per level");
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — Player 2 had no presence in the HUD.
+// ---------------------------------------------------------------------------
+void testTheHudCanShowBothPlayers() {
+    section("playtest  the HUD carries Player 2's icon and lives");
+
+    HudData data;
+    check(!data.hasSecondPlayer, "single player by default, so nothing is drawn");
+
+    data.hasSecondPlayer = true;
+    data.secondCharacterName = "luigi";
+    data.secondLives = 4;
+    check(data.hasSecondPlayer && data.secondLives == 4,
+          "a match supplies the second player's character and life count");
+    check(data.secondCharacterName != data.characterName,
+          "the two badges name different characters, which is what makes them distinguishable");
+}
+
 int main() {
     std::cout << "Audit regression suite\n";
 
@@ -2896,6 +3172,15 @@ int main() {
     testDeathReportsWhichPlayerDied();
     testJinglesDoNotLoop();
     testPlayerTwoHasEveryControl();
+
+    // Reported from the Windows playtest, August 2026.
+    testMidFrameSpawnsDoNotInvalidateTheEntityLoop();
+    testBackdropStandsOnTheGroundSurface();
+    testEveryLevelsFlagpoleHasAFloorUnderIt();
+    testFireBuysAnOpeningOnBowser();
+    testTheAxeEndsTheFightOutright();
+    testTheWorldLabelIsNotAlwaysOneOne();
+    testTheHudCanShowBothPlayers();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

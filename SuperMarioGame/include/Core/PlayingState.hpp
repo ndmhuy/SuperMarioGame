@@ -317,6 +317,23 @@ private:
     // are meant to stand on the ground actually do.
     void syncBackdropGround();
 
+    // World y at which a falling player is counted as having left the level.
+    //
+    // Recomputed per level by syncVoidPlane(), one tile under the deepest floor
+    // rather than under the whole tilemap — see the comment at its use site in
+    // update(). Defaults to something safely far down until a level is loaded.
+    void syncVoidPlane();
+    float m_voidPlaneY = 100000.0f;
+
+    // What the HUD's WORLD field should read for the level now loaded.
+    //
+    // Recomputed at every load rather than derived from m_selectedLevelIndex at
+    // read time, because a warp pipe loads a sub-level by PATH and leaves the
+    // index pointing at the parent — so the index alone cannot tell 1-1 from
+    // the room underneath it.
+    void refreshWorldLabel(const std::string& levelPath);
+    std::string m_worldLabel = "WORLD 1-1";
+
     // Stand the end-of-level scenery on the floor.
     //
     // The flagpole is a 24x168 sprite whose position is its TOP-left corner, and
@@ -335,6 +352,23 @@ private:
     // The world y of the first solid tile's top surface at or below `from`, or a
     // negative value when the column is empty all the way down.
     float floorBelow(float worldX, float fromWorldY) const;
+
+    // Somewhere the given player can come back that is on screen and on solid
+    // ground.
+    //
+    // Respawning used to be unconditional: back to the checkpoint, or the level
+    // spawn. In one-player that is fine — the camera follows the only player, so
+    // wherever they land is what you are looking at. In two-player the camera
+    // frames the MIDPOINT of both players, so sending the dead one back to the
+    // level start while their partner is 150 tiles away either drags the frame
+    // backwards across the level or leaves the respawned player off screen
+    // entirely, being shoved along by the versus tether they cannot see. And
+    // neither mode checked that the destination had a floor at all, so a
+    // checkpoint taken over a pit respawned the player straight back into it.
+    //
+    // Returns a point above solid ground inside the current view where one
+    // exists, and the fallback otherwise.
+    sf::Vector2f findSafeRespawn(sf::Vector2f preferred, const Player* nextTo) const;
 
     // --- P-Switch: bricks become coins for its duration, then change back ----
     //

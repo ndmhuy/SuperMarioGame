@@ -7,6 +7,7 @@
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Entities/Boss.hpp"
+#include "Entities/Bowser.hpp"
 #include "Entities/Castle.hpp"
 #include "Entities/Flagpole.hpp"
 #include "Entities/Projectile.hpp"
@@ -135,7 +136,9 @@ void PlayingState::enter() {
         MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
         m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
         syncBackdropGround();
+        syncVoidPlane();
         settleEndOfLevelScenery();
+        refreshWorldLabel(m_isProcedural ? std::string() : LevelCatalog::pathFor(m_selectedLevelIndex));
 
         // Wire animations for all procedurally generated entities
         for (auto& entity : m_entities) {
@@ -710,7 +713,20 @@ void PlayingState::update(float dt) {
     // version that only checked the *bottom* — so a Player 2 shoved off the left
     // edge was stuck alive outside the map forever — and which skipped the death
     // fall, the jingle and the i-frames that Player 1 got.
-    const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
+    // Where the void begins.
+    //
+    // This used to sit a tile BELOW the whole tilemap. In a 23-row level that is
+    // world y 768 against a 720px window, so the player was already well off the
+    // bottom of the screen and several frames into an unrecoverable fall before
+    // anything registered — and by then the rewind buffer's most recent frames
+    // were all of the same doomed fall.
+    //
+    // The plane is now one tile under the LOWEST FLOOR IN THE LEVEL, which for a
+    // pit that reaches the map's bottom row is the same place, but for every
+    // level whose floor sits above the map's edge is meaningfully earlier. The
+    // hit lands while the fall is still recent, so the seconds R can rewind into
+    // are the seconds before the mistake rather than the mistake itself.
+    const float bottomVoidY = m_voidPlaneY;
     const float rightVoidX  = (m_tileMap.getWidth()  * Constants::TILE_SIZE) + 64.0f;
     for (Player* who : {m_player, m_player2}) {
         if (!who || !who->isActive()) continue;
@@ -835,6 +851,17 @@ void PlayingState::update(float dt) {
         // countdown never appeared however long the switch ran.
         hudData.pSwitchActive = m_pSwitchActive;
         hudData.pSwitchTimer  = m_pSwitchTimer;
+        hudData.worldLabel    = m_worldLabel;
+
+        if (m_player2 && m_player2->isActive()) {
+            hudData.hasSecondPlayer      = true;
+            hudData.secondCharacterName  = m_player2->getCharacterName();
+            hudData.secondLives          = m_player2->getLives();
+            hudData.secondCoins          = m_player2->getCoins();
+            hudData.secondPlayerLabel    = m_aiController
+                ? std::string("CPU ") + m_aiController->policyName()
+                : std::string("P2");
+        }
         
         if (auto* player = Game::getInstance().getPlayer()) {
             hudData.score = player->getScore();
@@ -849,8 +876,6 @@ void PlayingState::update(float dt) {
             hudData.score = 102520;
             hudData.coins = 57;
             hudData.lives = 9;
-            hudData.worldMajor = 1;
-            hudData.worldMinor = 1;
             hudData.characterName = "mario";
             hudData.starCoinsCollected = {true, true, false}; // 2 out of 3 collected
         }
@@ -944,6 +969,85 @@ void PlayingState::endPSwitch() {
     m_pSwitchActive = false;
     m_pSwitchTimer = 0.0f;
     std::cout << "[PlayingState] P-Switch expired." << std::endl;
+}
+
+void PlayingState::syncVoidPlane() {
+    // The deepest solid tile anywhere in the level: below that there is nothing
+    // to land on however far you fall, so it is the honest place to stop
+    // simulating the fall. One tile of slack under it so a player skimming the
+    // last ledge is not killed by the geometry they just cleared.
+    int deepestFloorRow = -1;
+    for (int y = m_tileMap.getHeight() - 1; y >= 0 && deepestFloorRow < 0; --y) {
+        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+            if (TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) {
+                deepestFloorRow = y;
+                break;
+            }
+        }
+    }
+
+    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+    if (deepestFloorRow < 0) {
+        m_voidPlaneY = mapBottom + Constants::TILE_SIZE;
+        return;
+    }
+
+    // Never above the bottom of the deepest floor — a player standing on the
+    // lowest tile in the level must not be inside the void.
+    const float belowDeepestFloor =
+        static_cast<float>(deepestFloorRow + 2) * Constants::TILE_SIZE;
+    m_voidPlaneY = std::min(belowDeepestFloor, mapBottom + Constants::TILE_SIZE);
+}
+
+void PlayingState::refreshWorldLabel(const std::string& levelPath) {
+    if (m_isProcedural) {
+        m_worldLabel = "RANDOM";
+        return;
+    }
+
+    // Match the loaded path against the campaign catalogue, so the label comes
+    // from the same table the level select reads and cannot drift from it.
+    std::string display;
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        const std::string& catalogPath = LevelCatalog::pathFor(i);
+        // Suffix match: the loader tries several roots ("assets/levels/...",
+        // "../assets/levels/...") so the path it succeeded with is not always
+        // the catalogue's spelling of it.
+        if (levelPath.size() >= catalogPath.size() &&
+            levelPath.compare(levelPath.size() - catalogPath.size(),
+                              catalogPath.size(), catalogPath) == 0) {
+            display = LevelCatalog::nameFor(i);
+            break;
+        }
+    }
+
+    // A sub-level is not in the catalogue — it is reached through a pipe, not
+    // the level select — so name it after the level it belongs to.
+    const bool isSub = levelPath.find("_sub") != std::string::npos;
+    if (display.empty()) {
+        for (int i = 0; i < LevelCatalog::count(); ++i) {
+            std::string stem = LevelCatalog::pathFor(i);
+            const std::size_t dot = stem.rfind(".json");
+            if (dot != std::string::npos) stem = stem.substr(0, dot);
+            const std::size_t slash = stem.rfind('/');
+            if (slash != std::string::npos) stem = stem.substr(slash + 1);
+            if (levelPath.find(stem + "_sub") != std::string::npos) {
+                display = LevelCatalog::nameFor(i);
+                break;
+            }
+        }
+    }
+
+    if (display.empty()) {
+        m_worldLabel = "WORLD ?";
+        return;
+    }
+
+    // "Bonus 1" is not a world number and must not be printed as one.
+    std::string label = (display.rfind("Bonus", 0) == 0) ? display : "WORLD " + display;
+    if (isSub) label += " SUB";
+    std::transform(label.begin(), label.end(), label.begin(), ::toupper);
+    m_worldLabel = label;
 }
 
 float PlayingState::floorBelow(float worldX, float fromWorldY) const {
@@ -1457,7 +1561,9 @@ void PlayingState::setupTestScene() {
         m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
         m_background.setTheme(levelData.theme);
         syncBackdropGround();
+        syncVoidPlane();
         settleEndOfLevelScenery();
+        refreshWorldLabel(m_isProcedural ? std::string() : LevelCatalog::pathFor(m_selectedLevelIndex));
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -1592,7 +1698,9 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
     m_background.setTheme(levelData.theme);
     syncBackdropGround();
+    syncVoidPlane();
     settleEndOfLevelScenery();
+    refreshWorldLabel(chosenPath);
     findActiveBoss();
 
     std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;
@@ -1604,7 +1712,9 @@ void PlayingState::regenerateProceduralLevel() {
     MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
     m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
     syncBackdropGround();
+    syncVoidPlane();
     settleEndOfLevelScenery();
+    refreshWorldLabel(std::string());
     for (auto& entity : m_entities) {
         admitEntity(entity.get());
     }
@@ -1893,6 +2003,33 @@ void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
     m_levelTimer = snapshot.levelTimer;
     m_camera.snapTo(snapshot.cameraCenter);
 
+    // Rewinding out of a death has to actually cancel the death.
+    //
+    // Falling into the void starts a death sequence and puts the player into
+    // m_dying, which zeroes their controls and drives them through the floor.
+    // The rewind path restored the POSITION from the snapshot and nothing else,
+    // so the player reappeared above the pit still dying, still uncontrollable,
+    // and fell straight back in — R looked like it did nothing. The Memento is
+    // meant to undo the last few seconds, and dying is part of what happened in
+    // them.
+    //
+    // A player already eliminated is left alone: they have no lives to come back
+    // to and the run is over for them.
+    for (Player* who : {m_player, m_player2}) {
+        if (!who) continue;
+        DeathState* death = deathStateFor(who);
+        if (!death || death->eliminated) continue;
+        if (death->phase == DeathPhase::None) continue;
+        // GameOver has already started a screen transition whose callback
+        // replaces this state; there is nothing left here to rewind into.
+        if (death->phase == DeathPhase::GameOver) continue;
+
+        death->phase = DeathPhase::None;
+        death->timer = 0.0f;
+        who->endDeathFall();
+        std::cout << "[PlayingState] Rewound out of a death." << std::endl;
+    }
+
     if (m_player) {
         m_player->restoreMemento(snapshot.playerState);
     }
@@ -2022,6 +2159,14 @@ void PlayingState::syncBossHud(HudData& hudData) const {
     hudData.bossName      = m_activeBoss->getDisplayName();
     hudData.bossHealth    = m_activeBoss->getHealth();
     hudData.bossMaxHealth = m_activeBoss->getMaxHealth();
+    hudData.bossStaggered = m_activeBoss->isStaggered();
+    // Only Bowser has the fire-stagger route; -1 means "this boss has no such
+    // mechanic" and the HUD draws nothing rather than a misleading zero.
+    if (const auto* bowser = dynamic_cast<const Bowser*>(m_activeBoss)) {
+        hudData.bossFireHitsToStagger = bowser->getFireHitsToStagger();
+    } else {
+        hudData.bossFireHitsToStagger = -1;
+    }
 }
 
 PlayingState::DeathState* PlayingState::deathStateFor(const Player* who) {
@@ -2189,6 +2334,54 @@ void PlayingState::makeSpawnSafe(Player* who, sf::Vector2f respawn) {
     who->setInvincible(1.5f);
 }
 
+sf::Vector2f PlayingState::findSafeRespawn(sf::Vector2f preferred, const Player* nextTo) const {
+    const AABB view = m_camera.getVisibleBounds();
+    // A margin in from the view edge, so the respawned player is visibly inside
+    // the frame rather than clipping its border — and, in versus, is not
+    // instantly grabbed by the tether that shoves whoever is at the edge.
+    const float margin = Constants::TILE_SIZE * 2.0f;
+    const float leftLimit  = std::max(Constants::TILE_SIZE, view.x + margin);
+    const float rightLimit = std::min(m_tileMap.getWidth() * Constants::TILE_SIZE
+                                          - Constants::TILE_SIZE * 2.0f,
+                                      view.x + view.width - margin);
+
+    auto standable = [this](float x, float fromY) -> float {
+        const float floorTop = floorBelow(x, fromY);
+        if (floorTop < 0.0f) return -1.0f;
+        // Two tiles of headroom, so the player does not materialise inside the
+        // underside of a platform and get pushed out sideways.
+        const int gx = static_cast<int>(x / Constants::TILE_SIZE);
+        const int floorRow = static_cast<int>(floorTop / Constants::TILE_SIZE);
+        for (int y = floorRow - 2; y < floorRow; ++y) {
+            if (y < 0) continue;
+            if (TileMap::getInfo(m_tileMap.getTileType(gx, y)).isSolid) return -1.0f;
+        }
+        return floorTop;
+    };
+
+    // Start from wherever makes most sense and walk outwards: beside the
+    // surviving player when there is one, otherwise the preferred point.
+    const float originX = nextTo ? nextTo->getPosition().x : preferred.x;
+    const float searchTop = std::max(0.0f, view.y);
+
+    // Beside the partner first — one tile clear, then further out — so the two
+    // start the next life together rather than at opposite ends of the frame.
+    for (int step = 1; step <= 12; ++step) {
+        for (const float dir : {1.0f, -1.0f}) {
+            const float x = originX + dir * step * Constants::TILE_SIZE;
+            if (x < leftLimit || x > rightLimit) continue;
+            const float floorTop = standable(x, searchTop);
+            if (floorTop < 0.0f) continue;
+            // One tile above the floor: dropped in, not embedded in it.
+            return {x, floorTop - Constants::TILE_SIZE * 1.5f};
+        }
+    }
+
+    // Nothing on screen has a floor. The preferred point at least has the level
+    // designer's intent behind it, which beats a guess.
+    return preferred;
+}
+
 void PlayingState::respawnPlayer(Player* who) {
     if (!who) return;
     const bool isFirst = (who == m_player);
@@ -2210,6 +2403,27 @@ void PlayingState::respawnPlayer(Player* who) {
     // two do not resolve out of each other on the first frame.
     if (!isFirst) respawn.x += 48.0f;
 
+    // In a two-player match the camera frames both players, so the checkpoint is
+    // the wrong destination whenever the survivor has moved on from it: it puts
+    // the respawned player off screen, or drags the frame back across the level
+    // to fetch them. Come back next to the partner instead, inside the view and
+    // on a floor.
+    Player* const partner = isFirst ? m_player2 : m_player;
+    const bool partnerPlaying = m_match.hasSecondPlayer() && partner &&
+                                partner->isActive() && !partner->isDying();
+    if (partnerPlaying) {
+        respawn = findSafeRespawn(respawn, partner);
+    } else {
+        // Single player, or the last one standing. The checkpoint is right, but
+        // it still has to have a floor under it — a checkpoint taken over a pit
+        // used to respawn the player straight back into the pit, once per life.
+        if (floorBelow(respawn.x, respawn.y) < 0.0f) {
+            std::cerr << "[PlayingState] Respawn point has no floor beneath it; "
+                         "looking for one on screen." << std::endl;
+            respawn = findSafeRespawn(respawn, nullptr);
+        }
+    }
+
     who->setPosition(respawn);
     who->setVelocity({0.0f, 0.0f});
     who->setGrounded(false);
@@ -2218,12 +2432,16 @@ void PlayingState::respawnPlayer(Player* who) {
     makeSpawnSafe(who, respawn);
 
     if (!isFirst) {
-        std::cout << "[PlayingState] Player 2 respawned. Lives remaining: "
-                  << who->getLives() << std::endl;
+        std::cout << "[PlayingState] Player 2 respawned at (" << respawn.x << ", "
+                  << respawn.y << "). Lives remaining: " << who->getLives() << std::endl;
         return;
     }
 
-    m_camera.snapTo(respawn);
+    // Only snap the camera when it is following this player alone. In a match it
+    // frames the midpoint of both, and snapping to one of them fights that.
+    if (!m_match.hasSecondPlayer() || !m_player2 || !m_player2->isActive()) {
+        m_camera.snapTo(respawn);
+    }
 
     // The chase restarts with the life. The shadow was left holding the dead
     // life's path, which the correction lerp then dragged it back across the

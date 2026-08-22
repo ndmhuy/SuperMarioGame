@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdio>
 #include <filesystem>
 #include <algorithm>
 #include <SFML/Graphics.hpp>
@@ -46,8 +47,7 @@ int main() {
     data.coins = 57;
     data.lives = 9;
     data.timeLeft = 260;
-    data.worldMajor = 1;
-    data.worldMinor = 1;
+    data.worldLabel = "WORLD 1-1";
     data.comboCount = 1;
     data.characterName = "MARIO";
     data.pSwitchActive = false;
@@ -104,8 +104,16 @@ int main() {
         ImGui::SliderInt("Coins", &data.coins, 0, 99);
         ImGui::SliderInt("Lives", &data.lives, 0, 99);
         ImGui::SliderInt("Time Left", &data.timeLeft, 0, 999);
-        ImGui::InputInt("World Major", &data.worldMajor);
-        ImGui::InputInt("World Minor", &data.worldMinor);
+        {
+            // HudData carries the whole label now: not every level in this game
+            // has a major-minor number, and "BONUS 1" through a "%d-%d" is what
+            // made the field wrong for every level but the first.
+            char worldBuf[64];
+            std::snprintf(worldBuf, sizeof(worldBuf), "%s", data.worldLabel.c_str());
+            if (ImGui::InputText("World Label", worldBuf, sizeof(worldBuf))) {
+                data.worldLabel = worldBuf;
+            }
+        }
         ImGui::InputText("Character Name", charNameBuf, sizeof(charNameBuf));
 
         ImGui::Separator();
