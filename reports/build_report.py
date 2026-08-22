@@ -27,6 +27,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 GAME = REPO / "SuperMarioGame"
 OUT  = HERE / "Group52_SuperMarioGame_FinalReport.html"
+# The same content without a document skeleton, for publishing as an Artifact
+# (the publisher supplies its own <head>/<body>).
+OUT_ARTIFACT = HERE / "artifact_final_report.html"
 
 
 # --------------------------------------------------------------------------
@@ -102,8 +105,20 @@ def img(name, alt, caption):
 
 if __name__ == "__main__":
     from report_content import render
-    OUT.write_text(render(FACTS, img), encoding="utf-8")
+    content = render(FACTS, img)
+
+    # Explicit head/body boundary. A browser would infer it at the <main>, but
+    # an inferred boundary is not one a reader of the file can see.
+    head, _, body = content.partition("\n<main>")
+    OUT.write_text(
+        '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+        + head + "\n</head>\n<body>\n<main>" + body + "</body></html>\n",
+        encoding="utf-8")
+    OUT_ARTIFACT.write_text(content, encoding="utf-8")
+
     kb = OUT.stat().st_size / 1024
     print(f"wrote {OUT.relative_to(REPO)}  ({kb:.0f} KB)")
+    print(f"wrote {OUT_ARTIFACT.relative_to(REPO)}  (same content, no skeleton)")
     for k, v in FACTS.items():
         print(f"  {k:9s} {v}")
