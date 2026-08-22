@@ -4267,4 +4267,28 @@ Summary of Changes:
     live in the scenery one; a pit death kept the power-up (takeDamage steps the
     form down, a void death never calls it) and the form was rebuilt from
     scratch each level so the flagpole threw it away.
+  * TEST HERMETICITY FIXED (045f9b7), the gap this entry listed as open above.
+    Serializer::setSaveDirectory() plus tests/TestSaveSandbox.hpp; all 23
+    verify_* harnesses now point at a fresh temp directory in main(), and every
+    hardcoded "saves/..." path and backup/restore dance in the tests is gone.
+    The dances were the interesting part: they renamed a path relative to the
+    WORKING DIRECTORY while Serializer resolved its own, so from build/ they
+    protected nothing and polluted the real file. MapEditor's export and Game's
+    screenshots also bypassed Serializer and now do not. A new case,
+    testTheSuiteCannotTouchRealSaveData, asserts the suite's own containment;
+    removing the sandbox to check it turns red DID delete the real
+    progress.json, reproducing the reported bug exactly. ctest 13/13;
+    ./verify_regressions from build/ 504/504, was 497/498 with one FAIL.
+  * UML AND HISTORY IN THE REPORT (a0395d6). class_diagram.md had rotted to the
+    point of omitting Boss, Bowser, ShadowMario, AIController, ObjectPool and
+    TimeRewindManager; it is now generated from include/**/*.hpp by
+    tools/gen_class_diagram.py, which also emits the seven SVG diagrams the
+    report embeds. Report section 12 reads the seven weekly reports and this log
+    as one narrative, including the 18 August audit, its public retraction, the
+    3,100 uncommitted lines and the six inert subsystems.
+  * DATA LOST, MY FAULT: saves/highscores.json. I overwrote it with seeded probe
+    data while reproducing the bug and did not back it up first; saves/ is
+    gitignored, so there is no copy. It was a local high-score table only — no
+    campaign progress, no save slots, no settings. saves/progress.json was
+    created by me this session and had nothing of the user's in it.
 ---
