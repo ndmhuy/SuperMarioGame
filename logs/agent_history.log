@@ -4291,4 +4291,24 @@ Summary of Changes:
     gitignored, so there is no copy. It was a local high-score table only — no
     campaign progress, no save slots, no settings. saves/progress.json was
     created by me this session and had nothing of the user's in it.
+  * LATEX/PDF EDITION (730336c). Report/SuperMarioGame/ held a skeleton whose
+    README promised eleven content files that were never written; it now holds
+    a 40-page PDF in the unmodified HCMUS template taken from the CS163
+    DataStructureVisualizer report. The prose is NOT written twice:
+    reports/html_to_latex.py converts the same generated HTML, and raises on an
+    unknown tag or an unmapped character rather than silently dropping content.
+    build.sh regenerates and compiles in one command; verified from a clean
+    clone, which rebuilds the PDF from tracked files alone.
+  * REPORT DEEPENED at user request. Section 8 (implementation) went from three
+    subsections to eleven, covering the frame, the ten-stage physics pipeline,
+    input, the entity door, the boss template, tile/level loading, rewind and
+    replay, the CPU opponent's 21x15 observation, multiplayer, graphics and the
+    catalogue. Section 10 (technical problems) was rebuilt from the weekly
+    reports and this log into eight themed groups - collision bookkeeping,
+    gravity on static bodies, four object-lifetime failures, the one-fact-two-
+    places family, features that were never wired, the Windows crash, the
+    unwinnable boss and the backdrop that took three tries, the process
+    failures, and toolchain/porting. Roughly 25 documented defects, each with
+    the root cause recorded at the time rather than reconstructed.
+  * PUSHED AND PR'd at user request - the first push of this branch.
 ---
