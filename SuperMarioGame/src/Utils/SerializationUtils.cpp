@@ -1,4 +1,5 @@
 #include "Utils/SerializationUtils.hpp"
+#include "Entities/EntityCatalogue.hpp"
 #include "Entities/Entity.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
@@ -86,55 +87,20 @@ std::string getEntityTypeName(const Entity& entity) {
 }
 
 EntityType parseEntityTypeName(const std::string& name) {
-    if (name == "mario") return EntityType::Mario;
-    if (name == "luigi") return EntityType::Luigi;
-    if (name == "toad") return EntityType::Toad;
-    if (name == "peach") return EntityType::Peach;
+    // The canonical names live in EntityCatalogue, which is also what the level
+    // editor's palette is built from. This function used to carry its own
+    // hand-written copy of the same 40-entry list; the two drifted, and the
+    // editor's version was missing every enemy and every block.
+    if (const auto* entry = EntityCatalogue::findByName(name)) {
+        return entry->type;
+    }
 
-    if (name == "goomba") return EntityType::Goomba;
-    if (name == "koopa_troopa") return EntityType::KoopaTroopa;
-    if (name == "koopa_paratroopa") return EntityType::KoopaParatroopa;
-    if (name == "piranha_plant") return EntityType::PiranhaPlant;
-    if (name == "hammer_bro") return EntityType::HammerBro;
-    if (name == "thwomp") return EntityType::Thwomp;
-    if (name == "boo") return EntityType::Boo;
-    if (name == "lakitu") return EntityType::Lakitu;
-    if (name == "spiny") return EntityType::Spiny;
-    if (name == "bullet_bill") return EntityType::BulletBill;
-    if (name == "chain_chomp") return EntityType::ChainChomp;
-    if (name == "bowser") return EntityType::Bowser;
-    if (name == "boom_boom" || name == "boomboom") return EntityType::BoomBoom;
-
-    if (name == "mushroom") return EntityType::Mushroom;
-    if (name == "fire_flower") return EntityType::FireFlower;
-    if (name == "coin") return EntityType::Coin;
-    if (name == "star") return EntityType::Star;
-    if (name == "oneup_mushroom" || name == "oneup") return EntityType::OneUpMushroom;
-    if (name == "cape_feather") return EntityType::CapeFeather;
-    if (name == "mega_mushroom") return EntityType::MegaMushroom;
-    if (name == "mini_mushroom") return EntityType::MiniMushroom;
-    if (name == "pow_block") return EntityType::POWBlock;
-    if (name == "pswitch") return EntityType::PSwitch;
-    if (name == "trampoline") return EntityType::Trampoline;
-    if (name == "star_coin") return EntityType::StarCoin;
-    if (name == "bridge_axe" || name == "axe") return EntityType::BridgeAxe;
-
-    if (name == "pipe") return EntityType::Pipe;
-    if (name == "flagpole") return EntityType::Flagpole;
-    if (name == "question_block") return EntityType::QuestionBlock;
-    if (name == "brick_block") return EntityType::BrickBlock;
-    if (name == "moving_platform") return EntityType::MovingPlatform;
-    if (name == "falling_platform") return EntityType::FallingPlatform;
-    if (name == "hidden_block") return EntityType::HiddenBlock;
-    if (name == "ice_block") return EntityType::IceBlock;
-    if (name == "conveyor_belt") return EntityType::ConveyorBelt;
-    if (name == "castle") return EntityType::Castle;
-
-    // Transient projectiles. They should never reach a level file — saveLevel
-    // skips them — but if an old file names one, it must not silently become
-    // something else.
-    if (name == "hammer") return EntityType::Hammer;
-    if (name == "boss_fireball") return EntityType::BossFireball;
+    // Historical aliases. These are a compatibility concern, not a fact about
+    // the game's types, so they stay here rather than in the catalogue — older
+    // level files must keep loading, but nothing should WRITE these names.
+    if (name == "oneup")     return EntityType::OneUpMushroom;
+    if (name == "boomboom")  return EntityType::BoomBoom;
+    if (name == "axe")       return EntityType::BridgeAxe;
 
     // Unknown names still fall back to Goomba rather than throwing, because
     // level files are hand-edited — but every type the game can *write* now

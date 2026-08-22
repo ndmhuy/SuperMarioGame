@@ -8,6 +8,7 @@
 #include "Utils/CampaignProgress.hpp"
 #include "Entities/Boss.hpp"
 #include "Entities/Bowser.hpp"
+#include "Entities/BridgeAxe.hpp"
 #include "Entities/Castle.hpp"
 #include "Entities/Flagpole.hpp"
 #include "Entities/Projectile.hpp"
@@ -2429,6 +2430,16 @@ void PlayingState::respawnPlayer(Player* who) {
     who->setGrounded(false);
     // A corpse must not still be carrying a shell it picked up before dying.
     who->dropHeldEntity();
+
+    // A death costs the power-up, always.
+    //
+    // Taking a hit steps the form down — Fire to Super to Small — so a damage
+    // death already arrives here Small. Falling into a pit does not go through
+    // takeDamage() at all, so a Fire Mario who missed a jump came back still
+    // holding the flower: the pit was the one hazard in the game with no cost
+    // beyond the life. The combo goes with it for the same reason.
+    who->setForm(Player::Form::Small);
+    who->resetCombo();
     makeSpawnSafe(who, respawn);
 
     if (!isFirst) {
@@ -2599,10 +2610,17 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     // First spawn of a run gets the difficulty's life count; later spawns carry
     // whatever the player had, because this branch only runs when there is none.
     int oldLives = Game::getInstance().difficulty().startingLives();
+    // And the form carries too. Reaching the flagpole as Fire Mario and starting
+    // the next level Small threw away the thing the player spent the level
+    // earning; the series has always let you keep it between stages. Deaths
+    // still take it — see respawnPlayer() — so it is kept by surviving, which is
+    // what makes it worth having.
+    Player::Form oldForm = Player::Form::Small;
     if (m_player) {
         oldCoins = m_player->getCoins();
         oldScore = m_player->getScore();
         oldLives = m_player->getLives();
+        oldForm  = m_player->getForm();
     }
 
     std::unique_ptr<Player> newPlayer;
@@ -2619,6 +2637,10 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     // Carry stats across the swap silently. addCoins()/loseLife() would publish
     // CoinCollected and GameOver here, inflating statistics and achievements.
     newPlayer->restoreStats(oldLives, oldCoins, oldScore);
+    // setStartingForm, not setForm: the box is sized to the form without the
+    // feet-planting shift a mid-life change performs, which would drop the
+    // player 2px into the floor on every level transition.
+    newPlayer->setStartingForm(oldForm);
 
     adoptPlayer(std::move(newPlayer));
 }
@@ -2710,10 +2732,13 @@ void PlayingState::wireEntityAnimations(Entity* entity) {
         // atlas. One branch covers every projectile, so a new one is wired by
         // existing.
         if (m_enemySheet) proj->setupAnimations(m_enemySheet.get());
-    } else if (dynamic_cast<StarCoin*>(entity)) {
-        // StarCoin's big_coin_0/1/2 frames live in world_scenery_item, not item atlas
-        if (auto* sc = dynamic_cast<Item*>(entity)) {
-            if (m_scenerySheet) sc->setupAnimations(m_scenerySheet.get());
+    } else if (dynamic_cast<StarCoin*>(entity) || dynamic_cast<BridgeAxe*>(entity)) {
+        // Two Items whose art is in the world/scenery atlas rather than the item
+        // one: StarCoin's big_coin_0..2, and BridgeAxe's axe_0..2. Routed by
+        // the generic Item branch below they find no frame, and drawSprite bails
+        // on a zero-size sprite — so they drew a placeholder rectangle.
+        if (auto* sceneryItem = dynamic_cast<Item*>(entity)) {
+            if (m_scenerySheet) sceneryItem->setupAnimations(m_scenerySheet.get());
         }
     } else if (auto* i = dynamic_cast<Item*>(entity)) {
         if (m_itemSheet) i->setupAnimations(m_itemSheet.get());

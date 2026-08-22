@@ -31,6 +31,7 @@
 #include "Core/IGameState.hpp"
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelCatalog.hpp"
+#include "Entities/EntityCatalogue.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/ObjectPool.hpp"
 #include "Utils/EntityConfig.hpp"
@@ -3085,6 +3086,93 @@ void testTheHudCanShowBothPlayers() {
           "the two badges name different characters, which is what makes them distinguishable");
 }
 
+
+// ---------------------------------------------------------------------------
+// The entity catalogue is a cross-file contract (g-rule-17).
+//
+// The same list of types was hand-written in three places — EntityFactory,
+// SerializationUtils and the map editor's palette — and they had drifted: the
+// editor knew 16 of 40 types and not one of them was an enemy or a block. The
+// catalogue is now the single source; this is the test that makes adding a type
+// in only one place a failure rather than a silent omission.
+// ---------------------------------------------------------------------------
+void testEntityCatalogueIsCompleteAndRoundTrips() {
+    section("editor  every entity type is creatable, named correctly and placeable");
+
+    const auto& entries = EntityCatalogue::all();
+    check(!entries.empty(), "the catalogue is not empty");
+
+    // No duplicate names, and no duplicate types: either one means a level file
+    // can name something the catalogue answers two ways.
+    std::set<std::string> names;
+    std::set<int> types;
+    bool duplicateName = false, duplicateType = false;
+    for (const auto& entry : entries) {
+        if (!names.insert(entry.name).second) duplicateName = true;
+        if (!types.insert(static_cast<int>(entry.type)).second) duplicateType = true;
+    }
+    check(!duplicateName, "no two entries share a serialised name");
+    check(!duplicateType, "no two entries share an EntityType");
+
+    int uncreatable = 0, misnamed = 0, badParse = 0;
+    std::string firstUncreatable, firstMisnamed, firstBadParse;
+
+    for (const auto& entry : entries) {
+        // (a) the factory can build it. A catalogue entry the factory does not
+        //     handle is a palette button that silently places nothing.
+        auto made = EntityFactory::create(entry.type, {64.0f, 64.0f});
+        if (!made) {
+            if (uncreatable++ == 0) firstUncreatable = entry.name;
+            continue;
+        }
+
+        // (b) the class agrees with the catalogue about its own name. This is
+        //     the one that matters most: saveLevel writes getTypeName(), and
+        //     loadLevel parses it, so a mismatch means a level saved from the
+        //     editor loads back as a different entity.
+        if (made->getTypeName() != entry.name) {
+            if (misnamed++ == 0) {
+                firstMisnamed = entry.name + " -> " + made->getTypeName();
+            }
+        }
+
+        // (c) the round trip closes.
+        if (SerializationUtils::parseEntityTypeName(entry.name) != entry.type) {
+            if (badParse++ == 0) firstBadParse = entry.name;
+        }
+    }
+
+    check(uncreatable == 0,
+          "every catalogued type can be built by EntityFactory" +
+          (uncreatable ? " (first failure: " + firstUncreatable + ")" : std::string()));
+    check(misnamed == 0,
+          "every class's getTypeName() matches its catalogue name" +
+          (misnamed ? " (first mismatch: " + firstMisnamed + ")" : std::string()));
+    check(badParse == 0,
+          "every catalogue name parses back to its own type" +
+          (badParse ? " (first failure: " + firstBadParse + ")" : std::string()));
+
+    // And the palette actually covers the game. The specific complaint was that
+    // no enemy and no block could be placed at all.
+    const std::size_t enemies =
+        EntityCatalogue::inCategory(EntityCatalogue::Category::Enemy).size();
+    const std::size_t blocks =
+        EntityCatalogue::inCategory(EntityCatalogue::Category::Block).size();
+    const std::size_t items =
+        EntityCatalogue::inCategory(EntityCatalogue::Category::Item).size();
+    check(enemies >= 13, "the palette offers every enemy, bosses included");
+    check(blocks >= 8, "the palette offers the blocks and platforms");
+    check(items >= 12, "the palette offers the items and power-ups");
+
+    // Projectiles are runtime-only and must stay out of the placeable set: a
+    // level file containing a hammer would spawn one frozen in mid-air.
+    bool projectilePlaceable = false;
+    for (auto category : EntityCatalogue::placeableCategories()) {
+        if (category == EntityCatalogue::Category::Projectile) projectilePlaceable = true;
+    }
+    check(!projectilePlaceable, "projectiles are not offered as placeable scenery");
+}
+
 int main() {
     std::cout << "Audit regression suite\n";
 
@@ -3181,6 +3269,7 @@ int main() {
     testTheAxeEndsTheFightOutright();
     testTheWorldLabelIsNotAlwaysOneOne();
     testTheHudCanShowBothPlayers();
+    testEntityCatalogueIsCompleteAndRoundTrips();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

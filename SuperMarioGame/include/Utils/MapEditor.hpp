@@ -38,6 +38,10 @@ private:
     bool m_isTileMode = true;
     TileType m_selectedTileType = TileType::Ground;
     std::string m_selectedEntityType = "coin";
+    // Free-text filter over the entity palette. With every type in the game now
+    // listed rather than a hand-picked sixteen, scrolling is no longer the
+    // fastest way to find one.
+    char m_entityFilter[64] = "";
 
     // Undo/Redo stacks
     std::vector<std::unique_ptr<IEditorCommand>> m_undoStack;

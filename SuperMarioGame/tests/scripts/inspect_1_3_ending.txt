@@ -1,0 +1,26 @@
+# Photograph the rebuilt end of 1-3 — the bridge over lava, Bowser pacing it,
+# the axe on the far ledge, the flag standing on the ground and the castle.
+#
+# The player cannot be walked there reliably (Bowser is in the way, which is the
+# point), so this uses the level editor's free camera instead: F1 opens it, and
+# D pans right at 650 px/s.
+#
+#   ./build/SuperMarioGame --script tests/scripts/inspect_1_3_ending.txt
+
+wait 2.0
+press Enter               # START GAME
+wait 1.2
+press Enter               # character select
+wait 1.2
+press Enter               # world map: highest unlocked node is 1-3
+wait 2.5
+press F1                  # into the editor, free camera
+wait 1.0
+shot 70_editor_open
+hold D 8.0                # pan to the bridge and the arena
+wait 8.5
+shot 71_bridge_and_bowser
+hold D 1.2                # on to the axe, flag and castle
+wait 2.0
+shot 72_axe_flag_castle
+quit

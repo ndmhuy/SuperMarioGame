@@ -45,6 +45,10 @@ bool InputScript::parseKey(const std::string& name, sf::Keyboard::Key& out) {
     if (name == "Backspace") { out = sf::Keyboard::Key::Backspace; return true; }
     if (name == "Tab")       { out = sf::Keyboard::Key::Tab;       return true; }
     if (name == "Grave")     { out = sf::Keyboard::Key::Grave;     return true; }
+    // F1 toggles the level editor, whose free camera is the only way to look at
+    // a part of a level the player has not walked to — which is exactly what a
+    // verification script needs to photograph the end of a stage.
+    if (name == "F1")        { out = sf::Keyboard::Key::F1;        return true; }
     return false;
 }
 

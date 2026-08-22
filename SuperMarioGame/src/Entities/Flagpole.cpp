@@ -5,9 +5,13 @@
 #include <algorithm>
 
 Flagpole::Flagpole(sf::Vector2f position, float poleHeight)
-    : Block(position, {24.0f, 168.0f}), m_poleHeight(poleHeight > 0.0f ? poleHeight : 168.0f), m_triggered(false) {
+    : Block(position, {24.0f, poleHeight > 0.0f ? poleHeight : 168.0f}),
+      m_poleHeight(poleHeight > 0.0f ? poleHeight : 168.0f), m_triggered(false) {
     m_breakable = false;
-    setTargetSize({24.0f, 168.0f});
+    // The drawn size and the collision box are the same height, deliberately.
+    // They used to differ — 168 drawn against a 300-tall box — so the pole you
+    // could touch and the pole you could see were different objects.
+    setTargetSize({24.0f, m_poleHeight});
     boundingBox = AABB{position.x, position.y, 24.0f, m_poleHeight};
 }
 

@@ -1,0 +1,32 @@
+# Verification run for the August 2026 Windows-playtest fixes.
+#
+# saves/progress.json is seeded so 1-3 is unlocked; the world map opens on the
+# highest unlocked node, so START GAME -> confirm lands in Bowser's castle.
+#
+#   ./build/SuperMarioGame --script tests/scripts/playtest_fixes_1_3.txt
+#
+# What each shot is evidence for:
+#   60  the menu still comes up
+#   61  whatever screen sits between the menu and the level
+#   62  1-3 loaded: HUD reads WORLD 1-3, not WORLD 1-1
+#   63+ the backdrop's ground line, and the level running with Bowser alive
+#       (the old build crashed here within seconds of his first fireball)
+
+wait 2.0
+shot 60_menu
+press Enter               # START GAME
+wait 1.2
+shot 61_after_start
+press Enter               # character select -> confirm Mario
+wait 1.2
+shot 62_world_map
+press Enter               # world map opens on the highest unlocked node: 1-3
+wait 2.5
+shot 63_level_loaded
+wait 3.0
+shot 64_running
+wait 4.0
+shot 65_still_running     # well past Bowser's first fireball
+wait 4.0
+shot 66_survived
+quit
