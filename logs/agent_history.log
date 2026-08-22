@@ -4140,3 +4140,103 @@ Summary of Changes:
     Member B's private notes. Left for a later pass so this delivery stayed a
     clean fast-forward.
 ---
+
+[2026-08-22 16:05:00] Branch: dev -> A/fix/windows-crash-and-playtest
+Git Fingerprint: eb820a8 (before, HEAD on A/mapgen-gan-plan) -> dc796c3 (committed the
+  uncommitted AGENTS.md sync on that branch rather than discarding it) -> f0a61f4 (dev,
+  fast-forwarded 8 commits from origin/dev) -> 5aed48a (task branch tip)
+Fetched Remotes: yes, git fetch --all before switching; dev was 0 ahead / 8 behind
+  origin/dev and was fast-forwarded.
+Prompt: Twelve items from a teammate's Windows playtest, added to across the session:
+  the 1-3 crash; the background ground line; POW and P-Switch not working (one had the
+  trampoline's sound); Bowser near-impossible to kill; redesign the end-of-level house
+  and put the flag on the ground; the world number on the HUD stuck at 1-1; a second
+  player icon and lives in multiplayer; multiplayer respawns landing outside the camera
+  or in a pit; void damage early enough that R (rewind) is still usable; complete the
+  map editor's entity palette; document the crash as a learning record; reset the
+  power-up state on a pit death and carry it between levels; and merge the AgentHub
+  AGENTS.md updates from the mapgen branch.
+Files Modified:
+  - src/Core/PlayingState.cpp + include (pending-spawn queue, backdrop ground row,
+    P-Switch/POW effects, chopBridge, scenery settling, world label, void plane,
+    findSafeRespawn, death cancels on rewind, form carry/reset)
+  - src/Core/EventBus.hpp (BridgeChopped), SoundManager.cpp (P-Switch sound)
+  - src/Entities/{Boss,Bowser}.cpp + headers (stagger window, defeatNow)
+  - src/Entities/{BridgeAxe,Castle,EntityCatalogue}.{hpp,cpp} (new)
+  - src/Entities/{POWBlock,Flagpole,EntityFactory}.cpp + headers
+  - src/Physics/CollisionResolver.cpp (POW solid+strike, staggered boss is safe)
+  - src/Graphics/Hud.cpp + include (world label, Player 2 badge, boss hint)
+  - src/Utils/{MapEditor,SerializationUtils,MapGenerator,InputScript}.cpp
+  - assets/levels/{level_1,level_2,level_3,bonus_1}.json (endings rebuilt)
+  - tests/verify_regressions.cpp (+8 cases), tests/verify_hud_boss.cpp
+  - tests/scripts/{playtest_fixes_1_3,inspect_1_3_ending}.txt (new)
+  - tools/extract_learning_excerpts.py (new), docs/learning/ (new)
+  - .gitignore (docs/rendered/, SuperMarioGame/corpus/)
+Reachable From Main: yes for all of it. Every change is on the PlayingState /
+  CollisionResolver / Hud path that runs each frame of each level, or in level data
+  the loader reads. Verified by observation, not by inspection — see below.
+Verified By: ran the game. `./build/SuperMarioGame --script tests/scripts/...` twice:
+  playtest_fixes_1_3.txt loads 1-3 and holds it ~11s past Bowser's first fireballs
+  without crashing, and inspect_1_3_ending.txt opens the editor and pans to the rebuilt
+  ending. Screenshots confirm: HUD reads WORLD 1-3; backdrop fences and towers stand on
+  the floor; the bridge spans the lava; the axe draws from axe_0..2; the flagpole's foot
+  is on the ground; the castle is castle_end art; the tile palette lists all 11 tile
+  types and the entity palette lists every category. Plus ctest 13/13 (497 checks).
+Summary of Changes:
+- THE 1-3 CRASH: root cause found and fixed. All three EventBus spawn handlers
+  (PowerUpRequested, EntitySpawnRequested, PlayerShotFireball) called
+  m_entities.push_back() from inside a synchronous handler, i.e. on the stack of the
+  range-for in PlayingState::update() and of PhysicsEngine::update(), both of which
+  iterate that same vector. A reallocating push_back invalidates the loop's cached
+  iterators: undefined behaviour, absorbed by the macOS allocator, fatal on Windows.
+  1-3 is the only level with a high-frequency mid-loop spawner (Bowser, every
+  1.2-2.2s), which is why deleting Bowser "fixed" it. Spawns now queue in
+  m_pendingSpawns and are admitted at one point per frame, after both loops end.
+- BOWSER, per the user's choice of BOTH offered mechanics: Boss gains a stagger
+  window; four fireballs (which still do no health damage) drop his guard for 3s,
+  clearing his i-frames so a stomp lands safely, and the landed hit closes the window.
+  And BridgeAxe: 1-3's ending is now a lava pit spanned by a brick bridge with the axe
+  beyond it; touching it drops every solid tile in a column with lava under it, inside
+  the arena, and ends the fight via Boss::defeatNow(). The bridge is derived from the
+  geometry, not declared, so the editor cannot author one the axe does not know about.
+- MAP EDITOR: the palette could not place a Goomba, a Koopa, a pipe, a question block
+  or a flagpole — it knew 16 of 40 types, no enemies and no blocks, and the tile
+  palette lacked Lava (which 1-3 is built on). The list existed in three hand-written
+  copies (EntityFactory, SerializationUtils, the palette) which had drifted.
+  EntityCatalogue is now the one table; the parser and the palette both read it, and a
+  parity test asserts every entry is factory-creatable, matches its class's
+  getTypeName() and round-trips (g-rule-17).
+- Also: backdrop anchored to the top of the widest floor slab rather than its
+  underside; P-Switch swaps brick<->coin for 15s and restores from a record of exactly
+  what it changed; POW is solid, takes three strikes and clears grounded on-screen
+  enemies; HUD carries a world LABEL (not two ints nothing assigned) and a Player 2
+  badge; findSafeRespawn keeps a respawn inside the camera view and above ground;
+  applySnapshot cancels an in-progress death so R actually rewinds out of a pit; the
+  void plane moved to one tile under the deepest floor; a death costs the power-up and
+  the flagpole keeps it.
+- MERGED FROM THE SIDE PROJECT, per explicit user answer ("the AgentHub update on
+  AGENTS and things"): cherry-picked eb820a8 and dc796c3 from A/mapgen-gan-plan. Both
+  touch AGENTS.md only; verified with git show --name-only and by git diff against the
+  branch afterwards. NO mapgen/RL code came across.
+- HONEST GAPS:
+  * NOT CONFIRMED ON WINDOWS. The crash was only ever observable on Windows, and both
+    verification runs were on macOS where it was already invisible. They show the fix
+    breaks nothing; the argument that it cures the crash is the UB analysis in
+    docs/learning/mid-frame-entity-spawn-crash.html section 3. A Windows playtest of
+    1-3 is the outstanding confirmation and is stated as such in the record itself.
+  * NOT PLAYED THROUGH. The scripted runs drive the menus and the editor camera; no
+    run has actually fought Bowser, pressed a P-Switch, struck a POW, touched the axe
+    or died in a two-player match. Those paths are covered by ctest cases and by
+    reading, not by observation. The stagger numbers (4 fireballs, 3s) and the new 1-3
+    arena are unplaytested and may need tuning.
+  * TESTS WRITE TO THE REAL saves/. Discovered live: a ctest run deleted
+    saves/progress.json (CampaignProgress::reset via Serializer::saveDirectory, which
+    resolves to the developer's own saves/), and one high-score check passes or fails
+    depending on what is already on disk. That violates g-rule-13's hermeticity
+    requirement. Not fixed here — raised as a separate task.
+  * FLAGPOLE HEIGHT CHANGED FROM 300 TO 168 to match its art. This alters the
+    catch-height score bands, since the percentage is measured against the pole
+    height. Intended, but it is a behaviour change beyond "put the flag on the ground".
+  * BONUS/PROCEDURAL ENDINGS UNSEEN. Castles were added to all four levels and to
+    MapGenerator, but only 1-3's was looked at.
+---
