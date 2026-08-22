@@ -413,44 +413,174 @@ the path it lives at.</p>
 </tbody></table></div>
 
 <h2 id="impl">8 &middot; Implementation details</h2>
+
 <h3>8.1 The frame</h3>
+<p>A fixed-timestep accumulator: input is drained from the OS queue, <code>update(1/60)</code> runs as
+many times as the accumulator owes, and rendering interpolates between the last two states. Physics is
+therefore deterministic and independent of frame rate &mdash; which is what makes the Memento rewind
+(&sect;8.7) reproducible, and what lets the CPU opponent be judged against the same simulation a human
+plays.</p>
 <pre><code>Game::run()
-  poll OS events ........... InputManager records held keys from the event stream
-  accumulator += dt
-  while accumulator >= 1/60:
+  poll OS events ............ InputManager records held keys from the event STREAM,
+                              not from sf::Keyboard::isKeyPressed - see 8.3
+  accumulator += frameTime
+  while accumulator &gt;= 1/60:
       PlayingState::update(1/60)
-          rewind check (R held) -> restore a Memento and return
-          input -> command objects -> Player
-          AIController decides for a CPU opponent
-          for each entity: update()          <-- may request spawns
-          PhysicsEngine::update(entities, tilemap)
-              broad phase: SpatialHash
-              narrow phase: AABB, axis-separated X then Y
-              CollisionResolver: stomp / damage / collect / bump
-          flushPendingSpawns()               <-- the only point the list may grow
-          prune inactive, recycle pooled types
-          hazards: lava, void plane, warp pipes, boss arena
-          record one Memento
+          0.  rewind check (R held) -&gt; restore a Memento and return
+          1.  held keys -&gt; command objects -&gt; Player
+          2.  AIController decides, for a CPU opponent
+          2c. Shadow Mario samples this frame's inputs
+          3.  for each entity: update()            &lt;-- may REQUEST spawns
+          4.  PhysicsEngine::update(entities, tilemap)     see 8.2
+          5.  flushPendingSpawns()                 &lt;-- only point the list may grow
+          6.  prune inactive; recycle pooled types into their ObjectPool
+          7.  hazards: lava underfoot, the void plane, warp pipes, boss arena
+          8.  P-Switch clock, HUD sync, boss HUD
+          9.  record one Memento
       accumulator -= 1/60
-  render with interpolation
+  render, interpolated
 </code></pre>
-<p>The ordering of <code>flushPendingSpawns()</code> is not cosmetic; &sect;10.1 is the incident that put
-it there.</p>
+<p>Step 5's position is not cosmetic; &sect;10.6 is the crash that put it there.</p>
 
-<h3>8.2 Collision</h3>
-<p>Broad phase buckets entities into a spatial hash keyed by tile coordinates, so an <em>n</em>-entity
-level costs <em>O</em>(n) pair tests against neighbours rather than <em>O</em>(n&sup2;) against
-everything. Narrow phase is AABB overlap with the axes resolved separately &mdash; X first, then Y &mdash;
-which is what makes walking into a wall while jumping behave correctly. Tile collision is a direct grid
-lookup, <em>O</em>(1) per probe, since the tilemap is a dense array.</p>
+<h3>8.2 The physics pipeline</h3>
+<p><code>PhysicsEngine::update</code> runs ten ordered stages, and the order is load-bearing at almost
+every step.</p>
+<div class="tbl"><table>
+<thead><tr><th>Stage</th><th>What it does, and why it is here</th></tr></thead>
+<tbody>
+<tr><td>1. Conveyor push</td><td>Applied using the <em>previous</em> frame's ground status, because this
+frame's has not been computed yet and a conveyor must not act on someone who has already left it.</td></tr>
+<tr><td>1.1 Interactive tiles</td><td>Coin tiles are not solid, so the collision detector never reports
+them. The player's footprint is scanned separately &mdash; see &sect;10.5.</td></tr>
+<tr><td>1.5 Acceleration and friction</td><td>Per-character: Luigi accelerates to 0.85&times; the speed
+and keeps more momentum. Ice reduces friction; this is where surface type enters.</td></tr>
+<tr><td>2. Gravity</td><td>Scaled by <code>getGravityMultiplier()</code>, so blocks (0) and projectiles
+(0) are skipped, water is 0.3&times;, and Luigi falls at 0.9&times;. Clamped at
+<code>TERMINAL_VELOCITY</code> = 600&nbsp;px/s, or 60 in water.</td></tr>
+<tr><td>3. Integrate X, resolve X</td><td><strong>Only the maximum horizontal overlap is
+resolved.</strong> See &sect;10.1: resolving every overlapping tile summed the push-outs.</td></tr>
+<tr><td>4. Integrate Y, resolve Y</td><td>Separately from X, which is what makes walking into a wall
+while jumping behave correctly. Brick destruction from below happens here.</td></tr>
+<tr><td>4.5 Map bounds</td><td>Everything is clamped to <code>[0, width &times; 32]</code>, so nothing
+walks off the side of the world.</td></tr>
+<tr><td>5. Broad phase</td><td><code>SpatialHash</code> with 64&nbsp;px cells &mdash; two tiles, so a
+32&nbsp;px entity touches at most four buckets. Pairs are tested only against bucket neighbours.</td></tr>
+<tr><td>6. Narrow phase and resolution</td><td>AABB overlap, then
+<code>CollisionResolver</code> dispatches on the pair's types: stomp, damage, collect, bump, shell
+kick, boss.</td></tr>
+<tr><td>7. Intent flags</td><td>Cleared last, once acceleration and resolution have consumed
+them.</td></tr>
+</tbody></table></div>
+<p><strong>Cost.</strong> The broad phase turns an <em>O</em>(n&sup2;) all-pairs test into
+<em>O</em>(n) expected work against bucket neighbours; tile queries are a direct index into a dense
+array, so <em>O</em>(1) per probe. With a 200&times;23 map and a few dozen live entities the frame is
+dominated by rendering, not physics.</p>
+<p><strong>Feel.</strong> Two forgiveness windows, both six frames (100&nbsp;ms):
+<em>coyote time</em> lets a jump register just after walking off a ledge, and the <em>jump buffer</em>
+lets a jump pressed just before landing fire on touchdown. Neither is physical; both are what stops
+the game feeling stiff.</p>
 
-<h3>8.3 The entity catalogue</h3>
+<h3>8.3 Input: commands, and why not <code>isKeyPressed</code></h3>
+<p>Each action is an <code>ICommand</code> object, so bindings are data:
+<code>InputManager</code> holds a per-player action&rarr;key table loaded from
+<code>config.json</code>, and Player 2 is the same commands through a second table. Rebinding is a map
+write.</p>
+<p>Held state comes from the <em>event stream</em>, not <code>sf::Keyboard::isKeyPressed</code>. That
+is a deliberate correction: <code>isKeyPressed</code> reads global OS state, which on macOS returns
+false without Input Monitoring permission &mdash; so movement and the rewind key were dead for an
+invisible, machine-specific reason. Reading the stream also means losing window focus releases
+everything, rather than leaving a key stuck down.</p>
+
+<h3>8.4 Entities: one door in, one door out</h3>
+<p>Everything enters the world through <code>EntityFactory::create()</code> and then
+<code>admitEntity()</code>, which wires its animations and applies the difficulty and New Game+
+modifiers. Because that is the single door, a difficulty change reaches an entity that does not know
+difficulty exists.</p>
+<p>Leaving is symmetric: the prune step uses <code>std::stable_partition</code> rather than
+<code>remove_if</code> &mdash; <code>remove_if</code> leaves the tail moved-from, so the dead objects
+would already be gone before they could be offered back to a pool. Partitioning permutes instead, and
+the tail is real objects. <code>forgetEntity()</code> then clears every raw pointer the state holds
+into the list (the active boss, the shadow, Player 2, a carried shell) <em>before</em> the
+<code>unique_ptr</code> behind it is released.</p>
+<p><code>ObjectPool&lt;T&gt;</code> trades in <code>unique_ptr&lt;T&gt;</code> rather than owning its
+objects, so a pooled fireball is stored exactly like an unpooled Goomba and the entity list never
+learns that pooling exists. The pool caps what it retains: an unbounded free list is a leak that never
+frees.</p>
+
+<h3>8.5 Enemy behaviour and the boss template</h3>
+<p>An enemy holds an <code>IMovementStrategy*</code> and delegates to it. Eight exist &mdash; patrol
+(turns at ledges and hazards), chase, fly, tethered chase (Chain Chomp), hammer throw, timer emergence
+(Piranha Plant), linear (Bullet Bill) and proximity trigger (Thwomp).</p>
+<p>A boss is not a strategy, because a strategy describes one repeatable motion and a fight is a
+sequence whose behaviour depends on its own health. <code>Boss::update()</code> is <code>final</code>
+and sequences the shared parts &mdash; i-frame countdown, stagger clock, phase transition, defeat
+animation &mdash; calling the pure-virtual <code>updateBehaviour()</code> for the subclass's attack
+pattern. Bowser adds fire breath on a phase-dependent interval, a phase-2 leap, and the
+fireball-stagger window; BoomBoom adds a charge.</p>
+
+<h3>8.6 The tile map and level loading</h3>
+<p>A dense <code>vector&lt;TileType&gt;</code> of 11 types, indexed directly. Level JSON stores tile
+<em>spans</em> (<code>{{"type":"ground","x":0,"y":21,"w":170}}</code>) rather than cells, so a
+200&times;23 level is a few dozen lines. Themes select the atlas frames and the parallax backdrop.</p>
+<p>Loading resolves its path against several candidate roots so the game runs from either the source
+tree or <code>build/</code>. That fallback had a real bug worth remembering: a single
+<code>ifstream</code> was reused across candidates, and the first miss set <code>failbit</code>, so
+every later <code>open()</code> was silently ignored (&sect;10.9).</p>
+<p>After load, three passes run over the finished level: the backdrop's ground line is derived from the
+widest solid row in the lower half of the map; the flagpole and castle are settled onto whatever floor
+is beneath them; and the void plane is set one tile below the deepest floor.</p>
+
+<h3>8.7 Time rewind, replay and the snapshot</h3>
+<p><code>GameSnapshot</code> holds both players' stats, the level timer, the camera centre, and one
+record per entity. Holding <strong>R</strong> pops snapshots off a 300-frame deque &mdash; five seconds
+at 60&nbsp;Hz &mdash; and applies them.</p>
+<p>Two details make it correct rather than approximately correct. Entities are restored <strong>by
+id</strong>, not by index: pruning and spawning permute the vector between capture and restore, so
+index restoration assigned positions to the wrong entities. And applying a snapshot now <em>cancels an
+in-progress death</em>, because restoring a position while leaving the player in its dying state put
+them back above the pit still falling.</p>
+<p><code>ReplayRecorder</code> is the same snapshot stream kept longer and thinned, capped at 6000
+frames &mdash; roughly ten minutes &mdash; because a recorder with no cap is a memory leak with a
+feature name.</p>
+
+<h3>8.8 The CPU opponent</h3>
+<p><code>AIController</code> drives a real <code>Player</code> through the same command objects a human
+uses. It has no privileged access to the world, only a wider view of it: each frame it builds an
+<code>AIObservation</code> &mdash; a 21&times;15 tile grid centred on itself, each cell classified
+<em>Unknown / Empty / Solid / Hazard / Reward / Enemy</em>, plus normalised offsets to its objective
+and to the opponent, its own velocity, and three flags.</p>
+<p><code>Unknown</code> is a distinct state from <code>Empty</code> on purpose: difficulty is expressed
+as vision radius, so an Easy bot genuinely cannot see a pit it has not reached rather than seeing one
+and pretending otherwise. Difficulty also sets reaction latency and action noise; the archetype
+(Speedrunner, Hunter, Collector) sets what the objective <em>is</em>. The policy sits behind an
+<code>IAIPolicy</code> interface, so the heuristic implementation can be swapped without the controller
+changing.</p>
+
+<h3>8.9 Multiplayer</h3>
+<p>Four modes on one shared screen. The camera frames the <em>midpoint</em> of both players and a
+tether keeps them together &mdash; hard in Versus, where whoever falls behind is shoved along at the
+edge, and soft in Co-op, where the leader is blocked at the right edge instead so the screen simply
+waits. Split screen was rejected: every screen-space overlay in the game would have had to learn about
+viewports.</p>
+<p>Shadow Chase is the odd one. <code>ShadowMario</code> is a <code>Player</code> replaying the human's
+own input stream three seconds late, with a correction lerp to stop it desyncing. It is a contact
+hazard and is unmoved by collision, because shoving it off its path would desync it from the recording
+driving it.</p>
+
+<h3>8.10 Graphics</h3>
+<p>Sprites come from JSON-described atlases (<code>player.json</code> alone has 92 validated frames);
+<code>Animator</code> plays named clips against them. The camera does look-ahead in the direction of
+travel, clamps to level bounds, and applies screen shake <em>between two clamps</em> so a shake cannot
+push the view outside the map. The parallax backdrop composes per-theme layers at fractional scroll
+rates, placing decorations by a hash of world position so they do not shimmer as the camera passes.
+Particles run on an object pool with a fixed capacity, so a fifty-coin burst allocates nothing.</p>
+
+<h3>8.11 The entity catalogue</h3>
 <p>One table maps every <code>EntityType</code> to its serialised name, display label and palette
-category. The JSON parser and the level editor's palette both read it, and a CTest case asserts that
-every entry is constructible by the factory and that each class's own <code>getTypeName()</code> matches
-its catalogue name &mdash; because a mismatch means a level saved from the editor loads back as a
-different entity. Before this existed the list was hand-written in three places and had drifted:
-&sect;10.3.</p>
+category. The JSON parser and the editor's palette both read it, and a CTest case asserts that every
+entry is constructible by the factory and that each class's own <code>getTypeName()</code> matches its
+catalogue name &mdash; because a mismatch means a level saved from the editor loads back as a different
+entity. Before this existed the list was hand-written in three places and had drifted: &sect;10.4.</p>
 
 <h2 id="storage">9 &middot; Data storage and serialization</h2>
 <p>Everything persistent is JSON via <code>nlohmann/json</code>, chosen over a binary format because a
@@ -474,71 +604,203 @@ behind it: a duplicated string-to-enum chain in the level loader once drifted fr
 silently dropped every coin tile in all seven level files.</p>
 
 <h2 id="problems">10 &middot; Technical problems and solutions</h2>
+<p>Grouped by what they have in common rather than by the week they happened, because the groupings are
+the lesson. Each is drawn from the weekly reports (<code>docs/Group52_04/</code>&ndash;<code>10/</code>)
+and the session log, where the diagnosis was written down at the time.</p>
 
-<h3>10.1 A crash on Windows that could not be reproduced on macOS</h3>
+<h3>10.1 Collision: the ground was not solid</h3>
+<p>Five separate defects, all in the first month, all producing "the player behaves oddly on flat
+floor". They are worth listing together because each looks like a physics-tuning problem and none of
+them was.</p>
+<div class="tbl"><table>
+<thead><tr><th>Symptom</th><th>Actual cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td>The player sticks at random points while walking across flat ground</td>
+ <td>A horizontal overlap at the seam between two floor tiles was being read as a side-wall
+ collision, so <code>velocity.x</code> was cancelled and <code>onWall</code> set.</td>
+ <td><code>CollisionDetector</code> now looks at the tile <em>above</em> the one it hit: if that is
+ empty, this is a floor seam, not a wall, and the push-out is converted to vertical.</td></tr>
+<tr><td><code>onGround</code> flickers true/false every frame, and the player jitters</td>
+ <td><code>resolveEntityVsTile</code> moved <code>position</code> but not
+ <code>boundingBox</code>. The stale box was still inside the tile next frame, re-triggering the
+ overlap.</td>
+ <td>The bounding box is synchronised at the point of displacement.</td></tr>
+<tr><td>Standing across two tiles launches the player slightly into the air</td>
+ <td>Both tile collisions resolved in the same frame and the two push-outs <em>summed</em>.</td>
+ <td>Resolve only the collision with the <strong>maximum penetration</strong> per axis per frame.
+ That is sufficient: clearing the deepest overlap on a flat surface clears the shallower ones with
+ it, so one correction does the work of all of them without double-counting.</td></tr>
+<tr><td>Holding a direction against a wall in mid-air lets the player glide up it</td>
+ <td>Nothing removed vertical momentum on a mid-air wall contact.</td>
+ <td>Wall friction: upward velocity is zeroed on an airborne horizontal hit, and falling is capped at
+ <code>WALL_SLIDE_SPEED</code> = 50&nbsp;px/s &mdash; which is also where the wall-slide mechanic came
+ from.</td></tr>
+<tr><td>Mario cannot enter pipes or drop through one-tile shafts</td>
+ <td>His hitbox was the full 32&nbsp;px tile width, so every one-tile gap was an exact fit and caught
+ on the corner AABBs either side.</td>
+ <td>Hitboxes narrowed and centred inside the sprite: 24&times;30 Small, 24&times;60 Super, 14&times;14
+ Mini. A 4&nbsp;px margin each side is the whole fix.</td></tr>
+</tbody></table></div>
+<p>The pattern: four of the five were a <em>bookkeeping</em> error &mdash; state updated in one place
+and not the matching one &mdash; rather than wrong physics. The fifth was a geometry assumption nobody
+had written down.</p>
+
+<h3>10.2 Gravity applied to things that should not fall</h3>
+<p><code>Block</code> derives from <code>Entity</code>, and <code>Entity</code>'s
+<code>getGravityMultiplier()</code> returns 1. <code>Block</code> did not override it, so the physics
+engine accelerated every question block and brick downwards at 1800&nbsp;px/s&sup2; and the level
+geometry fell out of the bottom of the map. The fix is one line &mdash; <code>return 0.0f</code>
+&mdash; but the interesting part is why it was not caught: the blocks were correct in the level file,
+correct on the first rendered frame, and wrong a second later.</p>
+<p>The same defect in a different costume: a mushroom dispensed from a block had no resting state, so
+<code>resolveEntityVsTile</code> corrected its penetration without zeroing its accumulated downward
+velocity, and it eventually slipped through a seam and fell out of the world. <code>Item</code> gained
+an <code>m_onGround</code> flag and gravity now skips a resting item.</p>
+
+<h3>10.3 Object lifetime, four times</h3>
+<p>The most expensive category in the project, and the one whose members look least alike.</p>
+<ul>
+<li><strong>Dangling event subscriptions.</strong> <code>PlayingState</code> subscribed to
+<code>PlayerShotFireball</code> and never unsubscribed, so an event published after the state was
+destroyed called into freed memory. Every subscription in the state now has a matching
+<code>unsubscribe()</code> in <code>exit()</code>.</li>
+<li><strong>An invalid-handle sentinel that was a valid index.</strong> Subscription IDs were compared
+as raw integers, so an "unset" handle could address a real subscriber. The sentinel is
+<code>static_cast&lt;size_t&gt;(-1)</code>.</li>
+<li><strong>Shutdown order.</strong> Closing the window destroyed the singleton managers while game
+states were still alive, and the state destructors called into them &mdash; a mutex failure on the way
+out. <code>Game::shutdown()</code> now pops every state <em>before</em> shutting the managers down, and
+closes the window before that, because SFML's OpenGL context was being torn down while the render
+window still held handles to it (an immediate <code>SIGABRT</code> at exit).</li>
+<li><strong>The mid-frame spawn crash</strong> &mdash; &sect;10.6, the culmination of this theme and the
+only one that was platform-dependent.</li>
+</ul>
+
+<h3>10.4 One fact, two places</h3>
+<p>The project's signature failure. In each case nothing failed to compile; the program simply did
+something different from what the code appeared to say.</p>
+<div class="tbl"><table>
+<thead><tr><th>The duplicated fact</th><th>What it cost</th></tr></thead>
+<tbody>
+<tr><td>The tile name &harr; <code>TileType</code> mapping, re-implemented in
+<code>LevelLoader</code> alongside the canonical one in <code>SerializationUtils</code></td>
+<td>The copy drifted and silently dropped <strong>every coin tile in all seven level files</strong>.
+Both directions now live in one pair of functions, and a round-trip test guards them.</td></tr>
+<tr><td>The entity type list, hand-written in the factory, the parser and the editor palette</td>
+<td>The editor could not place a Goomba, a Koopa, a pipe or a flagpole &mdash; 16 of ~40 types, no
+enemies at all. Now one <code>EntityCatalogue</code> with a parity test (&sect;8.3).</td></tr>
+<tr><td>The flagpole's height: 168&nbsp;px of sprite against a 300&nbsp;px collision box</td>
+<td>The pole you could touch and the pole you could see were different objects, and the catch-height
+score was measured against one that did not exist.</td></tr>
+<tr><td>The backdrop's ground line: a hardcoded screen constant against the real tile geometry</td>
+<td>&sect;10.7 &mdash; it took three attempts.</td></tr>
+<tr><td>The class diagram, hand-maintained against the headers</td>
+<td>Rotted until it omitted most of the architecture while still reading as authoritative. Now
+generated (&sect;6).</td></tr>
+</tbody></table></div>
+<p><strong>The standing rule this produced:</strong> the commit that creates the second copy also
+creates the test that fails when the copies disagree. Writing this report exercised it &mdash; the
+build script counts what it claims, and caught a class count inflated by a substring match and "23 test
+files" being reported as "23 things CI runs".</p>
+
+<h3>10.5 Interaction that was never wired</h3>
+<p>Several features existed as far as the event that announced them and no further.</p>
+<ul>
+<li><strong>Coins on the tile grid could not be collected.</strong> <code>TileType::Coin</code> is not
+solid, and the collision detector only reports solid tiles &mdash; so walking through one did nothing
+and the coin stayed on the grid forever. The physics engine now scans the player's footprint for
+non-solid <em>interactive</em> tiles after integration.</li>
+<li><strong>The coin counter ignored its own payload.</strong> <code>AchievementManager</code> did
+<code>m_coinsThisRun++</code> on <code>CoinCollected</code> rather than reading the amount, so a block
+dispensing ten coins counted as one.</li>
+<li><strong>The P-Switch and POW block</strong> published an event that reached a sound and nothing
+else &mdash; no brick/coin swap, no enemies flipped, and the HUD's countdown field was never set.</li>
+<li><strong>Six subsystems were complete and inert:</strong> minimap, particle system, death effects
+and screen transitions all compiled, all had passing harnesses, and none were ever constructed by the
+game.</li>
+</ul>
+<blockquote class="good"><strong>The rule, not the patch.</strong> A task is complete only when the code
+is reachable from <code>main()</code> and has been observed running. A harness proves a class works in
+isolation; it does not prove the game ever builds one. That is why &sect;4 records how each capability
+was confirmed. The menu music, which had been failing silently at startup for weeks, was found by
+running the game for six seconds &mdash; not by any of the 86 harnesses.</blockquote>
+
+<h3>10.6 A crash on Windows that could not be reproduced on macOS</h3>
 <p>A teammate reported that the game crashed in 1-3, and that deleting Bowser from the level file made
 it stop. The same build played 1-3 correctly on macOS.</p>
-<p>The cause was not in Bowser. Every spawn in the game travels through a synchronous event: an entity
-that wants to create another entity publishes a request, and <code>PlayingState</code> performs the
-spawn in a subscriber. That subscriber called <code>m_entities.push_back()</code> &mdash; on the stack of
-the <code>for (auto&amp; entity : m_entities)</code> loop that was calling the publisher. A range-for
-caches <code>begin()</code> and <code>end()</code> once, so when a <code>push_back</code> exceeded the
-vector's capacity and reallocated, the loop's iterators pointed into freed memory.</p>
-<p>That is undefined behaviour, and undefined behaviour is allowed to work: the macOS allocator left the
-freed page mapped and readable, while the Windows toolchain faulted. Bowser mattered only because he is
-the only entity in the game that spawns another entity several times per second, so 1-3 reaches a
-reallocation almost immediately.</p>
-<blockquote class="good"><strong>Solution.</strong> Spawns queue in a second vector and are admitted at
-exactly one point per frame, after both the update loop and the physics pass have finished. The
-invariant is structural rather than remembered: every spawn already goes through one function, so there
-is nowhere for a future spawn to bypass it. A full write-up with the amortised-growth analysis, the call
-stack and a worked trace is in <code>docs/learning/mid-frame-entity-spawn-crash.html</code>.</blockquote>
+<p>The cause was not in Bowser. Every spawn travels through a synchronous event: an entity that wants
+to create another publishes a request, and <code>PlayingState</code> performs the spawn in a
+subscriber. That subscriber called <code>m_entities.push_back()</code> &mdash; on the stack of the
+<code>for (auto&amp; entity : m_entities)</code> loop that was calling the publisher. A range-for
+caches <code>begin()</code> and <code>end()</code> once, so when a <code>push_back</code> exceeded
+capacity and reallocated, the loop's iterators pointed into freed memory.</p>
+<p>That is undefined behaviour, and undefined behaviour is allowed to work: the macOS allocator left
+the freed page mapped and readable while the Windows toolchain faulted. Bowser mattered only because he
+is the one entity that spawns another several times per second, so 1-3 reaches a reallocation almost
+immediately.</p>
+<blockquote class="good"><strong>Solution.</strong> Spawns queue and are admitted at exactly one point
+per frame, after both the update loop and the physics pass have finished. Full analysis, with the
+amortised-growth argument and a worked trace, in
+<code>docs/learning/mid-frame-entity-spawn-crash.html</code>.</blockquote>
 
-<h3>10.2 A boss that could not be beaten</h3>
-<p>Bowser was reported as near-impossible, and the reason was structural rather than a matter of
-numbers. He is immune to fire; a boss carries a second of invulnerability after every hit, during which
-the collision resolver treats contact as ordinary contact and damages the player; and he walks forward
-breathing fire throughout. The only legal input was five clean descending stomps under continuous
-pressure, with no way to create an opening.</p>
-<blockquote class="good"><strong>Solution &mdash; two routes, both from the series.</strong> Fireballs
-still cost Bowser no health, but four of them stagger him: he stops attacking, loses his i-frames, and
-for three seconds any contact lands a hit without hurting whoever lands it. The hit closes the window,
-so every point of the health bar costs the same four fireballs. Separately, the level now ends on a
-bridge over lava with an axe beyond it &mdash; reaching the axe drops the bridge and takes the boss with
-it. The HUD shows how many fireballs remain to the next opening, because a mechanic whose state the
-player cannot see is one they will not find.</blockquote>
+<h3>10.7 A boss that could not be beaten, and a backdrop that took three tries</h3>
+<p>Bowser was near-impossible for a structural reason rather than a numeric one: he is immune to fire,
+a boss carries a second of invulnerability after every hit during which contact <em>damages the
+player</em>, and he advances breathing fire throughout. The only legal input was five clean descending
+stomps with no way to create an opening. Two routes were added, both from the series &mdash; four
+fireballs now stagger him into a three-second window where a stomp is safe and lands, and the level
+ends on a bridge over lava with an axe beyond it that drops both.</p>
+<p>The backdrop is the better cautionary tale. The parallax layers drew on a hardcoded screen line of
+640&nbsp;px; the real ground renders at 656. The <em>first</em> fix anchored them to the lowest solid
+row &mdash; which is the bottom of a two-row floor slab, so they were buried a tile instead of floating
+one. The <em>second</em> correctly found the top of the slab, but the renderer still decided
+ground-versus-sky by comparing a layer's authored baseline against the runtime ground line, so every
+ground layer was reclassified as sky and pinned to the stale constant anyway. Only the third fix
+&mdash; making "this layer stands on the ground" a property of the layer, and restricting the ground
+scan to the lower half of the map so a castle ceiling cannot win &mdash; was correct. It was confirmed
+by measuring pixel columns in captured frames, not by reading the code again.</p>
 
-<h3>10.3 A level editor that could not place a Goomba</h3>
-<p>The editor's palette listed 16 of the game's ~40 entity types, and not one of them was an enemy or a
-block. The list existed in three hand-written copies &mdash; the factory, the JSON parser, and the
-palette &mdash; and they had drifted apart, silently, because nothing compared them.</p>
-<blockquote class="good"><strong>Solution.</strong> One catalogue, read by both the parser and the
-palette, plus a parity test that fails the build when a type is added in one place and not the others.
-The general lesson, and the project's rule since: any fact that must exist in two places gets a test
-that fails when the copies disagree, in the same commit that creates the second copy.</blockquote>
+<h3>10.8 Process failures, and the rules they produced</h3>
+<p>Three of the most costly problems were not in the code.</p>
+<blockquote><strong>A destructive git command deleted a week's work.</strong> A session ran
+<code>git reset --hard &amp;&amp; git clean -fd</code> to unblock a build, permanently destroying
+untracked files including the entire Week 8 report. <em>Rule:</em> never discard uncommitted work to
+unblock a git operation &mdash; committing is reversible, discarding is not &mdash; and record the
+before/after commit hashes of every version-control operation.</blockquote>
+<blockquote><strong>An audit was published from a stale checkout and had to be retracted.</strong> Its
+first revision was written against a local <code>dev</code> nine commits behind, and on that basis
+declared the entire audio system missing. The audio system was implemented and merged.
+<em>Rule:</em> fetch before describing repository state; a local branch is not
+evidence.</blockquote>
+<blockquote><strong>~3,100 lines of finished work were sitting uncommitted</strong> &mdash; three
+sub-level maps, the tools directory and a week's report &mdash; one careless clean from being lost.
+Found and committed during the audit.</blockquote>
+<p>A fourth, found while writing this report: the test suite read and wrote the developer's real
+<code>saves/</code> directory, and a <code>ctest</code> run was observed <strong>deleting actual
+campaign progress</strong>. One high-score assertion also passed under <code>ctest</code> and failed
+running the same binary from <code>build/</code>, because the two have different working directories.
+Fixed at the root &mdash; every harness now redirects saves to a temporary directory, and a test
+asserts that containment.</p>
 
-<h3>10.4 Decorations standing a tile inside the ground</h3>
-<p>The parallax backdrop drew its hills, bushes and fences on a hardcoded screen line of 640&nbsp;px.
-The real ground surface renders at 656. Two successive attempts to fix this each got half of it: the
-first anchored to the lowest solid row, which is the <em>bottom</em> of a two-row floor slab; the second
-correctly found the top of the slab, but the renderer still decided whether a layer stood on the ground
-by comparing its authored baseline against the runtime ground line &mdash; so every ground layer was
-reclassified as sky and pinned to the stale constant anyway.</p>
-<blockquote class="good"><strong>Solution.</strong> Whether a decoration stands on the ground is a fact
-about the decoration, so the layer states it instead of it being inferred. And the ground row is now the
-widest solid row <em>in the lower half of the map</em> &mdash; without that restriction, 1-3's
-200-tile-wide castle ceiling beat its 170-tile floor. Confirmed by measuring pixel columns in captured
-frames: hill bottom at y=655, brick surface at y=656.</blockquote>
-
-<h3>10.5 Six subsystems that were complete and inert</h3>
-<p>An audit found six features marked done that no code path ever reached: they compiled, and a
-<code>verify_*</code> harness constructed them, but the game never did. The P-Switch is the clearest
-case &mdash; it published an event, the HUD had a field for the countdown, and nothing in between existed,
-so pressing it played a sound and changed nothing.</p>
-<blockquote class="good"><strong>Solution &mdash; a rule, not a patch.</strong> A task is complete only
-when the code is reachable from <code>main()</code> and has been observed running. A harness proves a
-class works in isolation; it does not prove the game ever constructs it. Every claim in &sect;4 of this
-report is held to that standard.</blockquote>
+<h3>10.9 Toolchain and porting</h3>
+<p>Smaller, but each cost real time.</p>
+<ul>
+<li><strong>SFML 3.0.2 removed <code>sf::Vertex</code>'s constructors.</strong> Parenthesis
+construction no longer compiles against an aggregate; brace initialisation satisfies both 2.x and
+3.x.</li>
+<li><strong>A stream that stayed failed.</strong> <code>LevelLoader</code> tried candidate paths in a
+loop with one <code>ifstream</code>. The first miss set <code>failbit</code>, and every subsequent
+<code>open()</code> was silently ignored &mdash; so sub-levels failed to load depending only on which
+directory the game was launched from. One <code>file.clear()</code> per iteration.</li>
+<li><strong>Non-uniform randomness.</strong> <code>rand() % range</code> for particle spread angles
+clustered visibly; replaced with <code>std::uniform_real_distribution</code> over
+<code>std::mt19937</code>.</li>
+<li><strong>Save files could contain nonsense.</strong> Out-of-range player coordinates were written
+straight into the slot JSON and crashed on load; coordinates are clamped to the level bounds before
+serialisation.</li>
+<li><strong>Stale achievement toasts.</strong> Loading a save did not clear the active toast queue, so
+previously-unlocked achievements popped up again after every load.</li>
+</ul>
 
 <h2 id="demo">11 &middot; Features demonstration</h2>
 <p>All five figures are unretouched frames captured from the running game by a scripted input driver

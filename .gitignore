@@ -28,3 +28,22 @@ docs/rendered/
 # map-generation side project. It is not part of the game and must never become
 # a gitlink in this tree.
 SuperMarioGame/corpus/
+
+# LaTeX intermediates. The report PDF itself is committed (the weekly reports
+# are too), but everything pdflatex writes alongside it is a build output and
+# is reproducible with Report/SuperMarioGame/build.sh (g-rule-19).
+*.aux
+*.lof
+*.lot
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+Report/**/main.log
+Report/**/main.pdf
+Report/SuperMarioGame/img/*.pdf
+# Screenshots are copied in from reports/assets/ at build time; the copies are
+# build outputs, the originals are the tracked ones.
+Report/SuperMarioGame/img/*.png
+!Report/SuperMarioGame/img/hcmus-logo.png
