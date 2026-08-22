@@ -859,9 +859,13 @@ void PlayingState::update(float dt) {
             hudData.secondCharacterName  = m_player2->getCharacterName();
             hudData.secondLives          = m_player2->getLives();
             hudData.secondCoins          = m_player2->getCoins();
-            hudData.secondPlayerLabel    = m_aiController
-                ? std::string("CPU ") + m_aiController->policyName()
-                : std::string("P2");
+            // Deliberately short. The badge sits between Player 1's and the
+            // WORLD field, and "CPU SPEEDRUNNER" is wide enough to draw straight
+            // over the world label. Which archetype is playing is already named
+            // in full on the match line at the bottom of the screen, which has a
+            // whole row to itself.
+            hudData.secondPlayerLabel = m_aiController ? std::string("CPU")
+                                                       : std::string("P2");
         }
         
         if (auto* player = Game::getInstance().getPlayer()) {
@@ -1191,12 +1195,10 @@ void PlayingState::syncBackdropGround() {
     // one full tile buried in the ground. What the backdrop wants is the row
     // most of the ground is on, and then the TOP of that slab.
     //
-    // So: count solid tiles per row, take the widest row as the floor, and walk
-    // upwards while the rows above are still part of the same slab (at least
-    // 60% as wide). The top of the last such row is where a decoration's feet
-    // belong. A castle ceiling — level 1-3 has a solid row 0 running the whole
-    // width — never wins, because the walk only ever moves up through
-    // *contiguous* rows starting at the widest one.
+    // So: count solid tiles per row, take the widest row IN THE LOWER HALF of the
+    // map as the floor, and walk upwards while the rows above are still part of
+    // the same slab (at least 60% as wide). The top of the last such row is
+    // where a decoration's feet belong.
     const int height = m_tileMap.getHeight();
     const int width  = m_tileMap.getWidth();
     if (height <= 0 || width <= 0) {
@@ -1213,11 +1215,21 @@ void PlayingState::syncBackdropGround() {
         }
     }
 
+    // Only the lower half of the map is a candidate, and this is not a heuristic
+    // for tidiness — it is what stops a CEILING from winning.
+    //
+    // Level 1-3 is a castle: rows 0 and 1 are a solid slab running the full 200
+    // tiles, wider than its 170-tile floor. "The widest solid row" therefore
+    // answered row 0, the backdrop's ground line came out as world y 0, and the
+    // renderer silently fell back to its old hardcoded constant. A floor a player
+    // walks on is always in the lower half of a level; a ceiling never is.
+    const int firstCandidateRow = height / 2;
+
     int floorRow = -1;
     int widest = 0;
     // Ties go to the LOWER row: a two-row slab of equal width is one floor, and
     // its lower row is the one whose top we then climb to.
-    for (int y = 0; y < height; ++y) {
+    for (int y = firstCandidateRow; y < height; ++y) {
         if (solidPerRow[static_cast<std::size_t>(y)] >= widest &&
             solidPerRow[static_cast<std::size_t>(y)] > 0) {
             widest = solidPerRow[static_cast<std::size_t>(y)];
@@ -1231,7 +1243,7 @@ void PlayingState::syncBackdropGround() {
 
     const int slabThreshold = std::max(1, (widest * 3) / 5);
     int surfaceRow = floorRow;
-    while (surfaceRow > 0 &&
+    while (surfaceRow > firstCandidateRow &&
            solidPerRow[static_cast<std::size_t>(surfaceRow - 1)] >= slabThreshold) {
         --surfaceRow;
     }

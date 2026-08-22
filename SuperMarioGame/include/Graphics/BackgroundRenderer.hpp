@@ -73,11 +73,23 @@ private:
     struct Layer {
         std::vector<std::string> frames;
         float parallax = 0.5f;   // 0 = painted on the screen, 1 = moves with the world
-        float baselineY = 0.0f;  // screen y of the layer's bottom edge
+        float baselineY = 0.0f;  // screen y of the bottom edge, SKY LAYERS ONLY
         float spacing = 320.0f;  // world px between decorations
         float scale = 2.0f;
         float drift = 0.0f;      // px/s of independent motion, for clouds
         sf::Color tint = sf::Color::White;
+        // Does this layer hang in the sky, or stand on the ground?
+        //
+        // This used to be inferred at draw time by comparing baselineY against
+        // wherever the world's ground happened to render this frame. Ground
+        // layers were authored with baselineY == GROUND_LINE == 640, so the
+        // moment the real ground rendered below 641 — which is every campaign
+        // level, where it lands at 656 — every hill, bush and fence was
+        // reclassified as sky, pinned to the stale 640 constant and given the
+        // vertical jitter meant for clouds. They drew a full tile above the
+        // floor. Whether a decoration stands on the ground is a fact about the
+        // decoration, so it is stated here rather than guessed from a number.
+        bool sky = false;
     };
 
     const std::vector<Layer>& layersForTheme() const;
