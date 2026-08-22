@@ -4,6 +4,7 @@
 #include "Entities/Entity.hpp"
 #include "Entities/EntityCatalogue.hpp"
 #include "Utils/LevelLoader.hpp"
+#include "Utils/Serializer.hpp"
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include <imgui.h>
@@ -58,7 +59,11 @@ void MapEditor::clearHistory() {
 
 void MapEditor::saveLevel(const TileMap& tileMap, const std::vector<std::unique_ptr<Entity>>& entities) {
     LevelLoader loader;
-    std::string path = "saves/" + std::string(m_levelNameInput) + ".json";
+    // Through Serializer, not a bare relative path. "saves/" resolves against
+    // the working directory, so an editor level exported from a build tree
+    // landed in build/saves and was invisible to the game launched from the
+    // source root - the same split that made two different config.json files.
+    std::string path = Serializer::saveDirectory() + "/" + std::string(m_levelNameInput) + ".json";
     bool success = loader.saveLevel(path, tileMap, entities, m_levelNameInput);
     if (success) {
         std::cout << "[Editor] Exported level successfully to: " << path << std::endl;
@@ -70,7 +75,7 @@ void MapEditor::saveLevel(const TileMap& tileMap, const std::vector<std::unique_
 void MapEditor::loadLevel(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities) {
     LevelLoader loader;
     LevelData data;
-    std::string path = "saves/" + std::string(m_levelNameInput) + ".json";
+    std::string path = Serializer::saveDirectory() + "/" + std::string(m_levelNameInput) + ".json";
     bool success = loader.loadLevel(path, tileMap, data);
     if (success) {
         entities = std::move(data.entities);

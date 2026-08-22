@@ -21,6 +21,7 @@
 #include "Entities/ChainChomp.hpp"
 #include "Entities/Lakitu.hpp"
 #include "Entities/Spiny.hpp"
+#include "TestSaveSandbox.hpp"
 
 #define TEST_ASSERT(cond) \
     do { \
@@ -66,6 +67,11 @@ public:
 };
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("enemies_new");
+
     std::cout << "[TEST] Starting New Enemies Verification Suite (Phase 3.9)..." << std::endl;
 
     TestPlayer player;

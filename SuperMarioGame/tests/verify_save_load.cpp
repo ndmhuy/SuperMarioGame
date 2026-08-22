@@ -8,6 +8,7 @@
 #include <cassert>
 #include <filesystem>
 #include <cmath>
+#include "TestSaveSandbox.hpp"
 
 static bool floatsEqual(float a, float b, float epsilon = 0.001f) {
     return std::abs(a - b) < epsilon;
@@ -139,6 +140,11 @@ void testSettings() {
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("save_load");
+
     // Initialize singletons
     StatisticsTracker::getInstance().init();
     AchievementManager::getInstance().init();

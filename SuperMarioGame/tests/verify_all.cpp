@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <cmath>
 #include <unordered_map>
+#include "TestSaveSandbox.hpp"
 
 static bool floatsEqual(float a, float b, float epsilon = 0.001f) {
     return std::abs(a - b) < epsilon;
@@ -106,7 +107,10 @@ void testLevelSerialization() {
     entities.push_back(std::make_unique<Coin>(sf::Vector2f(64.f, 64.f)));
 
     LevelLoader loader;
-    std::string testPath = "saves/test_editor_save.json";
+    // Into the sandbox, not a "saves/" relative to whatever directory this
+    // binary was launched from - which is how test artefacts ended up beside
+    // a developer's real save slots.
+    std::string testPath = Serializer::saveDirectory() + "/test_editor_save.json";
 
     // Save
     bool saved = loader.saveLevel(testPath, tileMap, entities, "Test Edit Level");
@@ -263,6 +267,11 @@ void testSettings() {
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("all");
+
     std::cout << "==========================================" << std::endl;
     std::cout << "  RUNNING ALL SUPER MARIO GAME SUITE TESTS" << std::endl;
     std::cout << "==========================================" << std::endl << std::endl;

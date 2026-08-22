@@ -48,6 +48,26 @@ public:
     // different config depending on the working directory.
     static std::string saveDirectory();
 
+    // Point every save file at `directory` instead of the auto-resolved one.
+    //
+    // This exists for the tests, and it is not a convenience — it is the fix for
+    // a suite that wrote to, and deleted from, the developer's real saves/.
+    // CampaignProgress::reset() calls std::filesystem::remove() on a path that
+    // resolves through saveDirectory(), so a regression case testing "progress
+    // can be reset" was erasing actual campaign progress; that was observed
+    // live, with a seeded progress.json vanishing between two game launches.
+    // Meanwhile the high-score case asserted against whatever table happened to
+    // be on disk, so it passed under ctest and failed when the same binary was
+    // run from build/ — the two have different working directories.
+    //
+    // g-rule-13: a test must never assert against machine state. Every verify_*
+    // harness now points this at a fresh temporary directory before it runs, so
+    // no test can reach real save data and every one starts from empty.
+    //
+    // Call it before anything reads a save path. Passing an empty string
+    // restores the automatic resolution.
+    static void setSaveDirectory(const std::string& directory);
+
     // --- Player profile: achievements and lifetime statistics ---------------
     //
     // These were serialized ONLY inside a level save slot, and the only code path
@@ -71,6 +91,11 @@ public:
     static constexpr int MAX_HIGH_SCORES = 10;
     static bool recordHighScore(const HighScoreEntry& entry);
     static std::vector<HighScoreEntry> loadHighScores();
+    // Empty the table. Action-oriented on purpose: the callers that need this —
+    // tests wanting a known starting point, and any future "erase records"
+    // option — want the table cleared, not the path it lives at. Handing out
+    // getHighScoresFilePath() would let any caller write the file itself.
+    static bool clearHighScores();
     static bool deleteSlot(int slot);
 
     // Settings save/load.

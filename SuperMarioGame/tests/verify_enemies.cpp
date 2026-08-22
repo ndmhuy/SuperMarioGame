@@ -11,6 +11,7 @@
 
 #include "Core/Game.hpp"
 #include "Utils/TileMap.hpp"
+#include "TestSaveSandbox.hpp"
 
 // The stub Game and TileMap that used to live here are gone.
 //
@@ -25,6 +26,11 @@ void clearEventBus() {
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("enemies");
+
     std::cout << "[TEST] Starting Enemy Verification Suite..." << std::endl;
 
     // -------------------------------------------------------------

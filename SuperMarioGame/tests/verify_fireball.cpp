@@ -4,8 +4,14 @@
 #include "Physics/CollisionDetector.hpp"
 #include <iostream>
 #include <cassert>
+#include "TestSaveSandbox.hpp"
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("fireball");
+
     std::cout << "=== Running Fireball Verification Tests ===" << std::endl;
 
     // -------------------------------------------------------------------

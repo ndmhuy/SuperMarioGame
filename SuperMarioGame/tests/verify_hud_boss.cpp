@@ -7,8 +7,14 @@
 #include <imgui-SFML.h>
 #include "Graphics/Hud.hpp"
 #include "Core/ResourceManager.hpp"
+#include "TestSaveSandbox.hpp"
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("hud_boss");
+
     std::cout << "[VISUAL TEST] Launching Boss HUD Visualizer..." << std::endl;
 
     // Create SFML RenderWindow (1280x720 design size)

@@ -84,7 +84,11 @@ add_custom_target(ctest_binaries)
 function(add_verify_test name source)
     cmake_parse_arguments(AVT "NO_CTEST" "" "" ${ARGN})
     add_executable(${name} "${source}" ${APP_SOURCES})
-    target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    # tests/ too, so a harness can include the shared TestSaveSandbox helper that
+    # seals it off from the real saves/ directory.
+    target_include_directories(${name} PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     target_link_libraries(${name} PRIVATE
         SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
         ImGui-SFML::ImGui-SFML

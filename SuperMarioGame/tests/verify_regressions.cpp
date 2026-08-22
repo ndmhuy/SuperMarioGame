@@ -75,6 +75,7 @@
 #include <algorithm>
 #include <set>
 #include <SFML/Graphics/RenderTexture.hpp>
+#include "TestSaveSandbox.hpp"
 
 namespace {
 
@@ -689,11 +690,17 @@ void testLevelCatalogCoversTheCampaign() {
 void testHighScoreTableIsSortedAndBounded() {
     section("7.8 the high-score table sorts, truncates and rejects empty runs");
 
-    // Work on a scratch copy so a developer's real table is not clobbered.
-    const std::string path = "saves/highscores.json";
-    const std::string backup = "saves/highscores.json.regressionbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // No backup dance any more. It used to rename "saves/highscores.json" aside
+    // — a path relative to the WORKING DIRECTORY — while Serializer wrote to
+    // saveDirectory(), which resolves independently and skips build trees. Run
+    // from build/ the two were different files: the backup missed, the
+    // assertions read the developer's real table, and "the best run is at the
+    // top" failed against scores this test never wrote. Under ctest, whose
+    // working directory is the source root, they happened to coincide and it
+    // passed. TestSaveSandbox now guarantees an empty directory either way, so
+    // this case starts from nothing however it is launched.
+    check(Serializer::loadHighScores().empty(),
+          "the table starts empty - the sandbox, not whatever is on this machine");
 
     for (int i = 1; i <= 14; ++i) {
         HighScoreEntry entry;
@@ -718,8 +725,8 @@ void testHighScoreTableIsSortedAndBounded() {
     check(descending, "and stays sorted highest first");
     check(!scores.empty() && scores.front().score == 14000, "the best run is at the top");
 
-    std::filesystem::remove(path);
-    if (hadExisting) std::filesystem::rename(backup, path);
+    // Leave the table empty for whatever runs next in this process.
+    Serializer::clearHighScores();
 }
 
 // Atlas lookups the renderer performs by name. A missing frame is silent at
@@ -1123,11 +1130,15 @@ void testEveryStrategyIdentifiesItself() {
 void testCampaignProgressUnlocksSequentially() {
     section("7.3  campaign progress is recorded, not fabricated");
 
-    // Work on a scratch file so a developer's real progress survives.
-    const std::string path = "saves/progress.json";
-    const std::string backup = "saves/progress.json.regressionbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // This case calls CampaignProgress::reset(), which is a
+    // std::filesystem::remove on a path resolved through
+    // Serializer::saveDirectory(). The backup dance that used to sit here
+    // renamed "saves/progress.json" — relative to the working directory —
+    // which is NOT necessarily the file reset() deletes. Run from build/ they
+    // were different files and the real progress.json was erased; that was
+    // observed, with a seeded file vanishing between two game launches.
+    // TestSaveSandbox now points reset() at a throwaway directory, so there is
+    // nothing real to lose and nothing to put back.
     CampaignProgress::reset();
 
     check(CampaignProgress::isUnlocked(0), "the first level is always open");
@@ -1158,7 +1169,6 @@ void testCampaignProgressUnlocksSequentially() {
           "out-of-range levels are locked, not crashes");
 
     CampaignProgress::reset();
-    if (hadExisting) std::filesystem::rename(backup, path);
 }
 
 
@@ -3173,7 +3183,73 @@ void testEntityCatalogueIsCompleteAndRoundTrips() {
     check(!projectilePlaceable, "projectiles are not offered as placeable scenery");
 }
 
+
+// ---------------------------------------------------------------------------
+// The sandbox itself, asserted.
+//
+// Every fix above depends on TestSaveSandbox actually being in effect. If a
+// future main() drops it, or Serializer::setSaveDirectory stops taking effect,
+// the suite would go back to reading and DELETING real save files while
+// continuing to report green - which is precisely how campaign progress was
+// lost in the first place. So the suite checks its own containment.
+// ---------------------------------------------------------------------------
+void testTheSuiteCannotTouchRealSaveData() {
+    section("hermeticity  this process cannot reach the real saves/ directory");
+
+    const std::filesystem::path dir = Serializer::saveDirectory();
+    check(!dir.empty(), "a save directory is resolved at all");
+
+    // Compared canonically: "saves" and "./saves" are the same place, and a
+    // string compare would be fooled by either spelling.
+    std::error_code ec;
+    const std::filesystem::path here = std::filesystem::current_path(ec);
+    const std::filesystem::path resolved = std::filesystem::weakly_canonical(dir, ec);
+    const std::filesystem::path tmp =
+        std::filesystem::weakly_canonical(std::filesystem::temp_directory_path(ec), ec);
+
+    bool insideTemp = false;
+    for (auto q = resolved; !q.empty() && q != q.root_path(); q = q.parent_path()) {
+        if (q == tmp) { insideTemp = true; break; }
+    }
+    check(insideTemp,
+          "the save directory is under the system temp dir, not the repository");
+
+    // And specifically not any of the candidates Serializer would auto-resolve.
+    bool isRealSaves = false;
+    for (const char* candidate : {"saves", "../saves", "../../saves",
+                                  "SuperMarioGame/saves", "../SuperMarioGame/saves"}) {
+        std::error_code ce;
+        const std::filesystem::path real =
+            std::filesystem::weakly_canonical(here / candidate, ce);
+        if (!ce && std::filesystem::exists(real, ce) && real == resolved) isRealSaves = true;
+    }
+    check(!isRealSaves, "and is none of the real saves/ directories on this machine");
+
+    // Writing has to actually land there, or the redirection is cosmetic.
+    HighScoreEntry probe;
+    probe.score = 4242;
+    probe.levelName = "hermeticity-probe";
+    Serializer::recordHighScore(probe);
+    check(std::filesystem::exists(dir / "highscores.json"),
+          "a recorded score lands inside the sandbox, so the redirect is real");
+    Serializer::clearHighScores();
+
+    // CampaignProgress resolves through the same door. This is the call that
+    // deleted a real file, so it is the one worth pinning.
+    CampaignProgress::recordLevelCleared(0, {true, false, false});
+    check(std::filesystem::exists(dir / "progress.json"),
+          "campaign progress is written inside the sandbox too");
+    CampaignProgress::reset();
+    check(!std::filesystem::exists(dir / "progress.json"),
+          "and reset() deletes THAT file - never the developer's");
+}
+
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("regressions");
+
     std::cout << "Audit regression suite\n";
 
     testCoinTilesLoad();
@@ -3270,6 +3346,7 @@ int main() {
     testTheWorldLabelIsNotAlwaysOneOne();
     testTheHudCanShowBothPlayers();
     testEntityCatalogueIsCompleteAndRoundTrips();
+    testTheSuiteCannotTouchRealSaveData();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

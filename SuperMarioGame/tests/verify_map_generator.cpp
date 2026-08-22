@@ -5,8 +5,14 @@
 #include "Entities/StarCoin.hpp"
 #include <iostream>
 #include <cassert>
+#include "TestSaveSandbox.hpp"
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("map_generator");
+
     std::cout << "=== Running Refined Map Generator Tests ===" << std::endl;
 
     // Test 1: Easy Overworld Level with 3 Star Coins & Flagpole

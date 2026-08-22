@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 #include <filesystem>
+#include "Utils/Serializer.hpp"
+#include "TestSaveSandbox.hpp"
 
 void testCommands() {
     std::cout << "Running testCommands..." << std::endl;
@@ -90,7 +92,10 @@ void testSerialization() {
     entities.push_back(std::make_unique<Coin>(sf::Vector2f(64.f, 64.f)));
 
     LevelLoader loader;
-    std::string testPath = "saves/test_editor_save.json";
+    // Into the sandbox, not a "saves/" relative to whatever directory this
+    // binary was launched from - which is how test artefacts ended up beside
+    // a developer's real save slots.
+    std::string testPath = Serializer::saveDirectory() + "/test_editor_save.json";
 
     // Save
     bool saved = loader.saveLevel(testPath, tileMap, entities, "Test Edit Level");
@@ -119,6 +124,11 @@ void testSerialization() {
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("map_editor");
+
     testCommands();
     testEntityCommands();
     testSerialization();

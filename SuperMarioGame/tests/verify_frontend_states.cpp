@@ -41,6 +41,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include "TestSaveSandbox.hpp"
 
 namespace {
 
@@ -125,10 +126,12 @@ void testOptionsEditsRealSettings(sf::RenderTexture* target) {
 void testHighScorePageRenders(sf::RenderTexture* target) {
     section("7.8  the high-score page renders with and without data");
 
-    const std::string path = "saves/highscores.json";
-    const std::string backup = "saves/highscores.json.frontendbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // The sandbox in main() gives this process an empty save directory of its
+    // own, so there is no real table to protect and no backup to restore.
+    // The dance that used to sit here renamed a path relative to the WORKING
+    // DIRECTORY, while Serializer resolved its own - from build/ they were
+    // different files, so it protected nothing and polluted the real one.
+    Serializer::clearHighScores();
 
     {
         OptionsState empty;
@@ -158,8 +161,7 @@ void testHighScorePageRenders(sf::RenderTexture* target) {
         populated.exit();
     }
 
-    std::filesystem::remove(path);
-    if (hadExisting) std::filesystem::rename(backup, path);
+    Serializer::clearHighScores();
 }
 
 void testVictoryTalliesTheTimeBonus(sf::RenderTexture* target) {
@@ -224,10 +226,12 @@ void testVictorySkipsTheTallyBeforeDismissing() {
 void testGameOverRecordsTheRun(sf::RenderTexture* target) {
     section("7.6  game over records the finished run in the high-score table");
 
-    const std::string path = "saves/highscores.json";
-    const std::string backup = "saves/highscores.json.gameoverbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // The sandbox in main() gives this process an empty save directory of its
+    // own, so there is no real table to protect and no backup to restore.
+    // The dance that used to sit here renamed a path relative to the WORKING
+    // DIRECTORY, while Serializer resolved its own - from build/ they were
+    // different files, so it protected nothing and polluted the real one.
+    Serializer::clearHighScores();
 
     RunSummary summary;
     summary.score = 7777;
@@ -254,8 +258,7 @@ void testGameOverRecordsTheRun(sf::RenderTexture* target) {
 
     gameOver.exit();
 
-    std::filesystem::remove(path);
-    if (hadExisting) std::filesystem::rename(backup, path);
+    Serializer::clearHighScores();
 }
 
 void testPauseIsAnOverlayAndOffersItsChoices(sf::RenderTexture* target) {
@@ -341,11 +344,8 @@ void testCharacterSelectGatesLockedSlots(sf::RenderTexture* target) {
 void testWorldMapRefusesLockedLevels(sf::RenderTexture* target) {
     section("7.3  the world map will not travel past a locked level");
 
-    // A fresh profile, so only 1-1 is open.
-    const std::string path = "saves/progress.json";
-    const std::string backup = "saves/progress.json.frontendbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // A fresh profile, so only 1-1 is open. reset() deletes a real file when it
+    // is not sandboxed - see TestSaveSandbox.hpp.
     CampaignProgress::reset();
 
     WorldMapState map(0);
@@ -372,7 +372,6 @@ void testWorldMapRefusesLockedLevels(sf::RenderTexture* target) {
 
     map.exit();
     CampaignProgress::reset();
-    if (hadExisting) std::filesystem::rename(backup, path);
 }
 
 void testMenuNavigatesWithoutImGui(sf::RenderTexture* target) {
@@ -505,6 +504,11 @@ void testEditorIsNotStuckBehindTheEntryFade(sf::RenderTexture* target) {
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("frontend_states");
+
     std::cout << "Tier 1 front-end state harness\n";
 
     // Off-screen target, deliberately never destroyed.

@@ -4,8 +4,14 @@
 #include <imgui-SFML.h>
 #include "Graphics/ParticleSystem.hpp"
 #include "Graphics/ParticleEmitter.hpp"
+#include "TestSaveSandbox.hpp"
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("particles_visual");
+
     std::cout << "[VISUAL TEST] Launching Particle System & Emitter Visualizer..." << std::endl;
 
     sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "Super Mario Particle System Visualizer");

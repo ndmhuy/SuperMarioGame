@@ -7,6 +7,7 @@
 #include "Graphics/Animation.hpp"
 #include "Graphics/Animator.hpp"
 #include "Core/ResourceManager.hpp"
+#include "TestSaveSandbox.hpp"
 
 // We define a helper macro for our assertions to provide clean test reporting
 #define TEST_ASSERT(cond, msg) \
@@ -18,6 +19,11 @@
     } while (0)
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("graphics");
+
     std::cout << "[TEST] Starting Graphics & Animation Verification Suite..." << std::endl;
 
     // Determine the relative path to assets/spriteSheet/test directory

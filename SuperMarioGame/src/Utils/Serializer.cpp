@@ -75,7 +75,29 @@ static std::string getCurrentISOTimestamp() {
 // Resolution mirrors ResourceManager::resolvePath: prefer a saves/ directory
 // that already exists at one of the usual roots, and otherwise fall back to the
 // working directory so a first run still has somewhere to write.
+namespace {
+// An explicit override, empty when unset. Checked before the cached automatic
+// resolution below — deliberately, so that setting it works even after
+// something has already resolved a path. A static that could only be
+// influenced before first use would be a trap for exactly the callers this
+// exists for.
+std::string& saveDirectoryOverride() {
+    static std::string override;
+    return override;
+}
+} // namespace
+
+void Serializer::setSaveDirectory(const std::string& directory) {
+    saveDirectoryOverride() = directory;
+    if (!directory.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(directory, ec);
+    }
+}
+
 std::string Serializer::saveDirectory() {
+    if (!saveDirectoryOverride().empty()) return saveDirectoryOverride();
+
     static const std::string resolved = [] {
         const std::vector<std::string> candidates = {
             "saves", "../saves", "../../saves",
@@ -112,6 +134,12 @@ std::string Serializer::getSettingsFilePath() {
 
 std::string Serializer::getHighScoresFilePath() {
     return saveDirectory() + "/highscores.json";
+}
+
+bool Serializer::clearHighScores() {
+    std::error_code ec;
+    std::filesystem::remove(getHighScoresFilePath(), ec);
+    return !ec;
 }
 
 std::vector<HighScoreEntry> Serializer::loadHighScores() {

@@ -39,6 +39,7 @@
 #include "Entities/HammerThrowStrategy.hpp"
 #include "Entities/TetheredChaseStrategy.hpp"
 #include "Entities/ProximityTriggerStrategy.hpp"
+#include "TestSaveSandbox.hpp"
 
 enum RoomType {
     ROOM_ALL = 0,
@@ -72,6 +73,11 @@ const char* ROOM_NAMES[ROOM_COUNT] = {
 };
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("enemies_visual");
+
     std::cout << "[VISUAL TEST] Launching Enemy AI & Strategy Edge-Case Test Environment..." << std::endl;
 
     sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "Enemy AI & Strategy Interactive Test Environment");
