@@ -79,6 +79,21 @@ private:
     PhysicsEngine m_physicsEngine;
     TileMap m_tileMap;
     std::vector<std::unique_ptr<Entity>> m_entities;
+
+    // Entities created *during* a frame wait here until the frame is at a point
+    // where m_entities may safely grow.
+    //
+    // Every spawn in this game arrives through a synchronous EventBus handler:
+    // a question block publishes PowerUpRequested from inside the collision
+    // pass, Bowser publishes EntitySpawnRequested from inside his own update().
+    // Those handlers used to push_back straight onto m_entities — the very
+    // vector the range-for in update() and the physics engine are iterating. A
+    // push_back that reallocates leaves that loop holding a pointer into freed
+    // storage, which is undefined behaviour: it survived on macOS whenever the
+    // vector happened to have spare capacity, and crashed on Windows in 1-3,
+    // where Bowser spawns a fireball every 1.2-2.2s for the whole fight. That
+    // is why deleting Bowser "fixed" the level.
+    std::vector<std::unique_ptr<Entity>> m_pendingSpawns;
     MapEditor m_mapEditor;
     EventBus::SubscriptionId m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_playerDiedSubId = static_cast<EventBus::SubscriptionId>(-1);
@@ -302,6 +317,34 @@ private:
     // are meant to stand on the ground actually do.
     void syncBackdropGround();
 
+    // --- P-Switch: bricks become coins for its duration, then change back ----
+    //
+    // PSwitchActivated has been published since the switch was written and the
+    // HUD has always had a pSwitchActive field, but nothing between the two
+    // existed: pressing the switch played a sound and changed nothing in the
+    // world. These do the swap.
+    void beginPSwitch(float seconds);
+    void updatePSwitch(float dt);
+    void endPSwitch();
+
+    // --- POW block: clears the enemies that are standing on something --------
+    //
+    // Same gap: POWBlockHit only ever reached the camera shake and the sound.
+    void detonatePOW();
+
+    // Exactly the cells beginPSwitch() changed, so ending it restores the level
+    // rather than guessing which bricks were always coins.
+    struct SwappedTile {
+        int x = 0;
+        int y = 0;
+        TileType original = TileType::Empty;
+    };
+    std::vector<SwappedTile> m_pSwitchSwaps;
+    float m_pSwitchTimer = 0.0f;
+    bool  m_pSwitchActive = false;
+    EventBus::SubscriptionId m_pSwitchSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
+
     void setupTestScene();
     void cleanupTestScene();
     void spawnSelectedPlayer(const sf::Vector2f& pos);
@@ -316,6 +359,15 @@ private:
     // The single door every entity comes through on its way into the world:
     // wires its animations and applies the difficulty modifiers.
     void admitEntity(Entity* entity);
+
+    // Moves everything queued by a spawn handler this frame into m_entities.
+    // Called once per frame, after every loop that walks m_entities has ended.
+    void flushPendingSpawns();
+
+    // The single door a mid-frame spawn goes through. Wires animations and
+    // difficulty immediately — so the caller still gets a fully formed entity —
+    // but defers the list insertion to flushPendingSpawns().
+    void queueSpawn(std::unique_ptr<Entity> entity);
 
     // --- Object pooling (task 10.1) --------------------------------------
     // Projectiles are the churn: every shot was a heap allocation on spawn and

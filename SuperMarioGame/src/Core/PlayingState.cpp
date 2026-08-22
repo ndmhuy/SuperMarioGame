@@ -62,6 +62,7 @@
 #include <filesystem>
 #include <random>
 #include <unordered_map>
+#include <vector>
 
 
 namespace {
@@ -214,8 +215,7 @@ void PlayingState::enter() {
             auto fireball = m_fireballPool.acquire(spawnPos, vel);
             // Was pushed straight onto the list, so it never had its animations
             // wired and fell back to hand-drawn circles every time.
-            admitEntity(fireball.get());
-            m_entities.push_back(std::move(fireball));
+            queueSpawn(std::move(fireball));
 
             SoundManager::getInstance().playSound("fireball");
         }
@@ -308,8 +308,7 @@ void PlayingState::enter() {
             case QuestionBlock::Mushroom:
             default:                          item = std::make_unique<Mushroom>(request.spawnPosition);     break;
         }
-        admitEntity(item.get());
-        m_entities.push_back(std::move(item));
+        queueSpawn(std::move(item));
     });
 
     // --- Entities asking for other entities (Lakitu's Spinies, Hammer Bro's
@@ -320,13 +319,26 @@ void PlayingState::enter() {
         const auto request = std::any_cast<EntitySpawnRequest>(ev.data);
 
         // Keep a lid on projectiles so a long fight cannot flood the world.
-        if (m_entities.size() >= 400) return;
+        if (m_entities.size() + m_pendingSpawns.size() >= 400) return;
 
         auto spawned = spawnProjectile(request.type, request.position, request.velocity);
         if (!spawned) return;
         spawned->setVelocity(request.velocity);
-        admitEntity(spawned.get());
-        m_entities.push_back(std::move(spawned));
+        queueSpawn(std::move(spawned));
+    });
+
+    // --- P-Switch and POW block: the two items that published an event and
+    // then did nothing at all. Both effects are the level's business, not the
+    // item's, so they are performed here where the tilemap and the entity list
+    // are in reach. ---
+    m_pSwitchSubId = bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent& ev) {
+        float seconds = 15.0f;
+        if (const float* asFloat = std::any_cast<float>(&ev.data)) seconds = *asFloat;
+        beginPSwitch(seconds);
+    });
+
+    m_powSubId = bus.subscribe(EventType::POWBlockHit, [this](const GameEvent&) {
+        detonatePOW();
     });
 
     // --- Level complete: the flagpole fires this; without a listener the game
@@ -366,6 +378,14 @@ void PlayingState::exit() {
     if (m_starCoinSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_starCoinSubId);
         m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_pSwitchSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_pSwitchSubId);
+        m_pSwitchSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_powSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_powSubId);
+        m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 
     // Particle / death-effect subscriptions. These capture `this`, so they must go
@@ -597,6 +617,13 @@ void PlayingState::update(float dt) {
     // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
 
+    // 3a2. Admit everything a handler asked for during the two loops above.
+    //
+    // This is the only point in the frame where m_entities is allowed to grow:
+    // the entity update loop and the physics pass have both finished, so no
+    // iterator or reference into the vector is still live.
+    flushPendingSpawns();
+
     // 3b. Prune inactive entities (keep m_player intact even if inactive).
     //
     // stable_partition rather than remove_if: remove_if leaves the tail in a
@@ -782,10 +809,16 @@ void PlayingState::update(float dt) {
     }
 
     // 5. Sync HUD with player stats or fallback mock data
+    updatePSwitch(dt);
+
     if (m_hud) {
         m_hud->update(dt);
         HudData hudData;
         hudData.timeLeft = static_cast<int>(m_levelTimer);
+        // The HUD has always drawn these two; nothing ever set them, so the
+        // countdown never appeared however long the switch ran.
+        hudData.pSwitchActive = m_pSwitchActive;
+        hudData.pSwitchTimer  = m_pSwitchTimer;
         
         if (auto* player = Game::getInstance().getPlayer()) {
             hudData.score = player->getScore();
@@ -844,28 +877,158 @@ void PlayingState::update(float dt) {
     }
 }
 
+void PlayingState::beginPSwitch(float seconds) {
+    // Pressing it again while it runs restarts the clock rather than swapping a
+    // second time — the second swap would turn the coins back into bricks and
+    // the effect would read as "the switch cancelled itself".
+    if (m_pSwitchActive) {
+        m_pSwitchTimer = seconds;
+        return;
+    }
+
+    m_pSwitchActive = true;
+    m_pSwitchTimer = seconds;
+    m_pSwitchSwaps.clear();
+
+    // Brick becomes coin, coin becomes brick — the whole level, not just what is
+    // on screen, so walking into a room mid-effect finds it already swapped.
+    for (int y = 0; y < m_tileMap.getHeight(); ++y) {
+        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+            const TileType current = m_tileMap.getTileType(x, y);
+            TileType swapped = TileType::Empty;
+            if (current == TileType::Brick)     swapped = TileType::Coin;
+            else if (current == TileType::Coin) swapped = TileType::Brick;
+            else continue;
+
+            m_pSwitchSwaps.push_back({x, y, current});
+            m_tileMap.setTile(x, y, swapped);
+        }
+    }
+
+    std::cout << "[PlayingState] P-Switch: swapped " << m_pSwitchSwaps.size()
+              << " tile(s) for " << seconds << "s." << std::endl;
+}
+
+void PlayingState::updatePSwitch(float dt) {
+    if (!m_pSwitchActive) return;
+    m_pSwitchTimer -= dt;
+    if (m_pSwitchTimer <= 0.0f) endPSwitch();
+}
+
+void PlayingState::endPSwitch() {
+    if (!m_pSwitchActive) return;
+
+    // Restored from the record, not by swapping back: a coin the player picked
+    // up during the effect left an Empty tile behind, and a blind reverse-swap
+    // would turn that hole into a brick out of thin air.
+    for (const SwappedTile& swap : m_pSwitchSwaps) {
+        m_tileMap.setTile(swap.x, swap.y, swap.original);
+    }
+    m_pSwitchSwaps.clear();
+    m_pSwitchActive = false;
+    m_pSwitchTimer = 0.0f;
+    std::cout << "[PlayingState] P-Switch expired." << std::endl;
+}
+
+void PlayingState::detonatePOW() {
+    // The POW block's whole point: everything standing on a surface anywhere on
+    // screen is knocked over at once. Off-screen enemies are spared, so it is a
+    // tool for the fight in front of you rather than a level-wide delete.
+    const AABB view = m_camera.getVisibleBounds();
+    int flipped = 0;
+
+    for (const auto& entity : m_entities) {
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy || !enemy->isActive() || enemy->isDeadOrDying()) continue;
+
+        const AABB box = enemy->getBoundingBox();
+        const bool onScreen = box.x + box.width  > view.x &&
+                              box.x              < view.x + view.width &&
+                              box.y + box.height > view.y &&
+                              box.y              < view.y + view.height;
+        if (!onScreen) continue;
+
+        // A boss is not "an enemy standing on the floor" — it has a health bar
+        // and a fight, and one POW would end it. It takes a hit like any other
+        // heavy blow instead.
+        if (auto* boss = dynamic_cast<Boss*>(enemy)) {
+            boss->onStomped();
+            ++flipped;
+            continue;
+        }
+
+        // Airborne enemies are untouched: the shockwave travels through the
+        // ground, which is why a POW cannot clear a Paratroopa mid-hop.
+        if (!enemy->isOnGround()) continue;
+
+        enemy->onStomped();
+        ++flipped;
+    }
+
+    if (m_player) m_player->addScore(flipped * 200);
+    std::cout << "[PlayingState] POW block: flipped " << flipped << " enemy(ies)." << std::endl;
+}
+
 void PlayingState::syncBackdropGround() {
     // Find the top of the ground the player actually walks on, and hand it to the
     // backdrop so the hills and bushes stand on it.
     //
     // Scanned rather than assumed: the campaign levels put their surface on tile
     // row 21 of 23, but a generated level or a sub-level can be any height, and a
-    // hardcoded screen line was wrong for all of them. The lowest row containing
-    // a solid tile is the floor; its top edge is where decorations belong.
-    int groundRow = -1;
-    for (int y = m_tileMap.getHeight() - 1; y >= 0 && groundRow < 0; --y) {
-        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+    // hardcoded screen line was wrong for all of them.
+    //
+    // "Lowest row holding any solid tile" was the wrong scan. In every shipped
+    // level the floor is a two-row slab (rows 21 and 22), so that answer was row
+    // 22 and the hills, bushes and fences stood on the *bottom* of the slab —
+    // one full tile buried in the ground. What the backdrop wants is the row
+    // most of the ground is on, and then the TOP of that slab.
+    //
+    // So: count solid tiles per row, take the widest row as the floor, and walk
+    // upwards while the rows above are still part of the same slab (at least
+    // 60% as wide). The top of the last such row is where a decoration's feet
+    // belong. A castle ceiling — level 1-3 has a solid row 0 running the whole
+    // width — never wins, because the walk only ever moves up through
+    // *contiguous* rows starting at the widest one.
+    const int height = m_tileMap.getHeight();
+    const int width  = m_tileMap.getWidth();
+    if (height <= 0 || width <= 0) {
+        m_background.setWorldGroundY(0.0f);
+        return;
+    }
+
+    std::vector<int> solidPerRow(static_cast<std::size_t>(height), 0);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
             if (TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) {
-                groundRow = y;
-                break;
+                ++solidPerRow[static_cast<std::size_t>(y)];
             }
         }
     }
-    if (groundRow < 0) {
+
+    int floorRow = -1;
+    int widest = 0;
+    // Ties go to the LOWER row: a two-row slab of equal width is one floor, and
+    // its lower row is the one whose top we then climb to.
+    for (int y = 0; y < height; ++y) {
+        if (solidPerRow[static_cast<std::size_t>(y)] >= widest &&
+            solidPerRow[static_cast<std::size_t>(y)] > 0) {
+            widest = solidPerRow[static_cast<std::size_t>(y)];
+            floorRow = y;
+        }
+    }
+    if (floorRow < 0) {
         m_background.setWorldGroundY(0.0f);   // no floor at all: fall back
         return;
     }
-    m_background.setWorldGroundY(static_cast<float>(groundRow) * Constants::TILE_SIZE);
+
+    const int slabThreshold = std::max(1, (widest * 3) / 5);
+    int surfaceRow = floorRow;
+    while (surfaceRow > 0 &&
+           solidPerRow[static_cast<std::size_t>(surfaceRow - 1)] >= slabThreshold) {
+        --surfaceRow;
+    }
+
+    m_background.setWorldGroundY(static_cast<float>(surfaceRow) * Constants::TILE_SIZE);
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
@@ -1216,6 +1379,14 @@ void PlayingState::setupTestScene() {
 
 void PlayingState::cleanupTestScene() {
     m_entities.clear();
+    // Anything a handler queued on the frame the level was torn down belongs to
+    // the level that is going away, not the one being built.
+    m_pendingSpawns.clear();
+    // The swap record points at cells in the tilemap that is about to be
+    // replaced. Carrying it across a warp would write bricks into the new level.
+    m_pSwitchSwaps.clear();
+    m_pSwitchActive = false;
+    m_pSwitchTimer = 0.0f;
     m_player = nullptr;
     // Every observer pointer into the vector that was just emptied. m_player2
     // and m_shadow used to survive a level reload as dangling pointers — the
@@ -2162,6 +2333,28 @@ void PlayingState::recycleEntity(std::unique_ptr<Entity> entity) {
         return;
     }
     // Everything else dies here, exactly as it did before pooling existed.
+}
+
+void PlayingState::queueSpawn(std::unique_ptr<Entity> entity) {
+    if (!entity) return;
+    // Wired now rather than at flush time: the spawner may set velocity or read
+    // the sprite size straight after this call, and a half-built entity would
+    // give it the wrong answer.
+    admitEntity(entity.get());
+    m_pendingSpawns.push_back(std::move(entity));
+}
+
+void PlayingState::flushPendingSpawns() {
+    if (m_pendingSpawns.empty()) return;
+    // Moved out first: admitting an entity cannot itself spawn one today, but if
+    // it ever does, that spawn lands in a fresh queue for the next flush rather
+    // than growing the vector this loop is walking.
+    std::vector<std::unique_ptr<Entity>> ready;
+    ready.swap(m_pendingSpawns);
+    m_entities.reserve(m_entities.size() + ready.size());
+    for (auto& entity : ready) {
+        if (entity) m_entities.push_back(std::move(entity));
+    }
 }
 
 void PlayingState::admitEntity(Entity* entity) {

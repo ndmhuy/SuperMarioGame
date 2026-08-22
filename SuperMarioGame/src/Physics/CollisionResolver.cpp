@@ -7,6 +7,7 @@
 #include "Entities/Flagpole.hpp"
 #include "Entities/Trampoline.hpp"
 #include "Entities/PSwitch.hpp"
+#include "Entities/POWBlock.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
@@ -341,6 +342,36 @@ void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const Co
                 player.position.y += info.normal.y * (info.overlap.y + 0.01f);
                 if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
                 if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
+            }
+            return;
+        }
+
+        if (auto pow = dynamic_cast<POWBlock*>(&item)) {
+            // Read the approach BEFORE the displacement below zeroes it: whether
+            // this contact is a strike depends on how fast the player was
+            // travelling into the block, and by the end of this branch that
+            // information is gone.
+            const float approachY = player.getVelocity().y;
+
+            // Solid in every direction, exactly like a brick — the POW block is
+            // terrain you can stand on. It used to fall through to the generic
+            // pickup path below, so walking sideways into it "collected" it.
+            player.position.x += info.normal.x * (info.overlap.x + 0.01f);
+            player.position.y += info.normal.y * (info.overlap.y + 0.01f);
+            if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
+            if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
+            if (info.normal.y == -1.0f) player.onGround = true;
+
+            // A strike is a hit from below (the arcade original) or a genuine
+            // descending stomp onto the top. Brushing past the side does
+            // nothing, and neither does resting on it — the descent-speed floor
+            // is what separates "landed on it" from "standing on it", the same
+            // distinction Boss::STOMP_MIN_DESCENT_SPEED draws.
+            constexpr float MIN_STRIKE_DESCENT = 60.0f;
+            const bool struckFromBelow = info.normal.y == 1.0f;
+            const bool stomped = info.normal.y == -1.0f && approachY >= MIN_STRIKE_DESCENT;
+            if (struckFromBelow || stomped) {
+                pow->activate(player);
             }
             return;
         }
