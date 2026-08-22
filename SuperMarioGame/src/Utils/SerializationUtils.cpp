@@ -117,6 +117,7 @@ EntityType parseEntityTypeName(const std::string& name) {
     if (name == "pswitch") return EntityType::PSwitch;
     if (name == "trampoline") return EntityType::Trampoline;
     if (name == "star_coin") return EntityType::StarCoin;
+    if (name == "bridge_axe" || name == "axe") return EntityType::BridgeAxe;
 
     if (name == "pipe") return EntityType::Pipe;
     if (name == "flagpole") return EntityType::Flagpole;
@@ -127,6 +128,7 @@ EntityType parseEntityTypeName(const std::string& name) {
     if (name == "hidden_block") return EntityType::HiddenBlock;
     if (name == "ice_block") return EntityType::IceBlock;
     if (name == "conveyor_belt") return EntityType::ConveyorBelt;
+    if (name == "castle") return EntityType::Castle;
 
     // Transient projectiles. They should never reach a level file — saveLevel
     // skips them — but if an old file names one, it must not silently become

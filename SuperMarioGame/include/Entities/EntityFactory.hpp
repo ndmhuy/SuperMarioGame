@@ -44,6 +44,7 @@ enum class EntityType {
     PSwitch,
     Trampoline,
     StarCoin,
+    BridgeAxe,     // ends the Bowser fight without beating him
 
     // Blocks
     BrickBlock,
@@ -54,7 +55,8 @@ enum class EntityType {
     MovingPlatform,
     FallingPlatform,
     IceBlock,
-    ConveyorBelt
+    ConveyorBelt,
+    Castle         // end-of-level scenery, drawn from castle_end
 };
 
 // Factory class definition - declarations only (no implementation)

@@ -317,6 +317,25 @@ private:
     // are meant to stand on the ground actually do.
     void syncBackdropGround();
 
+    // Stand the end-of-level scenery on the floor.
+    //
+    // The flagpole is a 24x168 sprite whose position is its TOP-left corner, and
+    // every level file names a tile row for it directly — 12 in all four shipped
+    // levels, which puts its foot at world y 552 against a ground surface at
+    // 672. The flag therefore hung 120px (nearly four tiles) in mid-air in every
+    // level in the game, and MapGenerator's arithmetic left it floating too.
+    //
+    // Rather than correct four numbers in four files and the generator, and then
+    // correct them again for every level anyone authors afterwards, the pole is
+    // dropped onto whatever floor is beneath it at load time. The level file
+    // says WHERE the flag is; the geometry says how high. Same for the castle,
+    // whose door has to meet the same floor.
+    void settleEndOfLevelScenery();
+
+    // The world y of the first solid tile's top surface at or below `from`, or a
+    // negative value when the column is empty all the way down.
+    float floorBelow(float worldX, float fromWorldY) const;
+
     // --- P-Switch: bricks become coins for its duration, then change back ----
     //
     // PSwitchActivated has been published since the switch was written and the
@@ -326,6 +345,14 @@ private:
     void beginPSwitch(float seconds);
     void updatePSwitch(float dt);
     void endPSwitch();
+
+    // --- The axe: the non-combat way past Bowser -----------------------------
+    //
+    // Drops every span of bridge that crosses lava inside the boss's arena, and
+    // ends the fight with it. Bowser is immune to fire, carries i-frames that
+    // make contact during them harmful, and attacks continuously — the series
+    // has always paired that with a second solution, and this is it.
+    void chopBridge();
 
     // --- POW block: clears the enemies that are standing on something --------
     //
@@ -344,6 +371,7 @@ private:
     bool  m_pSwitchActive = false;
     EventBus::SubscriptionId m_pSwitchSubId = static_cast<EventBus::SubscriptionId>(-1);
     EventBus::SubscriptionId m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::SubscriptionId m_bridgeSubId = static_cast<EventBus::SubscriptionId>(-1);
 
     void setupTestScene();
     void cleanupTestScene();

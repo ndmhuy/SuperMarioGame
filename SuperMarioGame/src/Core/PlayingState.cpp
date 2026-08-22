@@ -7,6 +7,8 @@
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Entities/Boss.hpp"
+#include "Entities/Castle.hpp"
+#include "Entities/Flagpole.hpp"
 #include "Entities/Projectile.hpp"
 #include "Core/DifficultyStrategy.hpp"
 #include "Utils/MetaGame.hpp"
@@ -133,6 +135,7 @@ void PlayingState::enter() {
         MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
         m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
         syncBackdropGround();
+        settleEndOfLevelScenery();
 
         // Wire animations for all procedurally generated entities
         for (auto& entity : m_entities) {
@@ -341,12 +344,21 @@ void PlayingState::enter() {
         detonatePOW();
     });
 
+    m_bridgeSubId = bus.subscribe(EventType::BridgeChopped, [this](const GameEvent&) {
+        chopBridge();
+    });
+
     // --- Level complete: the flagpole fires this; without a listener the game
     // could be flagged but never actually finished (audit G-1). ---
     m_levelCompleteSubId = bus.subscribe(EventType::LevelComplete, [this](const GameEvent&) {
         if (m_levelComplete) return;   // flagpole can fire more than once
         m_levelComplete = true;
         m_levelCompleteTimer = 0.0f;
+        // The castle answers the flagpole: its own flag climbs the gatehouse as
+        // the level's does down the pole.
+        for (const auto& entity : m_entities) {
+            if (auto* castle = dynamic_cast<Castle*>(entity.get())) castle->raiseFlag();
+        }
         std::cout << "[PlayingState] Level complete!" << std::endl;
     });
 
@@ -386,6 +398,10 @@ void PlayingState::exit() {
     if (m_powSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_powSubId);
         m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_bridgeSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_bridgeSubId);
+        m_bridgeSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 
     // Particle / death-effect subscriptions. These capture `this`, so they must go
@@ -930,6 +946,93 @@ void PlayingState::endPSwitch() {
     std::cout << "[PlayingState] P-Switch expired." << std::endl;
 }
 
+float PlayingState::floorBelow(float worldX, float fromWorldY) const {
+    const int gx = static_cast<int>(worldX / Constants::TILE_SIZE);
+    if (gx < 0 || gx >= m_tileMap.getWidth()) return -1.0f;
+
+    const int firstRow = std::max(0, static_cast<int>(fromWorldY / Constants::TILE_SIZE));
+    for (int y = firstRow; y < m_tileMap.getHeight(); ++y) {
+        if (TileMap::getInfo(m_tileMap.getTileType(gx, y)).isSolid) {
+            return static_cast<float>(y) * Constants::TILE_SIZE;
+        }
+    }
+    return -1.0f;
+}
+
+void PlayingState::settleEndOfLevelScenery() {
+    for (const auto& entity : m_entities) {
+        if (!entity) continue;
+
+        if (auto* flagpole = dynamic_cast<Flagpole*>(entity.get())) {
+            const sf::Vector2f at = flagpole->getPosition();
+            // Probed from the middle of the pole, not its left edge: the sprite
+            // is 24px wide and its left edge can sit over the last empty column
+            // before the floor starts.
+            const float floorTop = floorBelow(at.x + 12.0f, at.y);
+            if (floorTop < 0.0f) continue;   // nothing under it; leave it alone
+
+            // The pole's foot goes on the floor, so its top-left corner is one
+            // pole-height above that.
+            const sf::Vector2f settled{at.x, floorTop - flagpole->getPoleHeight()};
+            flagpole->setPosition(settled);
+            std::cout << "[PlayingState] Flagpole settled onto the floor: y "
+                      << at.y << " -> " << settled.y << std::endl;
+            continue;
+        }
+
+        if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
+            const sf::Vector2f at = castle->getPosition();
+            const float floorTop = floorBelow(at.x + Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f,
+                                              at.y);
+            if (floorTop < 0.0f) continue;
+            castle->setPosition({at.x, floorTop - Castle::HEIGHT_TILES * Constants::TILE_SIZE});
+        }
+    }
+}
+
+void PlayingState::chopBridge() {
+    // What counts as "the bridge": inside the boss's arena, every solid tile in
+    // a column that has lava underneath it. Derived rather than declared, so a
+    // level does not have to list its bridge tiles and the map editor cannot
+    // produce a bridge the axe does not know about. Columns with no lava — the
+    // ledges either side — keep their floor, which is what the player lands on.
+    const AABB span = (m_activeBoss && m_activeBoss->hasArena())
+        ? m_activeBoss->getArena()
+        : AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE,
+                           m_tileMap.getHeight() * Constants::TILE_SIZE};
+
+    const int firstX = std::max(0, static_cast<int>(span.x / Constants::TILE_SIZE));
+    const int lastX  = std::min(m_tileMap.getWidth() - 1,
+                                static_cast<int>((span.x + span.width) / Constants::TILE_SIZE));
+
+    int dropped = 0;
+    for (int x = firstX; x <= lastX; ++x) {
+        int topLavaRow = -1;
+        for (int y = 0; y < m_tileMap.getHeight(); ++y) {
+            if (m_tileMap.getTileType(x, y) == TileType::Lava) { topLavaRow = y; break; }
+        }
+        if (topLavaRow < 0) continue;   // no lava under this column: not bridge
+
+        for (int y = 0; y < topLavaRow; ++y) {
+            if (!TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) continue;
+            m_tileMap.setTile(x, y, TileType::Empty);
+            ++dropped;
+        }
+    }
+
+    // The floor is gone; so is whoever was standing on it. Routed through the
+    // boss's own defeat so the score, the event and the animation are the same
+    // ones a fifth stomp would have produced.
+    if (m_activeBoss && !m_activeBoss->isDefeated()) {
+        m_activeBoss->defeatNow();
+    }
+
+    m_camera.triggerScreenShake(12.0f, 0.6f);
+    SoundManager::getInstance().playSound("bowserfall");
+    std::cout << "[PlayingState] Bridge chopped: " << dropped
+              << " tile(s) dropped into the lava." << std::endl;
+}
+
 void PlayingState::detonatePOW() {
     // The POW block's whole point: everything standing on a surface anywhere on
     // screen is knocked over at once. Off-screen enemies are spared, so it is a
@@ -1354,6 +1457,7 @@ void PlayingState::setupTestScene() {
         m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
         m_background.setTheme(levelData.theme);
         syncBackdropGround();
+        settleEndOfLevelScenery();
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -1488,6 +1592,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
     m_background.setTheme(levelData.theme);
     syncBackdropGround();
+    settleEndOfLevelScenery();
     findActiveBoss();
 
     std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;
@@ -1499,6 +1604,7 @@ void PlayingState::regenerateProceduralLevel() {
     MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
     m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
     syncBackdropGround();
+    settleEndOfLevelScenery();
     for (auto& entity : m_entities) {
         admitEntity(entity.get());
     }

@@ -75,11 +75,53 @@ void Boss::onHitByFireball() {
     takeHit();
 }
 
+void Boss::stagger(float seconds) {
+    if (isDefeated() || seconds <= 0.0f) return;
+
+    const bool wasStaggered = isStaggered();
+    m_staggerTimer = std::max(m_staggerTimer, seconds);
+    // The i-frames go with it. A stagger that still leaves the boss invulnerable
+    // is an opening the player can see and cannot use, which is worse than no
+    // opening at all — CollisionResolver reads isInvulnerable() to decide
+    // whether a stomp lands.
+    m_invulnerableTimer = 0.0f;
+    // Nothing carries momentum through a stagger; it is a stop, not a slow.
+    velocity.x = 0.0f;
+
+    if (!wasStaggered) {
+        std::cout << "[Boss] " << m_displayName << " staggered for " << seconds
+                  << "s." << std::endl;
+        onStaggerBegan();
+    }
+}
+
+void Boss::defeatNow() {
+    if (isDefeated()) return;
+    // Both guards cleared first: takeHit() refuses while the i-frames run, and a
+    // boss that happened to be mid-stagger would otherwise survive the bridge.
+    m_invulnerableTimer = 0.0f;
+    m_staggerTimer = 0.0f;
+    takeHit(m_health);
+}
+
+void Boss::endStagger() {
+    if (!isStaggered()) return;
+    m_staggerTimer = 0.0f;
+    onStaggerEnded();
+}
+
 void Boss::update(float dt) {
     if (!active) return;
 
     if (m_invulnerableTimer > 0.0f) {
         m_invulnerableTimer = std::max(0.0f, m_invulnerableTimer - dt);
+    }
+
+    // Ticked before the defeat check, so a boss killed during its own stagger
+    // still runs its defeat sequence rather than staying frozen.
+    if (m_staggerTimer > 0.0f) {
+        m_staggerTimer = std::max(0.0f, m_staggerTimer - dt);
+        if (m_staggerTimer <= 0.0f) onStaggerEnded();
     }
 
     if (isDefeated()) {
@@ -105,7 +147,14 @@ void Boss::update(float dt) {
         return;
     }
 
-    updateBehaviour(dt);
+    // A staggered boss does not act. This is the whole point of the window: it
+    // stops walking into the player and stops attacking, so the opening is a
+    // real one rather than a moment the player has to survive as well as use.
+    if (!isStaggered()) {
+        updateBehaviour(dt);
+    } else {
+        velocity.x = 0.0f;
+    }
 
     if (m_animator && m_hasAnimation) {
         m_animator->update(dt);

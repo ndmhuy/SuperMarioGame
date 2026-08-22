@@ -277,6 +277,24 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
     if (auto* boss = dynamic_cast<Boss*>(&enemy)) {
         const bool descending = player.getVelocity().y > Boss::STOMP_MIN_DESCENT_SPEED;
 
+        // A staggered boss has dropped its guard: contact does not hurt, and any
+        // contact at all lands a hit. This is the opening the fight is built
+        // around — requiring a fast descending stomp *and* a stagger would mean
+        // the player has to solve both problems in the same three seconds, which
+        // is the difficulty the stagger exists to remove.
+        if (boss->isStaggered()) {
+            const bool landed = boss->tryStomp();
+            player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
+            const AABB openBox = boss->getBoundingBox();
+            player.position.y = openBox.y - player.getBoundingBox().height - 1.0f;
+            player.boundingBox.y = player.position.y;
+            if (landed) {
+                player.incrementCombo();
+                player.addScore(boss->getScoreValue() * player.getComboCounter());
+            }
+            return;
+        }
+
         // Resting on the boss is not an attack. While its i-frames run, or while
         // the player is not actually falling onto it, contact is contact — it
         // hurts, exactly as touching its side does.
