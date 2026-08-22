@@ -1,437 +1,737 @@
-# Super Mario Game - Full Codebase Class Diagrams
+# Super Mario Game — UML class diagrams
 
-This document contains the complete class structure of the `SuperMarioGame` codebase, separated into logical subdiagrams for easy reading and printing. 
+> **GENERATED — do not edit by hand.** Produced by
+> `SuperMarioGame/tools/gen_class_diagram.py` from `include/**/*.hpp`.
+> Regenerate with:
+> ```bash
+> cd SuperMarioGame && python3 tools/gen_class_diagram.py --mermaid > ../class_diagram.md
+> ```
+> The previous hand-written version of this file had gone stale: it was
+> missing `Boss`, `Bowser`, `BoomBoom`, `Spiny`, `Lakitu`, `ShadowMario`,
+> `AIController`, `ObjectPool` and `TimeRewindManager` while still reading
+> as the authoritative picture of the codebase (g-rule-22).
 
-## 1. Core Infrastructure & Managers
-This diagram covers the Singleton managers, the game loop, and the state machine.
-
-```mermaid
-classDiagram
-    class Game {
-        -sf::RenderWindow m_window
-        -GameStateManager m_gsm
-        -bool m_isRunning
-        +getInstance() Game$
-        +run() void
-        +quit() void
-        +pushState(std::unique_ptr~IGameState~ state) void
-        +popState() void
-        +changeState(std::unique_ptr~IGameState~ state) void
-        -initWindow() void
-        -initImGui() void
-        -shutdown() void
-    }
-
-    class GameStateManager {
-        -std::vector~GameStatePtr~ m_states
-        +pushState(std::unique_ptr~IGameState~ state) void
-        +popState() void
-        +changeState(std::unique_ptr~IGameState~ state) void
-        +handleInput(sf::Event event) void
-        +update(float dt) void
-        +render(sf::RenderTarget target) void
-    }
-
-    class IGameState {
-        <<interface>>
-        +init() void*
-        +handleInput(sf::Event event) void*
-        +update(float dt) void*
-        +render(sf::RenderTarget target) void*
-        +pause() void*
-        +resume() void*
-    }
-
-    class MenuState {
-        +init() void
-        +handleInput(sf::Event event) void
-        +update(float dt) void
-        +render(sf::RenderTarget target) void
-        +pause() void
-        +resume() void
-    }
-
-    class PlayingState {
-        -PhysicsEngine m_physics
-        -TileMap m_tileMap
-        -std::vector~EntityPtr~ m_entities
-        +init() void
-        +handleInput(sf::Event event) void
-        +update(float dt) void
-        +render(sf::RenderTarget target) void
-        +pause() void
-        +resume() void
-    }
-
-    class ResourceManager {
-        -std::unordered_map~string, sf::Texture~ m_textures
-        -std::unordered_map~string, sf::Font~ m_fonts
-        -std::unordered_map~string, sf::SoundBuffer~ m_soundBuffers
-        +getInstance() ResourceManager$
-        +loadTexture(string id, string path) bool
-        +getTexture(string id) sf::Texture
-        +loadFont(string id, string path) bool
-        +getFont(string id) sf::Font
-        +loadSoundBuffer(string id, string path) bool
-        +getSoundBuffer(string id) sf::SoundBuffer
-        +clear() void
-    }
-
-    class SoundManager {
-        -sf::Music m_music
-        -std::vector~sf::Sound~ m_soundPool
-        -float m_sfxVolume
-        -float m_musicVolume
-        +getInstance() SoundManager$
-        +playSound(string id) void
-        +playMusic(string id, bool loop) void
-        +pauseMusic() void
-        +resumeMusic() void
-        +shutdown() void
-        +setSFXVolume(float volume) void
-        +setMusicVolume(float volume) void
-    }
-
-    class EventBus {
-        -std::unordered_map~EventType, SubscriptionList~ m_subscribers
-        -SubscriptionId m_nextId
-        +getInstance() EventBus$
-        +subscribe(EventType type, Callback callback) SubscriptionId
-        +unsubscribe(SubscriptionId id) void
-        +publish(GameEvent event) void
-    }
-
-    Game --> GameStateManager
-    GameStateManager o-- IGameState
-    IGameState <|-- MenuState
-    IGameState <|-- PlayingState
-```
-
----
-
-## 2. Input & Command System
-This diagram covers the `InputManager` and the Command pattern implementation.
-
-```mermaid
-classDiagram
-    class InputManager {
-        -Character m_players
-        -std::unordered_map~Key, CommandPtr~ m_pressMappings
-        -std::unordered_map~Key, CommandPtr~ m_holdMappings
-        +getInstance() InputManager$
-        +handleInput(sf::Event event, Character character) void
-        +update(Character character) void
-        +registerPlayer(Character character, int playerIndex) void
-        -loadDefaultBindings() void
-    }
-
-    class ICommand {
-        <<interface>>
-        +execute(Character character) void*
-    }
-
-    class CompositeCommand {
-        -std::vector~CommandPtr~ m_commands
-        +addCommand(std::shared_ptr~ICommand~ cmd) void
-        +execute(Character character) void
-    }
-
-    class JumpCommand { +execute(Character character) void }
-    class MoveLeftCommand { +execute(Character character) void }
-    class MoveRightCommand { +execute(Character character) void }
-    class FireCommand { +execute(Character character) void }
-    class RunCommand { +execute(Character character) void }
-    class CrouchCommand { +execute(Character character) void }
-    class GroundPoundCommand { +execute(Character character) void }
-    class WallJumpCommand { +execute(Character character) void }
-
-    InputManager --> ICommand
-    ICommand <|-- CompositeCommand
-    ICommand <|-- JumpCommand
-    ICommand <|-- MoveLeftCommand
-    ICommand <|-- MoveRightCommand
-    ICommand <|-- FireCommand
-    ICommand <|-- RunCommand
-    ICommand <|-- CrouchCommand
-    ICommand <|-- GroundPoundCommand
-    ICommand <|-- WallJumpCommand
-    CompositeCommand o-- ICommand
-```
-
----
-
-## 3. Entity Hierarchy
-This diagram maps the core `Entity` tree, showing abstract bases and specific concrete classes.
+## Entity hierarchy
 
 ```mermaid
 classDiagram
     class Entity {
         <<abstract>>
-        #sf::Vector2f position
-        #sf::Vector2f velocity
-        #AABB boundingBox
-        #bool active
-        +update(float dt) void*
-        +render(sf::RenderTarget target) void*
-        +getBoundingBox() AABB
-        +getPosition() sf::Vector2f
-        +getVelocity() sf::Vector2f
-        +isActive() bool
+        +update()
+        +render()
+        +getBoundingBox()
+        +isActive()
+        +destroy()
     }
-
-    class Character {
-        <<abstract>>
-        #int health
-        #float speed
-        #float jumpForce
-        #bool onGround
-        #bool onWall
-        #bool facingRight
-        +moveLeft() void*
-        +moveRight() void*
-        +jump() void*
-        +takeDamage(int amount) void*
-        +getHealth() int
-        +getSpeed() float
-        +getJumpForce() float
-        +isOnGround() bool
-        +isOnWall() bool
-        +isFacingRight() bool
-    }
-
-    class Player {
-        #std::unique_ptr~IPlayerState~ m_currentState
-        #int lives
-        #int coins
-        #int score
-        #float invincibilityTimer
-        #int coyoteFramesLeft
-        #int jumpBufferFramesLeft
-        #int comboCounter
-        +run() void*
-        +wallJump() void*
-        +groundPound() void*
-        +crouch() void*
-        +slide() void*
-        +shootFireball() void*
-        +powerUp(int itemType) void
-        +powerDown() void
-        +getCurrentState() IPlayerState
-        +changeState(std::unique_ptr~IPlayerState~ state) void
-        +addCoins(int amount) void
-        +addScore(int amount) void
-        +gainLife() void
-        +loseLife() void
-        +resetCombo() void
-        +incrementCombo() void
-        +getLives() int
-        +getCoins() int
-        +getScore() int
-    }
-
-    class Enemy {
-        <<abstract>>
-        +onStomped() void*
-        +onHitByFireball() void*
-    }
-
-    class Item {
-        <<abstract>>
-        #bool collected
-        +activate(Player player) void*
-        +collect() void*
-        +isCollected() bool
-    }
-
     class Block {
         <<abstract>>
-        +onHitFromBelow(Player player) void*
+        +hasArtwork()
+        +artworkSize()
+        +onHitFromBelow()
+        +getGravityMultiplier()
+        +getCategory()
     }
-
-    Entity <|-- Character
-    Entity <|-- Item
+    class BrickBlock {
+        +getTypeName()
+        +onHitFromBelow()
+        +render()
+        +setupAnimations()
+        +getCoinsLeft()
+    }
+    class Castle {
+        +getTypeName()
+        +onHitFromBelow()
+        +getGravityMultiplier()
+        +collidesWithTiles()
+        +update()
+    }
+    class ConveyorBelt {
+        +getTypeName()
+        +onHitFromBelow()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class FallingPlatform {
+        +getTypeName()
+        +onHitFromBelow()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class Flagpole {
+        +getTypeName()
+        +update()
+        +onHitFromBelow()
+        +render()
+        +setupAnimations()
+    }
+    class HiddenBlock {
+        +getTypeName()
+        +onHitFromBelow()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class IceBlock {
+        +getTypeName()
+        +onHitFromBelow()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class MovingPlatform {
+        +getTypeName()
+        +onHitFromBelow()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class Pipe {
+        +getTypeName()
+        +onHitFromBelow()
+        +render()
+        +setupAnimations()
+        +checkWarp()
+    }
+    class QuestionBlock {
+        +getTypeName()
+        +onHitFromBelow()
+        +render()
+        +setupAnimations()
+        +getItemType()
+    }
+    class Character {
+        +moveLeft()
+        +moveRight()
+        +jump()
+        +takeDamage()
+        +getHealth()
+    }
+    class Enemy {
+        <<abstract>>
+        +hasArtwork()
+        +artworkSize()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class Boo {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +onStomped()
+    }
+    class Boss {
+        <<abstract>>
+        +update()
+        +onStomped()
+        +onHitByFireball()
+        +getHealth()
+        +getMaxHealth()
+    }
+    class BoomBoom {
+        +getTypeName()
+        +setupAnimations()
+    }
+    class Bowser {
+        +getTypeName()
+        +setupAnimations()
+        +onHitByFireball()
+        +getFireHitsToStagger()
+    }
+    class BulletBill {
+        +getTypeName()
+        +setupAnimations()
+        +onStomped()
+        +onHitByFireball()
+        +getGravityMultiplier()
+    }
+    class ChainChomp {
+        +getTypeName()
+        +setupAnimations()
+        +onStomped()
+        +onHitByFireball()
+    }
+    class Goomba {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +onStomped()
+    }
+    class HammerBro {
+        +getTypeName()
+        +setupAnimations()
+        +onStomped()
+        +onHitByFireball()
+    }
+    class KoopaTroopa {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +onStomped()
+    }
+    class KoopaParatroopa {
+        +getTypeName()
+        +update()
+        +setupAnimations()
+        +render()
+        +onStomped()
+    }
+    class Lakitu {
+        +getTypeName()
+        +onStomped()
+        +onHitByFireball()
+        +update()
+        +setupAnimations()
+    }
+    class PiranhaPlant {
+        +getTypeName()
+        +setupAnimations()
+        +onStomped()
+        +onHitByFireball()
+        +render()
+    }
+    class Spiny {
+        +getTypeName()
+        +onStomped()
+        +onHitByFireball()
+        +update()
+        +setupAnimations()
+    }
+    class Thwomp {
+        +getTypeName()
+        +update()
+        +setupAnimations()
+        +onStomped()
+        +onHitByFireball()
+    }
+    class Player {
+        <<abstract>>
+        +hasArtwork()
+        +artworkSize()
+        +jump()
+        +run()
+        +wallJump()
+    }
+    class Luigi {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +jump()
+    }
+    class Mario {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +getCharacterName()
+    }
+    class Peach {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +floatHover()
+    }
+    class ShadowMario {
+        +getTypeName()
+        +getCharacterName()
+        +update()
+        +render()
+        +setupAnimations()
+    }
+    class Toad {
+        +getTypeName()
+        +update()
+        +render()
+        +setupAnimations()
+        +getCharacterName()
+    }
+    class Item {
+        +hasArtwork()
+        +artworkSize()
+        +activate()
+        +collect()
+        +setupAnimations()
+    }
+    class BridgeAxe {
+        +getTypeName()
+        +update()
+        +activate()
+        +setupAnimations()
+        +isSwung()
+    }
+    class CapeFeather {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class Coin {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class FireFlower {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class MegaMushroom {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class MiniMushroom {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class Mushroom {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class OneUpMushroom {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class POWBlock {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class PSwitch {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +collect()
+    }
+    class Star {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class StarCoin {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +setupAnimations()
+    }
+    class Trampoline {
+        +getTypeName()
+        +update()
+        +render()
+        +activate()
+        +collect()
+    }
+    class Projectile {
+        +getCategory()
+        +damagesEnemies()
+        +damagesPlayer()
+        +onHitEnemy()
+        +onHitPlayer()
+    }
+    class BossFireball {
+        +hasArtwork()
+        +artworkSize()
+        +getTypeName()
+        +update()
+        +render()
+    }
+    class Fireball {
+        +hasArtwork()
+        +artworkSize()
+        +getTypeName()
+        +update()
+        +render()
+    }
+    class Hammer {
+        +hasArtwork()
+        +artworkSize()
+        +getTypeName()
+        +damagesPlayer()
+        +onHitPlayer()
+    }
     Entity <|-- Block
-    Character <|-- Player
+    Block <|-- BrickBlock
+    Block <|-- Castle
+    Block <|-- ConveyorBelt
+    Block <|-- FallingPlatform
+    Block <|-- Flagpole
+    Block <|-- HiddenBlock
+    Block <|-- IceBlock
+    Block <|-- MovingPlatform
+    Block <|-- Pipe
+    Block <|-- QuestionBlock
+    Entity <|-- Character
     Character <|-- Enemy
-
-    Player <|-- Mario
+    Enemy <|-- Boo
+    Enemy <|-- Boss
+    Boss <|-- BoomBoom
+    Boss <|-- Bowser
+    Enemy <|-- BulletBill
+    Enemy <|-- ChainChomp
+    Enemy <|-- Goomba
+    Enemy <|-- HammerBro
+    Enemy <|-- KoopaTroopa
+    KoopaTroopa <|-- KoopaParatroopa
+    Enemy <|-- Lakitu
+    Enemy <|-- PiranhaPlant
+    Enemy <|-- Spiny
+    Enemy <|-- Thwomp
+    Character <|-- Player
     Player <|-- Luigi
+    Player <|-- Mario
     Player <|-- Peach
+    Player <|-- ShadowMario
     Player <|-- Toad
-
-    Item <|-- Mushroom
-    Item <|-- FireFlower
-    Item <|-- Coin
-    Item <|-- Star
-    Item <|-- OneUpMushroom
+    Entity <|-- Item
+    Item <|-- BridgeAxe
     Item <|-- CapeFeather
+    Item <|-- Coin
+    Item <|-- FireFlower
     Item <|-- MegaMushroom
     Item <|-- MiniMushroom
+    Item <|-- Mushroom
+    Item <|-- OneUpMushroom
+    Item <|-- POWBlock
+    Item <|-- PSwitch
+    Item <|-- Star
+    Item <|-- StarCoin
+    Item <|-- Trampoline
+    Entity <|-- Projectile
+    Projectile <|-- BossFireball
+    Projectile <|-- Fireball
+    Projectile <|-- Hammer
 ```
 
----
+## Game states (State)
 
-## 4. Player State Machine (State + Decorator Patterns)
-This diagram maps the complex state behaviors of the player.
+```mermaid
+classDiagram
+    class IGameState {
+        <<interface>>
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class CharacterSelectState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class GameOverState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class MenuState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class OptionsState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class PauseState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class PlayingState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class VictoryState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    class WorldMapState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +render()
+    }
+    IGameState <|-- CharacterSelectState
+    IGameState <|-- GameOverState
+    IGameState <|-- MenuState
+    IGameState <|-- OptionsState
+    IGameState <|-- PauseState
+    IGameState <|-- PlayingState
+    IGameState <|-- VictoryState
+    IGameState <|-- WorldMapState
+```
+
+## Input commands (Command)
+
+```mermaid
+classDiagram
+    class ICommand {
+        <<interface>>
+        +execute()
+    }
+    class CrouchCommand {
+        +execute()
+    }
+    class FireCommand {
+        +execute()
+    }
+    class GroundPoundCommand {
+        +execute()
+    }
+    class JumpCommand {
+        +execute()
+    }
+    class MoveLeftCommand {
+        +execute()
+    }
+    class MoveRightCommand {
+        +execute()
+    }
+    class RunCommand {
+        +execute()
+    }
+    class WallJumpCommand {
+        +execute()
+    }
+    ICommand <|-- CrouchCommand
+    ICommand <|-- FireCommand
+    ICommand <|-- GroundPoundCommand
+    ICommand <|-- JumpCommand
+    ICommand <|-- MoveLeftCommand
+    ICommand <|-- MoveRightCommand
+    ICommand <|-- RunCommand
+    ICommand <|-- WallJumpCommand
+```
+
+## Movement strategies (Strategy)
+
+```mermaid
+classDiagram
+    class IMovementStrategy {
+        <<interface>>
+        +execute()
+        +calculateTarget()
+        +applyMovement()
+        +checkConstraints()
+        +getName()
+    }
+    class ChaseStrategy {
+        +getName()
+    }
+    class FlyStrategy {
+        +getName()
+        +getFlyMode()
+        +setFlyMode()
+    }
+    class HammerThrowStrategy {
+        +getName()
+        +setThrowCallback()
+        +setThrowCallbackVel()
+    }
+    class LinearStrategy {
+        +getName()
+        +getSpeed()
+        +setSpeed()
+        +getDirection()
+        +setDirection()
+    }
+    class PatrolStrategy {
+        +getName()
+        +isLedgeAware()
+        +setLedgeAware()
+        +isMovingRight()
+        +setMovingRight()
+    }
+    class ProximityTriggerStrategy {
+        +getName()
+        +getDebugState()
+        +getHomePos()
+        +setHomePos()
+        +getState()
+    }
+    class TetheredChaseStrategy {
+        +getName()
+        +getAnchorPos()
+        +setAnchorPos()
+        +getTetherRadius()
+        +setTetherRadius()
+    }
+    class TimerEmergenceStrategy {
+        +getName()
+        +getAnchorPos()
+        +setAnchorPos()
+    }
+    IMovementStrategy <|-- ChaseStrategy
+    IMovementStrategy <|-- FlyStrategy
+    IMovementStrategy <|-- HammerThrowStrategy
+    IMovementStrategy <|-- LinearStrategy
+    IMovementStrategy <|-- PatrolStrategy
+    IMovementStrategy <|-- ProximityTriggerStrategy
+    IMovementStrategy <|-- TetheredChaseStrategy
+    IMovementStrategy <|-- TimerEmergenceStrategy
+```
+
+## Player forms (State + Decorator)
 
 ```mermaid
 classDiagram
     class IPlayerState {
         <<interface>>
-        +enter(Player player) void*
-        +exit(Player player) void*
-        +handleInput(Player player, sf::Event event) void*
-        +update(Player player, float dt) void*
-        +getSize() sf::Vector2f*
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
     }
-
-    class SmallState { +update(Player player, float dt) void }
-    class SuperState { +update(Player player, float dt) void }
-    class FireState { +update(Player player, float dt) void }
-    class CapeState { +update(Player player, float dt) void }
-    class MiniState { +update(Player player, float dt) void }
-
+    class CapeState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
+    }
+    class FireState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
+    }
+    class MiniState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
+    }
     class PlayerStateDecorator {
-        <<abstract>>
-        #std::unique_ptr~IPlayerState~ m_wrappedState
-        +enter(Player player) void
-        +exit(Player player) void
-        +handleInput(Player player, sf::Event event) void
-        +update(Player player, float dt) void
-        +getSize() sf::Vector2f
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
     }
-
-    class StarDecorator {
-        +update(Player player, float dt) void
-    }
-
     class MegaDecorator {
-        +update(Player player, float dt) void
-        +getSize() sf::Vector2f
+        +enter()
+        +exit()
+        +update()
+        +getSize()
+        +isExpired()
     }
-
-    IPlayerState <|-- SmallState
-    IPlayerState <|-- SuperState
-    IPlayerState <|-- FireState
+    class StarDecorator {
+        +enter()
+        +exit()
+        +update()
+        +isExpired()
+        +getTimeLeft()
+    }
+    class SmallState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
+    }
+    class SuperState {
+        +enter()
+        +exit()
+        +handleInput()
+        +update()
+        +getSize()
+    }
     IPlayerState <|-- CapeState
+    IPlayerState <|-- FireState
     IPlayerState <|-- MiniState
     IPlayerState <|-- PlayerStateDecorator
-    PlayerStateDecorator <|-- StarDecorator
     PlayerStateDecorator <|-- MegaDecorator
-    PlayerStateDecorator o-- IPlayerState : "Wraps"
+    PlayerStateDecorator <|-- StarDecorator
+    IPlayerState <|-- SmallState
+    IPlayerState <|-- SuperState
 ```
 
----
-
-## 5. Physics Engine
-This diagram covers the collision detection and resolution modules.
+## Difficulty (Strategy)
 
 ```mermaid
 classDiagram
-    class PhysicsEngine {
-        -CollisionDetector m_detector
-        -CollisionResolver m_resolver
-        -SpatialHash m_spatialHash
-        +update(std::vector~EntityPtr~ entities, TileMap tileMap, float dt) void
-        -applyGravity(Entity entity, float dt) void
-        -integrateVelocity(Entity entity, float dt) void
+    class IDifficultyStrategy {
+        <<interface>>
+        +getId()
+        +getDisplayName()
+        +enemySpeedScale()
+        +startingLives()
+        +levelTimeScale()
     }
-
-    class CollisionDetector {
-        +checkEntityVsEntity(Entity e1, Entity e2) CollisionInfo
-        +checkEntityVsTileMap(Entity entity, TileMap tileMap) std::vector~CollisionInfo~
+    class EasyDifficulty {
+        +getId()
+        +getDisplayName()
+        +enemySpeedScale()
+        +startingLives()
+        +levelTimeScale()
     }
-
-    class CollisionResolver {
-        +resolveEntityVsTile(Entity entity, CollisionInfo info) void
-        +resolveEntityVsEntity(Entity e1, Entity e2, CollisionInfo info) void
-        +resolvePlayerVsEnemy(Player player, Enemy enemy, CollisionInfo info) void
-        +resolvePlayerVsItem(Player player, Item item, CollisionInfo info) void
-        +resolvePlayerVsPlayer(Player p1, Player p2, CollisionInfo info) void
+    class HardDifficulty {
+        +getId()
+        +getDisplayName()
+        +enemySpeedScale()
+        +startingLives()
+        +levelTimeScale()
     }
-
-    class SpatialHash {
-        -std::unordered_map~GridCoord, EntityList~ m_grid
-        +insert(Entity entity, AABB box) void
-        +clear() void
-        +query(AABB box) std::vector~EntityPtr~
+    class NormalDifficulty {
+        +getId()
+        +getDisplayName()
+        +enemySpeedScale()
+        +startingLives()
+        +levelTimeScale()
     }
-
-    class AABB {
-        +float x
-        +float y
-        +float width
-        +float height
-        +intersects(AABB other) bool
-        +getOverlap(AABB other) AABB
-        +contains(float px, float py) bool
-        +getCenter() sf::Vector2f
-    }
-
-    class CollisionInfo {
-        <<struct>>
-        +bool collided
-        +sf::Vector2f overlap
-        +sf::Vector2f normal
-        +Entity other
-    }
-
-    PhysicsEngine --> CollisionDetector
-    PhysicsEngine --> CollisionResolver
-    PhysicsEngine --> SpatialHash
-    CollisionDetector ..> CollisionInfo
-    CollisionResolver ..> CollisionInfo
-    SpatialHash ..> AABB
+    IDifficultyStrategy <|-- EasyDifficulty
+    IDifficultyStrategy <|-- HardDifficulty
+    IDifficultyStrategy <|-- NormalDifficulty
 ```
 
----
-
-## 6. Utilities & Graphics
-This diagram covers level data, tiles, and rendering abstractions.
-
-```mermaid
-classDiagram
-    class TileMap {
-        -int m_width
-        -int m_height
-        -std::vector~TileRow~ m_grid
-        +getInfo(TileType type) TileInfo$
-        +render(sf::RenderTarget target, Camera camera) void
-        +initialize(int width, int height) void
-        +setTile(int gx, int gy, TileType type) void
-        +getTileAt(float px, float py) TileType
-        +worldToGrid(float px, float py) sf::Vector2i
-        +gridToWorld(int gx, int gy) sf::Vector2f
-        +getTileSurfaceType(float px, float py) TileType
-        +swapBricksAndCoins() void
-    }
-
-    class TileInfo {
-        <<struct>>
-        +TileType type
-        +bool isSolid
-        +sf::Color debugColor
-        +string name
-    }
-
-    class Camera {
-        -sf::View m_view
-        -AABB m_bounds
-        -sf::Vector2f m_position
-        -float m_shakeIntensity
-        -float m_shakeDuration
-        +follow(sf::Vector2f target, float dt) void
-        +setBounds(AABB bounds) void
-        +getView() sf::View
-        +getVisibleBounds() AABB
-        +triggerScreenShake(float intensity, float duration) void
-        +update(float dt) void
-    }
-
-    class LevelLoader {
-        +loadFromFile(string path, TileMap map, std::vector~EntityPtr~ entities) bool$
-        +loadFromSave(string path, TileMap map, std::vector~EntityPtr~ entities) bool$
-    }
-
-    TileMap ..> TileInfo
-```

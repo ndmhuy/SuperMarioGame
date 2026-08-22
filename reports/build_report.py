@@ -96,6 +96,34 @@ FACTS = {
 }
 FACTS["targets"], FACTS["ctests"] = ctest_targets()
 
+# Project history, counted rather than remembered. The narrative in the report's
+# process section quotes these, and a hand-typed count is exactly the kind of
+# claim that is wrong by the next commit.
+FACTS["sessions"] = sum(
+    1 for line in (REPO / "logs" / "agent_history.log").open(encoding="utf-8", errors="ignore")
+    if re.match(r"^\[20\d\d-\d\d-\d\d ", line))
+FACTS["weeklies"] = len(sorted((REPO / "docs").glob("Group52_*/52.md")))
+
+
+def uml(root, depth, caption, note=None):
+    """A UML class diagram, generated from the headers at build time.
+
+    Inline SVG rather than Mermaid: this document has to open from disk with no
+    network (g-rule-14), so a diagram that needs a JS runtime to render would be
+    a block of source text on the page. The SVG styles itself from the report's
+    own CSS variables, so it follows the light/dark theme like everything else.
+    """
+    svg = subprocess.run(
+        [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"),
+         "--svg", root, "--depth", str(depth)],
+        cwd=GAME, capture_output=True, text=True, check=True).stdout
+    body = f'<figure class="uml"><div class="uml-scroll">{svg}</div>'
+    if note:
+        body += f'<figcaption>{caption}<br><span class="note">{note}</span></figcaption>'
+    else:
+        body += f'<figcaption>{caption}</figcaption>'
+    return body + "</figure>"
+
 
 def img(name, alt, caption):
     data = base64.b64encode((HERE / "assets" / name).read_bytes()).decode()
@@ -105,7 +133,7 @@ def img(name, alt, caption):
 
 if __name__ == "__main__":
     from report_content import render
-    content = render(FACTS, img)
+    content = render(FACTS, img, uml)
 
     # Explicit head/body boundary. A browser would infer it at the <main>, but
     # an inferred boundary is not one a reader of the file can see.
