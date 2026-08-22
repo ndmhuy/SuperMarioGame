@@ -4312,3 +4312,17 @@ Summary of Changes:
     the root cause recorded at the time rather than reconstructed.
   * PUSHED AND PR'd at user request - the first push of this branch.
 ---
+[2026-08-22 21:47:00] Branch: A/fix/windows-crash-and-playtest
+Git Fingerprint: 038c9b1 (before) → 038c9b1 (after, no new commits per user directive)
+Fetched Remotes: no — local diagnostic and verification task
+Prompt: Resolve the Level 1-3 crash when Bowser shoots the first fireball (investigate mid-frame vector reallocation).
+Files Modified: logs/agent_history.log
+Reachable From Main: yes
+Verified By: ran the game (SuperMarioGame.exe --script with Bowser fire breath attack sequence)
+Summary of Changes:
+- Investigated and verified the mid-frame iterator invalidation use-after-free defect in PlayingState::update during synchronous EventBus entity spawn callbacks (Bowser::breatheFire -> EntitySpawnRequested).
+- Confirmed the deferred spawning architecture (queueSpawn staging buffer + flushPendingSpawns drain point) safely insulates the m_entities vector from mid-iteration reallocations across all mid-frame spawners (Bowser fireballs, Hammer Bro hammers, Lakitu spinies, QuestionBlock powerups, and Player fireballs).
+- Rebuilt SuperMarioGame.exe cleanly with MSVC C++17 (0 errors, 0 link issues).
+- Verified gameplay and Bowser fire breath attacks in Level 1-3 via automated script simulation with 0 crashes.
+---
+
