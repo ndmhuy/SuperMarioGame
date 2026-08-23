@@ -10,6 +10,7 @@ POWBlock::POWBlock(sf::Vector2f pos) : Item(pos) {
 
 void POWBlock::update(float dt) {
     Item::update(dt);
+    if (m_strikeCooldown > 0.0f) m_strikeCooldown -= dt;
 }
 
 void POWBlock::setupAnimations(const SpriteSheet* spriteSheet) {
@@ -36,6 +37,21 @@ void POWBlock::render(sf::RenderTarget& target) {
 }
 
 void POWBlock::activate(Player& player) {
-    // Triggers a screen-shake and flips all grounded enemies via EventBus
+    // One strike per press. The resolver calls this for every frame of contact,
+    // so without the cooldown a single hit spent all three charges at once and
+    // the block looked like it did nothing but disappear.
+    if (m_strikeCooldown > 0.0f || isSpent()) return;
+    m_strikeCooldown = 0.25f;
+    --m_charges;
+
+    // PlayingState listens for this and knocks over every grounded enemy on
+    // screen; Camera listens for the shake; SoundManager plays the slam.
     EventBus::getInstance().publish({EventType::POWBlockHit, this});
+
+    // Spent blocks leave the world. Collecting it is how an Item removes
+    // itself, and the resolver already skips collected items.
+    if (isSpent()) {
+        collect();
+        destroy();
+    }
 }

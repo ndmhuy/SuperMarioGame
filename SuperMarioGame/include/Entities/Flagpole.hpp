@@ -6,7 +6,14 @@
 
 class Flagpole : public Block {
 public:
-    explicit Flagpole(sf::Vector2f position, float poleHeight = 300.0f);
+    // The default is the height of the art. pole_flag_green and
+    // full_flag_pole_0..4 are all 24x168 in the atlas, and the sprite is drawn
+    // at that size — but the default used to be 300, which is what the COLLISION
+    // box was built from. So the box was 132px taller than the pole anyone could
+    // see: settling the box onto the floor left the drawn flag hanging four
+    // tiles up, and the catch-height score was measured against a pole that did
+    // not exist. One number now, used for both.
+    explicit Flagpole(sf::Vector2f position, float poleHeight = 168.0f);
     ~Flagpole() override = default;
 
     std::string getTypeName() const override { return "flagpole"; }
@@ -32,7 +39,7 @@ private:
     Animation m_raisedAnimation;
     Animation m_descentAnimation;
 
-    float m_poleHeight = 300.0f;
+    float m_poleHeight = 168.0f;
     bool m_triggered = false;
     // These three were placeholders for a slide-down that was never written —
     // m_flagY stayed at zero forever, so getFlagY() always answered "at the top"

@@ -59,7 +59,7 @@ const std::vector<BackgroundRenderer::Layer>& BackgroundRenderer::layersForTheme
         {{"mountain_tall", "mountain_short"}, 0.25f, GROUND_LINE, 420.0f, 2.0f, 0.0f,
          sf::Color(255, 255, 255)},
         {{"cloud_long", "cloud_short", "cloud_tiny"}, 0.40f, 210.0f, 340.0f, 2.0f, -8.0f,
-         sf::Color(255, 255, 255)},
+         sf::Color(255, 255, 255), /*sky=*/true},
         {{"bush_dark_green_long", "bush_light_green_long", "bush_light_green_short"},
          0.65f, GROUND_LINE, 300.0f, 2.0f, 0.0f, sf::Color(255, 255, 255)},
     };
@@ -85,7 +85,7 @@ const std::vector<BackgroundRenderer::Layer>& BackgroundRenderer::layersForTheme
         {{"tree_white_tall", "tree_white_long"}, 0.25f, GROUND_LINE, 300.0f, 3.2f, 0.0f,
          sf::Color(225, 235, 250)},
         {{"cloud_long", "cloud_short", "cloud_tiny"}, 0.40f, 190.0f, 320.0f, 2.0f, -6.0f,
-         sf::Color(255, 255, 255)},
+         sf::Color(255, 255, 255), /*sky=*/true},
         {{"tree_white_short", "tree_white_tall"}, 0.65f, GROUND_LINE, 200.0f, 2.0f, 0.0f,
          sf::Color(255, 255, 255)},
     };
@@ -168,13 +168,14 @@ void BackgroundRenderer::render(sf::RenderTarget& target, const AABB& visibleBou
             // floated. Clouds have no ground to sit on, so they take the offset
             // vertically as originally intended.
             const float jitter = static_cast<float>(slotHash(slot * 7 + 1, 24));
-            const bool floats = layer.baselineY < groundY - 1.0f;
+            // Read from the layer, not inferred from its baseline against this
+            // frame's ground line — see the comment on Layer::sky.
             const float x = static_cast<float>(slot) * layer.spacing - layerX +
-                            (floats ? 0.0f : jitter);
+                            (layer.sky ? 0.0f : jitter);
             // Ground layers are pinned to where the world's ground actually
             // renders this frame; only the sky layers keep a fixed screen y.
-            const float base = floats ? layer.baselineY : groundY;
-            const float y = base - bounds.size.y * layer.scale - (floats ? jitter : 0.0f);
+            const float base = layer.sky ? layer.baselineY : groundY;
+            const float y = base - bounds.size.y * layer.scale - (layer.sky ? jitter : 0.0f);
             sprite.setPosition({std::round(x), std::round(y)});
             target.draw(sprite);
         }

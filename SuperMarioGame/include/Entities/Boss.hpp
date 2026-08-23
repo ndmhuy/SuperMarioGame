@@ -69,6 +69,31 @@ public:
     // score for both. This is the same hit, with the answer.
     bool tryStomp() { return takeHit(); }
 
+    // --- Stagger: the window in which a boss can be hit safely ---------------
+    //
+    // Bowser was reported as nearly impossible, and the reason is structural
+    // rather than a matter of numbers. A boss carries a second of i-frames
+    // after every hit, and CollisionResolver treats contact during those frames
+    // as ordinary contact — it damages the player. So the only safe input is a
+    // fast descending stomp landed at a moment the player cannot see coming,
+    // against an enemy who is walking at them and breathing fire.
+    //
+    // A stagger is the answer: a period during which the boss stops attacking,
+    // stops moving, drops its guard, and can be struck without hurting whoever
+    // strikes it. It is what turns an unreadable fight into a rhythm — apply
+    // pressure, wait for the opening, take it. How a boss earns a stagger is
+    // its own business; Bowser earns one by absorbing fireballs.
+    bool isStaggered() const { return m_staggerTimer > 0.0f; }
+    float getStaggerTimer() const { return m_staggerTimer; }
+
+    // End the fight immediately, whatever the health bar says.
+    //
+    // For the non-combat solution: the axe at the end of Bowser's bridge does
+    // not chip away at him, it drops the floor out from under him. Routed
+    // through takeHit() so the score, the BossDefeated event and the defeat
+    // animation all happen exactly as they would after a fifth stomp.
+    void defeatNow();
+
 protected:
     // The subclass's own fight logic, called once per frame while the boss is
     // alive. Gravity and collision are still the physics engine's job.
@@ -87,6 +112,22 @@ protected:
     // Returns true if the hit actually landed.
     bool takeHit(int amount = 1);
 
+    // Open the window. Clears the i-frames as well, so a stagger earned one
+    // frame after a hit is not swallowed by the invulnerability from that hit —
+    // which would present the player with an opening that is not really there.
+    void stagger(float seconds);
+
+    // Close the window early. A boss that takes its hit should recover rather
+    // than stand open for the rest of the three seconds — otherwise one opening
+    // pays for the whole health bar, because the i-frames are gone while it
+    // runs and a player can bounce twice a second.
+    void endStagger();
+
+    // Called once when a stagger begins and once when it ends, so a subclass can
+    // change its sprite or play a cue. Default to nothing.
+    virtual void onStaggerBegan() {}
+    virtual void onStaggerEnded() {}
+
     // True while the defeat sequence is playing, for subclasses that want to
     // stop attacking without checking the health themselves.
     bool isDying() const { return isDefeated() && active; }
@@ -100,6 +141,7 @@ private:
     // Contact damage arrives every frame the player overlaps the boss, so
     // without this a single stomp would drain the whole bar.
     float m_invulnerableTimer = 0.0f;
+    float m_staggerTimer = 0.0f;
     float m_defeatTimer = 0.0f;
     bool m_defeatAnnounced = false;
 

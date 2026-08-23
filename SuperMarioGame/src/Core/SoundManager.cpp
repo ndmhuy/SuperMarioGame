@@ -95,7 +95,11 @@ void SoundManager::setupEventSubscriptions() {
     // altogether — the only feedback was visual.
     bus.subscribe(EventType::StarCoinCollected, [this](const GameEvent&) { playSound("one_up"); });
     bus.subscribe(EventType::CheckpointActivated, [this](const GameEvent&) { playSound("vine_grow"); });
-    bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent&) { playSound("boing"); });
+    // "boing" is the trampoline's cue, and the P-Switch was borrowing it — so
+    // pressing the switch sounded exactly like bouncing off a spring and read as
+    // a bug rather than an effect. "kick" is the short percussive thunk of the
+    // switch going down, and is used by nothing else.
+    bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent&) { playSound("kick"); });
     bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent&) { playSound("stomp"); });
     bus.subscribe(EventType::PlayerDied, [this](const GameEvent&) { stopMusic(); playSound("lost_life"); });
     bus.subscribe(EventType::PowerUpCollected, [this](const GameEvent&) { playSound("power_up"); });

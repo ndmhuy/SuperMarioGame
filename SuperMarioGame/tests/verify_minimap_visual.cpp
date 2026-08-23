@@ -13,8 +13,14 @@
 #include "Entities/Mushroom.hpp"
 #include "Core/EventBus.hpp"
 #include "Utils/Constants.hpp"
+#include "TestSaveSandbox.hpp"
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("minimap_visual");
+
     std::cout << "[VISUAL TEST] Launching Minimap Visualizer..." << std::endl;
 
     // Create SFML RenderWindow (1280x720 design size)

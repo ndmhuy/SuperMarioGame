@@ -1,120 +1,79 @@
-\documentclass[12pt,a4paper]{article}
+\documentclass[12pt]{article}
 
-% ── Packages ──
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage[margin=2.5cm]{geometry}
-\usepackage{graphicx}
-\usepackage{hyperref}
-\usepackage{listings}
-\usepackage{xcolor}
-\usepackage{booktabs}
-\usepackage{enumitem}
+\usepackage{hcmus-report-template}
+\usepackage{longtable}
 \usepackage{tikz}
-\usepackage{fancyhdr}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
 
-% ── Code listing style ──
-\lstset{
-    language=C++,
-    basicstyle=\ttfamily\small,
-    keywordstyle=\color{blue}\bfseries,
-    commentstyle=\color{gray},
-    stringstyle=\color{red},
-    breaklines=true,
-    frame=single,
-    numbers=left,
-    numberstyle=\tiny\color{gray},
-    tabsize=4
+% Inline code that is allowed to wrap.
+%
+% The report is full of paths and identifiers - docs/issues/code_audit_...md,
+% PlayingState::flushPendingSpawns - and plain \texttt refuses to break them,
+% pushing lines well into the margin. This permits a break after the characters
+% such names are made of, without hyphenating anything.
+\newcommand{\codebreak}[1]{\texttt{\seqsplitcode{#1}}}
+\makeatletter
+\newcommand{\seqsplitcode}[1]{%
+  \begingroup
+  \def\-{\discretionary{}{}{}}%
+  \catcode`\/=13 \catcode`\_=13 \catcode`\.=13 \catcode`\:=13 \catcode`\-=13
+  \scantokens{#1\noexpand}%
+  \endgroup}
+\makeatother
+\begingroup
+\catcode`\/=13 \catcode`\_=13 \catcode`\.=13 \catcode`\:=13 \catcode`\-=13
+\gdef/{\char`\/\allowbreak}
+\gdef_{\char`\_\allowbreak}
+\gdef.{\char`\.\allowbreak}
+\gdef:{\char`\:\allowbreak}
+\gdef-{\char`\-\allowbreak}
+\endgroup
+
+% Disable indentation on new paragraphs
+\setlength{\parindent}{0pt}
+
+% Line spacing 1.5
+\renewcommand{\baselinestretch}{1.5}
+
+% Define course name, report name and report title.
+\newcommand{\coursename}{Object-Oriented Programming - CS202}
+\newcommand{\reportname}{Super Mario Game}
+\newcommand{\reporttitle}{Final Project}
+
+\newcommand{\studentname}{Nguyễn Đình Minh Huy (25125083) \\ Trần Gia Huy (25125084)}
+\newcommand{\teachername}{}
+
+% Header
+\lhead{\reporttitle}
+\rhead{
+University of Science - VNUHCM\\
+\coursename
 }
 
-% ── Header/Footer ──
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[L]{CS202 Final Project}
-\fancyhead[R]{Super Mario Game}
-\fancyfoot[C]{\thepage}
+% Footer
+\newcommand{\leftfooter}{\LaTeX\ by \href{https://github.com/ndmhuy}{Huy, Nguyen Dinh Minh}}
+\lfoot{\leftfooter}
 
-% ── Title ──
-\title{
-    \textbf{CS202 Final Project Report} \\
-    \vspace{0.5cm}
-    \Large Super Mario Bros. \\
-    \vspace{0.3cm}
-    \normalsize 2D Game Development in C++ with OOP and Design Patterns
-}
-\author{
-    Nguyễn Đình Minh Huy (25125083)
-}
-\date{\today}
-
+% ============ DOCUMENT ============
 \begin{document}
-
-\maketitle
+\renewcommand{\proofname}{Proof}
+\pagenumbering{roman}
+\input{content/title.tex}
 \tableofcontents
-\newpage
+\pagebreak
 
-% ──────────────────────────────────────────
-\section{Introduction}
-\label{sec:intro}
-% TODO: Project objectives, scope, reference games (SMB 1985, New SMB DS)
+\pagenumbering{arabic}
+\setcounter{page}{1}
 
-% ──────────────────────────────────────────
-\section{System Architecture}
-\label{sec:architecture}
-% TODO: Layered architecture overview, dependency diagram
-% Subsections: Core Layer, World Layer, Entity Layer, Physics Layer, Infrastructure Layer
-
-% ──────────────────────────────────────────
-\section{Object-Oriented Design Principles}
-\label{sec:oop}
-% TODO: Inheritance, Polymorphism, Encapsulation, Abstraction
-% Include class hierarchy diagrams
-
-% ──────────────────────────────────────────
-\section{Design Patterns}
-\label{sec:patterns}
-% TODO: Document 5+ patterns with code examples
-% Subsections: Factory, Singleton, State, Observer, Strategy
-
-% ──────────────────────────────────────────
-\section{Class Diagrams}
-\label{sec:diagrams}
-% TODO: UML class diagrams, sequence diagrams
-
-% ──────────────────────────────────────────
-\section{Implementation Details}
-\label{sec:implementation}
-% TODO: Per-module breakdown
-% Subsections: Core, Entities, Physics, Graphics, Utils
-
-% ──────────────────────────────────────────
-\section{Gameplay and Level Design}
-\label{sec:gameplay}
-% TODO: Physics constants, character abilities, level descriptions
-
-% ──────────────────────────────────────────
-\section{Testing and Results}
-\label{sec:testing}
-% TODO: Testing approach, screenshots, demo video link
-
-% ──────────────────────────────────────────
-\section{Conclusion}
-\label{sec:conclusion}
-% TODO: Lessons learned, future improvements
-
-% ──────────────────────────────────────────
-\appendix
-\section{AI Usage Declaration}
-\label{sec:ai}
-% TODO: Describe AI tool usage per team member
-
-\section{Commit History}
-\label{sec:commits}
-% TODO: Summary of git commit history
-
-\section{Task Assignments}
-\label{sec:tasks}
-% TODO: Task assignment table
+% The body is GENERATED from reports/report_content.py, which also produces the
+% HTML edition of this report. Do not edit content/report_body.tex by hand;
+% regenerate both with:
+%
+%     python3 reports/build_report.py
+%
+% Keeping one source is not tidiness. Section 12 of this very report is about
+% what happens to a fact that is stored in two places, and shipping the report
+% itself as two divergent manuscripts would have been the same mistake.
+\input{content/report_body.tex}
 
 \end{document}

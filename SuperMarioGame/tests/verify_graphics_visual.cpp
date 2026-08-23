@@ -26,6 +26,7 @@
 #include "Core/ResourceManager.hpp"
 #include "Core/EventBus.hpp"
 #include "Utils/Constants.hpp"
+#include "TestSaveSandbox.hpp"
 
 struct CallbackLogEntry {
     std::string timestamp;
@@ -121,6 +122,11 @@ Animation buildUnboundAnimationFromAny(const std::map<std::string, std::unique_p
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("graphics_visual");
+
     std::cout << "[VISUAL TEST] Launching Unbound Multi-Spritesheet, FX, Shake, Transitions & Transform Visualizer..." << std::endl;
 
     // Create SFML RenderWindow (1280x720)

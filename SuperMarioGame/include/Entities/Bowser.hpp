@@ -20,13 +20,28 @@ public:
 
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
-    // Breathing fire does not make him vulnerable to it.
-    void onHitByFireball() override {}
+    // Breathing fire does not make him vulnerable to it — but it does wear him
+    // down. Every fireball that lands counts; the fourth staggers him, and a
+    // staggered Bowser can be stomped safely and without i-frames.
+    //
+    // This is what makes the fight winnable. Before it, fire did literally
+    // nothing and the only route through the health bar was five clean
+    // descending stomps landed on a boss who is walking at you, breathing fire,
+    // and hurting you on contact for a second after every hit you land.
+    void onHitByFireball() override;
+
+    // How many fireballs are still needed for the next opening. Drawn under the
+    // boss health bar, because a mechanic the player cannot see the state of is
+    // a mechanic they will not find.
+    int getFireHitsToStagger() const;
+    static constexpr int FIRE_HITS_PER_STAGGER = 4;
 
 protected:
     void updateBehaviour(float dt) override;
     void onPhaseChanged(int newPhase) override;
     void onTookHit() override;
+    void onStaggerBegan() override;
+    void onStaggerEnded() override;
 
 private:
     void breatheFire();
@@ -40,6 +55,9 @@ private:
 
     float m_fireTimer = 0.0f;
     float m_jumpTimer = 0.0f;
+    // Fireballs absorbed since the last stagger. Reset when the window opens,
+    // so the cost of each opening is the same all through the fight.
+    int m_fireHits = 0;
     // Bowser paces between these two x values. Set from the arena when one is
     // assigned, so level design controls the pacing width.
     float m_patrolLeft = 0.0f;

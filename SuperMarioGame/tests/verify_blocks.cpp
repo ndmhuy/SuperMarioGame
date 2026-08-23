@@ -13,6 +13,7 @@
 #include "Core/GameSnapshot.hpp"
 #include "Physics/CollisionResolver.hpp"
 #include "Physics/CollisionDetector.hpp"
+#include "TestSaveSandbox.hpp"
 
 // The stub Game, TileMap and SoundManager that used to live here are gone: the
 // target links the whole engine, so every stub collided with the real
@@ -35,6 +36,11 @@ public:
 };
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("blocks");
+
     std::cout << "[TEST] Starting Block Verification Suite..." << std::endl;
 
     CollisionResolver resolver;

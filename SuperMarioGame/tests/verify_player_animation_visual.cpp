@@ -12,11 +12,17 @@
 #include "Graphics/Animation.hpp"
 #include "Graphics/Animator.hpp"
 #include "Utils/Constants.hpp"
+#include "TestSaveSandbox.hpp"
 
 enum class FormState { Small, Tiny };
 enum class MotionState { Idle, Wave, Walk, Jump, Fall, Run, Skid, Crouch, CrouchHold, Climb, Float, Death };
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("player_animation_visual");
+
     std::cout << "[VISUAL TEST] Launching SMB2 Player Animation Visualizer (from player/player)..." << std::endl;
 
     sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "SMB2 Player Animation Visualizer");

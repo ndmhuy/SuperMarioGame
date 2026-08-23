@@ -12,6 +12,7 @@
 
 #include "Core/ResourceManager.hpp"
 #include "Core/SoundManager.hpp"
+#include "TestSaveSandbox.hpp"
 
 struct SoundEntry {
     std::string id;          // Sound ID for SoundManager
@@ -21,6 +22,11 @@ struct SoundEntry {
 };
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("sound_visual");
+
     sf::RenderWindow window(sf::VideoMode({960, 680}), "Super Mario Sound Verification Suite");
     window.setFramerateLimit(60);
 

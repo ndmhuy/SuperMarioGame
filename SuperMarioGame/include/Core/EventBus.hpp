@@ -30,6 +30,9 @@ enum class EventType {
   PlayerShotFireball,
   MinimapToggled,
   POWBlockHit,
+  // The axe at the end of Bowser's bridge was reached. PlayingState drops the
+  // bridge span into the lava and takes the boss down with it.
+  BridgeChopped,
   ThwompSlam,
   GroundPoundSlam,
   ScreenShakeTriggered

@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mid-Frame Entity Spawn Crash — Learning Record</title>
+<style>
+  :root{--bg:#fbfaf8;--surface:#fff;--line:#e3e0d9;--tx:#1c1b19;--mut:#5c5852;--dim:#8a857c;
+    --accent:#7c5cff;--accent-soft:#efeaff;--ok:#0f7b4f;--warn:#9a6400;--code-bg:#f4f2ee;
+    --sans:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,monospace}
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14151a;--surface:#1b1d23;
+    --line:#2e3138;--tx:#e9e7e3;--mut:#a8a49c;--dim:#7b776f;--accent:#a892ff;--accent-soft:#241f38;
+    --ok:#4ec98a;--warn:#e0a83c;--code-bg:#22242b}}
+  :root[data-theme="dark"]{--bg:#14151a;--surface:#1b1d23;--line:#2e3138;--tx:#e9e7e3;--mut:#a8a49c;
+    --dim:#7b776f;--accent:#a892ff;--accent-soft:#241f38;--ok:#4ec98a;--warn:#e0a83c;--code-bg:#22242b}
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:17px;
+    line-height:1.65;padding:48px 22px 90px}
+  .wrap{max-width:none;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+  main{max-width:72ch;margin:0 auto;min-width:0}
+  .eyebrow{font-family:var(--ui);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);margin-bottom:10px}
+  h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em;text-wrap:balance}
+  .stamp{font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--code-bg);
+    border:1px solid var(--line);border-radius:7px;padding:9px 13px;margin:18px 0 0}
+  .stamp b{color:var(--mut);font-weight:500}
+  h2{font-family:var(--ui);font-size:13px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent);margin:44px 0 4px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  h3{font-size:19px;margin:26px 0 6px;letter-spacing:-.01em}
+  p,li{color:var(--mut)}
+  p{margin:12px 0}
+  strong{color:var(--tx);font-weight:600}
+  .prompt{font-family:var(--ui);font-size:14px;color:var(--dim);background:var(--accent-soft);
+    border-left:2px solid var(--accent);border-radius:0 7px 7px 0;padding:11px 15px;margin:12px 0}
+  .prompt b{color:var(--accent)}
+  code{font-family:var(--mono);font-size:.87em;background:var(--code-bg);padding:1.5px 5px;
+    border-radius:4px;border:1px solid var(--line)}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:9px;padding:14px 16px;
+    overflow-x:auto;margin:14px 0}
+  pre code{background:none;border:none;padding:0;font-size:13.5px;line-height:1.6}
+  .math{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:14px 18px;
+    margin:14px 0;font-family:var(--mono);font-size:14px;overflow-x:auto;color:var(--tx)}
+  blockquote{margin:14px 0;padding:11px 16px;border-left:2px solid var(--warn);
+    background:var(--surface);border-radius:0 7px 7px 0;color:var(--mut);font-size:15.5px}
+  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:9px;margin:14px 0}
+  table{border-collapse:collapse;width:100%;font-family:var(--ui);font-size:14px;min-width:420px}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);font-weight:650;
+    background:var(--code-bg)}
+  td{color:var(--mut);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .prereq{margin:18px 0 0;padding:11px 15px;border:1px dashed var(--line);border-radius:9px;
+    font-size:14px;color:var(--mut);background:var(--surface)}
+  .prereq strong{color:var(--accent)}
+  .excerpt{margin:16px 0;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+  .excerpt-cap{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:var(--accent-soft);
+    padding:7px 13px;border-bottom:1px solid var(--line)}
+  .excerpt pre{margin:0;border:none;border-radius:0;background:var(--code-bg)}
+  .excerpt-note{padding:10px 13px;font-size:14px;color:var(--mut);border-top:1px solid var(--line)}
+  .excerpt-note strong{color:var(--tx)}
+  ol.checks{counter-reset:q;list-style:none;padding-left:0}
+  ol.checks li{counter-increment:q;position:relative;padding-left:36px;margin:11px 0}
+  ol.checks li::before{content:"Q" counter(q);position:absolute;left:0;top:1px;font-family:var(--ui);
+    font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+    border-radius:5px;padding:2px 6px}
+  footer{max-width:72ch;margin:56px auto 0;padding-top:18px;border-top:1px solid var(--line);
+    font-family:var(--ui);font-size:13px;color:var(--dim)}
+  a{color:var(--accent)}
+  @media print{body{padding:0;font-size:11pt}h2{page-break-after:avoid}pre,.math,.tbl{page-break-inside:avoid}
+    .prompt{display:none}}
+</style></head><body>
+<div class="wrap"><main>
+
+<div class="eyebrow">Learning Record &middot; SuperMarioGame (CS202-Cpp)</div>
+<h1>Mid-Frame Entity Spawn Crash</h1>
+<p class="stamp"><b>Verified against commit</b> cb4f6ea &middot; <b>created</b> 2026-08-22
+&middot; <b>last updated</b> 2026-08-22<br>
+<b>Update this record in the same change that alters what it describes (g-rule-21).</b></p>
+
+<div class="prereq"><strong>Prerequisites</strong> &mdash; you need three things.
+(1) <strong>How <code>std::vector</code> grows</strong>: that it stores its elements in one contiguous
+block, and that exceeding <code>capacity()</code> allocates a new block, copies or moves everything
+into it, and frees the old one &mdash; <em>Effective STL</em> item 14, or cppreference on
+<code>vector::push_back</code>.
+(2) <strong>Iterator invalidation</strong>: which operations invalidate which iterators, references and
+pointers &mdash; cppreference's "Iterator invalidation" table is the whole prerequisite.
+(3) <strong>What undefined behaviour actually means</strong>: that the standard imposes <em>no</em>
+requirement, so "it worked on my machine" is not evidence of correctness. If you have met
+range-<code>for</code> and know it desugars to an iterator loop, you are ready.</div>
+
+<h2>1 &middot; What &amp; Why</h2>
+<p>A teammate playing the Windows build reported that the game <strong>crashed in level 1-3</strong>,
+and &mdash; the detail that solved it &mdash; that <strong>deleting Bowser from the level file made the
+crash go away</strong>. On macOS the same build played 1-3 fine. That asymmetry is the whole story:
+the bug was not in Bowser, and it was not platform-specific code. It was
+<strong>undefined behaviour</strong> that one platform's allocator happened to absorb.</p>
+
+<p>Every spawn in this game travels the same route. An entity that wants to create another entity
+cannot reach the world's entity list &mdash; it has no handle on it, deliberately &mdash; so it
+<em>publishes an event</em>, and <code>PlayingState</code> performs the spawn in a subscriber. Bowser
+breathing fire publishes <code>EntitySpawnRequested</code>; a question block being hit publishes
+<code>PowerUpRequested</code>. The subscriber did the obvious thing:
+<code>m_entities.push_back(...)</code>.</p>
+
+<p>The problem is <em>when</em> that subscriber runs. <code>EventBus::publish</code> is synchronous: it
+calls the handler on the publisher's own stack, immediately. Bowser publishes from inside
+<code>Bowser::updateBehaviour()</code>, which is called from <code>Boss::update()</code>, which is called
+from the <code>for (auto&amp; entity : m_entities)</code> loop in <code>PlayingState::update()</code>.
+So the handler was pushing onto the very vector that loop was iterating. When that
+<code>push_back</code> exceeded the vector's capacity, it reallocated &mdash; and the loop's iterator was
+left pointing into freed memory, which it then dereferenced on the next iteration.</p>
+
+<p><strong>The approach chosen: defer the insertion.</strong> Spawns are queued in a second vector during
+the frame and moved into <code>m_entities</code> at exactly one point &mdash; after both the entity
+update loop and the physics pass have finished, when no iterator into the vector is live.</p>
+
+<h3>Alternatives considered</h3>
+<div class="tbl"><table>
+<thead><tr><th>Option</th><th>Why it lost</th><th>Would it win if&hellip;</th></tr></thead>
+<tbody>
+<tr><td><code>reserve()</code> a large capacity up front</td>
+    <td>Does not fix anything &mdash; it makes the reallocation <em>rarer</em>, which is strictly worse
+        than a crash you can reproduce. The 400-entity cap already in the spawn handler means a long
+        fight can still reach any bound you pick.</td>
+    <td>Never. Hiding UB is not fixing it (g-rule-2).</td></tr>
+<tr><td>Index-based loop (<code>for (size_t i = 0; i &lt; m_entities.size(); ++i)</code>)</td>
+    <td>Survives reallocation, but only for the loop you remembered to convert. The physics engine
+        iterates the same vector, and so does every future loop anyone adds. It also silently changes
+        semantics: entities spawned this frame would be updated this frame, sometimes.</td>
+    <td>If there were exactly one loop and it would stay that way.</td></tr>
+<tr><td><code>std::list</code> or <code>std::deque</code> for the entity list</td>
+    <td>Both keep references valid across insertion, so this class of bug disappears. But the entity
+        list is walked every frame by physics, collision and rendering; giving up contiguity to fix an
+        ordering mistake trades cache locality for a discipline problem.</td>
+    <td>If entities were inserted and removed far more often than they were iterated.</td></tr>
+<tr><td>Make <code>EventBus::publish</code> asynchronous (queue every event)</td>
+    <td>Fixes this and every future variant, but changes the semantics of all 30+ event types at once
+        &mdash; sounds, HUD updates and score would all land a frame late, and code that assumes a
+        handler has already run would break invisibly.</td>
+    <td>A larger refactor, worth revisiting if a second ordering bug appears.</td></tr>
+<tr><td><strong>Defer only the insertion: a pending-spawn queue</strong></td>
+    <td><strong>chosen</strong> &mdash; the smallest change that makes the invariant structural rather
+        than remembered. Every spawn already goes through one door
+        (<code>queueSpawn</code>), so there is nowhere for a future spawn to bypass it, and the
+        vector stays contiguous.</td>
+    <td>&mdash;</td></tr>
+</tbody></table></div>
+
+<h2>2 &middot; Tech Stack</h2>
+<div class="tbl"><table>
+<thead><tr><th>Component</th><th>Version</th><th>Why this one</th></tr></thead>
+<tbody>
+<tr><td>C++17</td><td>&mdash;</td><td>Project constraint (sm-rule-4). Relevant here because the
+    iterator-invalidation rules for <code>std::vector</code> are the same ones C++98 had; this is not a
+    modern-C++ problem.</td></tr>
+<tr><td><code>std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt;</code></td><td>libc++ / MSVC STL</td>
+    <td>The world's entity list. Contiguous because it is iterated several times per frame; owning
+    pointers because entities are polymorphic.</td></tr>
+<tr><td>Observer pattern (<code>EventBus</code>)</td><td>in-tree</td>
+    <td>The mechanism that puts the handler on the publisher's stack. The pattern is not at fault
+    &mdash; synchronous delivery is what makes it useful &mdash; but it is why the ordering matters.</td></tr>
+<tr><td>CTest + <code>verify_regressions</code></td><td>&mdash;</td>
+    <td>Where the regression lives, so the fix cannot be undone silently (g-rule-13).</td></tr>
+<tr><td>AddressSanitizer</td><td>clang 17</td>
+    <td>Not required for the diagnosis, but it is the tool that would have caught this on day one
+    &mdash; see &sect;9.</td></tr>
+</tbody>
+</table></div>
+
+<h2>3 &middot; CS &amp; Math Foundations</h2>
+<h3>Why <code>push_back</code> ever moves anything: amortised growth</h3>
+<p><code>std::vector</code> guarantees contiguous storage. To keep <code>push_back</code> amortised
+<em>O</em>(1) despite that, implementations grow the buffer <strong>geometrically</strong>: on overflow
+they allocate <code>k&middot;capacity</code> for some k&nbsp;&gt;&nbsp;1 (libc++ and libstdc++ use
+k&nbsp;=&nbsp;2; MSVC uses k&nbsp;=&nbsp;1.5), move the elements across, and free the old block.</p>
+<div class="math">Cost of n push_backs starting from capacity 1, growth factor k:
+
+  reallocations occur at sizes 1, k, k&sup2;, &hellip;, k^m  where k^m &le; n
+  total elements moved  =  1 + k + k&sup2; + &hellip; + k^m
+                        =  (k^(m+1) - 1) / (k - 1)
+                        &lt;  n&middot;k / (k - 1)
+
+  k = 2   ->  &lt; 2n moves      k = 1.5 ->  &lt; 3n moves
+
+  Therefore  total = O(n),  amortised O(1) per push_back  —  but the
+  WORST CASE of a single push_back is O(n), and that worst case is
+  exactly the one that invalidates every iterator.</div>
+<p>The bound is what makes the bug intermittent. Reallocation happens on
+<em>O</em>(log<sub>k</sub>&nbsp;n) of the n insertions &mdash; roughly 20 times over a million
+push_backs &mdash; so a loop that appends per iteration is safe almost every time and catastrophic
+occasionally. That is the profile of the reported symptom exactly: fine for a while, then a crash.</p>
+
+<h3>What the standard actually says</h3>
+<blockquote>Reallocation invalidates all references, pointers, and iterators referring to the elements
+in the sequence. &mdash; [vector.modifiers] on <code>insert</code>/<code>push_back</code></blockquote>
+<p>A range-<code>for</code> is defined to be an iterator loop: <code>for (auto&amp; e : v)</code> caches
+<code>v.begin()</code> and <code>v.end()</code> <em>once</em>, before the body runs. So after a
+reallocating <code>push_back</code> in the body, both cached iterators point into the freed block.
+Incrementing one is undefined; dereferencing it reads memory the allocator has taken back.</p>
+
+<h3>Why macOS survived and Windows did not</h3>
+<p>Nothing in the standard makes either behaviour correct &mdash; but the <em>observed</em> difference
+has a mundane cause. Freed memory is not scrubbed. Whether the stale iterator reads plausible data or
+faults depends on whether the allocator has reused or unmapped that page, which differs between
+libc++/<code>malloc</code> on macOS and the MSVC STL on Windows; and MSVC's debug iterators
+(<code>_ITERATOR_DEBUG_LEVEL</code>) actively check for invalidation and abort. So the same UB is
+silent on one toolchain and a hard crash on the other.</p>
+<p><strong>Cost of the fix.</strong> The queue adds one move per spawned entity and one
+<code>reserve</code>-backed append per frame: <em>O</em>(s) time for s spawns, <em>O</em>(s) extra
+space, with s bounded by the existing 400-entity cap. The per-frame cost when nothing spawns is a
+single <code>empty()</code> check.</p>
+
+<h2>4 &middot; Diagrams</h2>
+
+<div class="excerpt">
+  <div class="excerpt-cap">The call stack at the moment of the crash &middot; ASCII, diffs cleanly</div>
+  <pre><code>PlayingState::update(dt)
+  |
+  |  for (auto&amp; entity : m_entities)      &lt;-- caches begin()/end() ONCE
+  |     |
+  |     +--&gt; Bowser::update(dt)
+  |            |
+  |            +--&gt; Boss::update -&gt; Bowser::updateBehaviour
+  |                   |
+  |                   +--&gt; breatheFire()
+  |                          |
+  |                          | publishes EntitySpawnRequested
+  |                          v
+  |                   EventBus::publish()          SYNCHRONOUS: same stack
+  |                          |
+  |                          | calls subscriber
+  |                          v
+  |                   PlayingState's lambda
+  |                          |
+  |                          | m_entities.push_back(fireball)
+  |                          v
+  |                   +-------------------------------+
+  |                   | size == capacity -&gt; REALLOCATE|
+  |                   |  new block, move, FREE OLD    |
+  |                   +-------------------------------+
+  |                                  |
+  |     &lt;----------------------------+  returns all the way back up
+  |     |
+  |     ++entity   &lt;-- iterator into the FREED block.  Undefined.
+  v
+</code></pre>
+  <div class="excerpt-note"><strong>Reading it:</strong> follow the single arrow labelled
+  <em>SYNCHRONOUS</em>. That is the whole bug &mdash; every other edge is ordinary. The surprising part
+  for most readers is that nothing here is concurrent: there are no threads, and the loop is
+  interrupted by <em>itself</em>, four stack frames down.</div>
+</div>
+
+<div class="excerpt">
+  <div class="excerpt-cap">Mermaid source &middot; the frame, before and after the fix</div>
+  <pre><code>flowchart TD
+    subgraph BEFORE["Before &mdash; one list, mutated mid-walk"]
+        A1["for entity : m_entities"] --&gt;|"calls update()"| B1["Bowser"]
+        B1 --&gt;|"publish (sync)"| C1["spawn handler"]
+        C1 --&gt;|"push_back &mdash; MAY REALLOCATE"| A1
+    end
+    subgraph AFTER["After &mdash; insertion deferred to a safe point"]
+        A2["for entity : m_entities"] --&gt;|"calls update()"| B2["Bowser"]
+        B2 --&gt;|"publish (sync)"| C2["spawn handler"]
+        C2 --&gt;|"queueSpawn"| D2["m_pendingSpawns"]
+        A2 --&gt;|"loop ends"| E2["PhysicsEngine::update"]
+        E2 --&gt;|"pass ends"| F2["flushPendingSpawns()"]
+        D2 --&gt;|"moved into"| F2
+        F2 --&gt;|"append &mdash; safe, nothing is iterating"| A2
+    end
+</code></pre>
+  <div class="excerpt-note"><strong>Why source, not an image:</strong> the claim this diagram makes
+  &mdash; "nothing appends to <code>m_entities</code> except <code>flushPendingSpawns</code>" &mdash;
+  is exactly the invariant the code must keep. Keeping it as text means the claim can be reviewed in a
+  diff when someone adds a fifth spawn path.</div>
+</div>
+
+<h2>5 &middot; How It Works</h2>
+<p>Four excerpts carry the idea. Every one of them is pulled out of the tree by
+<code>SuperMarioGame/tools/extract_learning_excerpts.py</code>, which addresses each range by the exact
+text its first and last line must have and <strong>aborts</strong> if either anchor has moved. A quoted
+excerpt is a copy of code, which g-rule-22 would normally forbid; it is allowed here because this is a
+teaching snapshot pinned to a named commit, and the anchor check is what keeps that pin honest.</p>
+
+<h3>a. The loops that must not be disturbed</h3>
+<div class="excerpt" id="ex-unsafe-loop">
+<div class="excerpt-cap">The two loops that walk m_entities every frame &mdash; <code>SuperMarioGame/src/Core/PlayingState.cpp:630-638 @ 4f80862</code></div>
+<pre><code>    // 3. Update all active entities
+    for (auto&amp; entity : m_entities) {
+        if (entity &amp;&amp; entity-&gt;isActive()) {
+            entity-&gt;update(dt);
+        }
+    }
+
+    // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
+    m_physicsEngine.update(m_entities, m_tileMap, dt);</code></pre>
+</div>
+<div class="excerpt-note"><strong>What it does:</strong> updates every active entity, then hands the
+same vector to the physics engine for integration and collision resolution.<br>
+<strong>Why it matters:</strong> <code>for (auto&amp; entity : m_entities)</code> is defined to cache
+<code>begin()</code> and <code>end()</code> before the body runs, so for the whole duration of both
+statements there are live iterators into <code>m_entities</code>'s buffer. Note that
+<code>m_physicsEngine.update</code> takes the vector by reference and walks it too &mdash; converting
+only the visible <code>for</code> to an index loop would have fixed half the bug.</div>
+
+<h3>b. Why a handler runs <em>inside</em> that loop</h3>
+<div class="excerpt" id="ex-event-bus-publish">
+<div class="excerpt-cap">EventBus::publish — delivery is synchronous, on the caller&#x27;s stack &mdash; <code>SuperMarioGame/src/Core/EventBus.cpp:33-60 @ f0a61f4</code></div>
+<pre><code>void EventBus::publish(const GameEvent&amp; event) {
+    auto it = m_subscribers.find(event.type);
+    if (it == m_subscribers.end()) return;
+
+    ++m_publishDepth;
+
+    // Iterate by index over the live vector rather than over a copy.
+    //
+    // This used to copy the whole subscriber vector on every publish, which
+    // copies a std::function per subscriber — a heap allocation each, on an
+    // event bus that fires on every coin, stomp, block and jump (audit X-7). The
+    // copy was there to survive a handler unsubscribing mid-delivery; the
+    // tombstone in unsubscribe() handles that without copying anything.
+    //
+    // The size is taken once, so a handler that subscribes during delivery does
+    // not receive the event it is currently handling — which would otherwise be
+    // an easy accidental infinite loop.
+    std::vector&lt;Subscription&gt;&amp; subs = it-&gt;second;
+    const std::size_t count = subs.size();
+    for (std::size_t i = 0; i &lt; count &amp;&amp; i &lt; subs.size(); ++i) {
+        // Re-checked each step: a handler may append, which can reallocate.
+        if (!subs[i].alive || !subs[i].callback) continue;
+        subs[i].callback(event);
+    }
+
+    --m_publishDepth;
+    if (m_publishDepth == 0 &amp;&amp; m_needsCompaction) compact();
+}</code></pre>
+</div>
+<div class="excerpt-note"><strong>What it does:</strong> walks the subscriber vector by index and calls
+each live callback.<br>
+<strong>Why this way:</strong> synchronous delivery is the point of this bus &mdash; a sound cue that
+arrived a frame after the coin would be wrong. Notice the care already taken for
+<em>this</em> vector: <code>count</code> is captured once and re-checked against
+<code>subs.size()</code> each step, precisely because "a handler may append, which can reallocate".
+The same hazard for <code>m_entities</code> was not noticed, which is what this record is about: the
+danger was understood locally and missed globally.</div>
+
+<h3>c. The fix: one door in, one point of admission</h3>
+<div class="excerpt" id="ex-queue">
+<div class="excerpt-cap">The fix: queueSpawn() and flushPendingSpawns() &mdash; <code>SuperMarioGame/src/Core/PlayingState.cpp:2684-2704 @ 4f80862</code></div>
+<pre><code>void PlayingState::queueSpawn(std::unique_ptr&lt;Entity&gt; entity) {
+    if (!entity) return;
+    // Wired now rather than at flush time: the spawner may set velocity or read
+    // the sprite size straight after this call, and a half-built entity would
+    // give it the wrong answer.
+    admitEntity(entity.get());
+    m_pendingSpawns.push_back(std::move(entity));
+}
+
+void PlayingState::flushPendingSpawns() {
+    if (m_pendingSpawns.empty()) return;
+    // Moved out first: admitting an entity cannot itself spawn one today, but if
+    // it ever does, that spawn lands in a fresh queue for the next flush rather
+    // than growing the vector this loop is walking.
+    std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt; ready;
+    ready.swap(m_pendingSpawns);
+    m_entities.reserve(m_entities.size() + ready.size());
+    for (auto&amp; entity : ready) {
+        if (entity) m_entities.push_back(std::move(entity));
+    }
+}</code></pre>
+</div>
+<div class="excerpt-note"><strong>What it does:</strong> <code>queueSpawn</code> wires the entity's
+animations and difficulty immediately &mdash; so a caller that reads its sprite size or sets its
+velocity straight afterwards still gets a fully-formed object &mdash; then parks it in
+<code>m_pendingSpawns</code> instead of <code>m_entities</code>. <code>flushPendingSpawns</code> moves
+the queue across in one pass.<br>
+<strong>Why the <code>ready.swap()</code>:</strong> the queue is emptied into a local
+<em>before</em> the loop that drains it. Admitting an entity cannot itself spawn one today, but if it
+ever does, that spawn lands in a fresh <code>m_pendingSpawns</code> for the next flush rather than
+growing the vector this loop is walking &mdash; the same mistake one level down. This is the line
+someone will "simplify" into <code>for (auto&amp; e : m_pendingSpawns)</code>; that reintroduces the
+bug in miniature.</div>
+
+<h3>d. The one place the entity list may grow</h3>
+<div class="excerpt" id="ex-flush-site">
+<div class="excerpt-cap">The one point in the frame where m_entities may grow &mdash; <code>SuperMarioGame/src/Core/PlayingState.cpp:640-645 @ 4f80862</code></div>
+<pre><code>    // 3a2. Admit everything a handler asked for during the two loops above.
+    //
+    // This is the only point in the frame where m_entities is allowed to grow:
+    // the entity update loop and the physics pass have both finished, so no
+    // iterator or reference into the vector is still live.
+    flushPendingSpawns();</code></pre>
+</div>
+<div class="excerpt-note"><strong>What it does:</strong> drains the queue after the update loop and the
+physics pass, before the prune step.<br>
+<strong>Why here:</strong> it is the first point in the frame at which no iterator into
+<code>m_entities</code> is live. Placing it earlier would defeat the fix; placing it after the prune
+would let a freshly-spawned entity be pruned before it had ever been updated. An entity spawned on
+frame <em>n</em> therefore first moves on frame <em>n+1</em> &mdash; a deliberate one-frame latency,
+invisible at 60&nbsp;Hz, and the price of the invariant.</div>
+
+<h3>Walking the main path</h3>
+<ol>
+<li><code>PlayingState::update</code> enters excerpt <em>(a)</em> and begins iterating.</li>
+<li>Bowser's fire timer expires; <code>breatheFire()</code> publishes <code>EntitySpawnRequested</code>.</li>
+<li>Excerpt <em>(b)</em> delivers it on the same stack, to <code>PlayingState</code>'s lambda.</li>
+<li>The lambda calls <code>queueSpawn</code> &mdash; excerpt <em>(c)</em> &mdash; so
+    <code>m_entities</code> is untouched and the loop's iterators stay valid.</li>
+<li>The loop finishes; the physics pass finishes.</li>
+<li>Excerpt <em>(d)</em> flushes. <code>m_entities</code> may now reallocate freely, because nothing
+    holds an iterator into it.</li>
+</ol>
+
+<h2>6 &middot; Worked Trace</h2>
+<p>One concrete frame in <strong>1-3, Bowser's arena</strong>, with the real numbers. Suppose the entity
+list has just been pruned and holds exactly 8 live entities in a buffer whose
+<code>capacity()</code> is also 8 &mdash; the state <code>shrink_to_fit()</code> or a fresh load leaves
+it in. Bowser is at index 5. His <code>m_fireTimer</code> reached 0 this frame
+(<code>fireInterval()</code> = 2.2&nbsp;s in phase 1).</p>
+<div class="tbl"><table>
+<thead><tr><th>Step</th><th>State after it</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>input</td><td><code>size()==8</code>, <code>capacity()==8</code>, <code>data()==0x1000</code></td>
+    <td>The loop caches <code>begin()==0x1000</code>, <code>end()==0x1000+8&middot;sizeof(ptr)</code>.</td></tr>
+<tr><td>1. iterate to index 5</td><td>iterator at <code>0x1000+40</code></td><td>Bowser's slot.</td></tr>
+<tr><td>2. <code>Bowser::updateBehaviour</code></td><td><code>m_fireTimer &le; 0</code></td>
+    <td>Publishes <code>EntitySpawnRequested</code> for a <code>BossFireball</code>.</td></tr>
+<tr><td>3. <code>EventBus::publish</code></td><td>handler running, 4 frames deeper on the same stack</td>
+    <td>Synchronous by design.</td></tr>
+<tr><td colspan="3"><strong>&mdash; here the two versions diverge &mdash;</strong></td></tr>
+<tr><td>4a. <em>old:</em> <code>m_entities.push_back</code></td>
+    <td><code>size()==9 &gt; 8</code> &rarr; new buffer at <code>0x2000</code>, 8 pointers moved,
+        <code>0x1000</code> <strong>freed</strong></td>
+    <td>Geometric growth, &sect;3. The cached iterator still says <code>0x1000+40</code>.</td></tr>
+<tr><td>5a. <em>old:</em> loop resumes, <code>++entity</code></td>
+    <td>iterator <code>0x1000+48</code> &mdash; inside freed memory</td>
+    <td>Undefined. On macOS the page is usually still mapped and holds a stale but readable pointer, so
+        the frame completes and nobody notices. On Windows the read faults, or MSVC's debug iterators
+        detect the invalidation and abort. <strong>Same code, same input, different outcome.</strong></td></tr>
+<tr><td>4b. <em>new:</em> <code>queueSpawn</code></td>
+    <td><code>m_entities</code> untouched: <code>size()==8</code>, <code>data()==0x1000</code>;
+        <code>m_pendingSpawns.size()==1</code></td>
+    <td>The fireball is fully wired (animations, difficulty) but not admitted.</td></tr>
+<tr><td>5b. <em>new:</em> loop resumes and finishes</td><td>indices 6, 7 visited normally</td>
+    <td>Every cached iterator is still valid, because nothing touched the buffer.</td></tr>
+<tr><td>6b. <code>m_physicsEngine.update</code></td><td>8 entities integrated</td>
+    <td>The fireball is not among them &mdash; it moves from the next frame.</td></tr>
+<tr><td>7b. <code>flushPendingSpawns</code></td>
+    <td><code>size()==9</code>, <code>capacity()==16</code>, <code>data()==0x2000</code></td>
+    <td>The reallocation still happens &mdash; it was never the problem. It happens when no iterator is
+        live.</td></tr>
+<tr><td><strong>result</strong></td>
+    <td><strong>Frame completes; the fireball is on screen from frame <em>n+1</em>.</strong></td>
+    <td>Correct because the only thing that changed is <em>when</em> the vector is allowed to move its
+        storage &mdash; and it is now allowed to move it only at a moment when, by construction,
+        nothing is pointing into it.</td></tr>
+</tbody></table></div>
+<p><strong>Why 1-3 and not 1-1.</strong> Question blocks also spawn through this route, but a level
+contains a handful of them and each fires once, so the odds of a given hit being the one that
+reallocates are small. Bowser fires every 1.2&ndash;2.2&nbsp;s for the entire fight &mdash; dozens of
+appends inside the update loop &mdash; so the level reaches a reallocation almost immediately. Deleting
+him removed the only high-frequency mid-loop spawner in the game, which is why that "fixed" it.</p>
+
+<h2>7 &middot; Build &amp; Run</h2>
+<pre><code># Build the game and the test suite
+cd SuperMarioGame &amp;&amp; mkdir -p build &amp;&amp; cd build
+cmake .. &amp;&amp; cmake --build . -j8
+
+# Run the regression that guards this fix
+ctest --output-on-failure -R regressions
+
+# Re-verify the learning record's excerpts still point at the right code.
+# Fails loudly if any anchor has moved; run it whenever this code changes.
+cd .. &amp;&amp; python3 tools/extract_learning_excerpts.py --check
+
+# Reproduce the original scenario: load 1-3 and survive Bowser's fire
+./build/SuperMarioGame --script tests/scripts/playtest_fixes_1_3.txt
+</code></pre>
+
+<h2>8 &middot; Outcome &amp; Evidence</h2>
+<ul>
+<li><strong>The level runs.</strong> <code>tests/scripts/playtest_fixes_1_3.txt</code> drives the game
+into 1-3 and holds it there for ~11&nbsp;s, well past Bowser's first several fireballs. Before the fix
+this is where the Windows build died; after it the run completes and quits cleanly. Verified by running
+the game, not by building it (g-rule-11, directive 10).</li>
+<li><strong>The regression is in CI.</strong>
+<code>testMidFrameSpawnsDoNotInvalidateTheEntityLoop</code> in
+<code>tests/verify_regressions.cpp</code> reproduces the <em>shape</em> of the bug against a
+<code>std::vector</code>: it starts with <code>size()==capacity()</code>, appends once per iteration of
+a range-<code>for</code>, and asserts that <code>capacity()</code> is <em>unchanged</em> at the end of
+the loop and <em>changed</em> after the flush. That second assertion is the one that matters &mdash; it
+proves the unsafe version really would have reallocated mid-loop, so the test is not vacuous.</li>
+<li><strong>Suite:</strong> 13/13 ctest targets pass; 497 checks in the regression binary.</li>
+</ul>
+<blockquote><strong>Honest limits of this evidence.</strong> The verification runs were on macOS, where
+the original bug was already invisible &mdash; so they demonstrate that the fix does not
+<em>break</em> anything, not that it cures the Windows crash. The argument that it does is the one in
+&sect;3: the crash was undefined behaviour caused by reallocation during iteration, and after the change
+no reallocation can occur while an iterator is live. A Windows playtest of 1-3 is still the outstanding
+confirmation.</blockquote>
+
+<h2>9 &middot; Pitfalls, Misconceptions &amp; Debugging</h2>
+<h3>What went wrong while building it</h3>
+<blockquote>The bug shipped because the hazard <em>was</em> understood &mdash; just not everywhere.
+<code>EventBus::publish</code> carries a comment explaining that "a handler may append, which can
+reallocate", and guards its own subscriber vector against exactly that. The same author, in the same
+file, then wrote three handlers that append to <code>m_entities</code> from inside a loop over
+<code>m_entities</code>. A local fix to a general problem reads as a solved problem.
+<br><br>
+It survived review for a second reason: it never failed for the person who wrote it. The macOS
+allocator absorbed it, and "it works on my machine" is exactly the evidence UB is best at
+manufacturing.</blockquote>
+
+<h3>What a learner is likely to believe wrongly</h3>
+<blockquote><strong>The plausible-but-false idea:</strong> "<code>push_back</code> invalidates iterators
+only when it reallocates, so if I <code>reserve()</code> enough up front, the loop is safe."
+<br><br>
+<strong>Why it is wrong:</strong> it makes the program's correctness depend on a capacity guess holding
+for every future input. The spawn handler already has a 400-entity cap, so any <code>reserve</code> you
+pick can be exceeded by a long enough fight; and the next person to add a spawner will not know the
+guess exists. Worse, it converts a crash into a rare crash &mdash; the failure mode moves from
+"reproducible in 1-3" to "once an hour, in the field". g-rule-2: never mask an error. The invariant has
+to be structural ("nothing appends while anything iterates"), not statistical.
+<br><br>
+<strong>A second one:</strong> "this is a threading bug." There are no threads. The loop is interrupted
+by a call it made itself. Reaching for a mutex here would add cost and fix nothing.</blockquote>
+
+<h3>How it fails at runtime, and how you would debug it</h3>
+<blockquote><strong>The symptom you would actually observe:</strong> not "iterator invalidated". You
+would see a segfault or an <code>EXCEPTION_ACCESS_VIOLATION</code> deep inside
+<code>Entity::update</code> or a <code>dynamic_cast</code>, on an entity that looks fine in the level
+file &mdash; or, worse, no crash at all and one entity silently skipped or updated twice. On Windows
+with a debug STL you would instead get an assertion naming <code>vector iterators</code>.
+<br><br>
+<strong>First three things to check, in order:</strong>
+<ol>
+<li><strong>Run it under AddressSanitizer</strong> (<code>-fsanitize=address</code>). This class of bug
+is what ASan exists for: it reports <code>heap-use-after-free</code> and prints both the allocation and
+the <em>deallocation</em> stack &mdash; and that second stack is the <code>push_back</code>, which hands
+you the culprit directly. This should have been step one; the fact that the project had no sanitizer
+build is the real root cause.</li>
+<li><strong>Ask what is different about the failing level.</strong> "1-3 crashes, and deleting Bowser
+fixes it" is not a hint about Bowser &mdash; it is a hint about <em>frequency</em>. Look for what the
+suspect entity does often that others do rarely. Here: it is the only entity that spawns another entity
+several times per second.</li>
+<li><strong>Grep for mutation inside iteration.</strong>
+<code>grep -n 'm_entities.push_back' src/</code> against the loops in
+<code>PlayingState::update</code>. Any container mutated by a synchronous callback while a loop over it
+is live is a candidate, whether or not it is the one crashing today.</li>
+</ol></blockquote>
+
+<h2>10 &middot; Revision Aids</h2>
+<h3>Key takeaways</h3>
+<ol>
+<li><code>std::vector</code> grows geometrically, so <code>push_back</code> is amortised
+<em>O</em>(1) but has an <em>O</em>(n) worst case &mdash; and that worst case invalidates every
+iterator, reference and pointer into the container.</li>
+<li>A range-<code>for</code> caches <code>begin()</code> and <code>end()</code> once. Appending inside
+one is undefined behaviour, not a style problem.</li>
+<li>A synchronous observer bus puts the subscriber on the publisher's stack. That is usually what you
+want, and it means a handler can reach back into whatever the publisher's caller was doing.</li>
+<li>Undefined behaviour is allowed to work. A bug that reproduces on one platform and not another is
+evidence <em>for</em> UB, not against it.</li>
+<li>Fix ordering bugs by making the safe ordering structural &mdash; one queue, one drain point &mdash;
+not by making the unsafe one less likely.</li>
+</ol>
+<h3>Self-check questions</h3>
+<ol class="checks">
+<li>The <code>for</code> loop in excerpt <em>(a)</em> was not the only place that walked
+<code>m_entities</code> during a spawn. Where was the other, and why would converting only the visible
+loop to an index loop have left the program broken?</li>
+<li><code>flushPendingSpawns</code> swaps the queue into a local before draining it, even though
+nothing today can spawn during a flush. Argue both sides: what does the swap cost, and what class of
+bug does it prevent?</li>
+<li>With growth factor k and n insertions, how many elements are moved in total, and why does that
+make this bug intermittent rather than deterministic? Give the sum and the bound.</li>
+<li>An entity spawned on frame <em>n</em> is not integrated by the physics engine until frame
+<em>n+1</em>. Name one gameplay consequence, and explain why it was judged acceptable.</li>
+</ol>
+<h3>Glossary</h3>
+<div class="tbl"><table>
+<thead><tr><th>Term</th><th>In this project</th></tr></thead>
+<tbody>
+<tr><td><code>m_entities</code></td><td><code>PlayingState</code>'s
+<code>vector&lt;unique_ptr&lt;Entity&gt;&gt;</code>: the world. Walked several times per frame.</td></tr>
+<tr><td><code>EntitySpawnRequested</code></td><td>The event an entity publishes when it wants another
+entity created. Entities have no handle on the world list, by design.</td></tr>
+<tr><td>admit</td><td><code>admitEntity()</code> &mdash; wire animations and apply the difficulty
+modifiers. The single door every entity comes through.</td></tr>
+<tr><td>prune</td><td>The <code>stable_partition</code> step that removes inactive entities and offers
+pooled types back to their <code>ObjectPool</code>.</td></tr>
+<tr><td>UB</td><td>Undefined behaviour &mdash; the standard imposes no requirement, so any observed
+behaviour, including "it works", is conforming.</td></tr>
+</tbody></table></div>
+<h3>Extension exercises</h3>
+<ol>
+<li><strong>Add a sanitizer build to CI.</strong> Where would you put it, and why must it be a
+<em>separate</em> job from the normal build rather than a flag on it? (Sketch: a second CMake preset
+with <code>-fsanitize=address,undefined</code>, a second CI matrix entry; separate because ASan roughly
+doubles runtime and halves throughput, and because a broken sanitizer build must not block the ordinary
+one &mdash; g-rule-13's hermeticity argument applied to tooling.)</li>
+<li><strong>Make the invariant impossible to break rather than merely easy to keep.</strong> Today a
+future author can still write <code>m_entities.push_back</code> directly. How would you prevent it?
+(Sketch: wrap the vector in a small <code>EntityList</code> type whose <code>push_back</code> is private
+and whose only friend is <code>flushPendingSpawns</code>; or add a debug-only "iteration depth" counter
+that asserts on mutation while non-zero. The second catches the physics engine too.)</li>
+<li><strong>Remove the one-frame latency.</strong> If a spawned projectile had to move on its spawn
+frame, what would you change, and what new hazard would you have to handle? (Sketch: flush between the
+update loop and the physics pass instead of after both &mdash; safe, since no iterator is live at that
+point either &mdash; but now the physics engine sees entities whose <code>update()</code> has not run
+this frame, so their strategy state is one step behind their integration.)</li>
+</ol>
+<h3>Where this sits in the course</h3>
+<p>CS202 (OOP in C++): the STL sequence containers and their invalidation guarantees; the Observer
+pattern and the coupling that synchronous notification creates; and object lifetime &mdash; this is a
+use-after-free reached through an iterator rather than through a raw pointer, which is why RAII and
+<code>unique_ptr</code> did not prevent it. It is also the project's clearest worked example of why
+directive 10 ("run the game") and a CI gate exist at all.</p>
+
+<h2>11 &middot; References</h2>
+<ul>
+<li><a href="../../SuperMarioGame/src/Core/PlayingState.cpp">SuperMarioGame/src/Core/PlayingState.cpp</a>
+&mdash; the update loop, <code>queueSpawn</code>, <code>flushPendingSpawns</code> and the three spawn handlers</li>
+<li><a href="../../SuperMarioGame/src/Core/EventBus.cpp">SuperMarioGame/src/Core/EventBus.cpp</a>
+&mdash; synchronous delivery, and the guard it already had for its own vector</li>
+<li><a href="../../SuperMarioGame/src/Entities/Bowser.cpp">SuperMarioGame/src/Entities/Bowser.cpp</a>
+&mdash; <code>breatheFire()</code>, the publisher at the top of the crashing stack</li>
+<li><a href="../../SuperMarioGame/tests/verify_regressions.cpp">SuperMarioGame/tests/verify_regressions.cpp</a>
+&mdash; <code>testMidFrameSpawnsDoNotInvalidateTheEntityLoop</code></li>
+<li><a href="../../SuperMarioGame/tools/extract_learning_excerpts.py">SuperMarioGame/tools/extract_learning_excerpts.py</a>
+&mdash; the anchor-checked extractor that produced every excerpt above</li>
+<li>Commit <code>4f80862</code> &mdash; the fix, with the full diagnosis in its message</li>
+<li>cppreference: <a href="https://en.cppreference.com/w/cpp/container/vector/push_back">vector::push_back</a>
+and its <em>Iterator invalidation</em> table</li>
+<li><a href="https://clang.llvm.org/docs/AddressSanitizer.html">AddressSanitizer</a> &mdash; the tool that
+finds this class of bug on the first run</li>
+</ul>
+
+<h2>12 &middot; Changelog</h2>
+<div class="tbl"><table>
+<thead><tr><th>Date</th><th>Commit</th><th>What changed</th></tr></thead>
+<tbody>
+<tr><td>2026-08-22</td><td><code>cb4f6ea</code></td><td>Record created and filled: diagnosis of the
+Windows 1-3 crash, the deferred-spawn fix, and the anchor-checked excerpt extractor behind &sect;5.</td></tr>
+</tbody>
+</table></div>
+
+<footer>Learning Record for <strong>SuperMarioGame (CS202-Cpp)</strong> &middot; generated by
+<code>scripts/new_learning_doc.js</code> &middot; governed by g-rule-21 &middot; self-contained, opens offline.
+Weekly reports are a separate artifact — see the project's own report rules.</footer>
+</main></div></body></html>

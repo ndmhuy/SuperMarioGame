@@ -20,6 +20,9 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
       m_comboCountText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_pSwitchTimeText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_bossNameText(ResourceManager::getInstance().getFont("PressStart2P")),
+      m_secondLivesText(ResourceManager::getInstance().getFont("PressStart2P")),
+      m_secondLabelText(ResourceManager::getInstance().getFont("PressStart2P")),
+      m_bossHintText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_itemSheet(itemSheet),
       m_playerSheet(playerSheet) {
 
@@ -63,6 +66,22 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
     m_bossNameText.setFillColor(sf::Color::Red);
     m_bossNameText.setOutlineColor(sf::Color(0, 0, 0, 220));
     m_bossNameText.setOutlineThickness(2.0f);
+
+    // Player 2's block mirrors Player 1's: same size, same outline, same shape.
+    m_secondLivesText.setCharacterSize(24);
+    m_secondLivesText.setFillColor(sf::Color::White);
+    m_secondLivesText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_secondLivesText.setOutlineThickness(2.0f);
+
+    m_secondLabelText.setCharacterSize(24);
+    m_secondLabelText.setFillColor(sf::Color(120, 220, 120));   // green: Luigi's colour
+    m_secondLabelText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_secondLabelText.setOutlineThickness(2.0f);
+
+    m_bossHintText.setCharacterSize(12);
+    m_bossHintText.setFillColor(sf::Color(255, 200, 80));
+    m_bossHintText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_bossHintText.setOutlineThickness(2.0f);
 
     // Configure health bar background
     m_healthBarOuter.setSize(sf::Vector2f(300.f, 20.f));
@@ -110,11 +129,15 @@ void Hud::sync(const HudData& data) {
     m_coinsText.setString(coinsBuf);
     m_coinsText.setPosition(sf::Vector2f(1125.f, 25.f));
 
-    // 3. World Level: WORLD 1-1 (Y=25, Center)
-    char worldBuf[32];
-    std::snprintf(worldBuf, sizeof(worldBuf), "WORLD %d-%d", m_curData.worldMajor, m_curData.worldMinor);
-    m_worldText.setString(worldBuf);
-    m_worldText.setPosition(sf::Vector2f(540.f, 25.f));
+    // 3. World Level (Y=25, Center). Centred on its own width rather than
+    // pinned to x=540: the label is no longer a fixed-width "WORLD 1-1", and a
+    // longer one such as "WORLD 1-1 SUB" would have run into the TIME field.
+    m_worldText.setString(m_curData.worldLabel);
+    {
+        const sf::FloatRect bounds = m_worldText.getLocalBounds();
+        m_worldText.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, 0.0f));
+        m_worldText.setPosition(sf::Vector2f(620.f, 25.f));
+    }
 
     // 4. Time left countdown (Y=60, Center-Right)
     char timeBuf[32];
@@ -160,6 +183,19 @@ void Hud::sync(const HudData& data) {
         m_pSwitchTimeText.setPosition(sf::Vector2f(640.f, 100.f));
     }
 
+    // 7b. Player 2's life count, in the same "x N" form as Player 1's.
+    if (m_curData.hasSecondPlayer) {
+        char p2Buf[32];
+        std::snprintf(p2Buf, sizeof(p2Buf), "x  %d", m_curData.secondLives);
+        m_secondLivesText.setString(p2Buf);
+        m_secondLivesText.setPosition(sf::Vector2f(310.f, 60.f));
+
+        std::string label = m_curData.secondPlayerLabel;
+        std::transform(label.begin(), label.end(), label.begin(), ::toupper);
+        m_secondLabelText.setString(label);
+        m_secondLabelText.setPosition(sf::Vector2f(280.f, 25.f));
+    }
+
     // 8. Boss HUD Sync:
     if (m_curData.bossActive) {
         std::string bossUpper = m_curData.bossName;
@@ -177,6 +213,23 @@ void Hud::sync(const HudData& data) {
             healthPct = std::clamp(static_cast<float>(m_curData.bossHealth) / m_curData.bossMaxHealth, 0.0f, 1.0f);
         }
         m_healthBarInner.setSize(sf::Vector2f(300.f * healthPct, 20.f));
+
+        // How to actually hurt it. Bowser takes no damage from fire, so a player
+        // with a fire flower has no way to learn that fire is nonetheless the
+        // route to an opening unless the HUD says so.
+        if (m_curData.bossStaggered) {
+            m_bossHintText.setString("STUNNED - STOMP NOW");
+        } else if (m_curData.bossFireHitsToStagger > 0) {
+            char hintBuf[64];
+            std::snprintf(hintBuf, sizeof(hintBuf), "%d FIREBALLS TO STUN",
+                          m_curData.bossFireHitsToStagger);
+            m_bossHintText.setString(hintBuf);
+        } else {
+            m_bossHintText.setString("");
+        }
+        const sf::FloatRect hintBounds = m_bossHintText.getLocalBounds();
+        m_bossHintText.setOrigin(sf::Vector2f(hintBounds.size.x * 0.5f, 0.0f));
+        m_bossHintText.setPosition(sf::Vector2f(640.f, 186.f));
     }
 }
 
@@ -263,21 +316,16 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
     target.draw(m_worldText, state);
     target.draw(m_timeLeftText, state);
 
-    if (m_playerSheet) {
-        std::string charName = m_curData.characterName;
-        std::transform(charName.begin(), charName.end(), charName.begin(), ::tolower);
-        std::string idleKey = charName + "_small_idle";
-        sf::Sprite playerSprite = m_playerSheet->getSprite(idleKey);
-        sf::FloatRect bounds = playerSprite.getLocalBounds();
-        if (bounds.size.x > 0 && bounds.size.y > 0) {
-            float scale = 24.0f / bounds.size.y;
-            playerSprite.setScale(sf::Vector2f(scale, scale));
-            playerSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
-            playerSprite.setPosition(sf::Vector2f(72.f, 72.f)); // Align vertically with Y=60 text
-            target.draw(playerSprite, state);
-        }
-    }
+    drawPlayerBadge(target, state, m_curData.characterName, {72.f, 72.f});
     target.draw(m_livesText, state);
+
+    // 5b. Player 2, given the same icon-and-lives badge as Player 1 rather than
+    // a line of 12px text at the bottom of the screen.
+    if (m_curData.hasSecondPlayer) {
+        drawPlayerBadge(target, state, m_curData.secondCharacterName, {292.f, 72.f});
+        target.draw(m_secondLabelText, state);
+        target.draw(m_secondLivesText, state);
+    }
 
     // 6. Draw Combo Counter (only while the chain is actually running)
     if (m_curData.comboCount > 1 && m_curData.comboTimer > 0.0f) {
@@ -294,5 +342,26 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
         target.draw(m_bossNameText, state);
         target.draw(m_healthBarOuter, state);
         target.draw(m_healthBarInner, state);
+        if (!m_bossHintText.getString().isEmpty()) {
+            target.draw(m_bossHintText, state);
+        }
     }
+}
+
+void Hud::drawPlayerBadge(sf::RenderTarget& target, sf::RenderStates state,
+                          const std::string& characterName, sf::Vector2f iconCentre) const {
+    if (!m_playerSheet) return;
+
+    std::string charName = characterName;
+    std::transform(charName.begin(), charName.end(), charName.begin(), ::tolower);
+    sf::Sprite playerSprite = m_playerSheet->getSprite(charName + "_small_idle");
+
+    const sf::FloatRect bounds = playerSprite.getLocalBounds();
+    if (bounds.size.x <= 0.0f || bounds.size.y <= 0.0f) return;
+
+    const float scale = 24.0f / bounds.size.y;
+    playerSprite.setScale(sf::Vector2f(scale, scale));
+    playerSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
+    playerSprite.setPosition(iconCentre);
+    target.draw(playerSprite, state);
 }

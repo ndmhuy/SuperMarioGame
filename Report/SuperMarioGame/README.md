@@ -1,22 +1,40 @@
-# Super Mario Game — Project Report
+# Super Mario Game — Final Report (PDF edition)
 
-> CS202 Final Project — Super Mario Bros.
+> CS202 Final Project · Group 52 · HCMUS report template.
 
-## Contents
-- **00_summary.tex** — Abstract and executive summary
-- **01_introduction.tex** — Project objectives, scope, and reference games
-- **02_architecture.tex** — System architecture, layered design, folder structure
-- **03_oop_principles.tex** — OOP principles: inheritance, polymorphism, encapsulation, abstraction
-- **04_design_patterns.tex** — 5+ design patterns: Factory, Singleton, State, Observer, Strategy
-- **05_class_diagrams.tex** — UML class diagrams, sequence diagrams
-- **06_implementation.tex** — Implementation details per module (Core, Entities, Physics, Graphics, Utils)
-- **07_gameplay.tex** — Gameplay mechanics, physics tuning, level design
-- **08_testing.tex** — Testing strategy, screenshots, demo video link
-- **09_conclusion.tex** — Lessons learned, future work
-- **10_appendix.tex** — AI usage declaration, commit history, task assignments
+**The prose in this report is generated, not authored here.**
+
+The single source is [`reports/report_content.py`](../../reports/report_content.py) at the repository
+root, which also produces the HTML edition. `reports/html_to_latex.py` converts it, and
+`reports/build_report.py` writes `content/report_body.tex` along with the figures — screenshots copied
+into `img/`, and the UML diagrams re-rendered as vector PDFs straight from the headers by
+[`gen_class_diagram.py`](../../SuperMarioGame/tools/gen_class_diagram.py).
+
+Do not edit `content/report_body.tex`. It is overwritten on every build, and hand-editing it would put
+the PDF and the HTML out of step — which is the failure §10.4 of the report itself is about.
+
+This replaces an earlier skeleton that listed eleven content files (`00_summary.tex` …
+`10_appendix.tex`); none of them were ever written.
+
+## Layout
+
+| Path | What it is |
+| :--- | :--- |
+| `main.tex` | Document setup: HCMUS template, course metadata, `\codebreak`. **Hand-authored.** |
+| `content/title.tex` | Cover page. **Hand-authored.** |
+| `content/report_body.tex` | The report. **Generated.** |
+| `img/hcmus-logo.png` | Committed. Every other file in `img/` is **generated and gitignored**. |
+| `hcmus-report-template.sty` | The faculty template, unmodified. |
+| `build.sh` | Regenerate, compile twice, name the output. |
 
 ## Build
+
 ```bash
-cd Report/SuperMarioGame
-pdflatex main.tex
+./build.sh
 ```
+
+Needs a TeX distribution carrying the template's packages (TeX Live works), `rsvg-convert` for the UML
+diagrams, and Python 3.
+
+To change the report, edit `reports/report_content.py` and run `build.sh` — both editions update
+together.

@@ -124,11 +124,6 @@
       "y": 17
     },
     {
-      "type": "flagpole",
-      "x": 105,
-      "y": 12
-    },
-    {
       "type": "koopa_troopa",
       "x": 12,
       "y": 20
@@ -152,6 +147,16 @@
       "type": "goomba",
       "x": 95,
       "y": 20
+    },
+    {
+      "type": "flagpole",
+      "x": 105,
+      "y": 15
+    },
+    {
+      "type": "castle",
+      "x": 108,
+      "y": 15
     }
   ],
   "flagpole": {

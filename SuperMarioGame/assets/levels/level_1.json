@@ -170,11 +170,6 @@
       "y": 17
     },
     {
-      "type": "flagpole",
-      "x": 185,
-      "y": 12
-    },
-    {
       "type": "goomba",
       "x": 12,
       "y": 20
@@ -203,6 +198,16 @@
       "type": "goomba",
       "x": 174,
       "y": 20
+    },
+    {
+      "type": "flagpole",
+      "x": 185,
+      "y": 15
+    },
+    {
+      "type": "castle",
+      "x": 188,
+      "y": 15
     }
   ],
   "flagpole": {

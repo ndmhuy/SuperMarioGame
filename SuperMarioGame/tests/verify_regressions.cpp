@@ -31,10 +31,12 @@
 #include "Core/IGameState.hpp"
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelCatalog.hpp"
+#include "Entities/EntityCatalogue.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/ObjectPool.hpp"
 #include "Utils/EntityConfig.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/Hud.hpp"
 #include "Graphics/ColorPalette.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Core/DebugConsole.hpp"
@@ -73,6 +75,7 @@
 #include <algorithm>
 #include <set>
 #include <SFML/Graphics/RenderTexture.hpp>
+#include "TestSaveSandbox.hpp"
 
 namespace {
 
@@ -687,11 +690,17 @@ void testLevelCatalogCoversTheCampaign() {
 void testHighScoreTableIsSortedAndBounded() {
     section("7.8 the high-score table sorts, truncates and rejects empty runs");
 
-    // Work on a scratch copy so a developer's real table is not clobbered.
-    const std::string path = "saves/highscores.json";
-    const std::string backup = "saves/highscores.json.regressionbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // No backup dance any more. It used to rename "saves/highscores.json" aside
+    // — a path relative to the WORKING DIRECTORY — while Serializer wrote to
+    // saveDirectory(), which resolves independently and skips build trees. Run
+    // from build/ the two were different files: the backup missed, the
+    // assertions read the developer's real table, and "the best run is at the
+    // top" failed against scores this test never wrote. Under ctest, whose
+    // working directory is the source root, they happened to coincide and it
+    // passed. TestSaveSandbox now guarantees an empty directory either way, so
+    // this case starts from nothing however it is launched.
+    check(Serializer::loadHighScores().empty(),
+          "the table starts empty - the sandbox, not whatever is on this machine");
 
     for (int i = 1; i <= 14; ++i) {
         HighScoreEntry entry;
@@ -716,8 +725,8 @@ void testHighScoreTableIsSortedAndBounded() {
     check(descending, "and stays sorted highest first");
     check(!scores.empty() && scores.front().score == 14000, "the best run is at the top");
 
-    std::filesystem::remove(path);
-    if (hadExisting) std::filesystem::rename(backup, path);
+    // Leave the table empty for whatever runs next in this process.
+    Serializer::clearHighScores();
 }
 
 // Atlas lookups the renderer performs by name. A missing frame is silent at
@@ -1121,11 +1130,15 @@ void testEveryStrategyIdentifiesItself() {
 void testCampaignProgressUnlocksSequentially() {
     section("7.3  campaign progress is recorded, not fabricated");
 
-    // Work on a scratch file so a developer's real progress survives.
-    const std::string path = "saves/progress.json";
-    const std::string backup = "saves/progress.json.regressionbak";
-    const bool hadExisting = std::filesystem::exists(path);
-    if (hadExisting) std::filesystem::rename(path, backup);
+    // This case calls CampaignProgress::reset(), which is a
+    // std::filesystem::remove on a path resolved through
+    // Serializer::saveDirectory(). The backup dance that used to sit here
+    // renamed "saves/progress.json" — relative to the working directory —
+    // which is NOT necessarily the file reset() deletes. Run from build/ they
+    // were different files and the real progress.json was erased; that was
+    // observed, with a seeded file vanishing between two game launches.
+    // TestSaveSandbox now points reset() at a throwaway directory, so there is
+    // nothing real to lose and nothing to put back.
     CampaignProgress::reset();
 
     check(CampaignProgress::isUnlocked(0), "the first level is always open");
@@ -1156,7 +1169,6 @@ void testCampaignProgressUnlocksSequentially() {
           "out-of-range levels are locked, not crashes");
 
     CampaignProgress::reset();
-    if (hadExisting) std::filesystem::rename(backup, path);
 }
 
 
@@ -2809,7 +2821,435 @@ void testPlayerTwoHasEveryControl() {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Windows playtest, August 2026 — the 1-3 crash.
+//
+// Every spawn in this game arrives through a synchronous EventBus handler, and
+// the handlers pushed straight onto the entity vector that PlayingState and
+// PhysicsEngine were iterating at the time. A push_back that reallocates leaves
+// those loops holding a pointer into freed storage.
+//
+// PlayingState cannot be constructed headlessly, so this reproduces the SHAPE
+// of the bug against a std::vector: iterate with a range-for, let a handler
+// append, and show that the deferred-queue discipline is what makes it safe.
+// The assertion that matters is the one about capacity — it is what proves the
+// unsafe version really would have reallocated mid-loop.
+// ---------------------------------------------------------------------------
+void testMidFrameSpawnsDoNotInvalidateTheEntityLoop() {
+    section("crash  a spawn during the entity loop cannot reallocate under it");
+
+    using Vec = std::vector<std::unique_ptr<Goomba>>;
+
+    // Bowser breathes every 1.2-2.2s for the whole fight, so over a real fight
+    // the list grows well past whatever capacity it started the frame with.
+    Vec entities;
+    for (int i = 0; i < 8; ++i) {
+        entities.push_back(std::make_unique<Goomba>(sf::Vector2f(i * 32.0f, 0.0f)));
+    }
+    entities.shrink_to_fit();
+    const std::size_t capacityAtFrameStart = entities.capacity();
+    check(entities.size() == capacityAtFrameStart,
+          "the entity list starts the frame full, as it does after a level load");
+
+    // The deferred discipline: a handler firing mid-loop queues, and the queue
+    // is drained after the loop.
+    Vec pending;
+    std::size_t visited = 0;
+    for (const auto& entity : entities) {
+        ++visited;
+        (void)entity->getPosition();
+        // Stand-in for Bowser::breatheFire() publishing EntitySpawnRequested.
+        pending.push_back(std::make_unique<Goomba>(sf::Vector2f(0.0f, 0.0f)));
+    }
+    check(visited == 8, "every entity was visited exactly once, with no reallocation under the loop");
+    check(entities.capacity() == capacityAtFrameStart,
+          "the vector did not grow while it was being iterated");
+
+    for (auto& queued : pending) entities.push_back(std::move(queued));
+    check(entities.size() == 16, "the queue is admitted after the loop, so nothing is lost");
+    check(entities.capacity() > capacityAtFrameStart,
+          "admitting them DID reallocate - which is exactly what the old code did mid-loop");
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — the backdrop stood one tile inside the ground.
+//
+// syncBackdropGround() anchored the parallax layers to the lowest row holding
+// any solid tile. Every shipped level floors on a two-row slab, so that is the
+// BOTTOM of the slab, and every hill, bush and fence was drawn a full tile
+// buried. The rule is now "widest solid row, then climb to the top of that
+// contiguous slab", which this reproduces against the real level files.
+// ---------------------------------------------------------------------------
+void testBackdropStandsOnTheGroundSurface() {
+    section("playtest  the backdrop's ground line is the top of the floor slab");
+
+    auto surfaceRow = [](const TileMap& map) {
+        std::vector<int> solidPerRow(static_cast<std::size_t>(map.getHeight()), 0);
+        for (int y = 0; y < map.getHeight(); ++y) {
+            for (int x = 0; x < map.getWidth(); ++x) {
+                if (TileMap::getInfo(map.getTileType(x, y)).isSolid) {
+                    ++solidPerRow[static_cast<std::size_t>(y)];
+                }
+            }
+        }
+        int floorRow = -1, widest = 0;
+        for (int y = 0; y < map.getHeight(); ++y) {
+            if (solidPerRow[static_cast<std::size_t>(y)] >= widest &&
+                solidPerRow[static_cast<std::size_t>(y)] > 0) {
+                widest = solidPerRow[static_cast<std::size_t>(y)];
+                floorRow = y;
+            }
+        }
+        if (floorRow < 0) return -1;
+        const int threshold = std::max(1, (widest * 3) / 5);
+        int row = floorRow;
+        while (row > 0 && solidPerRow[static_cast<std::size_t>(row - 1)] >= threshold) --row;
+        return row;
+    };
+
+    for (const std::string& name : {"level_1.json", "level_2.json", "level_3.json"}) {
+        LevelLoader loader;
+        LevelData data;
+        TileMap map;
+        if (!loader.loadLevel(levelPath(name), map, data)) {
+            check(false, name + " loads");
+            continue;
+        }
+
+        const int row = surfaceRow(map);
+        // The answer must be a row the player can actually stand ON: solid here,
+        // empty directly above.
+        bool solidHere = false, clearAbove = true;
+        for (int x = 0; x < map.getWidth(); ++x) {
+            if (TileMap::getInfo(map.getTileType(x, row)).isSolid) { solidHere = true; break; }
+        }
+        int solidAbove = 0;
+        for (int x = 0; x < map.getWidth(); ++x) {
+            if (row > 0 && TileMap::getInfo(map.getTileType(x, row - 1)).isSolid) ++solidAbove;
+        }
+        clearAbove = solidAbove * 2 < map.getWidth();   // not another full slab row
+
+        check(solidHere, name + ": the backdrop ground row is solid");
+        check(clearAbove, name + ": nothing stands on top of it, so it is the surface not the underside");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — the flag hung in mid-air in every level.
+//
+// A flagpole is a 24x168 sprite positioned by its TOP-left corner, and all four
+// level files named tile row 12 for it: foot at world y 552, floor at 672. The
+// pole is now settled onto the floor at load time, so what the files must
+// guarantee is only that there IS a floor in the flagpole's column.
+// ---------------------------------------------------------------------------
+void testEveryLevelsFlagpoleHasAFloorUnderIt() {
+    section("playtest  the flagpole stands on ground, and the castle behind it");
+
+    for (const std::string& name : {"level_1.json", "level_2.json", "level_3.json", "bonus_1.json"}) {
+        LevelLoader loader;
+        LevelData data;
+        TileMap map;
+        if (!loader.loadLevel(levelPath(name), map, data)) {
+            check(false, name + " loads");
+            continue;
+        }
+
+        const Flagpole* pole = nullptr;
+        const Entity* castle = nullptr;
+        for (const auto& entity : data.entities) {
+            if (auto* f = dynamic_cast<Flagpole*>(entity.get())) pole = f;
+            if (entity && entity->getTypeName() == "castle") castle = entity.get();
+        }
+
+        if (!pole) { check(false, name + " has a flagpole"); continue; }
+        check(castle != nullptr, name + " ends with a castle");
+
+        // Settling needs a floor somewhere below the pole's column.
+        const float probeX = pole->getPosition().x + 12.0f;
+        bool floorFound = false;
+        float floorTop = 0.0f;
+        const int gx = static_cast<int>(probeX / Constants::TILE_SIZE);
+        for (int y = 0; y < map.getHeight(); ++y) {
+            if (TileMap::getInfo(map.getTileType(gx, y)).isSolid) {
+                floorFound = true;
+                floorTop = static_cast<float>(y) * Constants::TILE_SIZE;
+                break;
+            }
+        }
+        check(floorFound, name + ": there is a floor in the flagpole's column to settle onto");
+        if (!floorFound) continue;
+
+        // And once settled, the pole's foot is exactly on it.
+        const float settledTop = floorTop - pole->getPoleHeight();
+        check(std::abs((settledTop + pole->getPoleHeight()) - floorTop) < 0.5f,
+              name + ": the settled pole's foot lands on the floor surface");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — Bowser was nearly impossible.
+//
+// He is immune to fire, and a boss's i-frames make contact during them harmful,
+// so the only legal input was five clean descending stomps under continuous
+// fire. Fireballs now buy a stagger: an opening in which he stops attacking and
+// can be hit safely, and which closes with the hit it paid for.
+// ---------------------------------------------------------------------------
+void testFireBuysAnOpeningOnBowser() {
+    section("playtest  fire staggers Bowser, and the opening costs one hit");
+
+    Bowser bowser({0.0f, 0.0f});
+    const int startHealth = bowser.getHealth();
+
+    check(!bowser.isStaggered(), "Bowser does not start staggered");
+
+    for (int i = 0; i < Bowser::FIRE_HITS_PER_STAGGER - 1; ++i) {
+        bowser.onHitByFireball();
+    }
+    check(!bowser.isStaggered(),
+          "three fireballs are not enough - the opening has a price");
+    check(bowser.getHealth() == startHealth,
+          "fire still costs him no health: he breathes the stuff");
+
+    bowser.onHitByFireball();
+    check(bowser.isStaggered(), "the fourth fireball staggers him");
+    check(!bowser.isInvulnerable(),
+          "the stagger clears his i-frames, so the opening is real rather than visible-only");
+    check(bowser.getHealth() == startHealth,
+          "the stagger itself does no damage - it is an opening, not an attack");
+
+    check(bowser.tryStomp(), "a stomp during the opening lands");
+    check(bowser.getHealth() == startHealth - 1, "and costs him exactly one point");
+    check(!bowser.isStaggered(),
+          "the opening closes with the hit it paid for, so one stagger is not the whole fight");
+
+    // And the next opening costs the same again.
+    for (int i = 0; i < Bowser::FIRE_HITS_PER_STAGGER; ++i) bowser.onHitByFireball();
+    check(bowser.isStaggered(), "four more fireballs buy the next opening");
+}
+
+// ---------------------------------------------------------------------------
+// The axe: the non-combat way past Bowser. Reaching it must end the fight
+// outright, whatever the health bar says and whatever guards are up.
+// ---------------------------------------------------------------------------
+void testTheAxeEndsTheFightOutright() {
+    section("playtest  the axe defeats Bowser through every guard");
+
+    Bowser bowser({0.0f, 0.0f});
+    check(!bowser.isDefeated(), "Bowser starts the fight alive");
+
+    // Put both guards up: a hit lands i-frames, and a stagger is also active.
+    bowser.tryStomp();
+    check(bowser.isInvulnerable(), "a landed hit leaves him invulnerable");
+
+    bowser.defeatNow();
+    check(bowser.isDefeated(), "the axe ends it regardless of i-frames");
+    check(bowser.getHealth() == 0, "and takes the whole remaining bar");
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — the HUD said WORLD 1-1 in every level.
+//
+// HudData carried worldMajor/worldMinor as ints and PlayingState never assigned
+// them, so the HUD printed its own defaults forever. It carries a label now,
+// and the label has to come from the same catalogue the level select reads.
+// ---------------------------------------------------------------------------
+void testTheWorldLabelIsNotAlwaysOneOne() {
+    section("playtest  the HUD's world field is per-level, not a constant");
+
+    // The label is built from LevelCatalog, so distinct levels must have
+    // distinct names for the field to be capable of changing at all.
+    std::set<std::string> names;
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        names.insert(LevelCatalog::nameFor(i));
+    }
+    check(static_cast<int>(names.size()) == LevelCatalog::count(),
+          "every catalogue level has a distinct display name");
+    check(names.count("1-1") == 1 && names.count("1-3") == 1,
+          "the campaign names are the ones the HUD will show");
+
+    // HudData's default must not silently stand in for a level again.
+    HudData fresh;
+    check(fresh.worldLabel == "WORLD 1-1",
+          "the default is still 1-1 - which is why PlayingState must overwrite it every load");
+    HudData assigned;
+    assigned.worldLabel = "WORLD 1-3";
+    check(assigned.worldLabel != fresh.worldLabel,
+          "and the field is writable per level");
+}
+
+// ---------------------------------------------------------------------------
+// Windows playtest — Player 2 had no presence in the HUD.
+// ---------------------------------------------------------------------------
+void testTheHudCanShowBothPlayers() {
+    section("playtest  the HUD carries Player 2's icon and lives");
+
+    HudData data;
+    check(!data.hasSecondPlayer, "single player by default, so nothing is drawn");
+
+    data.hasSecondPlayer = true;
+    data.secondCharacterName = "luigi";
+    data.secondLives = 4;
+    check(data.hasSecondPlayer && data.secondLives == 4,
+          "a match supplies the second player's character and life count");
+    check(data.secondCharacterName != data.characterName,
+          "the two badges name different characters, which is what makes them distinguishable");
+}
+
+
+// ---------------------------------------------------------------------------
+// The entity catalogue is a cross-file contract (g-rule-17).
+//
+// The same list of types was hand-written in three places — EntityFactory,
+// SerializationUtils and the map editor's palette — and they had drifted: the
+// editor knew 16 of 40 types and not one of them was an enemy or a block. The
+// catalogue is now the single source; this is the test that makes adding a type
+// in only one place a failure rather than a silent omission.
+// ---------------------------------------------------------------------------
+void testEntityCatalogueIsCompleteAndRoundTrips() {
+    section("editor  every entity type is creatable, named correctly and placeable");
+
+    const auto& entries = EntityCatalogue::all();
+    check(!entries.empty(), "the catalogue is not empty");
+
+    // No duplicate names, and no duplicate types: either one means a level file
+    // can name something the catalogue answers two ways.
+    std::set<std::string> names;
+    std::set<int> types;
+    bool duplicateName = false, duplicateType = false;
+    for (const auto& entry : entries) {
+        if (!names.insert(entry.name).second) duplicateName = true;
+        if (!types.insert(static_cast<int>(entry.type)).second) duplicateType = true;
+    }
+    check(!duplicateName, "no two entries share a serialised name");
+    check(!duplicateType, "no two entries share an EntityType");
+
+    int uncreatable = 0, misnamed = 0, badParse = 0;
+    std::string firstUncreatable, firstMisnamed, firstBadParse;
+
+    for (const auto& entry : entries) {
+        // (a) the factory can build it. A catalogue entry the factory does not
+        //     handle is a palette button that silently places nothing.
+        auto made = EntityFactory::create(entry.type, {64.0f, 64.0f});
+        if (!made) {
+            if (uncreatable++ == 0) firstUncreatable = entry.name;
+            continue;
+        }
+
+        // (b) the class agrees with the catalogue about its own name. This is
+        //     the one that matters most: saveLevel writes getTypeName(), and
+        //     loadLevel parses it, so a mismatch means a level saved from the
+        //     editor loads back as a different entity.
+        if (made->getTypeName() != entry.name) {
+            if (misnamed++ == 0) {
+                firstMisnamed = entry.name + " -> " + made->getTypeName();
+            }
+        }
+
+        // (c) the round trip closes.
+        if (SerializationUtils::parseEntityTypeName(entry.name) != entry.type) {
+            if (badParse++ == 0) firstBadParse = entry.name;
+        }
+    }
+
+    check(uncreatable == 0,
+          "every catalogued type can be built by EntityFactory" +
+          (uncreatable ? " (first failure: " + firstUncreatable + ")" : std::string()));
+    check(misnamed == 0,
+          "every class's getTypeName() matches its catalogue name" +
+          (misnamed ? " (first mismatch: " + firstMisnamed + ")" : std::string()));
+    check(badParse == 0,
+          "every catalogue name parses back to its own type" +
+          (badParse ? " (first failure: " + firstBadParse + ")" : std::string()));
+
+    // And the palette actually covers the game. The specific complaint was that
+    // no enemy and no block could be placed at all.
+    const std::size_t enemies =
+        EntityCatalogue::inCategory(EntityCatalogue::Category::Enemy).size();
+    const std::size_t blocks =
+        EntityCatalogue::inCategory(EntityCatalogue::Category::Block).size();
+    const std::size_t items =
+        EntityCatalogue::inCategory(EntityCatalogue::Category::Item).size();
+    check(enemies >= 13, "the palette offers every enemy, bosses included");
+    check(blocks >= 8, "the palette offers the blocks and platforms");
+    check(items >= 12, "the palette offers the items and power-ups");
+
+    // Projectiles are runtime-only and must stay out of the placeable set: a
+    // level file containing a hammer would spawn one frozen in mid-air.
+    bool projectilePlaceable = false;
+    for (auto category : EntityCatalogue::placeableCategories()) {
+        if (category == EntityCatalogue::Category::Projectile) projectilePlaceable = true;
+    }
+    check(!projectilePlaceable, "projectiles are not offered as placeable scenery");
+}
+
+
+// ---------------------------------------------------------------------------
+// The sandbox itself, asserted.
+//
+// Every fix above depends on TestSaveSandbox actually being in effect. If a
+// future main() drops it, or Serializer::setSaveDirectory stops taking effect,
+// the suite would go back to reading and DELETING real save files while
+// continuing to report green - which is precisely how campaign progress was
+// lost in the first place. So the suite checks its own containment.
+// ---------------------------------------------------------------------------
+void testTheSuiteCannotTouchRealSaveData() {
+    section("hermeticity  this process cannot reach the real saves/ directory");
+
+    const std::filesystem::path dir = Serializer::saveDirectory();
+    check(!dir.empty(), "a save directory is resolved at all");
+
+    // Compared canonically: "saves" and "./saves" are the same place, and a
+    // string compare would be fooled by either spelling.
+    std::error_code ec;
+    const std::filesystem::path here = std::filesystem::current_path(ec);
+    const std::filesystem::path resolved = std::filesystem::weakly_canonical(dir, ec);
+    const std::filesystem::path tmp =
+        std::filesystem::weakly_canonical(std::filesystem::temp_directory_path(ec), ec);
+
+    bool insideTemp = false;
+    for (auto q = resolved; !q.empty() && q != q.root_path(); q = q.parent_path()) {
+        if (q == tmp) { insideTemp = true; break; }
+    }
+    check(insideTemp,
+          "the save directory is under the system temp dir, not the repository");
+
+    // And specifically not any of the candidates Serializer would auto-resolve.
+    bool isRealSaves = false;
+    for (const char* candidate : {"saves", "../saves", "../../saves",
+                                  "SuperMarioGame/saves", "../SuperMarioGame/saves"}) {
+        std::error_code ce;
+        const std::filesystem::path real =
+            std::filesystem::weakly_canonical(here / candidate, ce);
+        if (!ce && std::filesystem::exists(real, ce) && real == resolved) isRealSaves = true;
+    }
+    check(!isRealSaves, "and is none of the real saves/ directories on this machine");
+
+    // Writing has to actually land there, or the redirection is cosmetic.
+    HighScoreEntry probe;
+    probe.score = 4242;
+    probe.levelName = "hermeticity-probe";
+    Serializer::recordHighScore(probe);
+    check(std::filesystem::exists(dir / "highscores.json"),
+          "a recorded score lands inside the sandbox, so the redirect is real");
+    Serializer::clearHighScores();
+
+    // CampaignProgress resolves through the same door. This is the call that
+    // deleted a real file, so it is the one worth pinning.
+    CampaignProgress::recordLevelCleared(0, {true, false, false});
+    check(std::filesystem::exists(dir / "progress.json"),
+          "campaign progress is written inside the sandbox too");
+    CampaignProgress::reset();
+    check(!std::filesystem::exists(dir / "progress.json"),
+          "and reset() deletes THAT file - never the developer's");
+}
+
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("regressions");
+
     std::cout << "Audit regression suite\n";
 
     testCoinTilesLoad();
@@ -2896,6 +3336,17 @@ int main() {
     testDeathReportsWhichPlayerDied();
     testJinglesDoNotLoop();
     testPlayerTwoHasEveryControl();
+
+    // Reported from the Windows playtest, August 2026.
+    testMidFrameSpawnsDoNotInvalidateTheEntityLoop();
+    testBackdropStandsOnTheGroundSurface();
+    testEveryLevelsFlagpoleHasAFloorUnderIt();
+    testFireBuysAnOpeningOnBowser();
+    testTheAxeEndsTheFightOutright();
+    testTheWorldLabelIsNotAlwaysOneOne();
+    testTheHudCanShowBothPlayers();
+    testEntityCatalogueIsCompleteAndRoundTrips();
+    testTheSuiteCannotTouchRealSaveData();
 
     std::cout << "\n----------------------------------------\n";
     std::cout << g_checks - g_failures << " / " << g_checks << " checks passed\n";

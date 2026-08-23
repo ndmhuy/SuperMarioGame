@@ -58,6 +58,7 @@
 #include "Entities/FallingPlatform.hpp"
 #include "Entities/IceBlock.hpp"
 #include "Entities/ConveyorBelt.hpp"
+#include "TestSaveSandbox.hpp"
 
 static void registerAnimations() {
     AnimationManager& am = AnimationManager::getInstance();
@@ -85,6 +86,11 @@ static void registerAnimations() {
 }
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("all_entities_visual");
+
     std::cout << "[TEST] Launching All Entities Visual Test Harness..." << std::endl;
 
     sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "All Entities Full Render Test Harness");

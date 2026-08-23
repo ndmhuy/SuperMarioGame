@@ -1,0 +1,27 @@
+# Screenshots for the final report's Features Demonstration section.
+# Versus CPU: shows the two-player HUD badges and the AI-driven opponent.
+#
+#   ./build/SuperMarioGame --script tests/scripts/report_shots.txt
+
+wait 2.0
+shot r1_menu
+press Down
+wait 0.4
+press Enter               # multiplayer page
+wait 0.6
+press Right               # VERSUS -> VERSUS CPU
+wait 0.5
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.4
+press Down                # -> START
+wait 0.4
+press Enter
+wait 2.5
+shot r2_versus_cpu_hud
+wait 3.0
+shot r3_versus_cpu_running
+quit

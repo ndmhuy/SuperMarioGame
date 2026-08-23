@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Learning Records — SuperMarioGame (CS202-Cpp)</title>
+<style>
+  :root{--bg:#fbfaf8;--surface:#fff;--line:#e3e0d9;--tx:#1c1b19;--mut:#5c5852;--dim:#8a857c;
+    --accent:#7c5cff;--accent-soft:#efeaff;--ok:#0f7b4f;--warn:#9a6400;--code-bg:#f4f2ee;
+    --sans:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --ui:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,monospace}
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14151a;--surface:#1b1d23;
+    --line:#2e3138;--tx:#e9e7e3;--mut:#a8a49c;--dim:#7b776f;--accent:#a892ff;--accent-soft:#241f38;
+    --ok:#4ec98a;--warn:#e0a83c;--code-bg:#22242b}}
+  :root[data-theme="dark"]{--bg:#14151a;--surface:#1b1d23;--line:#2e3138;--tx:#e9e7e3;--mut:#a8a49c;
+    --dim:#7b776f;--accent:#a892ff;--accent-soft:#241f38;--ok:#4ec98a;--warn:#e0a83c;--code-bg:#22242b}
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:17px;
+    line-height:1.65;padding:48px 22px 90px}
+  .wrap{max-width:none;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+  main{max-width:72ch;margin:0 auto;min-width:0}
+  .eyebrow{font-family:var(--ui);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);margin-bottom:10px}
+  h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em;text-wrap:balance}
+  .stamp{font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--code-bg);
+    border:1px solid var(--line);border-radius:7px;padding:9px 13px;margin:18px 0 0}
+  .stamp b{color:var(--mut);font-weight:500}
+  h2{font-family:var(--ui);font-size:13px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent);margin:44px 0 4px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  h3{font-size:19px;margin:26px 0 6px;letter-spacing:-.01em}
+  p,li{color:var(--mut)}
+  p{margin:12px 0}
+  strong{color:var(--tx);font-weight:600}
+  .prompt{font-family:var(--ui);font-size:14px;color:var(--dim);background:var(--accent-soft);
+    border-left:2px solid var(--accent);border-radius:0 7px 7px 0;padding:11px 15px;margin:12px 0}
+  .prompt b{color:var(--accent)}
+  code{font-family:var(--mono);font-size:.87em;background:var(--code-bg);padding:1.5px 5px;
+    border-radius:4px;border:1px solid var(--line)}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:9px;padding:14px 16px;
+    overflow-x:auto;margin:14px 0}
+  pre code{background:none;border:none;padding:0;font-size:13.5px;line-height:1.6}
+  .math{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:14px 18px;
+    margin:14px 0;font-family:var(--mono);font-size:14px;overflow-x:auto;color:var(--tx)}
+  blockquote{margin:14px 0;padding:11px 16px;border-left:2px solid var(--warn);
+    background:var(--surface);border-radius:0 7px 7px 0;color:var(--mut);font-size:15.5px}
+  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:9px;margin:14px 0}
+  table{border-collapse:collapse;width:100%;font-family:var(--ui);font-size:14px;min-width:420px}
+  th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);font-weight:650;
+    background:var(--code-bg)}
+  td{color:var(--mut);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .prereq{margin:18px 0 0;padding:11px 15px;border:1px dashed var(--line);border-radius:9px;
+    font-size:14px;color:var(--mut);background:var(--surface)}
+  .prereq strong{color:var(--accent)}
+  .excerpt{margin:16px 0;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+  .excerpt-cap{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:var(--accent-soft);
+    padding:7px 13px;border-bottom:1px solid var(--line)}
+  .excerpt pre{margin:0;border:none;border-radius:0;background:var(--code-bg)}
+  .excerpt-note{padding:10px 13px;font-size:14px;color:var(--mut);border-top:1px solid var(--line)}
+  .excerpt-note strong{color:var(--tx)}
+  ol.checks{counter-reset:q;list-style:none;padding-left:0}
+  ol.checks li{counter-increment:q;position:relative;padding-left:36px;margin:11px 0}
+  ol.checks li::before{content:"Q" counter(q);position:absolute;left:0;top:1px;font-family:var(--ui);
+    font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+    border-radius:5px;padding:2px 6px}
+  footer{max-width:72ch;margin:56px auto 0;padding-top:18px;border-top:1px solid var(--line);
+    font-family:var(--ui);font-size:13px;color:var(--dim)}
+  a{color:var(--accent)}
+  @media print{body{padding:0;font-size:11pt}h2{page-break-after:avoid}pre,.math,.tbl{page-break-inside:avoid}
+    .prompt{display:none}}
+</style></head><body><div class="wrap"><main>
+<div class="eyebrow">SuperMarioGame (CS202-Cpp)</div>
+<h1>Learning Records</h1>
+<p>Per-topic revision documents (g-rule-21). Each one explains why the work was done, the CS and maths behind it, how to run it, and what it produced.</p>
+<h2>Records</h2>
+<ul>
+<li><a href="./mid-frame-entity-spawn-crash.html">mid frame entity spawn crash</a></li>
+</ul>
+<footer>Index regenerated by <code>scripts/new_learning_doc.js</code>.</footer>
+</main></div></body></html>

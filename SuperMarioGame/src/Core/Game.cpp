@@ -224,8 +224,12 @@ void Game::saveScreenshot(const std::string& name) {
     texture.update(*m_window);
 
     std::error_code ignored;
-    std::filesystem::create_directories("saves/shots", ignored);
-    const std::string path = "saves/shots/" + name + ".png";
+    // Same reasoning as MapEditor's export: resolved through Serializer so a
+    // screenshot lands beside the save files rather than wherever the process
+    // happened to be started from.
+    const std::string dir = Serializer::saveDirectory() + "/shots";
+    std::filesystem::create_directories(dir, ignored);
+    const std::string path = dir + "/" + name + ".png";
     if (texture.copyToImage().saveToFile(path)) {
         std::cout << "[Game] Screenshot: " << path << std::endl;
     } else {

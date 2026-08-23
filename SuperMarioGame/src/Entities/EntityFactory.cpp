@@ -37,6 +37,8 @@
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/BridgeAxe.hpp"
+#include "Entities/Castle.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Bowser.hpp"
 #include "Entities/BossFireball.hpp"
@@ -168,6 +170,10 @@ std::unique_ptr<Entity> EntityFactory::createUnconfigured(EntityType type, sf::V
             return std::make_unique<IceBlock>(position);
         case EntityType::ConveyorBelt:
             return std::make_unique<ConveyorBelt>(position);
+        case EntityType::BridgeAxe:
+            return std::make_unique<BridgeAxe>(position);
+        case EntityType::Castle:
+            return std::make_unique<Castle>(position);
 
         default:
             return nullptr;

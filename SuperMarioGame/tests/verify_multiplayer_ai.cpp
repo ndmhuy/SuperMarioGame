@@ -21,6 +21,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "TestSaveSandbox.hpp"
 
 namespace {
 
@@ -421,6 +422,11 @@ void testMatchConfigPredicates() {
 } // namespace
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("multiplayer_ai");
+
     std::cout << "=== verify_multiplayer_ai ===" << std::endl;
 
     testShadowIsAHazardNotAParticipant();

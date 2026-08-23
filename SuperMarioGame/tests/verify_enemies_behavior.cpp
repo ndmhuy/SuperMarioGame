@@ -28,6 +28,7 @@
 #include "Core/SoundManager.hpp"
 #include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
+#include "TestSaveSandbox.hpp"
 
 // Enums & Names for the 11 Enemies
 enum EnemyType {
@@ -73,6 +74,11 @@ struct LakituEgg {
 };
 
 int main() {
+    // Every save path in this process now points at a throwaway
+    // directory, so nothing here can read or delete real save data
+    // (g-rule-13). See TestSaveSandbox.hpp for what went wrong without it.
+    TestSaveSandbox sandbox("enemies_behavior");
+
     sf::RenderWindow window(sf::VideoMode(sf::Vector2u(1280, 720)), "Super Mario Game - Enemy Behavior Test Suite");
     window.setFramerateLimit(60);
 

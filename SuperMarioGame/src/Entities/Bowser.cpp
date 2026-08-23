@@ -21,6 +21,11 @@ constexpr float DEFAULT_PATROL_HALF_WIDTH = 5.0f * Constants::TILE_SIZE;
 
 constexpr float JUMP_IMPULSE = -520.0f;
 constexpr float JUMP_INTERVAL = 2.6f;    // phase 2 only
+
+// How long the opening lasts once the fireballs have landed. Long enough to
+// cross the arena and jump — under two seconds and the player is being asked to
+// already be in position, which they cannot plan for.
+constexpr float STAGGER_SECONDS = 3.0f;
 }
 
 Bowser::Bowser(sf::Vector2f position)
@@ -92,6 +97,48 @@ void Bowser::onPhaseChanged(int newPhase) {
 void Bowser::onTookHit() {
     // Knock him back a little, so a stomp reads as landing.
     velocity.x = facingRight ? -80.0f : 80.0f;
+    // A landed hit ends the opening it was taken through. Otherwise one stagger
+    // pays for the rest of the health bar: the window is three seconds, his
+    // i-frames are gone while it runs, and a player who can bounce twice a
+    // second would finish the fight from a single flower.
+    m_fireHits = 0;
+    // The opening closes with the hit it paid for. Four more fireballs buy the
+    // next one, so every point of the health bar costs the same.
+    endStagger();
+}
+
+int Bowser::getFireHitsToStagger() const {
+    return std::max(0, FIRE_HITS_PER_STAGGER - m_fireHits);
+}
+
+void Bowser::onHitByFireball() {
+    // No health is lost — he breathes the stuff. What it costs him is his
+    // guard: four hits and he reels, and while he reels he can be stomped.
+    if (isStaggered()) return;   // already open; further fire is wasted
+
+    ++m_fireHits;
+    SoundManager::getInstance().playSound("bump");
+
+    if (m_fireHits >= FIRE_HITS_PER_STAGGER) {
+        m_fireHits = 0;
+        stagger(STAGGER_SECONDS);
+    }
+}
+
+void Bowser::onStaggerBegan() {
+    // Stops mid-stride and drops the fire. Re-arming both clocks means he does
+    // not breathe the instant he recovers, which would burn the player as they
+    // land the stomp the window was for.
+    velocity.x = 0.0f;
+    m_fireTimer = fireInterval();
+    m_jumpTimer = JUMP_INTERVAL;
+    SoundManager::getInstance().playSound("bowserfall");
+}
+
+void Bowser::onStaggerEnded() {
+    // Back on his feet with a full clock, for the same reason.
+    m_fireTimer = fireInterval();
+    m_jumpTimer = JUMP_INTERVAL;
 }
 
 void Bowser::updateBehaviour(float dt) {

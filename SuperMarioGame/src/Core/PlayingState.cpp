@@ -7,6 +7,10 @@
 #include "Utils/LevelCatalog.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Entities/Boss.hpp"
+#include "Entities/Bowser.hpp"
+#include "Entities/BridgeAxe.hpp"
+#include "Entities/Castle.hpp"
+#include "Entities/Flagpole.hpp"
 #include "Entities/Projectile.hpp"
 #include "Core/DifficultyStrategy.hpp"
 #include "Utils/MetaGame.hpp"
@@ -62,6 +66,7 @@
 #include <filesystem>
 #include <random>
 #include <unordered_map>
+#include <vector>
 
 
 namespace {
@@ -132,6 +137,9 @@ void PlayingState::enter() {
         MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
         m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
         syncBackdropGround();
+        syncVoidPlane();
+        settleEndOfLevelScenery();
+        refreshWorldLabel(m_isProcedural ? std::string() : LevelCatalog::pathFor(m_selectedLevelIndex));
 
         // Wire animations for all procedurally generated entities
         for (auto& entity : m_entities) {
@@ -214,8 +222,7 @@ void PlayingState::enter() {
             auto fireball = m_fireballPool.acquire(spawnPos, vel);
             // Was pushed straight onto the list, so it never had its animations
             // wired and fell back to hand-drawn circles every time.
-            admitEntity(fireball.get());
-            m_entities.push_back(std::move(fireball));
+            queueSpawn(std::move(fireball));
 
             SoundManager::getInstance().playSound("fireball");
         }
@@ -308,8 +315,7 @@ void PlayingState::enter() {
             case QuestionBlock::Mushroom:
             default:                          item = std::make_unique<Mushroom>(request.spawnPosition);     break;
         }
-        admitEntity(item.get());
-        m_entities.push_back(std::move(item));
+        queueSpawn(std::move(item));
     });
 
     // --- Entities asking for other entities (Lakitu's Spinies, Hammer Bro's
@@ -320,13 +326,30 @@ void PlayingState::enter() {
         const auto request = std::any_cast<EntitySpawnRequest>(ev.data);
 
         // Keep a lid on projectiles so a long fight cannot flood the world.
-        if (m_entities.size() >= 400) return;
+        if (m_entities.size() + m_pendingSpawns.size() >= 400) return;
 
         auto spawned = spawnProjectile(request.type, request.position, request.velocity);
         if (!spawned) return;
         spawned->setVelocity(request.velocity);
-        admitEntity(spawned.get());
-        m_entities.push_back(std::move(spawned));
+        queueSpawn(std::move(spawned));
+    });
+
+    // --- P-Switch and POW block: the two items that published an event and
+    // then did nothing at all. Both effects are the level's business, not the
+    // item's, so they are performed here where the tilemap and the entity list
+    // are in reach. ---
+    m_pSwitchSubId = bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent& ev) {
+        float seconds = 15.0f;
+        if (const float* asFloat = std::any_cast<float>(&ev.data)) seconds = *asFloat;
+        beginPSwitch(seconds);
+    });
+
+    m_powSubId = bus.subscribe(EventType::POWBlockHit, [this](const GameEvent&) {
+        detonatePOW();
+    });
+
+    m_bridgeSubId = bus.subscribe(EventType::BridgeChopped, [this](const GameEvent&) {
+        chopBridge();
     });
 
     // --- Level complete: the flagpole fires this; without a listener the game
@@ -335,6 +358,11 @@ void PlayingState::enter() {
         if (m_levelComplete) return;   // flagpole can fire more than once
         m_levelComplete = true;
         m_levelCompleteTimer = 0.0f;
+        // The castle answers the flagpole: its own flag climbs the gatehouse as
+        // the level's does down the pole.
+        for (const auto& entity : m_entities) {
+            if (auto* castle = dynamic_cast<Castle*>(entity.get())) castle->raiseFlag();
+        }
         std::cout << "[PlayingState] Level complete!" << std::endl;
     });
 
@@ -366,6 +394,18 @@ void PlayingState::exit() {
     if (m_starCoinSubId != static_cast<EventBus::SubscriptionId>(-1)) {
         EventBus::getInstance().unsubscribe(m_starCoinSubId);
         m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_pSwitchSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_pSwitchSubId);
+        m_pSwitchSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_powSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_powSubId);
+        m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
+    }
+    if (m_bridgeSubId != static_cast<EventBus::SubscriptionId>(-1)) {
+        EventBus::getInstance().unsubscribe(m_bridgeSubId);
+        m_bridgeSubId = static_cast<EventBus::SubscriptionId>(-1);
     }
 
     // Particle / death-effect subscriptions. These capture `this`, so they must go
@@ -597,6 +637,13 @@ void PlayingState::update(float dt) {
     // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
     m_physicsEngine.update(m_entities, m_tileMap, dt);
 
+    // 3a2. Admit everything a handler asked for during the two loops above.
+    //
+    // This is the only point in the frame where m_entities is allowed to grow:
+    // the entity update loop and the physics pass have both finished, so no
+    // iterator or reference into the vector is still live.
+    flushPendingSpawns();
+
     // 3b. Prune inactive entities (keep m_player intact even if inactive).
     //
     // stable_partition rather than remove_if: remove_if leaves the tail in a
@@ -667,7 +714,20 @@ void PlayingState::update(float dt) {
     // version that only checked the *bottom* — so a Player 2 shoved off the left
     // edge was stuck alive outside the map forever — and which skipped the death
     // fall, the jingle and the i-frames that Player 1 got.
-    const float bottomVoidY = (m_tileMap.getHeight() * Constants::TILE_SIZE) + 32.0f;
+    // Where the void begins.
+    //
+    // This used to sit a tile BELOW the whole tilemap. In a 23-row level that is
+    // world y 768 against a 720px window, so the player was already well off the
+    // bottom of the screen and several frames into an unrecoverable fall before
+    // anything registered — and by then the rewind buffer's most recent frames
+    // were all of the same doomed fall.
+    //
+    // The plane is now one tile under the LOWEST FLOOR IN THE LEVEL, which for a
+    // pit that reaches the map's bottom row is the same place, but for every
+    // level whose floor sits above the map's edge is meaningfully earlier. The
+    // hit lands while the fall is still recent, so the seconds R can rewind into
+    // are the seconds before the mistake rather than the mistake itself.
+    const float bottomVoidY = m_voidPlaneY;
     const float rightVoidX  = (m_tileMap.getWidth()  * Constants::TILE_SIZE) + 64.0f;
     for (Player* who : {m_player, m_player2}) {
         if (!who || !who->isActive()) continue;
@@ -782,10 +842,31 @@ void PlayingState::update(float dt) {
     }
 
     // 5. Sync HUD with player stats or fallback mock data
+    updatePSwitch(dt);
+
     if (m_hud) {
         m_hud->update(dt);
         HudData hudData;
         hudData.timeLeft = static_cast<int>(m_levelTimer);
+        // The HUD has always drawn these two; nothing ever set them, so the
+        // countdown never appeared however long the switch ran.
+        hudData.pSwitchActive = m_pSwitchActive;
+        hudData.pSwitchTimer  = m_pSwitchTimer;
+        hudData.worldLabel    = m_worldLabel;
+
+        if (m_player2 && m_player2->isActive()) {
+            hudData.hasSecondPlayer      = true;
+            hudData.secondCharacterName  = m_player2->getCharacterName();
+            hudData.secondLives          = m_player2->getLives();
+            hudData.secondCoins          = m_player2->getCoins();
+            // Deliberately short. The badge sits between Player 1's and the
+            // WORLD field, and "CPU SPEEDRUNNER" is wide enough to draw straight
+            // over the world label. Which archetype is playing is already named
+            // in full on the match line at the bottom of the screen, which has a
+            // whole row to itself.
+            hudData.secondPlayerLabel = m_aiController ? std::string("CPU")
+                                                       : std::string("P2");
+        }
         
         if (auto* player = Game::getInstance().getPlayer()) {
             hudData.score = player->getScore();
@@ -800,8 +881,6 @@ void PlayingState::update(float dt) {
             hudData.score = 102520;
             hudData.coins = 57;
             hudData.lives = 9;
-            hudData.worldMajor = 1;
-            hudData.worldMinor = 1;
             hudData.characterName = "mario";
             hudData.starCoinsCollected = {true, true, false}; // 2 out of 3 collected
         }
@@ -844,28 +923,332 @@ void PlayingState::update(float dt) {
     }
 }
 
+void PlayingState::beginPSwitch(float seconds) {
+    // Pressing it again while it runs restarts the clock rather than swapping a
+    // second time — the second swap would turn the coins back into bricks and
+    // the effect would read as "the switch cancelled itself".
+    if (m_pSwitchActive) {
+        m_pSwitchTimer = seconds;
+        return;
+    }
+
+    m_pSwitchActive = true;
+    m_pSwitchTimer = seconds;
+    m_pSwitchSwaps.clear();
+
+    // Brick becomes coin, coin becomes brick — the whole level, not just what is
+    // on screen, so walking into a room mid-effect finds it already swapped.
+    for (int y = 0; y < m_tileMap.getHeight(); ++y) {
+        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+            const TileType current = m_tileMap.getTileType(x, y);
+            TileType swapped = TileType::Empty;
+            if (current == TileType::Brick)     swapped = TileType::Coin;
+            else if (current == TileType::Coin) swapped = TileType::Brick;
+            else continue;
+
+            m_pSwitchSwaps.push_back({x, y, current});
+            m_tileMap.setTile(x, y, swapped);
+        }
+    }
+
+    std::cout << "[PlayingState] P-Switch: swapped " << m_pSwitchSwaps.size()
+              << " tile(s) for " << seconds << "s." << std::endl;
+}
+
+void PlayingState::updatePSwitch(float dt) {
+    if (!m_pSwitchActive) return;
+    m_pSwitchTimer -= dt;
+    if (m_pSwitchTimer <= 0.0f) endPSwitch();
+}
+
+void PlayingState::endPSwitch() {
+    if (!m_pSwitchActive) return;
+
+    // Restored from the record, not by swapping back: a coin the player picked
+    // up during the effect left an Empty tile behind, and a blind reverse-swap
+    // would turn that hole into a brick out of thin air.
+    for (const SwappedTile& swap : m_pSwitchSwaps) {
+        m_tileMap.setTile(swap.x, swap.y, swap.original);
+    }
+    m_pSwitchSwaps.clear();
+    m_pSwitchActive = false;
+    m_pSwitchTimer = 0.0f;
+    std::cout << "[PlayingState] P-Switch expired." << std::endl;
+}
+
+void PlayingState::syncVoidPlane() {
+    // The deepest solid tile anywhere in the level: below that there is nothing
+    // to land on however far you fall, so it is the honest place to stop
+    // simulating the fall. One tile of slack under it so a player skimming the
+    // last ledge is not killed by the geometry they just cleared.
+    int deepestFloorRow = -1;
+    for (int y = m_tileMap.getHeight() - 1; y >= 0 && deepestFloorRow < 0; --y) {
+        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+            if (TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) {
+                deepestFloorRow = y;
+                break;
+            }
+        }
+    }
+
+    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+    if (deepestFloorRow < 0) {
+        m_voidPlaneY = mapBottom + Constants::TILE_SIZE;
+        return;
+    }
+
+    // Never above the bottom of the deepest floor — a player standing on the
+    // lowest tile in the level must not be inside the void.
+    const float belowDeepestFloor =
+        static_cast<float>(deepestFloorRow + 2) * Constants::TILE_SIZE;
+    m_voidPlaneY = std::min(belowDeepestFloor, mapBottom + Constants::TILE_SIZE);
+}
+
+void PlayingState::refreshWorldLabel(const std::string& levelPath) {
+    if (m_isProcedural) {
+        m_worldLabel = "RANDOM";
+        return;
+    }
+
+    // Match the loaded path against the campaign catalogue, so the label comes
+    // from the same table the level select reads and cannot drift from it.
+    std::string display;
+    for (int i = 0; i < LevelCatalog::count(); ++i) {
+        const std::string& catalogPath = LevelCatalog::pathFor(i);
+        // Suffix match: the loader tries several roots ("assets/levels/...",
+        // "../assets/levels/...") so the path it succeeded with is not always
+        // the catalogue's spelling of it.
+        if (levelPath.size() >= catalogPath.size() &&
+            levelPath.compare(levelPath.size() - catalogPath.size(),
+                              catalogPath.size(), catalogPath) == 0) {
+            display = LevelCatalog::nameFor(i);
+            break;
+        }
+    }
+
+    // A sub-level is not in the catalogue — it is reached through a pipe, not
+    // the level select — so name it after the level it belongs to.
+    const bool isSub = levelPath.find("_sub") != std::string::npos;
+    if (display.empty()) {
+        for (int i = 0; i < LevelCatalog::count(); ++i) {
+            std::string stem = LevelCatalog::pathFor(i);
+            const std::size_t dot = stem.rfind(".json");
+            if (dot != std::string::npos) stem = stem.substr(0, dot);
+            const std::size_t slash = stem.rfind('/');
+            if (slash != std::string::npos) stem = stem.substr(slash + 1);
+            if (levelPath.find(stem + "_sub") != std::string::npos) {
+                display = LevelCatalog::nameFor(i);
+                break;
+            }
+        }
+    }
+
+    if (display.empty()) {
+        m_worldLabel = "WORLD ?";
+        return;
+    }
+
+    // "Bonus 1" is not a world number and must not be printed as one.
+    std::string label = (display.rfind("Bonus", 0) == 0) ? display : "WORLD " + display;
+    if (isSub) label += " SUB";
+    std::transform(label.begin(), label.end(), label.begin(), ::toupper);
+    m_worldLabel = label;
+}
+
+float PlayingState::floorBelow(float worldX, float fromWorldY) const {
+    const int gx = static_cast<int>(worldX / Constants::TILE_SIZE);
+    if (gx < 0 || gx >= m_tileMap.getWidth()) return -1.0f;
+
+    const int firstRow = std::max(0, static_cast<int>(fromWorldY / Constants::TILE_SIZE));
+    for (int y = firstRow; y < m_tileMap.getHeight(); ++y) {
+        if (TileMap::getInfo(m_tileMap.getTileType(gx, y)).isSolid) {
+            return static_cast<float>(y) * Constants::TILE_SIZE;
+        }
+    }
+    return -1.0f;
+}
+
+void PlayingState::settleEndOfLevelScenery() {
+    for (const auto& entity : m_entities) {
+        if (!entity) continue;
+
+        if (auto* flagpole = dynamic_cast<Flagpole*>(entity.get())) {
+            const sf::Vector2f at = flagpole->getPosition();
+            // Probed from the middle of the pole, not its left edge: the sprite
+            // is 24px wide and its left edge can sit over the last empty column
+            // before the floor starts.
+            const float floorTop = floorBelow(at.x + 12.0f, at.y);
+            if (floorTop < 0.0f) continue;   // nothing under it; leave it alone
+
+            // The pole's foot goes on the floor, so its top-left corner is one
+            // pole-height above that.
+            const sf::Vector2f settled{at.x, floorTop - flagpole->getPoleHeight()};
+            flagpole->setPosition(settled);
+            std::cout << "[PlayingState] Flagpole settled onto the floor: y "
+                      << at.y << " -> " << settled.y << std::endl;
+            continue;
+        }
+
+        if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
+            const sf::Vector2f at = castle->getPosition();
+            const float floorTop = floorBelow(at.x + Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f,
+                                              at.y);
+            if (floorTop < 0.0f) continue;
+            castle->setPosition({at.x, floorTop - Castle::HEIGHT_TILES * Constants::TILE_SIZE});
+        }
+    }
+}
+
+void PlayingState::chopBridge() {
+    // What counts as "the bridge": inside the boss's arena, every solid tile in
+    // a column that has lava underneath it. Derived rather than declared, so a
+    // level does not have to list its bridge tiles and the map editor cannot
+    // produce a bridge the axe does not know about. Columns with no lava — the
+    // ledges either side — keep their floor, which is what the player lands on.
+    const AABB span = (m_activeBoss && m_activeBoss->hasArena())
+        ? m_activeBoss->getArena()
+        : AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE,
+                           m_tileMap.getHeight() * Constants::TILE_SIZE};
+
+    const int firstX = std::max(0, static_cast<int>(span.x / Constants::TILE_SIZE));
+    const int lastX  = std::min(m_tileMap.getWidth() - 1,
+                                static_cast<int>((span.x + span.width) / Constants::TILE_SIZE));
+
+    int dropped = 0;
+    for (int x = firstX; x <= lastX; ++x) {
+        int topLavaRow = -1;
+        for (int y = 0; y < m_tileMap.getHeight(); ++y) {
+            if (m_tileMap.getTileType(x, y) == TileType::Lava) { topLavaRow = y; break; }
+        }
+        if (topLavaRow < 0) continue;   // no lava under this column: not bridge
+
+        for (int y = 0; y < topLavaRow; ++y) {
+            if (!TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) continue;
+            m_tileMap.setTile(x, y, TileType::Empty);
+            ++dropped;
+        }
+    }
+
+    // The floor is gone; so is whoever was standing on it. Routed through the
+    // boss's own defeat so the score, the event and the animation are the same
+    // ones a fifth stomp would have produced.
+    if (m_activeBoss && !m_activeBoss->isDefeated()) {
+        m_activeBoss->defeatNow();
+    }
+
+    m_camera.triggerScreenShake(12.0f, 0.6f);
+    SoundManager::getInstance().playSound("bowserfall");
+    std::cout << "[PlayingState] Bridge chopped: " << dropped
+              << " tile(s) dropped into the lava." << std::endl;
+}
+
+void PlayingState::detonatePOW() {
+    // The POW block's whole point: everything standing on a surface anywhere on
+    // screen is knocked over at once. Off-screen enemies are spared, so it is a
+    // tool for the fight in front of you rather than a level-wide delete.
+    const AABB view = m_camera.getVisibleBounds();
+    int flipped = 0;
+
+    for (const auto& entity : m_entities) {
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy || !enemy->isActive() || enemy->isDeadOrDying()) continue;
+
+        const AABB box = enemy->getBoundingBox();
+        const bool onScreen = box.x + box.width  > view.x &&
+                              box.x              < view.x + view.width &&
+                              box.y + box.height > view.y &&
+                              box.y              < view.y + view.height;
+        if (!onScreen) continue;
+
+        // A boss is not "an enemy standing on the floor" — it has a health bar
+        // and a fight, and one POW would end it. It takes a hit like any other
+        // heavy blow instead.
+        if (auto* boss = dynamic_cast<Boss*>(enemy)) {
+            boss->onStomped();
+            ++flipped;
+            continue;
+        }
+
+        // Airborne enemies are untouched: the shockwave travels through the
+        // ground, which is why a POW cannot clear a Paratroopa mid-hop.
+        if (!enemy->isOnGround()) continue;
+
+        enemy->onStomped();
+        ++flipped;
+    }
+
+    if (m_player) m_player->addScore(flipped * 200);
+    std::cout << "[PlayingState] POW block: flipped " << flipped << " enemy(ies)." << std::endl;
+}
+
 void PlayingState::syncBackdropGround() {
     // Find the top of the ground the player actually walks on, and hand it to the
     // backdrop so the hills and bushes stand on it.
     //
     // Scanned rather than assumed: the campaign levels put their surface on tile
     // row 21 of 23, but a generated level or a sub-level can be any height, and a
-    // hardcoded screen line was wrong for all of them. The lowest row containing
-    // a solid tile is the floor; its top edge is where decorations belong.
-    int groundRow = -1;
-    for (int y = m_tileMap.getHeight() - 1; y >= 0 && groundRow < 0; --y) {
-        for (int x = 0; x < m_tileMap.getWidth(); ++x) {
+    // hardcoded screen line was wrong for all of them.
+    //
+    // "Lowest row holding any solid tile" was the wrong scan. In every shipped
+    // level the floor is a two-row slab (rows 21 and 22), so that answer was row
+    // 22 and the hills, bushes and fences stood on the *bottom* of the slab —
+    // one full tile buried in the ground. What the backdrop wants is the row
+    // most of the ground is on, and then the TOP of that slab.
+    //
+    // So: count solid tiles per row, take the widest row IN THE LOWER HALF of the
+    // map as the floor, and walk upwards while the rows above are still part of
+    // the same slab (at least 60% as wide). The top of the last such row is
+    // where a decoration's feet belong.
+    const int height = m_tileMap.getHeight();
+    const int width  = m_tileMap.getWidth();
+    if (height <= 0 || width <= 0) {
+        m_background.setWorldGroundY(0.0f);
+        return;
+    }
+
+    std::vector<int> solidPerRow(static_cast<std::size_t>(height), 0);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
             if (TileMap::getInfo(m_tileMap.getTileType(x, y)).isSolid) {
-                groundRow = y;
-                break;
+                ++solidPerRow[static_cast<std::size_t>(y)];
             }
         }
     }
-    if (groundRow < 0) {
+
+    // Only the lower half of the map is a candidate, and this is not a heuristic
+    // for tidiness — it is what stops a CEILING from winning.
+    //
+    // Level 1-3 is a castle: rows 0 and 1 are a solid slab running the full 200
+    // tiles, wider than its 170-tile floor. "The widest solid row" therefore
+    // answered row 0, the backdrop's ground line came out as world y 0, and the
+    // renderer silently fell back to its old hardcoded constant. A floor a player
+    // walks on is always in the lower half of a level; a ceiling never is.
+    const int firstCandidateRow = height / 2;
+
+    int floorRow = -1;
+    int widest = 0;
+    // Ties go to the LOWER row: a two-row slab of equal width is one floor, and
+    // its lower row is the one whose top we then climb to.
+    for (int y = firstCandidateRow; y < height; ++y) {
+        if (solidPerRow[static_cast<std::size_t>(y)] >= widest &&
+            solidPerRow[static_cast<std::size_t>(y)] > 0) {
+            widest = solidPerRow[static_cast<std::size_t>(y)];
+            floorRow = y;
+        }
+    }
+    if (floorRow < 0) {
         m_background.setWorldGroundY(0.0f);   // no floor at all: fall back
         return;
     }
-    m_background.setWorldGroundY(static_cast<float>(groundRow) * Constants::TILE_SIZE);
+
+    const int slabThreshold = std::max(1, (widest * 3) / 5);
+    int surfaceRow = floorRow;
+    while (surfaceRow > firstCandidateRow &&
+           solidPerRow[static_cast<std::size_t>(surfaceRow - 1)] >= slabThreshold) {
+        --surfaceRow;
+    }
+
+    m_background.setWorldGroundY(static_cast<float>(surfaceRow) * Constants::TILE_SIZE);
 }
 
 void PlayingState::render(sf::RenderTarget& target) {
@@ -1191,6 +1574,9 @@ void PlayingState::setupTestScene() {
         m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
         m_background.setTheme(levelData.theme);
         syncBackdropGround();
+        syncVoidPlane();
+        settleEndOfLevelScenery();
+        refreshWorldLabel(m_isProcedural ? std::string() : LevelCatalog::pathFor(m_selectedLevelIndex));
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -1216,6 +1602,14 @@ void PlayingState::setupTestScene() {
 
 void PlayingState::cleanupTestScene() {
     m_entities.clear();
+    // Anything a handler queued on the frame the level was torn down belongs to
+    // the level that is going away, not the one being built.
+    m_pendingSpawns.clear();
+    // The swap record points at cells in the tilemap that is about to be
+    // replaced. Carrying it across a warp would write bricks into the new level.
+    m_pSwitchSwaps.clear();
+    m_pSwitchActive = false;
+    m_pSwitchTimer = 0.0f;
     m_player = nullptr;
     // Every observer pointer into the vector that was just emptied. m_player2
     // and m_shadow used to survive a level reload as dangling pointers — the
@@ -1317,6 +1711,9 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
     m_background.setTheme(levelData.theme);
     syncBackdropGround();
+    syncVoidPlane();
+    settleEndOfLevelScenery();
+    refreshWorldLabel(chosenPath);
     findActiveBoss();
 
     std::cout << "[PlayingState] Loaded sub-level / main level: " << chosenPath << " at spawn (" << spawnPos.x << ", " << spawnPos.y << ")" << std::endl;
@@ -1328,6 +1725,9 @@ void PlayingState::regenerateProceduralLevel() {
     MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
     m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
     syncBackdropGround();
+    syncVoidPlane();
+    settleEndOfLevelScenery();
+    refreshWorldLabel(std::string());
     for (auto& entity : m_entities) {
         admitEntity(entity.get());
     }
@@ -1616,6 +2016,33 @@ void PlayingState::applySnapshot(const GameSnapshot& snapshot) {
     m_levelTimer = snapshot.levelTimer;
     m_camera.snapTo(snapshot.cameraCenter);
 
+    // Rewinding out of a death has to actually cancel the death.
+    //
+    // Falling into the void starts a death sequence and puts the player into
+    // m_dying, which zeroes their controls and drives them through the floor.
+    // The rewind path restored the POSITION from the snapshot and nothing else,
+    // so the player reappeared above the pit still dying, still uncontrollable,
+    // and fell straight back in — R looked like it did nothing. The Memento is
+    // meant to undo the last few seconds, and dying is part of what happened in
+    // them.
+    //
+    // A player already eliminated is left alone: they have no lives to come back
+    // to and the run is over for them.
+    for (Player* who : {m_player, m_player2}) {
+        if (!who) continue;
+        DeathState* death = deathStateFor(who);
+        if (!death || death->eliminated) continue;
+        if (death->phase == DeathPhase::None) continue;
+        // GameOver has already started a screen transition whose callback
+        // replaces this state; there is nothing left here to rewind into.
+        if (death->phase == DeathPhase::GameOver) continue;
+
+        death->phase = DeathPhase::None;
+        death->timer = 0.0f;
+        who->endDeathFall();
+        std::cout << "[PlayingState] Rewound out of a death." << std::endl;
+    }
+
     if (m_player) {
         m_player->restoreMemento(snapshot.playerState);
     }
@@ -1745,6 +2172,14 @@ void PlayingState::syncBossHud(HudData& hudData) const {
     hudData.bossName      = m_activeBoss->getDisplayName();
     hudData.bossHealth    = m_activeBoss->getHealth();
     hudData.bossMaxHealth = m_activeBoss->getMaxHealth();
+    hudData.bossStaggered = m_activeBoss->isStaggered();
+    // Only Bowser has the fire-stagger route; -1 means "this boss has no such
+    // mechanic" and the HUD draws nothing rather than a misleading zero.
+    if (const auto* bowser = dynamic_cast<const Bowser*>(m_activeBoss)) {
+        hudData.bossFireHitsToStagger = bowser->getFireHitsToStagger();
+    } else {
+        hudData.bossFireHitsToStagger = -1;
+    }
 }
 
 PlayingState::DeathState* PlayingState::deathStateFor(const Player* who) {
@@ -1912,6 +2347,54 @@ void PlayingState::makeSpawnSafe(Player* who, sf::Vector2f respawn) {
     who->setInvincible(1.5f);
 }
 
+sf::Vector2f PlayingState::findSafeRespawn(sf::Vector2f preferred, const Player* nextTo) const {
+    const AABB view = m_camera.getVisibleBounds();
+    // A margin in from the view edge, so the respawned player is visibly inside
+    // the frame rather than clipping its border — and, in versus, is not
+    // instantly grabbed by the tether that shoves whoever is at the edge.
+    const float margin = Constants::TILE_SIZE * 2.0f;
+    const float leftLimit  = std::max(Constants::TILE_SIZE, view.x + margin);
+    const float rightLimit = std::min(m_tileMap.getWidth() * Constants::TILE_SIZE
+                                          - Constants::TILE_SIZE * 2.0f,
+                                      view.x + view.width - margin);
+
+    auto standable = [this](float x, float fromY) -> float {
+        const float floorTop = floorBelow(x, fromY);
+        if (floorTop < 0.0f) return -1.0f;
+        // Two tiles of headroom, so the player does not materialise inside the
+        // underside of a platform and get pushed out sideways.
+        const int gx = static_cast<int>(x / Constants::TILE_SIZE);
+        const int floorRow = static_cast<int>(floorTop / Constants::TILE_SIZE);
+        for (int y = floorRow - 2; y < floorRow; ++y) {
+            if (y < 0) continue;
+            if (TileMap::getInfo(m_tileMap.getTileType(gx, y)).isSolid) return -1.0f;
+        }
+        return floorTop;
+    };
+
+    // Start from wherever makes most sense and walk outwards: beside the
+    // surviving player when there is one, otherwise the preferred point.
+    const float originX = nextTo ? nextTo->getPosition().x : preferred.x;
+    const float searchTop = std::max(0.0f, view.y);
+
+    // Beside the partner first — one tile clear, then further out — so the two
+    // start the next life together rather than at opposite ends of the frame.
+    for (int step = 1; step <= 12; ++step) {
+        for (const float dir : {1.0f, -1.0f}) {
+            const float x = originX + dir * step * Constants::TILE_SIZE;
+            if (x < leftLimit || x > rightLimit) continue;
+            const float floorTop = standable(x, searchTop);
+            if (floorTop < 0.0f) continue;
+            // One tile above the floor: dropped in, not embedded in it.
+            return {x, floorTop - Constants::TILE_SIZE * 1.5f};
+        }
+    }
+
+    // Nothing on screen has a floor. The preferred point at least has the level
+    // designer's intent behind it, which beats a guess.
+    return preferred;
+}
+
 void PlayingState::respawnPlayer(Player* who) {
     if (!who) return;
     const bool isFirst = (who == m_player);
@@ -1933,20 +2416,55 @@ void PlayingState::respawnPlayer(Player* who) {
     // two do not resolve out of each other on the first frame.
     if (!isFirst) respawn.x += 48.0f;
 
+    // In a two-player match the camera frames both players, so the checkpoint is
+    // the wrong destination whenever the survivor has moved on from it: it puts
+    // the respawned player off screen, or drags the frame back across the level
+    // to fetch them. Come back next to the partner instead, inside the view and
+    // on a floor.
+    Player* const partner = isFirst ? m_player2 : m_player;
+    const bool partnerPlaying = m_match.hasSecondPlayer() && partner &&
+                                partner->isActive() && !partner->isDying();
+    if (partnerPlaying) {
+        respawn = findSafeRespawn(respawn, partner);
+    } else {
+        // Single player, or the last one standing. The checkpoint is right, but
+        // it still has to have a floor under it — a checkpoint taken over a pit
+        // used to respawn the player straight back into the pit, once per life.
+        if (floorBelow(respawn.x, respawn.y) < 0.0f) {
+            std::cerr << "[PlayingState] Respawn point has no floor beneath it; "
+                         "looking for one on screen." << std::endl;
+            respawn = findSafeRespawn(respawn, nullptr);
+        }
+    }
+
     who->setPosition(respawn);
     who->setVelocity({0.0f, 0.0f});
     who->setGrounded(false);
     // A corpse must not still be carrying a shell it picked up before dying.
     who->dropHeldEntity();
+
+    // A death costs the power-up, always.
+    //
+    // Taking a hit steps the form down — Fire to Super to Small — so a damage
+    // death already arrives here Small. Falling into a pit does not go through
+    // takeDamage() at all, so a Fire Mario who missed a jump came back still
+    // holding the flower: the pit was the one hazard in the game with no cost
+    // beyond the life. The combo goes with it for the same reason.
+    who->setForm(Player::Form::Small);
+    who->resetCombo();
     makeSpawnSafe(who, respawn);
 
     if (!isFirst) {
-        std::cout << "[PlayingState] Player 2 respawned. Lives remaining: "
-                  << who->getLives() << std::endl;
+        std::cout << "[PlayingState] Player 2 respawned at (" << respawn.x << ", "
+                  << respawn.y << "). Lives remaining: " << who->getLives() << std::endl;
         return;
     }
 
-    m_camera.snapTo(respawn);
+    // Only snap the camera when it is following this player alone. In a match it
+    // frames the midpoint of both, and snapping to one of them fights that.
+    if (!m_match.hasSecondPlayer() || !m_player2 || !m_player2->isActive()) {
+        m_camera.snapTo(respawn);
+    }
 
     // The chase restarts with the life. The shadow was left holding the dead
     // life's path, which the correction lerp then dragged it back across the
@@ -2104,10 +2622,17 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     // First spawn of a run gets the difficulty's life count; later spawns carry
     // whatever the player had, because this branch only runs when there is none.
     int oldLives = Game::getInstance().difficulty().startingLives();
+    // And the form carries too. Reaching the flagpole as Fire Mario and starting
+    // the next level Small threw away the thing the player spent the level
+    // earning; the series has always let you keep it between stages. Deaths
+    // still take it — see respawnPlayer() — so it is kept by surviving, which is
+    // what makes it worth having.
+    Player::Form oldForm = Player::Form::Small;
     if (m_player) {
         oldCoins = m_player->getCoins();
         oldScore = m_player->getScore();
         oldLives = m_player->getLives();
+        oldForm  = m_player->getForm();
     }
 
     std::unique_ptr<Player> newPlayer;
@@ -2124,6 +2649,10 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
     // Carry stats across the swap silently. addCoins()/loseLife() would publish
     // CoinCollected and GameOver here, inflating statistics and achievements.
     newPlayer->restoreStats(oldLives, oldCoins, oldScore);
+    // setStartingForm, not setForm: the box is sized to the form without the
+    // feet-planting shift a mid-life change performs, which would drop the
+    // player 2px into the floor on every level transition.
+    newPlayer->setStartingForm(oldForm);
 
     adoptPlayer(std::move(newPlayer));
 }
@@ -2164,6 +2693,28 @@ void PlayingState::recycleEntity(std::unique_ptr<Entity> entity) {
     // Everything else dies here, exactly as it did before pooling existed.
 }
 
+void PlayingState::queueSpawn(std::unique_ptr<Entity> entity) {
+    if (!entity) return;
+    // Wired now rather than at flush time: the spawner may set velocity or read
+    // the sprite size straight after this call, and a half-built entity would
+    // give it the wrong answer.
+    admitEntity(entity.get());
+    m_pendingSpawns.push_back(std::move(entity));
+}
+
+void PlayingState::flushPendingSpawns() {
+    if (m_pendingSpawns.empty()) return;
+    // Moved out first: admitting an entity cannot itself spawn one today, but if
+    // it ever does, that spawn lands in a fresh queue for the next flush rather
+    // than growing the vector this loop is walking.
+    std::vector<std::unique_ptr<Entity>> ready;
+    ready.swap(m_pendingSpawns);
+    m_entities.reserve(m_entities.size() + ready.size());
+    for (auto& entity : ready) {
+        if (entity) m_entities.push_back(std::move(entity));
+    }
+}
+
 void PlayingState::admitEntity(Entity* entity) {
     if (!entity) return;
     wireEntityAnimations(entity);
@@ -2193,10 +2744,13 @@ void PlayingState::wireEntityAnimations(Entity* entity) {
         // atlas. One branch covers every projectile, so a new one is wired by
         // existing.
         if (m_enemySheet) proj->setupAnimations(m_enemySheet.get());
-    } else if (dynamic_cast<StarCoin*>(entity)) {
-        // StarCoin's big_coin_0/1/2 frames live in world_scenery_item, not item atlas
-        if (auto* sc = dynamic_cast<Item*>(entity)) {
-            if (m_scenerySheet) sc->setupAnimations(m_scenerySheet.get());
+    } else if (dynamic_cast<StarCoin*>(entity) || dynamic_cast<BridgeAxe*>(entity)) {
+        // Two Items whose art is in the world/scenery atlas rather than the item
+        // one: StarCoin's big_coin_0..2, and BridgeAxe's axe_0..2. Routed by
+        // the generic Item branch below they find no frame, and drawSprite bails
+        // on a zero-size sprite — so they drew a placeholder rectangle.
+        if (auto* sceneryItem = dynamic_cast<Item*>(entity)) {
+            if (m_scenerySheet) sceneryItem->setupAnimations(m_scenerySheet.get());
         }
     } else if (auto* i = dynamic_cast<Item*>(entity)) {
         if (m_itemSheet) i->setupAnimations(m_itemSheet.get());

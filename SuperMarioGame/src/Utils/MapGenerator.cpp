@@ -1,5 +1,6 @@
 #include "Utils/MapGenerator.hpp"
 #include "Entities/EntityFactory.hpp"
+#include "Entities/Castle.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
@@ -279,19 +280,40 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
     }
 
     // 9. Spawn Goal Flagpole
+    //
+    // The y here is a hint. exitGY-9 put the pole's foot nearly four tiles above
+    // the floor — the flag hung in mid-air in every generated level, the same
+    // defect the hand-authored files had. PlayingState::settleEndOfLevelScenery()
+    // stands it on whatever is actually beneath it at load time, so this only
+    // has to name the column.
     sf::Vector2f flagpolePos(exitX * Constants::TILE_SIZE, (exitGY - 9) * Constants::TILE_SIZE);
     auto flagpole = EntityFactory::create(EntityType::Flagpole, flagpolePos);
     if (flagpole) entities.push_back(std::move(flagpole));
 
-    // 10. Build Victory Castle Structure after Flagpole
-    int castleStartX = exitX + 4;
-    for (int cx = 0; cx < 5; ++cx) {
-        for (int cy = 1; cy <= 5; ++cy) {
-            tileMap.setTile(castleStartX + cx, exitGY - cy, groundTile);
+    // 10. The victory castle.
+    //
+    // This used to stamp a 5x5 square of ordinary GROUND tiles with a one-tile
+    // hole punched through it. That is not a building: it is a solid brown box
+    // the player can climb on top of and stand on, and it looked like level
+    // geometry because it *was* level geometry. The atlas has shipped castle_end
+    // since the beginning, so the castle is now a real entity drawn from real
+    // art, standing on the floor and settled the same way the flagpole is.
+    const int castleStartX = exitX + 4;
+    // Only if it fits: a castle hanging off the right edge of the map is worse
+    // than no castle, and the generator's width is configurable.
+    if (castleStartX + static_cast<int>(Castle::WIDTH_TILES) + 1 < config.width) {
+        // Make sure it has a floor to stand on — the terrain pass may have left
+        // a pit here, and a castle over a pit settles onto nothing.
+        for (int cx = 0; cx <= static_cast<int>(Castle::WIDTH_TILES) + 1; ++cx) {
+            for (int y = exitGY; y < config.height; ++y) {
+                tileMap.setTile(castleStartX + cx, y, groundTile);
+            }
         }
+        sf::Vector2f castlePos(castleStartX * Constants::TILE_SIZE,
+                               (exitGY - Castle::HEIGHT_TILES) * Constants::TILE_SIZE);
+        auto castle = EntityFactory::create(EntityType::Castle, castlePos);
+        if (castle) entities.push_back(std::move(castle));
     }
-    tileMap.setTile(castleStartX + 2, exitGY - 1, TileType::Empty);
-    tileMap.setTile(castleStartX + 2, exitGY - 2, TileType::Empty);
 
     std::cout << "[MapGenerator] Generated winnable procedural level (Width: " << config.width
               << ", Theme: " << static_cast<int>(config.theme)

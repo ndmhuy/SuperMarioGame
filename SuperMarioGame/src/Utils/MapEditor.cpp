@@ -2,13 +2,17 @@
 #include "Utils/MapEditor.hpp"
 #include "Utils/Constants.hpp"
 #include "Entities/Entity.hpp"
+#include "Entities/EntityCatalogue.hpp"
 #include "Utils/LevelLoader.hpp"
+#include "Utils/Serializer.hpp"
 #include "Core/Game.hpp"
 #include "Core/MenuState.hpp"
 #include <imgui.h>
 #include <algorithm>
 #include <cfloat>
+#include <cctype>
 #include <cmath>
+#include <string>
 #include <iostream>
 
 MapEditor::MapEditor() {
@@ -55,7 +59,11 @@ void MapEditor::clearHistory() {
 
 void MapEditor::saveLevel(const TileMap& tileMap, const std::vector<std::unique_ptr<Entity>>& entities) {
     LevelLoader loader;
-    std::string path = "saves/" + std::string(m_levelNameInput) + ".json";
+    // Through Serializer, not a bare relative path. "saves/" resolves against
+    // the working directory, so an editor level exported from a build tree
+    // landed in build/saves and was invisible to the game launched from the
+    // source root - the same split that made two different config.json files.
+    std::string path = Serializer::saveDirectory() + "/" + std::string(m_levelNameInput) + ".json";
     bool success = loader.saveLevel(path, tileMap, entities, m_levelNameInput);
     if (success) {
         std::cout << "[Editor] Exported level successfully to: " << path << std::endl;
@@ -67,7 +75,7 @@ void MapEditor::saveLevel(const TileMap& tileMap, const std::vector<std::unique_
 void MapEditor::loadLevel(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities) {
     LevelLoader loader;
     LevelData data;
-    std::string path = "saves/" + std::string(m_levelNameInput) + ".json";
+    std::string path = Serializer::saveDirectory() + "/" + std::string(m_levelNameInput) + ".json";
     bool success = loader.loadLevel(path, tileMap, data);
     if (success) {
         entities = std::move(data.entities);
@@ -230,32 +238,96 @@ void MapEditor::renderImGui(TileMap& tileMap, std::vector<std::unique_ptr<Entity
 
     if (m_isTileMode) {
         ImGui::Text("Select Tile Type to Place:");
-        const char* tileNames[] = { "Empty (Erase)", "Ground", "Brick", "Question Block", "Pipe", "Ice Block", "Conveyor Belt", "Water", "Coin" };
-        TileType tileTypes[] = { TileType::Empty, TileType::Ground, TileType::Brick, TileType::Question, TileType::Pipe, TileType::Ice, TileType::Conveyor, TileType::Water, TileType::Coin };
-        
-        int activeIdx = 1;
-        for (int i = 0; i < 9; ++i) {
-            if (m_selectedTileType == tileTypes[i]) activeIdx = i;
-        }
+        // Every TileType the game has, including the two the old palette left
+        // out — Lava, which 1-3 is built on and which no one could place, and
+        // Used, so a spent question block can be authored directly.
+        struct TileChoice { TileType type; const char* label; };
+        static const TileChoice kTiles[] = {
+            {TileType::Empty,    "Empty (Erase)"},
+            {TileType::Ground,   "Ground"},
+            {TileType::Brick,    "Brick"},
+            {TileType::Question, "Question Block"},
+            {TileType::Used,     "Used Block"},
+            {TileType::Pipe,     "Pipe"},
+            {TileType::Ice,      "Ice"},
+            {TileType::Conveyor, "Conveyor Belt"},
+            {TileType::Water,    "Water"},
+            {TileType::Lava,     "Lava"},
+            {TileType::Coin,     "Coin Tile"},
+        };
+        constexpr int kTileCount = static_cast<int>(sizeof(kTiles) / sizeof(kTiles[0]));
 
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::Combo("##TileBrush", &activeIdx, tileNames, 9)) {
-            m_selectedTileType = tileTypes[activeIdx];
+        for (int i = 0; i < kTileCount; ++i) {
+            // Four to a row: a vertical list of eleven pushed the file controls
+            // off the bottom of the panel.
+            if (i % 4 != 0) ImGui::SameLine();
+            const bool selected = (m_selectedTileType == kTiles[i].type);
+            if (selected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.55f, 0.85f, 1.0f));
+            if (ImGui::Button(kTiles[i].label, ImVec2(78.0f, 0.0f))) {
+                m_selectedTileType = kTiles[i].type;
+            }
+            if (selected) ImGui::PopStyleColor();
         }
     } else {
         ImGui::Text("Select Entity Type to Place:");
-        const char* entityKeys[] = { "mario", "luigi", "toad", "peach", "mushroom", "oneup_mushroom", "mini_mushroom", "mega_mushroom", "cape_feather", "fire_flower", "star", "coin", "star_coin", "pswitch", "pow_block", "trampoline" };
-        const char* entityLabels[] = { "Player: Mario", "Player: Luigi", "Player: Toad", "Player: Peach", "Item: Mushroom", "Item: 1-Up Mushroom", "Item: Mini Mushroom", "Item: Mega Mushroom", "Item: Cape Feather", "Item: Fire Flower", "Item: Star (Invincible)", "Item: Coin", "Item: Star Coin", "Item: P-Switch", "Item: POW Block", "Item: Trampoline" };
-        
-        int activeIdx = 11; // Defaults to coin
-        for (int i = 0; i < 16; ++i) {
-            if (m_selectedEntityType == entityKeys[i]) activeIdx = i;
-        }
 
+        // The palette is generated from EntityCatalogue rather than written out
+        // here. It used to be a hand-kept list of sixteen names that had fallen
+        // behind the game: not one enemy, not one block, no pipe and no
+        // flagpole could be placed in the level editor at all.
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::Combo("##EntityBrush", &activeIdx, entityLabels, 16)) {
-            m_selectedEntityType = entityKeys[activeIdx];
+        ImGui::InputTextWithHint("##EntityFilter", "filter by name...",
+                                 m_entityFilter, sizeof(m_entityFilter));
+
+        std::string needle = m_entityFilter;
+        std::transform(needle.begin(), needle.end(), needle.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        const EntityCatalogue::Entry* selectedEntry =
+            EntityCatalogue::findByName(m_selectedEntityType);
+        ImGui::TextDisabled("Placing: %s",
+                            selectedEntry ? selectedEntry->label.c_str() : m_selectedEntityType.c_str());
+
+        ImGui::BeginChild("##EntityPalette", ImVec2(0.0f, 260.0f), true);
+        int shown = 0;
+        for (EntityCatalogue::Category category : EntityCatalogue::placeableCategories()) {
+            std::vector<const EntityCatalogue::Entry*> entries =
+                EntityCatalogue::inCategory(category);
+
+            // Filter first, so an empty category header is not drawn over a
+            // search that excluded all of it.
+            std::vector<const EntityCatalogue::Entry*> matching;
+            for (const EntityCatalogue::Entry* entry : entries) {
+                if (needle.empty()) { matching.push_back(entry); continue; }
+                std::string haystack = entry->label + " " + entry->name;
+                std::transform(haystack.begin(), haystack.end(), haystack.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (haystack.find(needle) != std::string::npos) matching.push_back(entry);
+            }
+            if (matching.empty()) continue;
+
+            // Open by default while filtering: a search whose hits are inside
+            // collapsed headers looks like a search that found nothing.
+            ImGui::SetNextItemOpen(true, needle.empty() ? ImGuiCond_FirstUseEver : ImGuiCond_Always);
+            if (!ImGui::CollapsingHeader(EntityCatalogue::categoryLabel(category))) continue;
+
+            for (const EntityCatalogue::Entry* entry : matching) {
+                ++shown;
+                const bool selected = (m_selectedEntityType == entry->name);
+                if (ImGui::Selectable(entry->label.c_str(), selected)) {
+                    m_selectedEntityType = entry->name;
+                }
+                if (ImGui::IsItemHovered()) {
+                    // The serialised name, so a level file can be hand-checked
+                    // against what the editor wrote.
+                    ImGui::SetTooltip("%s", entry->name.c_str());
+                }
+            }
         }
+        if (shown == 0) {
+            ImGui::TextDisabled("No entity matches \"%s\".", m_entityFilter);
+        }
+        ImGui::EndChild();
     }
 
     ImGui::Separator();
