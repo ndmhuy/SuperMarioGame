@@ -141,7 +141,9 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 
 #### Phase 5 — Visual Systems (partial)
 - [x] **5.1** SpriteSheet Handler — `SpriteSheet.hpp/.cpp`
-- [x] **5.2** Animation System — `Animation.hpp/.cpp`, `AnimationManager.hpp/.cpp` (11+ animation states)
+- [x] **5.2** Animation System — `Animation.hpp/.cpp` (11+ animation states). `AnimationManager.hpp/.cpp`
+  deleted 2026-08-31 (audit D5/R2): compiled and passed its harness but was never
+  reachable from `main()` — real per-entity setup lives in `setupAnimations()`.
 - [x] **5.3** HUD — Score, Coins, World, Time, Lives, Combo counter, P-Switch timer bar, Boss health bar, Star coin indicators, floating score text
 - [x] **5.4** Minimap — 200×40 pixel overview, toggleable with M key
 - [x] **5.6** Particle System — `ParticleSystem.hpp/.cpp`, object-pooled, 8+ particle types (BrickBreak, CoinSparkle, DeathPoof, Stomp, Combo, WallDust, WaterBubble, LavaEmber)
