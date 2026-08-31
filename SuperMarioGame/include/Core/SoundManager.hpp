@@ -49,6 +49,16 @@ public:
     void pauseMusic();
     void resumeMusic();
 
+    // Per-frame poll (audit D26): a one-shot celebratory jingle (loop=false)
+    // that is still playing when a second one is requested — e.g. a boss's
+    // castle_complete fanfare followed moments later by the flagpole's
+    // level_complete jingle in the same boss-level clear — used to be clobbered
+    // mid-playback because playMusic() switched tracks unconditionally. The
+    // second request is now held in m_pendingMusic* and started here once the
+    // first one-shot track's sf::Music::Status stops being Playing. Wired into
+    // Game::run()'s fixed-timestep loop next to AchievementManager::update().
+    void update(float dt);
+
     // Lifecycle
     void shutdown();
 
@@ -72,6 +82,20 @@ private:
     std::string m_savedLevelMusicPath;
     bool m_soundsLoaded = false;
     bool m_eventsSubscribed = false;
+
+    // A playMusic() request deferred because it arrived while the currently
+    // playing track was a still-running one-shot jingle (see update()). Only
+    // ever holds the single most recent deferred request — a later playMusic()
+    // call while one is already pending simply overwrites it, same as it would
+    // have overwritten m_music directly before this fix existed.
+    bool m_hasPendingMusic = false;
+    std::string m_pendingMusicPath;   // already fully resolved, not an alias/id
+    bool m_pendingMusicLoop = false;
+
+    // Shared by playMusic() (fresh request) and update() (deferred request) —
+    // the actual sf::Music::openFromFile()/play() call, taking an
+    // already-resolved path so update() never re-runs alias/path resolution.
+    void startMusicNow(const std::string& resolvedPath, bool loop);
 
     // Probed once at construction via sf::PlaybackDevice::getDefaultDevice().
     // When false, playSound()/playMusic() are silent no-ops instead of driving
