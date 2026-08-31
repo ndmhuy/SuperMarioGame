@@ -79,7 +79,7 @@ footer{max-width:74ch;margin:56px auto 0;padding-top:18px;border-top:1px solid v
   <p class="sub" style="margin-top:14px">
     Nguy&#7877;n &#272;&#236;nh Minh Huy (25125083) &middot; Tr&#7847;n Gia Huy (25125084)</p>
   <p class="meta">C++17 &middot; SFML 3.0.2 &middot; ImGui-SFML &middot; CMake<br>
-  Verified against commit a159276 &middot; 2026-08-31</p>
+  Verified against commit edbae74 &middot; 2026-08-31</p>
 </div>
 
 <div class="toc"><ol>
@@ -107,8 +107,8 @@ written in C++17 with SFML 3.0.2 and ImGui-SFML. The project's purpose is not th
 architecture behind it: a four-level abstract inheritance tree over 13 enemy,
 13 item, 10 block and 5 player classes, driven polymorphically by a
 fixed-timestep engine, and organised by ten software design patterns. The deliverable is
-27,926 lines across 130 translation units and 139 headers, with
-23 verification harnesses, 13 of which are registered with CTest and run by CI on every push.</p>
+28,342 lines across 129 translation units and 138 headers, with
+24 verification harnesses, 13 of which are registered with CTest and run by CI on every push.</p>
 <p>Two things distinguish this report from a feature list. First, every capability claimed here has
 been checked to be <strong>reachable from <code>main()</code> and observed running</strong> &mdash; a
 class that compiles and a harness that constructs it are not evidence, and the project has a documented
@@ -116,11 +116,11 @@ history of confusing the two. Second, &sect;12 states plainly what is <em>not</e
 rubric line the project deliberately forfeits.</p>
 
 <div class="kpi">
-<div><b>27,926</b><span>lines C++</span></div>
-<div><b>269</b><span>files</span></div>
+<div><b>28,342</b><span>lines C++</span></div>
+<div><b>267</b><span>files</span></div>
 <div><b>10</b><span>patterns</span></div>
 <div><b>13</b><span>CI tests</span></div>
-<div><b>277</b><span>commits</span></div>
+<div><b>363</b><span>commits</span></div>
 </div>
 
 <h2 id="intro">2 &middot; Introduction and objectives</h2>
@@ -328,11 +328,11 @@ the hollow triangle is UML generalization, pointing at the base.</p>
 <path class="uml-edge" d="M 33 598 V 622.0 H 164.4"/>
 <path class="uml-edge" d="M 33 598 V 622.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 584.0 H 22"/>
-<polygon class="uml-tri" points="29,262 37,262 33,256"/>
+<polygon class="uml-tri" points="29,604 37,604 33,598"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,262 37,262 33,256"/>
 <polygon class="uml-tri" points="29,376 37,376 33,370"/>
-<polygon class="uml-tri" points="29,604 37,604 33,598"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -532,9 +532,9 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 33 294 V 356.0 H 44.0"/>
 <path class="uml-edge" d="M 33 294 V 356.0 H 157.2"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 22"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="29,300 37,300 33,294"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
 <rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
@@ -593,8 +593,8 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 11 28 V 280.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 142.4"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 262.8"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="29,148 37,148 33,142"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="116" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Enemy</text>
@@ -647,8 +647,8 @@ charge. Neither can forget the rest, because neither is given the chance.</p>
 <path class="uml-edge" d="M 11 28 V 128.0 H 234.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 128.0"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="166" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">IPlayerState</text>
 <text class="uml-st" x="154" y="18" text-anchor="end">&#171;interface&#187;</text>
@@ -1309,8 +1309,8 @@ outside the process is touched, so a verification run is reproducible.</p>
 
 <h2 id="process">12 &middot; Process and project history</h2>
 <p>The project ran from 29 May to 22 August 2026 across 7 weekly reporting periods
-(<code>docs/Group52_04/</code> through <code>Group52_10/</code>), 277 commits and
-242 recorded working sessions in <code>logs/agent_history.log</code>. That log is not a changelog: each entry records the
+(<code>docs/Group52_04/</code> through <code>Group52_10/</code>), 363 commits and
+258 recorded working sessions in <code>logs/agent_history.log</code>. That log is not a changelog: each entry records the
 commit before and after, whether the remotes were fetched, whether the work is reachable from
 <code>main()</code>, and how it was verified. Several sections of this report are drawn from it,
 including the failures below.</p>
@@ -1381,18 +1381,30 @@ a script that counts what it claims, and doing so caught two wrong figures befor
 printed &mdash; a class count inflated by a substring match, and "23 test files" reported as if it
 meant "23 things CI runs".</p>
 <p>The second pattern is thinner: <strong>86 test harnesses written across the project's logged
-sessions against 4 recorded playtests</strong> at the time of the audit (23 harnesses
+sessions against 4 recorded playtests</strong> at the time of the audit (24 harnesses
 survive in the tree today after consolidation). Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was invisible to the test
 suite and obvious within seconds of looking at the running game. The suite is not the problem &mdash;
 it is what makes the fixes stick &mdash; but it verifies what someone already thought to doubt.</p>
 
 <h2 id="verify">13 &middot; Verification, CI and known gaps</h2>
-<p>The tree holds 23 verification harnesses. 22 are built by CMake and
+<p>The tree holds 24 verification harnesses. 23 are built by CMake and
 13 of those are registered as CTest cases and run by GitHub Actions on every push to the
 integration branches &mdash; the difference is the harnesses that open a window and cannot run on a
 headless runner, which are compiled but not executed there. The registered suite is currently
 13/13 green, with 504 individual checks in the regression binary alone at the last logged run. Cases are added whenever a defect escapes to the audit stage, so the suite is a
 record of every bug the project has shipped.</p>
+<p>The suite is hermetic (R11, docs/issues/spec_feature_audit_2026-08-31.md): every harness's
+<code>main()</code> opens a <code>TestSaveSandbox</code> (<code>tests/TestSaveSandbox.hpp</code>) that
+points <code>Serializer::setSaveDirectory()</code> at a throwaway per-process temp directory before any
+other code runs, so nothing under test can reach the developer's real <code>saves/</code>. That the seam
+exists is not proof every harness uses it correctly, so <code>guard_saves_hermeticity</code>
+(<code>tests/guard_saves_hermeticity.cpp</code>) checks it empirically: a CTest fixture named
+<code>saves_hermeticity</code> snapshots the content of the real <code>saves/</code> directory before any
+verify_* case runs and re-snapshots it after every one has finished, failing the run if a single byte
+differs or a file was added or removed. Verified by mutation, not merely by a green run: disabling one
+harness's sandbox line reproduced the original incident &mdash; the guard caught both a rewritten
+<code>config.json</code> and a newly created <code>profile.json</code> &mdash; and re-enabling it turned
+the guard green again on the next run.</p>
 <h3>What is not done</h3>
 <ul>
 <li><strong>No 3D renderer.</strong> The 5-point rubric line is forfeited, deliberately (&sect;4).</li>
@@ -1401,10 +1413,7 @@ macOS, where the bug was already invisible. They show the fix breaks nothing; th
 the crash is the analysis in &sect;10.1. A Windows playtest of 1-3 is the outstanding confirmation.</li>
 <li><strong>The rebalanced Bowser fight is unplaytested.</strong> The stagger cost (four fireballs) and
 its duration (three seconds) are reasoned, not measured against a player.</li>
-<li><strong>The test suite is not hermetic.</strong> It reads and writes the real <code>saves/</code>
-directory; one run was observed deleting campaign progress, and one high-score assertion passes or fails
-depending on what is already on disk. This violates the project's own CI rule and is open work.</li>
-<li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against 23 test
+<li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against 24 test
 harnesses in the tree (86 written over the project's history) is the project's standing imbalance, and
 the reason several of the defects in &sect;10 survived as long as they did.</li>
 <li><strong>World 1-3 plays the wrong background music.</strong> <code>SoundManager::playLevelBGM</code>
@@ -1434,8 +1443,8 @@ reminder that "it works on my machine" is exactly the evidence undefined behavio
 manufacturing.</p>
 <h3>Future work</h3>
 <ul>
-<li>Make the test suite hermetic, then add an AddressSanitizer job to CI &mdash; the tool that would have
-found &sect;10.1 on its first run.</li>
+<li>Add an AddressSanitizer job to CI now that the suite is hermetic (&sect;13) &mdash; the tool that would
+have found &sect;10.1 on its first run.</li>
 <li>Wrap the entity list in a type whose <code>push_back</code> only the flush step can reach, so the
 &sect;10.1 invariant is impossible to break rather than merely easy to keep.</li>
 <li>Playtest and tune the Bowser fight, and record enough playtests to correct the harness-to-playtest
@@ -1487,14 +1496,14 @@ ctest --output-on-failure # 13 verification targets
 <div class="tbl"><table>
 <thead><tr><th>Measure</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>C++ source files / headers</td><td>130 / 139</td></tr>
-<tr><td>Lines of C++ (excluding third-party)</td><td>27,926</td></tr>
+<tr><td>C++ source files / headers</td><td>129 / 138</td></tr>
+<tr><td>Lines of C++ (excluding third-party)</td><td>28,342</td></tr>
 <tr><td>Concrete entity classes</td><td>5 players, 13 enemies,
     13 items, 10 blocks</td></tr>
 <tr><td>Design patterns</td><td>10</td></tr>
-<tr><td>Verification harnesses</td><td>23 source files, 22 built,
+<tr><td>Verification harnesses</td><td>24 source files, 23 built,
     13 registered as CTest cases</td></tr>
-<tr><td>Commits on the integration branch</td><td>277</td></tr>
+<tr><td>Commits on the integration branch</td><td>363</td></tr>
 <tr><td>Sound effects / music tracks</td><td>29 / 12</td></tr>
 <tr><td>Achievements</td><td>12</td></tr>
 </tbody></table></div>
@@ -1586,15 +1595,15 @@ inside it) are the very next diagrams, each in full detail.</p>
 <path class="uml-edge" d="M 33 940 V 964.0 H 164.4"/>
 <path class="uml-edge" d="M 33 940 V 964.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 926.0 H 22"/>
-<polygon class="uml-tri" points="51,300 59,300 55,294"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
-<polygon class="uml-tri" points="29,718 37,718 33,712"/>
 <polygon class="uml-tri" points="73,414 81,414 77,408"/>
+<polygon class="uml-tri" points="29,718 37,718 33,712"/>
 <polygon class="uml-tri" points="29,946 37,946 33,940"/>
-<polygon class="uml-tri" points="73,338 81,338 77,332"/>
+<polygon class="uml-tri" points="51,300 59,300 55,294"/>
 <polygon class="uml-tri" points="29,262 37,262 33,256"/>
 <polygon class="uml-tri" points="51,604 59,604 55,598"/>
+<polygon class="uml-tri" points="73,338 81,338 77,332"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -1705,37 +1714,37 @@ inside it) are the very next diagrams, each in full detail.</p>
 <rect class="uml-box" x="285" y="950" width="110" height="28" rx="4"/>
 <text class="uml-name" x="297" y="968">Hammer</text>
 </svg></div><figcaption>Figure 6 (full tree, compact boxes) — The complete Entity hierarchy.<br><span class="note">Every concrete Entity subclass the game has, four branches deep from one abstract root. Compact rather than detailed — see the note above the index table.</span></figcaption></figure>
-<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1047 1214" role="img" aria-label="Item detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1184 1279" role="img" aria-label="Item detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
 <style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-title{font-family:var(--ui,sans-serif);font-size:12px;fill:var(--tx,#111);font-weight:700}.uml-st{font-family:var(--ui,sans-serif);font-size:9px;fill:var(--accent,#b5322a);font-style:italic}.uml-div{stroke:var(--line,#ccc);stroke-width:1}.uml-mem{font-size:9px;fill:var(--mut,#555)}.uml-mem-static{text-decoration:underline}.uml-mem-pure{font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
-<path class="uml-edge" d="M 11 309 V 401.0 H 46.0"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 394.5 H 377.8"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 394.5 H 709.6"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 543.5 H 377.8"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 550.0 H 709.6"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 563.0 H 46.0"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 699.0 H 377.8"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 712.0 H 709.6"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 751.0 H 46.0"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 874.0 H 377.8"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 874.0 H 709.6"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 932.5 H 46.0"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<path class="uml-edge" d="M 11 309 V 1075.0 H 709.6"/>
-<polygon class="uml-tri" points="7,315 15,315 11,309"/>
-<rect class="uml-box" x="0" y="0" width="345" height="309" rx="5"/>
-<text class="uml-title" x="172" y="16" text-anchor="middle">Item</text>
-<line class="uml-div" x1="0" y1="20" x2="345" y2="20"/>
+<path class="uml-edge" d="M 11 348 V 440.0 H 46.0"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 433.5 H 423.40000000000003"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 433.5 H 800.8000000000001"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 582.5 H 423.40000000000003"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 589.0 H 800.8000000000001"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 602.0 H 46.0"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 738.0 H 423.40000000000003"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 751.0 H 800.8000000000001"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 803.0 H 46.0"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 926.0 H 423.40000000000003"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 913.0 H 800.8000000000001"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 997.5 H 46.0"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<path class="uml-edge" d="M 11 348 V 1127.0 H 800.8000000000001"/>
+<polygon class="uml-tri" points="7,354 15,354 11,348"/>
+<rect class="uml-box" x="0" y="0" width="367" height="348" rx="5"/>
+<text class="uml-title" x="184" y="16" text-anchor="middle">Item</text>
+<line class="uml-div" x1="0" y1="20" x2="367" y2="20"/>
 <text class="uml-mem" x="7" y="31"># bool collected</text>
 <text class="uml-mem" x="7" y="44"># bool m_onGround</text>
 <text class="uml-mem" x="7" y="57"># std::unique_ptr&lt;Animator&gt; m_animator</text>
@@ -1743,7 +1752,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="7" y="83"># bool m_hasAnimation</text>
 <text class="uml-mem" x="7" y="96"># float m_baseScale</text>
 <text class="uml-mem" x="7" y="109"># const SpriteSheet* m_spriteSheet</text>
-<line class="uml-div" x1="0" y1="119" x2="345" y2="119"/>
+<line class="uml-div" x1="0" y1="119" x2="367" y2="119"/>
 <text class="uml-mem" x="7" y="130">+ bool hasArtwork() const</text>
 <text class="uml-mem" x="7" y="143">+ sf::Vector2f artworkSize() const</text>
 <text class="uml-mem" x="7" y="156">+ Item(sf::Vector2f pos, sf::Vector2f targetSize = {32.0f,</text>
@@ -1751,204 +1760,213 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="7" y="182">+ ~Item()</text>
 <text class="uml-mem" x="7" y="195">+ void activate(Player&amp; player)</text>
 <text class="uml-mem" x="7" y="208">+ void collect()</text>
-<text class="uml-mem" x="7" y="221">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="7" y="234">+ void update(float dt)</text>
-<text class="uml-mem" x="7" y="247">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="7" y="260">+ EntityCategory getCategory() const</text>
-<text class="uml-mem" x="7" y="273">+ bool isCollected() const</text>
-<text class="uml-mem" x="7" y="286">+ bool isOnGround() const</text>
-<text class="uml-mem" x="7" y="299">+ void setOnGround(bool grounded)</text>
-<rect class="uml-box" x="46" y="331" width="322" height="140" rx="5"/>
-<text class="uml-title" x="207" y="347" text-anchor="middle">BridgeAxe</text>
-<line class="uml-div" x1="46" y1="351" x2="368" y2="351"/>
-<text class="uml-mem" x="53" y="362">- bool m_swung</text>
-<line class="uml-div" x1="46" y1="372" x2="368" y2="372"/>
-<text class="uml-mem" x="53" y="383">+ BridgeAxe(sf::Vector2f pos)</text>
-<text class="uml-mem" x="53" y="396">+ ~BridgeAxe()</text>
-<text class="uml-mem" x="53" y="409">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="422">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="435">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="448">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="461">+ bool isSwung() const</text>
-<rect class="uml-box" x="378" y="331" width="322" height="127" rx="5"/>
-<text class="uml-title" x="539" y="347" text-anchor="middle">CapeFeather</text>
-<line class="uml-div" x1="378" y1="351" x2="700" y2="351"/>
-<line class="uml-div" x1="378" y1="359" x2="700" y2="359"/>
-<text class="uml-mem" x="385" y="370">+ CapeFeather(sf::Vector2f pos)</text>
-<text class="uml-mem" x="385" y="383">+ ~CapeFeather()</text>
-<text class="uml-mem" x="385" y="396">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="385" y="409">+ void update(float dt)</text>
-<text class="uml-mem" x="385" y="422">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="385" y="435">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="385" y="448">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="710" y="331" width="322" height="127" rx="5"/>
-<text class="uml-title" x="870" y="347" text-anchor="middle">Coin</text>
-<line class="uml-div" x1="710" y1="351" x2="1031" y2="351"/>
-<line class="uml-div" x1="710" y1="359" x2="1031" y2="359"/>
-<text class="uml-mem" x="717" y="370">+ Coin(sf::Vector2f pos)</text>
-<text class="uml-mem" x="717" y="383">+ ~Coin()</text>
-<text class="uml-mem" x="717" y="396">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="717" y="409">+ void update(float dt)</text>
-<text class="uml-mem" x="717" y="422">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="717" y="435">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="717" y="448">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="378" y="480" width="322" height="127" rx="5"/>
-<text class="uml-title" x="539" y="496" text-anchor="middle">FireFlower</text>
-<line class="uml-div" x1="378" y1="500" x2="700" y2="500"/>
-<line class="uml-div" x1="378" y1="508" x2="700" y2="508"/>
-<text class="uml-mem" x="385" y="519">+ FireFlower(sf::Vector2f pos)</text>
-<text class="uml-mem" x="385" y="532">+ ~FireFlower()</text>
-<text class="uml-mem" x="385" y="545">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="385" y="558">+ void update(float dt)</text>
-<text class="uml-mem" x="385" y="571">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="385" y="584">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="385" y="597">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="710" y="480" width="322" height="140" rx="5"/>
-<text class="uml-title" x="870" y="496" text-anchor="middle">MegaMushroom</text>
-<line class="uml-div" x1="710" y1="500" x2="1031" y2="500"/>
-<text class="uml-mem" x="717" y="511">- bool m_movingRight</text>
-<line class="uml-div" x1="710" y1="521" x2="1031" y2="521"/>
-<text class="uml-mem" x="717" y="532">+ MegaMushroom(sf::Vector2f pos)</text>
-<text class="uml-mem" x="717" y="545">+ ~MegaMushroom()</text>
-<text class="uml-mem" x="717" y="558">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="717" y="571">+ void update(float dt)</text>
-<text class="uml-mem" x="717" y="584">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="717" y="597">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="717" y="610">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="46" y="493" width="322" height="140" rx="5"/>
-<text class="uml-title" x="207" y="509" text-anchor="middle">MiniMushroom</text>
-<line class="uml-div" x1="46" y1="513" x2="368" y2="513"/>
-<text class="uml-mem" x="53" y="524">- bool m_movingRight</text>
-<line class="uml-div" x1="46" y1="534" x2="368" y2="534"/>
-<text class="uml-mem" x="53" y="545">+ MiniMushroom(sf::Vector2f pos)</text>
-<text class="uml-mem" x="53" y="558">+ ~MiniMushroom()</text>
-<text class="uml-mem" x="53" y="571">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="584">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="597">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="610">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="623">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="378" y="629" width="322" height="140" rx="5"/>
-<text class="uml-title" x="539" y="645" text-anchor="middle">Mushroom</text>
-<line class="uml-div" x1="378" y1="649" x2="700" y2="649"/>
-<text class="uml-mem" x="385" y="660">- bool m_movingRight</text>
-<line class="uml-div" x1="378" y1="670" x2="700" y2="670"/>
-<text class="uml-mem" x="385" y="681">+ Mushroom(sf::Vector2f pos)</text>
-<text class="uml-mem" x="385" y="694">+ ~Mushroom()</text>
-<text class="uml-mem" x="385" y="707">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="385" y="720">+ void update(float dt)</text>
-<text class="uml-mem" x="385" y="733">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="385" y="746">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="385" y="759">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="710" y="642" width="322" height="140" rx="5"/>
-<text class="uml-title" x="870" y="658" text-anchor="middle">OneUpMushroom</text>
-<line class="uml-div" x1="710" y1="662" x2="1031" y2="662"/>
-<text class="uml-mem" x="717" y="673">- bool m_movingRight</text>
-<line class="uml-div" x1="710" y1="683" x2="1031" y2="683"/>
-<text class="uml-mem" x="717" y="694">+ OneUpMushroom(sf::Vector2f pos)</text>
-<text class="uml-mem" x="717" y="707">+ ~OneUpMushroom()</text>
-<text class="uml-mem" x="717" y="720">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="717" y="733">+ void update(float dt)</text>
-<text class="uml-mem" x="717" y="746">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="717" y="759">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="717" y="772">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="46" y="655" width="322" height="192" rx="5"/>
-<text class="uml-title" x="207" y="671" text-anchor="middle">POWBlock</text>
-<line class="uml-div" x1="46" y1="675" x2="368" y2="675"/>
-<text class="uml-mem uml-mem-static" x="53" y="686">- constexpr int MAX_CHARGES</text>
-<text class="uml-mem" x="53" y="699">- int m_charges</text>
-<text class="uml-mem" x="53" y="712">- float m_strikeCooldown</text>
-<line class="uml-div" x1="46" y1="722" x2="368" y2="722"/>
-<text class="uml-mem" x="53" y="733">+ POWBlock(sf::Vector2f pos)</text>
-<text class="uml-mem" x="53" y="746">+ ~POWBlock()</text>
-<text class="uml-mem" x="53" y="759">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="772">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="785">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="798">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="811">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="824">+ int getChargesLeft() const</text>
-<text class="uml-mem" x="53" y="837">+ bool isSpent() const</text>
-<rect class="uml-box" x="378" y="791" width="322" height="166" rx="5"/>
-<text class="uml-title" x="539" y="807" text-anchor="middle">PSwitch</text>
-<line class="uml-div" x1="378" y1="811" x2="700" y2="811"/>
-<text class="uml-mem" x="385" y="822">- bool m_pressed</text>
-<text class="uml-mem" x="385" y="835">- Animation m_pressedAnimation</text>
-<line class="uml-div" x1="378" y1="845" x2="700" y2="845"/>
-<text class="uml-mem" x="385" y="856">+ PSwitch(sf::Vector2f pos)</text>
-<text class="uml-mem" x="385" y="869">+ ~PSwitch()</text>
-<text class="uml-mem" x="385" y="882">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="385" y="895">+ void update(float dt)</text>
-<text class="uml-mem" x="385" y="908">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="385" y="921">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="385" y="934">+ void collect()</text>
-<text class="uml-mem" x="385" y="947">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="710" y="804" width="322" height="140" rx="5"/>
-<text class="uml-title" x="870" y="820" text-anchor="middle">Star</text>
-<line class="uml-div" x1="710" y1="824" x2="1031" y2="824"/>
-<text class="uml-mem" x="717" y="835">- bool m_movingRight</text>
-<line class="uml-div" x1="710" y1="845" x2="1031" y2="845"/>
-<text class="uml-mem" x="717" y="856">+ Star(sf::Vector2f pos)</text>
-<text class="uml-mem" x="717" y="869">+ ~Star()</text>
-<text class="uml-mem" x="717" y="882">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="717" y="895">+ void update(float dt)</text>
-<text class="uml-mem" x="717" y="908">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="717" y="921">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="717" y="934">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="46" y="869" width="322" height="127" rx="5"/>
-<text class="uml-title" x="207" y="885" text-anchor="middle">StarCoin</text>
-<line class="uml-div" x1="46" y1="889" x2="368" y2="889"/>
-<line class="uml-div" x1="46" y1="897" x2="368" y2="897"/>
-<text class="uml-mem" x="53" y="908">+ StarCoin(sf::Vector2f pos)</text>
-<text class="uml-mem" x="53" y="921">+ ~StarCoin()</text>
-<text class="uml-mem" x="53" y="934">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="947">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="960">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="973">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="986">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="710" y="966" width="322" height="218" rx="5"/>
-<text class="uml-title" x="870" y="982" text-anchor="middle">Trampoline</text>
-<line class="uml-div" x1="710" y1="986" x2="1031" y2="986"/>
-<text class="uml-mem" x="717" y="997">- Animation m_idleAnim</text>
-<text class="uml-mem" x="717" y="1010">- Animation m_squishAnim</text>
-<text class="uml-mem" x="717" y="1023">- Animation m_extendAnim</text>
-<text class="uml-mem" x="717" y="1036">- float m_bounceTimer</text>
-<text class="uml-mem" x="717" y="1049">- bool m_isBouncing</text>
-<line class="uml-div" x1="710" y1="1059" x2="1031" y2="1059"/>
-<text class="uml-mem" x="717" y="1070">+ Trampoline(sf::Vector2f pos)</text>
-<text class="uml-mem" x="717" y="1083">+ ~Trampoline()</text>
-<text class="uml-mem" x="717" y="1096">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="717" y="1109">+ void update(float dt)</text>
-<text class="uml-mem" x="717" y="1122">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="717" y="1135">+ void activate(Player&amp; player)</text>
-<text class="uml-mem" x="717" y="1148">+ void collect()</text>
-<text class="uml-mem" x="717" y="1161">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="717" y="1174">+ bool isBouncing() const</text>
+<text class="uml-mem" x="7" y="221">+ ItemTouch onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="7" y="234">  info)</text>
+<text class="uml-mem" x="7" y="247">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="7" y="260">+ void update(float dt)</text>
+<text class="uml-mem" x="7" y="273">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="7" y="286">+ EntityCategory getCategory() const</text>
+<text class="uml-mem" x="7" y="299">+ bool isCollected() const</text>
+<text class="uml-mem" x="7" y="312">+ bool isOnGround() const</text>
+<text class="uml-mem" x="7" y="325">+ void setOnGround(bool grounded)</text>
+<text class="uml-mem" x="7" y="338">+ void beginPhysicsFrame()</text>
+<rect class="uml-box" x="46" y="370" width="322" height="140" rx="5"/>
+<text class="uml-title" x="207" y="386" text-anchor="middle">BridgeAxe</text>
+<line class="uml-div" x1="46" y1="390" x2="368" y2="390"/>
+<text class="uml-mem" x="53" y="401">- bool m_swung</text>
+<line class="uml-div" x1="46" y1="411" x2="368" y2="411"/>
+<text class="uml-mem" x="53" y="422">+ BridgeAxe(sf::Vector2f pos)</text>
+<text class="uml-mem" x="53" y="435">+ ~BridgeAxe()</text>
+<text class="uml-mem" x="53" y="448">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="461">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="474">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="487">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="500">+ bool isSwung() const</text>
+<rect class="uml-box" x="423" y="370" width="322" height="127" rx="5"/>
+<text class="uml-title" x="584" y="386" text-anchor="middle">CapeFeather</text>
+<line class="uml-div" x1="423" y1="390" x2="745" y2="390"/>
+<line class="uml-div" x1="423" y1="398" x2="745" y2="398"/>
+<text class="uml-mem" x="430" y="409">+ CapeFeather(sf::Vector2f pos)</text>
+<text class="uml-mem" x="430" y="422">+ ~CapeFeather()</text>
+<text class="uml-mem" x="430" y="435">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="430" y="448">+ void update(float dt)</text>
+<text class="uml-mem" x="430" y="461">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="430" y="474">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="430" y="487">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="801" y="370" width="322" height="127" rx="5"/>
+<text class="uml-title" x="962" y="386" text-anchor="middle">Coin</text>
+<line class="uml-div" x1="801" y1="390" x2="1123" y2="390"/>
+<line class="uml-div" x1="801" y1="398" x2="1123" y2="398"/>
+<text class="uml-mem" x="808" y="409">+ Coin(sf::Vector2f pos)</text>
+<text class="uml-mem" x="808" y="422">+ ~Coin()</text>
+<text class="uml-mem" x="808" y="435">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="808" y="448">+ void update(float dt)</text>
+<text class="uml-mem" x="808" y="461">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="808" y="474">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="808" y="487">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="423" y="519" width="322" height="127" rx="5"/>
+<text class="uml-title" x="584" y="535" text-anchor="middle">FireFlower</text>
+<line class="uml-div" x1="423" y1="539" x2="745" y2="539"/>
+<line class="uml-div" x1="423" y1="547" x2="745" y2="547"/>
+<text class="uml-mem" x="430" y="558">+ FireFlower(sf::Vector2f pos)</text>
+<text class="uml-mem" x="430" y="571">+ ~FireFlower()</text>
+<text class="uml-mem" x="430" y="584">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="430" y="597">+ void update(float dt)</text>
+<text class="uml-mem" x="430" y="610">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="430" y="623">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="430" y="636">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="801" y="519" width="322" height="140" rx="5"/>
+<text class="uml-title" x="962" y="535" text-anchor="middle">MegaMushroom</text>
+<line class="uml-div" x1="801" y1="539" x2="1123" y2="539"/>
+<text class="uml-mem" x="808" y="550">- bool m_movingRight</text>
+<line class="uml-div" x1="801" y1="560" x2="1123" y2="560"/>
+<text class="uml-mem" x="808" y="571">+ MegaMushroom(sf::Vector2f pos)</text>
+<text class="uml-mem" x="808" y="584">+ ~MegaMushroom()</text>
+<text class="uml-mem" x="808" y="597">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="808" y="610">+ void update(float dt)</text>
+<text class="uml-mem" x="808" y="623">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="808" y="636">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="808" y="649">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="46" y="532" width="322" height="140" rx="5"/>
+<text class="uml-title" x="207" y="548" text-anchor="middle">MiniMushroom</text>
+<line class="uml-div" x1="46" y1="552" x2="368" y2="552"/>
+<text class="uml-mem" x="53" y="563">- bool m_movingRight</text>
+<line class="uml-div" x1="46" y1="573" x2="368" y2="573"/>
+<text class="uml-mem" x="53" y="584">+ MiniMushroom(sf::Vector2f pos)</text>
+<text class="uml-mem" x="53" y="597">+ ~MiniMushroom()</text>
+<text class="uml-mem" x="53" y="610">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="623">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="636">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="649">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="662">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="423" y="668" width="322" height="140" rx="5"/>
+<text class="uml-title" x="584" y="684" text-anchor="middle">Mushroom</text>
+<line class="uml-div" x1="423" y1="688" x2="745" y2="688"/>
+<text class="uml-mem" x="430" y="699">- bool m_movingRight</text>
+<line class="uml-div" x1="423" y1="709" x2="745" y2="709"/>
+<text class="uml-mem" x="430" y="720">+ Mushroom(sf::Vector2f pos)</text>
+<text class="uml-mem" x="430" y="733">+ ~Mushroom()</text>
+<text class="uml-mem" x="430" y="746">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="430" y="759">+ void update(float dt)</text>
+<text class="uml-mem" x="430" y="772">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="430" y="785">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="430" y="798">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="801" y="681" width="322" height="140" rx="5"/>
+<text class="uml-title" x="962" y="697" text-anchor="middle">OneUpMushroom</text>
+<line class="uml-div" x1="801" y1="701" x2="1123" y2="701"/>
+<text class="uml-mem" x="808" y="712">- bool m_movingRight</text>
+<line class="uml-div" x1="801" y1="722" x2="1123" y2="722"/>
+<text class="uml-mem" x="808" y="733">+ OneUpMushroom(sf::Vector2f pos)</text>
+<text class="uml-mem" x="808" y="746">+ ~OneUpMushroom()</text>
+<text class="uml-mem" x="808" y="759">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="808" y="772">+ void update(float dt)</text>
+<text class="uml-mem" x="808" y="785">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="808" y="798">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="808" y="811">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="46" y="694" width="367" height="218" rx="5"/>
+<text class="uml-title" x="230" y="710" text-anchor="middle">POWBlock</text>
+<line class="uml-div" x1="46" y1="714" x2="413" y2="714"/>
+<text class="uml-mem uml-mem-static" x="53" y="725">- constexpr int MAX_CHARGES</text>
+<text class="uml-mem" x="53" y="738">- int m_charges</text>
+<text class="uml-mem" x="53" y="751">- float m_strikeCooldown</text>
+<line class="uml-div" x1="46" y1="761" x2="413" y2="761"/>
+<text class="uml-mem" x="53" y="772">+ POWBlock(sf::Vector2f pos)</text>
+<text class="uml-mem" x="53" y="785">+ ~POWBlock()</text>
+<text class="uml-mem" x="53" y="798">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="811">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="824">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="837">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="850">+ ItemTouch onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="53" y="863">  info)</text>
+<text class="uml-mem" x="53" y="876">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="889">+ int getChargesLeft() const</text>
+<text class="uml-mem" x="53" y="902">+ bool isSpent() const</text>
+<rect class="uml-box" x="423" y="830" width="367" height="192" rx="5"/>
+<text class="uml-title" x="607" y="846" text-anchor="middle">PSwitch</text>
+<line class="uml-div" x1="423" y1="850" x2="791" y2="850"/>
+<text class="uml-mem" x="430" y="861">- bool m_pressed</text>
+<text class="uml-mem" x="430" y="874">- Animation m_pressedAnimation</text>
+<line class="uml-div" x1="423" y1="884" x2="791" y2="884"/>
+<text class="uml-mem" x="430" y="895">+ PSwitch(sf::Vector2f pos)</text>
+<text class="uml-mem" x="430" y="908">+ ~PSwitch()</text>
+<text class="uml-mem" x="430" y="921">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="430" y="934">+ void update(float dt)</text>
+<text class="uml-mem" x="430" y="947">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="430" y="960">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="430" y="973">+ void collect()</text>
+<text class="uml-mem" x="430" y="986">+ ItemTouch onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="430" y="999">  info)</text>
+<text class="uml-mem" x="430" y="1012">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="801" y="843" width="322" height="140" rx="5"/>
+<text class="uml-title" x="962" y="859" text-anchor="middle">Star</text>
+<line class="uml-div" x1="801" y1="863" x2="1123" y2="863"/>
+<text class="uml-mem" x="808" y="874">- bool m_movingRight</text>
+<line class="uml-div" x1="801" y1="884" x2="1123" y2="884"/>
+<text class="uml-mem" x="808" y="895">+ Star(sf::Vector2f pos)</text>
+<text class="uml-mem" x="808" y="908">+ ~Star()</text>
+<text class="uml-mem" x="808" y="921">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="808" y="934">+ void update(float dt)</text>
+<text class="uml-mem" x="808" y="947">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="808" y="960">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="808" y="973">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="46" y="934" width="322" height="127" rx="5"/>
+<text class="uml-title" x="207" y="950" text-anchor="middle">StarCoin</text>
+<line class="uml-div" x1="46" y1="954" x2="368" y2="954"/>
+<line class="uml-div" x1="46" y1="962" x2="368" y2="962"/>
+<text class="uml-mem" x="53" y="973">+ StarCoin(sf::Vector2f pos)</text>
+<text class="uml-mem" x="53" y="986">+ ~StarCoin()</text>
+<text class="uml-mem" x="53" y="999">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="1012">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="1025">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="1038">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="1051">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="801" y="1005" width="367" height="244" rx="5"/>
+<text class="uml-title" x="985" y="1021" text-anchor="middle">Trampoline</text>
+<line class="uml-div" x1="801" y1="1025" x2="1168" y2="1025"/>
+<text class="uml-mem" x="808" y="1036">- Animation m_idleAnim</text>
+<text class="uml-mem" x="808" y="1049">- Animation m_squishAnim</text>
+<text class="uml-mem" x="808" y="1062">- Animation m_extendAnim</text>
+<text class="uml-mem" x="808" y="1075">- float m_bounceTimer</text>
+<text class="uml-mem" x="808" y="1088">- bool m_isBouncing</text>
+<line class="uml-div" x1="801" y1="1098" x2="1168" y2="1098"/>
+<text class="uml-mem" x="808" y="1109">+ Trampoline(sf::Vector2f pos)</text>
+<text class="uml-mem" x="808" y="1122">+ ~Trampoline()</text>
+<text class="uml-mem" x="808" y="1135">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="808" y="1148">+ void update(float dt)</text>
+<text class="uml-mem" x="808" y="1161">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="808" y="1174">+ void activate(Player&amp; player)</text>
+<text class="uml-mem" x="808" y="1187">+ void collect()</text>
+<text class="uml-mem" x="808" y="1200">+ ItemTouch onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="808" y="1213">  info)</text>
+<text class="uml-mem" x="808" y="1226">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="808" y="1239">+ bool isBouncing() const</text>
 </svg></div><figcaption>Figure 6a (full detail) — The complete Item hierarchy, every attribute and method.</figcaption></figure>
-<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 1190" role="img" aria-label="Block detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 1242" role="img" aria-label="Block detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
 <style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-title{font-family:var(--ui,sans-serif);font-size:12px;fill:var(--tx,#111);font-weight:700}.uml-st{font-family:var(--ui,sans-serif);font-size:9px;fill:var(--accent,#b5322a);font-style:italic}.uml-div{stroke:var(--line,#ccc);stroke-width:1}.uml-mem{font-size:9px;fill:var(--mut,#555)}.uml-mem-static{text-decoration:underline}.uml-mem-pure{font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
-<path class="uml-edge" d="M 11 297 V 402.0 H 46.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 441.0 H 412.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 415.0 H 778.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 616.0 H 46.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 668.0 H 778.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 674.5 H 412.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 823.5 H 46.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 895.0 H 412.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 992.5 H 778.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<path class="uml-edge" d="M 11 297 V 1018.0 H 46.0"/>
-<polygon class="uml-tri" points="7,303 15,303 11,297"/>
-<rect class="uml-box uml-abs" x="0" y="0" width="333" height="297" rx="5"/>
-<text class="uml-st" x="167" y="13" text-anchor="middle">&#171;abstract&#187;</text>
-<text class="uml-title" x="167" y="28" text-anchor="middle">Block</text>
-<line class="uml-div" x1="0" y1="34" x2="333" y2="34"/>
+<path class="uml-edge" d="M 11 323 V 428.0 H 46.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 467.0 H 412.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 441.0 H 778.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 642.0 H 46.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 707.0 H 778.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 713.5 H 412.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 849.5 H 46.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 947.0 H 412.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 1044.5 H 778.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<path class="uml-edge" d="M 11 323 V 1050.5 H 46.0"/>
+<polygon class="uml-tri" points="7,329 15,329 11,323"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="339" height="323" rx="5"/>
+<text class="uml-st" x="169" y="13" text-anchor="middle">&#171;abstract&#187;</text>
+<text class="uml-title" x="169" y="28" text-anchor="middle">Block</text>
+<line class="uml-div" x1="0" y1="34" x2="339" y2="34"/>
 <text class="uml-mem" x="7" y="45"># bool m_breakable</text>
 <text class="uml-mem" x="7" y="58"># bool m_isHit</text>
 <text class="uml-mem" x="7" y="71"># float m_bumpTimer</text>
@@ -1956,198 +1974,205 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="7" y="97"># std::unique_ptr&lt;Animator&gt; m_animator</text>
 <text class="uml-mem" x="7" y="110"># Animation m_animation</text>
 <text class="uml-mem" x="7" y="123"># bool m_hasAnimation</text>
-<line class="uml-div" x1="0" y1="133" x2="333" y2="133"/>
+<line class="uml-div" x1="0" y1="133" x2="339" y2="133"/>
 <text class="uml-mem" x="7" y="144">+ bool hasArtwork() const</text>
 <text class="uml-mem" x="7" y="157">+ sf::Vector2f artworkSize() const</text>
 <text class="uml-mem" x="7" y="170">+ Block(sf::Vector2f position, sf::Vector2f targetSize =</text>
 <text class="uml-mem" x="7" y="183">  {32.0f, 32.0f})</text>
 <text class="uml-mem" x="7" y="196">+ ~Block()</text>
 <text class="uml-mem uml-mem-pure" x="7" y="209">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="7" y="222">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="7" y="235">+ EntityCategory getCategory() const</text>
-<text class="uml-mem" x="7" y="248">+ void update(float dt)</text>
-<text class="uml-mem" x="7" y="261">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="7" y="274">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="7" y="287">+ bool isBreakable() const</text>
-<rect class="uml-box" x="46" y="319" width="322" height="166" rx="5"/>
-<text class="uml-title" x="207" y="335" text-anchor="middle">BrickBlock</text>
-<line class="uml-div" x1="46" y1="339" x2="368" y2="339"/>
-<text class="uml-mem" x="53" y="350">- int m_coinsLeft</text>
-<text class="uml-mem" x="53" y="363">- bool m_isEmpty</text>
-<line class="uml-div" x1="46" y1="373" x2="368" y2="373"/>
-<text class="uml-mem" x="53" y="384">+ BrickBlock(sf::Vector2f position, int coins = 0)</text>
-<text class="uml-mem" x="53" y="397">+ ~BrickBlock()</text>
-<text class="uml-mem" x="53" y="410">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="423">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="436">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="449">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="462">+ int getCoinsLeft() const</text>
-<text class="uml-mem" x="53" y="475">+ bool isEmpty() const</text>
-<rect class="uml-box" x="412" y="319" width="322" height="244" rx="5"/>
-<text class="uml-title" x="573" y="335" text-anchor="middle">Castle</text>
-<line class="uml-div" x1="412" y1="339" x2="734" y2="339"/>
-<text class="uml-mem uml-mem-static" x="419" y="350">+ constexpr float WIDTH_TILES</text>
-<text class="uml-mem uml-mem-static" x="419" y="363">+ constexpr float HEIGHT_TILES</text>
-<text class="uml-mem" x="419" y="376">- float m_flagRise</text>
-<text class="uml-mem" x="419" y="389">- bool m_flagRaised</text>
-<text class="uml-mem" x="419" y="402">- const SpriteSheet* m_sheet</text>
-<line class="uml-div" x1="412" y1="412" x2="734" y2="412"/>
-<text class="uml-mem" x="419" y="423">+ Castle(sf::Vector2f position)</text>
-<text class="uml-mem" x="419" y="436">+ ~Castle()</text>
-<text class="uml-mem" x="419" y="449">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="419" y="462">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="419" y="475">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="419" y="488">+ bool collidesWithTiles() const</text>
-<text class="uml-mem" x="419" y="501">+ void update(float dt)</text>
-<text class="uml-mem" x="419" y="514">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="419" y="527">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="419" y="540">+ void raiseFlag()</text>
-<text class="uml-mem" x="419" y="553">+ bool isFlagRaised() const</text>
-<rect class="uml-box" x="778" y="319" width="356" height="192" rx="5"/>
-<text class="uml-title" x="956" y="335" text-anchor="middle">ConveyorBelt</text>
-<line class="uml-div" x1="778" y1="339" x2="1134" y2="339"/>
-<text class="uml-mem" x="785" y="350">- bool m_pushRight</text>
-<text class="uml-mem" x="785" y="363">- float m_pushSpeed</text>
-<line class="uml-div" x1="778" y1="373" x2="1134" y2="373"/>
-<text class="uml-mem" x="785" y="384">+ ConveyorBelt(sf::Vector2f position, bool pushRight = true,</text>
-<text class="uml-mem" x="785" y="397">  float pushSpeed = 100.0f)</text>
-<text class="uml-mem" x="785" y="410">+ ~ConveyorBelt()</text>
-<text class="uml-mem" x="785" y="423">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="785" y="436">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="785" y="449">+ void update(float dt)</text>
-<text class="uml-mem" x="785" y="462">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="785" y="475">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="785" y="488">+ bool isPushingRight() const</text>
-<text class="uml-mem" x="785" y="501">+ float getPushSpeed() const</text>
-<rect class="uml-box" x="46" y="507" width="322" height="218" rx="5"/>
-<text class="uml-title" x="207" y="523" text-anchor="middle">FallingPlatform</text>
-<line class="uml-div" x1="46" y1="527" x2="368" y2="527"/>
-<text class="uml-mem" x="53" y="538">- FallingPlatformState m_state</text>
-<text class="uml-mem" x="53" y="551">- float m_shakeTimer</text>
-<text class="uml-mem" x="53" y="564">- float m_respawnTimer</text>
-<text class="uml-mem" x="53" y="577">- sf::Vector2f m_shakeOffset</text>
-<line class="uml-div" x1="46" y1="587" x2="368" y2="587"/>
-<text class="uml-mem" x="53" y="598">+ FallingPlatform(sf::Vector2f position)</text>
-<text class="uml-mem" x="53" y="611">+ ~FallingPlatform()</text>
-<text class="uml-mem" x="53" y="624">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="637">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="650">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="663">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="676">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="689">+ bool isCollidable() const</text>
-<text class="uml-mem" x="53" y="702">+ FallingPlatformState getState() const</text>
-<text class="uml-mem" x="53" y="715">- bool isPlayerStandingOnTop() const</text>
-<rect class="uml-box" x="778" y="533" width="356" height="270" rx="5"/>
-<text class="uml-title" x="956" y="549" text-anchor="middle">Flagpole</text>
-<line class="uml-div" x1="778" y1="553" x2="1134" y2="553"/>
-<text class="uml-mem" x="785" y="564">- Animation m_raisedAnimation</text>
-<text class="uml-mem" x="785" y="577">- Animation m_descentAnimation</text>
-<text class="uml-mem" x="785" y="590">- float m_poleHeight</text>
-<text class="uml-mem" x="785" y="603">- bool m_triggered</text>
-<text class="uml-mem" x="785" y="616">- float m_flagY</text>
-<text class="uml-mem" x="785" y="629">- float m_targetFlagY</text>
-<text class="uml-mem" x="785" y="642">- float m_animTimer</text>
-<line class="uml-div" x1="778" y1="652" x2="1134" y2="652"/>
-<text class="uml-mem" x="785" y="663">+ Flagpole(sf::Vector2f position, float poleHeight = 168.0f)</text>
-<text class="uml-mem" x="785" y="676">+ ~Flagpole()</text>
-<text class="uml-mem" x="785" y="689">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="785" y="702">+ void update(float dt)</text>
-<text class="uml-mem" x="785" y="715">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="785" y="728">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="785" y="741">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="785" y="754">+ void onPlayerCollision(Player&amp; player, float collisionY)</text>
-<text class="uml-mem" x="785" y="767">+ float getPoleHeight() const</text>
-<text class="uml-mem" x="785" y="780">+ bool isTriggered() const</text>
-<text class="uml-mem" x="785" y="793">+ float getFlagY() const</text>
-<rect class="uml-box" x="412" y="585" width="322" height="179" rx="5"/>
-<text class="uml-title" x="573" y="601" text-anchor="middle">HiddenBlock</text>
-<line class="uml-div" x1="412" y1="605" x2="734" y2="605"/>
-<text class="uml-mem" x="419" y="616">- bool m_isRevealed</text>
-<text class="uml-mem" x="419" y="629">- int m_containedItemType</text>
-<line class="uml-div" x1="412" y1="639" x2="734" y2="639"/>
-<text class="uml-mem" x="419" y="650">+ HiddenBlock(sf::Vector2f position, int itemType = 0)</text>
-<text class="uml-mem" x="419" y="663">+ ~HiddenBlock()</text>
-<text class="uml-mem" x="419" y="676">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="419" y="689">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="419" y="702">+ void update(float dt)</text>
-<text class="uml-mem" x="419" y="715">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="419" y="728">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="419" y="741">+ bool isCollidable() const</text>
-<text class="uml-mem" x="419" y="754">+ bool isRevealed() const</text>
-<rect class="uml-box" x="46" y="747" width="322" height="153" rx="5"/>
-<text class="uml-title" x="207" y="763" text-anchor="middle">IceBlock</text>
-<line class="uml-div" x1="46" y1="767" x2="368" y2="767"/>
-<text class="uml-mem" x="53" y="778">- float m_friction</text>
-<line class="uml-div" x1="46" y1="788" x2="368" y2="788"/>
-<text class="uml-mem" x="53" y="799">+ IceBlock(sf::Vector2f position)</text>
-<text class="uml-mem" x="53" y="812">+ ~IceBlock()</text>
-<text class="uml-mem" x="53" y="825">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="838">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="851">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="864">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="877">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="890">+ float getFriction() const</text>
-<rect class="uml-box" x="412" y="786" width="322" height="218" rx="5"/>
-<text class="uml-title" x="573" y="802" text-anchor="middle">MovingPlatform</text>
-<line class="uml-div" x1="412" y1="806" x2="734" y2="806"/>
-<text class="uml-mem" x="419" y="817">- sf::Vector2f m_startPos</text>
-<text class="uml-mem" x="419" y="830">- sf::Vector2f m_travelRange</text>
-<text class="uml-mem" x="419" y="843">- const float m_rangeLen</text>
-<text class="uml-mem" x="419" y="856">- float m_speed</text>
-<text class="uml-mem" x="419" y="869">- float m_progress</text>
-<text class="uml-mem" x="419" y="882">- bool m_movingForward</text>
-<line class="uml-div" x1="412" y1="892" x2="734" y2="892"/>
-<text class="uml-mem" x="419" y="903">+ MovingPlatform(sf::Vector2f position, sf::Vector2f</text>
-<text class="uml-mem" x="419" y="916">  travelRange, float speed = 50.0f)</text>
-<text class="uml-mem" x="419" y="929">+ ~MovingPlatform()</text>
-<text class="uml-mem" x="419" y="942">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="419" y="955">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="419" y="968">+ void update(float dt)</text>
-<text class="uml-mem" x="419" y="981">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="419" y="994">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<rect class="uml-box" x="778" y="825" width="356" height="335" rx="5"/>
-<text class="uml-title" x="956" y="841" text-anchor="middle">Pipe</text>
-<line class="uml-div" x1="778" y1="845" x2="1134" y2="845"/>
-<text class="uml-mem" x="785" y="856">- int m_pipeId</text>
-<text class="uml-mem" x="785" y="869">- sf::Vector2f m_exitPosition</text>
-<text class="uml-mem" x="785" y="882">- std::string m_targetLevel</text>
-<text class="uml-mem" x="785" y="895">- bool m_isEntrance</text>
-<text class="uml-mem" x="785" y="908">- float m_rotationDegrees</text>
-<text class="uml-mem" x="785" y="921">- const SpriteSheet* m_spriteSheet</text>
-<line class="uml-div" x1="778" y1="931" x2="1134" y2="931"/>
-<text class="uml-mem" x="785" y="942">+ Pipe(sf::Vector2f position, int pipeId = 0, sf::Vector2f</text>
-<text class="uml-mem" x="785" y="955">  exitPosition = {0.0f, 0.0f}, std::string targetLevel = &quot;&quot;,</text>
-<text class="uml-mem" x="785" y="968">  bool isEntrance = false, float rotationDegrees = 0.0f)</text>
-<text class="uml-mem" x="785" y="981">+ ~Pipe()</text>
-<text class="uml-mem" x="785" y="994">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="785" y="1007">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="785" y="1020">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="785" y="1033">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="785" y="1046">+ bool checkWarp(const Player&amp; player) const</text>
-<text class="uml-mem" x="785" y="1059">+ bool hasArtwork() const</text>
-<text class="uml-mem" x="785" y="1072">+ sf::Vector2f artworkSize() const</text>
-<text class="uml-mem" x="785" y="1085">+ int getPipeId() const</text>
-<text class="uml-mem" x="785" y="1098">+ sf::Vector2f getExitPosition() const</text>
-<text class="uml-mem" x="785" y="1111">+ std::string getTargetLevel() const</text>
-<text class="uml-mem" x="785" y="1124">+ bool isEntrance() const</text>
-<text class="uml-mem" x="785" y="1137">+ float getRotationDegrees() const</text>
-<text class="uml-mem" x="785" y="1150">+ void setRotationDegrees(float deg)</text>
-<rect class="uml-box" x="46" y="922" width="322" height="192" rx="5"/>
-<text class="uml-title" x="207" y="938" text-anchor="middle">QuestionBlock</text>
-<line class="uml-div" x1="46" y1="942" x2="368" y2="942"/>
-<text class="uml-mem" x="53" y="953">- int m_containedItemType</text>
-<text class="uml-mem" x="53" y="966">- bool m_isEmpty</text>
-<line class="uml-div" x1="46" y1="976" x2="368" y2="976"/>
-<text class="uml-mem" x="53" y="987">+ QuestionBlock(sf::Vector2f position, int itemType =</text>
-<text class="uml-mem" x="53" y="1000">  Content::Coin)</text>
-<text class="uml-mem" x="53" y="1013">+ ~QuestionBlock()</text>
-<text class="uml-mem" x="53" y="1026">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="1039">+ void onHitFromBelow(Player&amp; player)</text>
-<text class="uml-mem" x="53" y="1052">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="1065">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="1078">+ int getItemType() const</text>
-<text class="uml-mem" x="53" y="1091">+ int getContainedItemType() const</text>
-<text class="uml-mem" x="53" y="1104">+ bool isEmpty() const</text>
+<text class="uml-mem" x="7" y="222">+ BlockTouch onCharacterTouch(Character&amp; character, const</text>
+<text class="uml-mem" x="7" y="235">  CollisionInfo&amp; info)</text>
+<text class="uml-mem" x="7" y="248">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="7" y="261">+ EntityCategory getCategory() const</text>
+<text class="uml-mem" x="7" y="274">+ void update(float dt)</text>
+<text class="uml-mem" x="7" y="287">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="7" y="300">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="7" y="313">+ bool isBreakable() const</text>
+<rect class="uml-box" x="46" y="345" width="322" height="166" rx="5"/>
+<text class="uml-title" x="207" y="361" text-anchor="middle">BrickBlock</text>
+<line class="uml-div" x1="46" y1="365" x2="368" y2="365"/>
+<text class="uml-mem" x="53" y="376">- int m_coinsLeft</text>
+<text class="uml-mem" x="53" y="389">- bool m_isEmpty</text>
+<line class="uml-div" x1="46" y1="399" x2="368" y2="399"/>
+<text class="uml-mem" x="53" y="410">+ BrickBlock(sf::Vector2f position, int coins = 0)</text>
+<text class="uml-mem" x="53" y="423">+ ~BrickBlock()</text>
+<text class="uml-mem" x="53" y="436">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="449">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="462">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="475">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="488">+ int getCoinsLeft() const</text>
+<text class="uml-mem" x="53" y="501">+ bool isEmpty() const</text>
+<rect class="uml-box" x="412" y="345" width="322" height="244" rx="5"/>
+<text class="uml-title" x="573" y="361" text-anchor="middle">Castle</text>
+<line class="uml-div" x1="412" y1="365" x2="734" y2="365"/>
+<text class="uml-mem uml-mem-static" x="419" y="376">+ constexpr float WIDTH_TILES</text>
+<text class="uml-mem uml-mem-static" x="419" y="389">+ constexpr float HEIGHT_TILES</text>
+<text class="uml-mem" x="419" y="402">- float m_flagRise</text>
+<text class="uml-mem" x="419" y="415">- bool m_flagRaised</text>
+<text class="uml-mem" x="419" y="428">- const SpriteSheet* m_sheet</text>
+<line class="uml-div" x1="412" y1="438" x2="734" y2="438"/>
+<text class="uml-mem" x="419" y="449">+ Castle(sf::Vector2f position)</text>
+<text class="uml-mem" x="419" y="462">+ ~Castle()</text>
+<text class="uml-mem" x="419" y="475">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="419" y="488">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="419" y="501">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="419" y="514">+ bool collidesWithTiles() const</text>
+<text class="uml-mem" x="419" y="527">+ void update(float dt)</text>
+<text class="uml-mem" x="419" y="540">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="419" y="553">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="419" y="566">+ void raiseFlag()</text>
+<text class="uml-mem" x="419" y="579">+ bool isFlagRaised() const</text>
+<rect class="uml-box" x="778" y="345" width="356" height="192" rx="5"/>
+<text class="uml-title" x="956" y="361" text-anchor="middle">ConveyorBelt</text>
+<line class="uml-div" x1="778" y1="365" x2="1134" y2="365"/>
+<text class="uml-mem" x="785" y="376">- bool m_pushRight</text>
+<text class="uml-mem" x="785" y="389">- float m_pushSpeed</text>
+<line class="uml-div" x1="778" y1="399" x2="1134" y2="399"/>
+<text class="uml-mem" x="785" y="410">+ ConveyorBelt(sf::Vector2f position, bool pushRight = true,</text>
+<text class="uml-mem" x="785" y="423">  float pushSpeed = 100.0f)</text>
+<text class="uml-mem" x="785" y="436">+ ~ConveyorBelt()</text>
+<text class="uml-mem" x="785" y="449">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="785" y="462">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="785" y="475">+ void update(float dt)</text>
+<text class="uml-mem" x="785" y="488">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="785" y="501">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="785" y="514">+ bool isPushingRight() const</text>
+<text class="uml-mem" x="785" y="527">+ float getPushSpeed() const</text>
+<rect class="uml-box" x="46" y="533" width="322" height="218" rx="5"/>
+<text class="uml-title" x="207" y="549" text-anchor="middle">FallingPlatform</text>
+<line class="uml-div" x1="46" y1="553" x2="368" y2="553"/>
+<text class="uml-mem" x="53" y="564">- FallingPlatformState m_state</text>
+<text class="uml-mem" x="53" y="577">- float m_shakeTimer</text>
+<text class="uml-mem" x="53" y="590">- float m_respawnTimer</text>
+<text class="uml-mem" x="53" y="603">- sf::Vector2f m_shakeOffset</text>
+<line class="uml-div" x1="46" y1="613" x2="368" y2="613"/>
+<text class="uml-mem" x="53" y="624">+ FallingPlatform(sf::Vector2f position)</text>
+<text class="uml-mem" x="53" y="637">+ ~FallingPlatform()</text>
+<text class="uml-mem" x="53" y="650">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="663">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="676">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="689">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="702">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="715">+ bool isCollidable() const</text>
+<text class="uml-mem" x="53" y="728">+ FallingPlatformState getState() const</text>
+<text class="uml-mem" x="53" y="741">- bool isPlayerStandingOnTop() const</text>
+<rect class="uml-box" x="778" y="559" width="356" height="296" rx="5"/>
+<text class="uml-title" x="956" y="575" text-anchor="middle">Flagpole</text>
+<line class="uml-div" x1="778" y1="579" x2="1134" y2="579"/>
+<text class="uml-mem" x="785" y="590">- Animation m_raisedAnimation</text>
+<text class="uml-mem" x="785" y="603">- Animation m_descentAnimation</text>
+<text class="uml-mem" x="785" y="616">- float m_poleHeight</text>
+<text class="uml-mem" x="785" y="629">- bool m_triggered</text>
+<text class="uml-mem" x="785" y="642">- float m_flagY</text>
+<text class="uml-mem" x="785" y="655">- float m_targetFlagY</text>
+<text class="uml-mem" x="785" y="668">- float m_animTimer</text>
+<line class="uml-div" x1="778" y1="678" x2="1134" y2="678"/>
+<text class="uml-mem" x="785" y="689">+ Flagpole(sf::Vector2f position, float poleHeight = 168.0f)</text>
+<text class="uml-mem" x="785" y="702">+ ~Flagpole()</text>
+<text class="uml-mem" x="785" y="715">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="785" y="728">+ void update(float dt)</text>
+<text class="uml-mem" x="785" y="741">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="785" y="754">+ BlockTouch onCharacterTouch(Character&amp; character, const</text>
+<text class="uml-mem" x="785" y="767">  CollisionInfo&amp; info)</text>
+<text class="uml-mem" x="785" y="780">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="785" y="793">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="785" y="806">+ void onPlayerCollision(Player&amp; player, float collisionY)</text>
+<text class="uml-mem" x="785" y="819">+ float getPoleHeight() const</text>
+<text class="uml-mem" x="785" y="832">+ bool isTriggered() const</text>
+<text class="uml-mem" x="785" y="845">+ float getFlagY() const</text>
+<rect class="uml-box" x="412" y="611" width="339" height="205" rx="5"/>
+<text class="uml-title" x="581" y="627" text-anchor="middle">HiddenBlock</text>
+<line class="uml-div" x1="412" y1="631" x2="751" y2="631"/>
+<text class="uml-mem" x="419" y="642">- bool m_isRevealed</text>
+<text class="uml-mem" x="419" y="655">- int m_containedItemType</text>
+<line class="uml-div" x1="412" y1="665" x2="751" y2="665"/>
+<text class="uml-mem" x="419" y="676">+ HiddenBlock(sf::Vector2f position, int itemType = 0)</text>
+<text class="uml-mem" x="419" y="689">+ ~HiddenBlock()</text>
+<text class="uml-mem" x="419" y="702">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="419" y="715">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="419" y="728">+ BlockTouch onCharacterTouch(Character&amp; character, const</text>
+<text class="uml-mem" x="419" y="741">  CollisionInfo&amp; info)</text>
+<text class="uml-mem" x="419" y="754">+ void update(float dt)</text>
+<text class="uml-mem" x="419" y="767">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="419" y="780">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="419" y="793">+ bool isCollidable() const</text>
+<text class="uml-mem" x="419" y="806">+ bool isRevealed() const</text>
+<rect class="uml-box" x="46" y="773" width="322" height="153" rx="5"/>
+<text class="uml-title" x="207" y="789" text-anchor="middle">IceBlock</text>
+<line class="uml-div" x1="46" y1="793" x2="368" y2="793"/>
+<text class="uml-mem" x="53" y="804">- float m_friction</text>
+<line class="uml-div" x1="46" y1="814" x2="368" y2="814"/>
+<text class="uml-mem" x="53" y="825">+ IceBlock(sf::Vector2f position)</text>
+<text class="uml-mem" x="53" y="838">+ ~IceBlock()</text>
+<text class="uml-mem" x="53" y="851">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="864">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="877">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="890">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="903">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="916">+ float getFriction() const</text>
+<rect class="uml-box" x="412" y="838" width="322" height="218" rx="5"/>
+<text class="uml-title" x="573" y="854" text-anchor="middle">MovingPlatform</text>
+<line class="uml-div" x1="412" y1="858" x2="734" y2="858"/>
+<text class="uml-mem" x="419" y="869">- sf::Vector2f m_startPos</text>
+<text class="uml-mem" x="419" y="882">- sf::Vector2f m_travelRange</text>
+<text class="uml-mem" x="419" y="895">- const float m_rangeLen</text>
+<text class="uml-mem" x="419" y="908">- float m_speed</text>
+<text class="uml-mem" x="419" y="921">- float m_progress</text>
+<text class="uml-mem" x="419" y="934">- bool m_movingForward</text>
+<line class="uml-div" x1="412" y1="944" x2="734" y2="944"/>
+<text class="uml-mem" x="419" y="955">+ MovingPlatform(sf::Vector2f position, sf::Vector2f</text>
+<text class="uml-mem" x="419" y="968">  travelRange, float speed = 50.0f)</text>
+<text class="uml-mem" x="419" y="981">+ ~MovingPlatform()</text>
+<text class="uml-mem" x="419" y="994">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="419" y="1007">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="419" y="1020">+ void update(float dt)</text>
+<text class="uml-mem" x="419" y="1033">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="419" y="1046">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<rect class="uml-box" x="778" y="877" width="356" height="335" rx="5"/>
+<text class="uml-title" x="956" y="893" text-anchor="middle">Pipe</text>
+<line class="uml-div" x1="778" y1="897" x2="1134" y2="897"/>
+<text class="uml-mem" x="785" y="908">- int m_pipeId</text>
+<text class="uml-mem" x="785" y="921">- sf::Vector2f m_exitPosition</text>
+<text class="uml-mem" x="785" y="934">- std::string m_targetLevel</text>
+<text class="uml-mem" x="785" y="947">- bool m_isEntrance</text>
+<text class="uml-mem" x="785" y="960">- float m_rotationDegrees</text>
+<text class="uml-mem" x="785" y="973">- const SpriteSheet* m_spriteSheet</text>
+<line class="uml-div" x1="778" y1="983" x2="1134" y2="983"/>
+<text class="uml-mem" x="785" y="994">+ Pipe(sf::Vector2f position, int pipeId = 0, sf::Vector2f</text>
+<text class="uml-mem" x="785" y="1007">  exitPosition = {0.0f, 0.0f}, std::string targetLevel = &quot;&quot;,</text>
+<text class="uml-mem" x="785" y="1020">  bool isEntrance = false, float rotationDegrees = 0.0f)</text>
+<text class="uml-mem" x="785" y="1033">+ ~Pipe()</text>
+<text class="uml-mem" x="785" y="1046">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="785" y="1059">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="785" y="1072">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="785" y="1085">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="785" y="1098">+ bool checkWarp(const Player&amp; player) const</text>
+<text class="uml-mem" x="785" y="1111">+ bool hasArtwork() const</text>
+<text class="uml-mem" x="785" y="1124">+ sf::Vector2f artworkSize() const</text>
+<text class="uml-mem" x="785" y="1137">+ int getPipeId() const</text>
+<text class="uml-mem" x="785" y="1150">+ sf::Vector2f getExitPosition() const</text>
+<text class="uml-mem" x="785" y="1163">+ std::string getTargetLevel() const</text>
+<text class="uml-mem" x="785" y="1176">+ bool isEntrance() const</text>
+<text class="uml-mem" x="785" y="1189">+ float getRotationDegrees() const</text>
+<text class="uml-mem" x="785" y="1202">+ void setRotationDegrees(float deg)</text>
+<rect class="uml-box" x="46" y="948" width="322" height="205" rx="5"/>
+<text class="uml-title" x="207" y="964" text-anchor="middle">QuestionBlock</text>
+<line class="uml-div" x1="46" y1="968" x2="368" y2="968"/>
+<text class="uml-mem" x="53" y="979">- int m_containedItemType</text>
+<text class="uml-mem" x="53" y="992">- bool m_isEmpty</text>
+<text class="uml-mem" x="53" y="1005">- const SpriteSheet* m_spriteSheet</text>
+<line class="uml-div" x1="46" y1="1015" x2="368" y2="1015"/>
+<text class="uml-mem" x="53" y="1026">+ QuestionBlock(sf::Vector2f position, int itemType =</text>
+<text class="uml-mem" x="53" y="1039">  Content::Coin)</text>
+<text class="uml-mem" x="53" y="1052">+ ~QuestionBlock()</text>
+<text class="uml-mem" x="53" y="1065">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="1078">+ void onHitFromBelow(Player&amp; player)</text>
+<text class="uml-mem" x="53" y="1091">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="1104">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="1117">+ int getItemType() const</text>
+<text class="uml-mem" x="53" y="1130">+ int getContainedItemType() const</text>
+<text class="uml-mem" x="53" y="1143">+ bool isEmpty() const</text>
 </svg></div><figcaption>Figure 6b (full detail) — The complete Block hierarchy, every attribute and method.</figcaption></figure>
 <figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 411 464" role="img" aria-label="Character inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
 <style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
@@ -2173,10 +2198,10 @@ inside it) are the very next diagrams, each in full detail.</p>
 <path class="uml-edge" d="M 33 370 V 432.0 H 157.2"/>
 <path class="uml-edge" d="M 11 28 V 356.0 H 22"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
-<polygon class="uml-tri" points="51,110 59,110 55,104"/>
 <polygon class="uml-tri" points="29,376 37,376 33,370"/>
-<polygon class="uml-tri" points="51,186 59,186 55,180"/>
+<polygon class="uml-tri" points="51,110 59,110 55,104"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="51,186 59,186 55,180"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
 <rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
@@ -2225,37 +2250,37 @@ inside it) are the very next diagrams, each in full detail.</p>
 <rect class="uml-box" x="157" y="418" width="103" height="28" rx="4"/>
 <text class="uml-name" x="169" y="436">Toad</text>
 </svg></div><figcaption>Figure 7 (full tree, compact boxes) — The complete Character hierarchy.<br><span class="note">Every playable character and every enemy, including the Boss sub-branch, in one tree. Compact rather than detailed for the same reason as Figure 6.</span></figcaption></figure>
-<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1059 2684" role="img" aria-label="Enemy detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1059 2775" role="img" aria-label="Enemy detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
 <style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-title{font-family:var(--ui,sans-serif);font-size:12px;fill:var(--tx,#111);font-weight:700}.uml-st{font-family:var(--ui,sans-serif);font-size:9px;fill:var(--accent,#b5322a);font-style:italic}.uml-div{stroke:var(--line,#ccc);stroke-width:1}.uml-mem{font-size:9px;fill:var(--mut,#555)}.uml-mem-static{text-decoration:underline}.uml-mem-pure{font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
-<path class="uml-edge" d="M 11 492 V 773.0 H 46"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 57 1032 V 1195.5 H 92.0"/>
-<polygon class="uml-tri" points="53,1038 61,1038 57,1032"/>
-<path class="uml-edge" d="M 57 1032 V 1228.0 H 423.8"/>
-<polygon class="uml-tri" points="53,1038 61,1038 57,1032"/>
-<path class="uml-edge" d="M 11 492 V 1598.0 H 46"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 57 1772 V 1903.0 H 92.0"/>
-<polygon class="uml-tri" points="53,1778 61,1778 57,1772"/>
-<path class="uml-edge" d="M 11 492 V 2130.0 H 46.0"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2104.0 H 383.5"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2091.0 H 721.0"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2305.0 H 721.0"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2253.0 H 383.5"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2350.5 H 46.0"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2428.0 H 383.5"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2558.0 H 721.0"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<path class="uml-edge" d="M 11 492 V 2558.0 H 46.0"/>
-<polygon class="uml-tri" points="7,498 15,498 11,492"/>
-<rect class="uml-box uml-abs" x="0" y="0" width="350" height="492" rx="5"/>
+<path class="uml-edge" d="M 11 531 V 818.5 H 46"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 57 1084 V 1247.5 H 92.0"/>
+<polygon class="uml-tri" points="53,1090 61,1090 57,1084"/>
+<path class="uml-edge" d="M 57 1084 V 1280.0 H 423.8"/>
+<polygon class="uml-tri" points="53,1090 61,1090 57,1084"/>
+<path class="uml-edge" d="M 11 531 V 1669.5 H 46"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 57 1863 V 1994.0 H 92.0"/>
+<polygon class="uml-tri" points="53,1869 61,1869 57,1863"/>
+<path class="uml-edge" d="M 11 531 V 2221.0 H 46.0"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2195.0 H 383.5"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2182.0 H 721.0"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2396.0 H 721.0"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2344.0 H 383.5"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2448.0 H 46.0"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2519.0 H 383.5"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2649.0 H 721.0"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<path class="uml-edge" d="M 11 531 V 2662.0 H 46.0"/>
+<polygon class="uml-tri" points="7,537 15,537 11,531"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="350" height="531" rx="5"/>
 <text class="uml-st" x="175" y="13" text-anchor="middle">&#171;abstract&#187;</text>
 <text class="uml-title" x="175" y="28" text-anchor="middle">Enemy</text>
 <line class="uml-div" x1="0" y1="34" x2="350" y2="34"/>
@@ -2280,291 +2305,299 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="7" y="274">+ IMovementStrategy* getStrategy() const</text>
 <text class="uml-mem uml-mem-pure" x="7" y="287">+ void onStomped()</text>
 <text class="uml-mem uml-mem-pure" x="7" y="300">+ void onHitByFireball()</text>
-<text class="uml-mem" x="7" y="313">+ EntityCategory getCategory() const</text>
-<text class="uml-mem" x="7" y="326">+ int getScoreValue() const</text>
-<text class="uml-mem" x="7" y="339">+ void setScoreValue(int value)</text>
-<text class="uml-mem" x="7" y="352">+ void applySpeedScale(float scale)</text>
-<text class="uml-mem" x="7" y="365">+ void setSpeed(float newSpeed)</text>
-<text class="uml-mem" x="7" y="378">+ bool isFlipped() const</text>
-<text class="uml-mem" x="7" y="391">+ bool isDyingDownward() const</text>
-<text class="uml-mem" x="7" y="404">+ bool isDeadOrDying() const</text>
-<text class="uml-mem" x="7" y="417">+ void triggerFlipDeath(sf::Vector2f launchVel = {80.0f,</text>
-<text class="uml-mem" x="7" y="430">  -250.0f})</text>
-<text class="uml-mem" x="7" y="443">+ void triggerDownwardDeath(sf::Vector2f launchVel = {0.0f,</text>
-<text class="uml-mem" x="7" y="456">  150.0f})</text>
-<text class="uml-mem" x="7" y="469">+ bool isCollidable() const</text>
-<text class="uml-mem" x="7" y="482">+ bool collidesWithTiles() const</text>
-<rect class="uml-box uml-abs" x="46" y="514" width="345" height="518" rx="5"/>
-<text class="uml-st" x="218" y="527" text-anchor="middle">&#171;abstract&#187;</text>
-<text class="uml-title" x="218" y="542" text-anchor="middle">Boss</text>
-<line class="uml-div" x1="46" y1="548" x2="391" y2="548"/>
-<text class="uml-mem uml-mem-static" x="53" y="559">+ constexpr float STOMP_MIN_DESCENT_SPEED</text>
-<text class="uml-mem" x="53" y="572">- std::string m_displayName</text>
-<text class="uml-mem" x="53" y="585">- int m_maxHealth</text>
-<text class="uml-mem" x="53" y="598">- int m_health</text>
-<text class="uml-mem" x="53" y="611">- int m_phase</text>
-<text class="uml-mem" x="53" y="624">- float m_invulnerableTimer</text>
-<text class="uml-mem" x="53" y="637">- float m_staggerTimer</text>
-<text class="uml-mem" x="53" y="650">- float m_defeatTimer</text>
-<text class="uml-mem" x="53" y="663">- bool m_defeatAnnounced</text>
-<text class="uml-mem" x="53" y="676">- AABB m_arena</text>
-<line class="uml-div" x1="46" y1="686" x2="391" y2="686"/>
-<text class="uml-mem" x="53" y="697">+ Boss(sf::Vector2f position, std::string displayName, int</text>
-<text class="uml-mem" x="53" y="710">  maxHealth, int scoreValue, sf::Vector2f size)</text>
-<text class="uml-mem" x="53" y="723">+ ~Boss()</text>
-<text class="uml-mem" x="53" y="736">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="749">+ void onStomped()</text>
-<text class="uml-mem" x="53" y="762">+ void onHitByFireball()</text>
-<text class="uml-mem" x="53" y="775">+ int getHealth() const</text>
-<text class="uml-mem" x="53" y="788">+ int getMaxHealth() const</text>
-<text class="uml-mem" x="53" y="801">+ int getPhase() const</text>
-<text class="uml-mem" x="53" y="814">+ const std::string&amp; getDisplayName() const</text>
-<text class="uml-mem" x="53" y="827">+ bool isDefeated() const</text>
-<text class="uml-mem" x="53" y="840">+ const AABB&amp; getArena() const</text>
-<text class="uml-mem" x="53" y="853">+ void setArena(const AABB&amp; arena)</text>
-<text class="uml-mem" x="53" y="866">+ bool hasArena() const</text>
-<text class="uml-mem" x="53" y="879">+ bool isDeadOrDying() const</text>
-<text class="uml-mem" x="53" y="892">+ bool isInvulnerable() const</text>
-<text class="uml-mem" x="53" y="905">+ bool tryStomp()</text>
-<text class="uml-mem" x="53" y="918">+ bool isStaggered() const</text>
-<text class="uml-mem" x="53" y="931">+ float getStaggerTimer() const</text>
-<text class="uml-mem" x="53" y="944">+ void defeatNow()</text>
-<text class="uml-mem uml-mem-pure" x="53" y="957"># void updateBehaviour(float dt)</text>
-<text class="uml-mem" x="53" y="970"># int phaseForHealth(int health) const</text>
-<text class="uml-mem" x="53" y="983"># void onPhaseChanged(int newPhase)</text>
-<text class="uml-mem" x="53" y="996"># void onTookHit()</text>
-<text class="uml-mem" x="53" y="1009"># void onDefeated()</text>
-<text class="uml-mem" x="53" y="1022">… 6 more — see Entities/Boss.hpp</text>
-<rect class="uml-box" x="92" y="1054" width="322" height="283" rx="5"/>
-<text class="uml-title" x="253" y="1070" text-anchor="middle">BoomBoom</text>
-<line class="uml-div" x1="92" y1="1074" x2="414" y2="1074"/>
-<text class="uml-mem" x="99" y="1085">- Action m_action</text>
-<text class="uml-mem" x="99" y="1098">- float m_actionTimer</text>
-<text class="uml-mem" x="99" y="1111">- int m_spinBounces</text>
-<text class="uml-mem" x="99" y="1124">- float m_arenaLeft</text>
-<text class="uml-mem" x="99" y="1137">- float m_arenaRight</text>
-<text class="uml-mem" x="99" y="1150">- bool m_arenaResolved</text>
-<text class="uml-mem" x="99" y="1163">- Animation m_walkAnim</text>
-<text class="uml-mem" x="99" y="1176">- Animation m_spinAnim</text>
-<line class="uml-div" x1="92" y1="1186" x2="414" y2="1186"/>
-<text class="uml-mem" x="99" y="1197">+ BoomBoom(sf::Vector2f position)</text>
-<text class="uml-mem" x="99" y="1210">+ ~BoomBoom()</text>
-<text class="uml-mem" x="99" y="1223">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="99" y="1236">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="99" y="1249"># void updateBehaviour(float dt)</text>
-<text class="uml-mem" x="99" y="1262"># int phaseForHealth(int health) const</text>
-<text class="uml-mem" x="99" y="1275"># void onPhaseChanged(int newPhase)</text>
-<text class="uml-mem" x="99" y="1288"># void onTookHit()</text>
-<text class="uml-mem" x="99" y="1301">- void enter(Action action)</text>
-<text class="uml-mem" x="99" y="1314">- float chargeSpeed() const</text>
-<text class="uml-mem" x="99" y="1327">- float recoverDuration() const</text>
-<rect class="uml-box" x="424" y="1054" width="322" height="348" rx="5"/>
-<text class="uml-title" x="585" y="1070" text-anchor="middle">Bowser</text>
-<line class="uml-div" x1="424" y1="1074" x2="746" y2="1074"/>
-<text class="uml-mem uml-mem-static" x="431" y="1085">+ constexpr int FIRE_HITS_PER_STAGGER</text>
-<text class="uml-mem" x="431" y="1098">- float m_fireTimer</text>
-<text class="uml-mem" x="431" y="1111">- float m_jumpTimer</text>
-<text class="uml-mem" x="431" y="1124">- int m_fireHits</text>
-<text class="uml-mem" x="431" y="1137">- float m_patrolLeft</text>
-<text class="uml-mem" x="431" y="1150">- float m_patrolRight</text>
-<text class="uml-mem" x="431" y="1163">- bool m_patrolInitialised</text>
-<text class="uml-mem" x="431" y="1176">- Animation m_walkLeftAnim</text>
-<text class="uml-mem" x="431" y="1189">- Animation m_walkRightAnim</text>
-<line class="uml-div" x1="424" y1="1199" x2="746" y2="1199"/>
-<text class="uml-mem" x="431" y="1210">+ Bowser(sf::Vector2f position)</text>
-<text class="uml-mem" x="431" y="1223">+ ~Bowser()</text>
-<text class="uml-mem" x="431" y="1236">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="431" y="1249">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="431" y="1262">+ void onHitByFireball()</text>
-<text class="uml-mem" x="431" y="1275">+ int getFireHitsToStagger() const</text>
-<text class="uml-mem" x="431" y="1288"># void updateBehaviour(float dt)</text>
-<text class="uml-mem" x="431" y="1301"># void onPhaseChanged(int newPhase)</text>
-<text class="uml-mem" x="431" y="1314"># void onTookHit()</text>
-<text class="uml-mem" x="431" y="1327"># void onStaggerBegan()</text>
-<text class="uml-mem" x="431" y="1340"># void onStaggerEnded()</text>
-<text class="uml-mem" x="431" y="1353">- void breatheFire()</text>
-<text class="uml-mem" x="431" y="1366">- void leap()</text>
-<text class="uml-mem" x="431" y="1379">- float fireInterval() const</text>
-<text class="uml-mem" x="431" y="1392">- float walkSpeed() const</text>
-<rect class="uml-box" x="46" y="1424" width="367" height="348" rx="5"/>
-<text class="uml-title" x="230" y="1440" text-anchor="middle">KoopaTroopa</text>
-<line class="uml-div" x1="46" y1="1444" x2="413" y2="1444"/>
-<text class="uml-mem" x="53" y="1455"># bool m_isRed</text>
-<text class="uml-mem" x="53" y="1468"># KoopaState m_state</text>
-<text class="uml-mem" x="53" y="1481"># float m_shellTimer</text>
-<text class="uml-mem" x="53" y="1494"># float m_kickGrace</text>
-<text class="uml-mem" x="53" y="1507"># Animation m_shellAnim</text>
-<text class="uml-mem" x="53" y="1520"># Player* m_holder</text>
-<line class="uml-div" x1="46" y1="1530" x2="413" y2="1530"/>
-<text class="uml-mem" x="53" y="1541">+ KoopaTroopa(sf::Vector2f position, bool isRed = false)</text>
-<text class="uml-mem" x="53" y="1554">+ ~KoopaTroopa()</text>
-<text class="uml-mem" x="53" y="1567">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="1580">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="1593">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="1606">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="1619">+ void onStomped()</text>
-<text class="uml-mem" x="53" y="1632">+ void onHitByFireball()</text>
-<text class="uml-mem" x="53" y="1645">+ void kick(sf::Vector2f velocity)</text>
-<text class="uml-mem" x="53" y="1658">+ void pickUp(Player* holder)</text>
-<text class="uml-mem" x="53" y="1671">+ void throwShell(float speed = 420.0f, float angleDeg = 8.0f)</text>
-<text class="uml-mem" x="53" y="1684">+ void release()</text>
-<text class="uml-mem" x="53" y="1697">+ bool isHarmlessToKicker() const</text>
-<text class="uml-mem" x="53" y="1710">+ bool isRed() const</text>
-<text class="uml-mem" x="53" y="1723">+ KoopaState getState() const</text>
-<text class="uml-mem" x="53" y="1736">+ float getShellTimer() const</text>
-<text class="uml-mem" x="53" y="1749">+ bool isCollidable() const</text>
-<text class="uml-mem" x="53" y="1762">+ bool isDeadOrDying() const</text>
-<rect class="uml-box" x="92" y="1794" width="356" height="218" rx="5"/>
-<text class="uml-title" x="270" y="1810" text-anchor="middle">KoopaParatroopa</text>
-<line class="uml-div" x1="92" y1="1814" x2="448" y2="1814"/>
-<text class="uml-mem" x="99" y="1825">- bool m_hasWings</text>
-<text class="uml-mem" x="99" y="1838">- float m_transformInvincibilityTimer</text>
-<text class="uml-mem" x="99" y="1851">- Animation m_flyAnim</text>
-<line class="uml-div" x1="92" y1="1861" x2="448" y2="1861"/>
-<text class="uml-mem" x="99" y="1872">+ KoopaParatroopa(sf::Vector2f position, bool isRed = false)</text>
-<text class="uml-mem" x="99" y="1885">+ ~KoopaParatroopa()</text>
-<text class="uml-mem" x="99" y="1898">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="99" y="1911">+ void update(float dt)</text>
-<text class="uml-mem" x="99" y="1924">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="99" y="1937">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="99" y="1950">+ void onStomped()</text>
-<text class="uml-mem" x="99" y="1963">+ void onHitByFireball()</text>
-<text class="uml-mem" x="99" y="1976">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="99" y="1989">+ bool hasWings() const</text>
-<text class="uml-mem" x="99" y="2002">+ bool isTransforming() const</text>
-<rect class="uml-box" x="46" y="2034" width="322" height="192" rx="5"/>
-<text class="uml-title" x="207" y="2050" text-anchor="middle">Boo</text>
-<line class="uml-div" x1="46" y1="2054" x2="368" y2="2054"/>
-<text class="uml-mem" x="53" y="2065">- Animation m_seenAnim</text>
-<text class="uml-mem" x="53" y="2078">- Animation m_moveAnim</text>
-<line class="uml-div" x1="46" y1="2088" x2="368" y2="2088"/>
-<text class="uml-mem" x="53" y="2099">+ Boo(sf::Vector2f position)</text>
-<text class="uml-mem" x="53" y="2112">+ ~Boo()</text>
-<text class="uml-mem" x="53" y="2125">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="2138">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="2151">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="53" y="2164">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="2177">+ void onStomped()</text>
-<text class="uml-mem" x="53" y="2190">+ void onHitByFireball()</text>
-<text class="uml-mem" x="53" y="2203">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="53" y="2216">+ bool collidesWithTiles() const</text>
-<rect class="uml-box" x="384" y="2034" width="328" height="140" rx="5"/>
-<text class="uml-title" x="547" y="2050" text-anchor="middle">BulletBill</text>
-<line class="uml-div" x1="384" y1="2054" x2="711" y2="2054"/>
-<line class="uml-div" x1="384" y1="2062" x2="711" y2="2062"/>
-<text class="uml-mem" x="390" y="2073">+ BulletBill(sf::Vector2f position, float dirX = -1.0f)</text>
-<text class="uml-mem" x="390" y="2086">+ ~BulletBill()</text>
-<text class="uml-mem" x="390" y="2099">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="390" y="2112">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="390" y="2125">+ void onStomped()</text>
-<text class="uml-mem" x="390" y="2138">+ void onHitByFireball()</text>
-<text class="uml-mem" x="390" y="2151">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="390" y="2164">+ bool collidesWithTiles() const</text>
-<rect class="uml-box" x="721" y="2034" width="322" height="114" rx="5"/>
-<text class="uml-title" x="882" y="2050" text-anchor="middle">ChainChomp</text>
-<line class="uml-div" x1="721" y1="2054" x2="1043" y2="2054"/>
-<line class="uml-div" x1="721" y1="2062" x2="1043" y2="2062"/>
-<text class="uml-mem" x="728" y="2073">+ ChainChomp(sf::Vector2f position)</text>
-<text class="uml-mem" x="728" y="2086">+ ~ChainChomp()</text>
-<text class="uml-mem" x="728" y="2099">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="728" y="2112">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="728" y="2125">+ void onStomped()</text>
-<text class="uml-mem" x="728" y="2138">+ void onHitByFireball()</text>
-<rect class="uml-box" x="721" y="2170" width="322" height="270" rx="5"/>
-<text class="uml-title" x="882" y="2186" text-anchor="middle">Goomba</text>
-<line class="uml-div" x1="721" y1="2190" x2="1043" y2="2190"/>
-<text class="uml-mem" x="728" y="2201">- bool m_isRed</text>
-<text class="uml-mem" x="728" y="2214">- bool m_isSquished</text>
-<text class="uml-mem" x="728" y="2227">- float m_squishTimer</text>
-<text class="uml-mem" x="728" y="2240">- Animation m_squishAnim</text>
-<line class="uml-div" x1="721" y1="2250" x2="1043" y2="2250"/>
-<text class="uml-mem" x="728" y="2261">+ Goomba(sf::Vector2f position, bool isRed = false)</text>
-<text class="uml-mem" x="728" y="2274">+ ~Goomba()</text>
-<text class="uml-mem" x="728" y="2287">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="728" y="2300">+ void update(float dt)</text>
-<text class="uml-mem" x="728" y="2313">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="728" y="2326">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="728" y="2339">+ void onStomped()</text>
-<text class="uml-mem" x="728" y="2352">+ void onHitByFireball()</text>
-<text class="uml-mem" x="728" y="2365">+ bool isRed() const</text>
-<text class="uml-mem" x="728" y="2378">+ bool isSquished() const</text>
-<text class="uml-mem" x="728" y="2391">+ float getSquishTimer() const</text>
-<text class="uml-mem" x="728" y="2404">+ const AABB&amp; getBoundingBox() const</text>
-<text class="uml-mem" x="728" y="2417">+ bool isDeadOrDying() const</text>
-<text class="uml-mem" x="728" y="2430">+ bool collidesWithTiles() const</text>
-<rect class="uml-box" x="384" y="2196" width="322" height="114" rx="5"/>
-<text class="uml-title" x="544" y="2212" text-anchor="middle">HammerBro</text>
-<line class="uml-div" x1="384" y1="2216" x2="705" y2="2216"/>
-<line class="uml-div" x1="384" y1="2224" x2="705" y2="2224"/>
-<text class="uml-mem" x="390" y="2235">+ HammerBro(sf::Vector2f position)</text>
-<text class="uml-mem" x="390" y="2248">+ ~HammerBro()</text>
-<text class="uml-mem" x="390" y="2261">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="390" y="2274">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="390" y="2287">+ void onStomped()</text>
-<text class="uml-mem" x="390" y="2300">+ void onHitByFireball()</text>
-<rect class="uml-box" x="46" y="2248" width="322" height="205" rx="5"/>
-<text class="uml-title" x="207" y="2264" text-anchor="middle">Lakitu</text>
-<line class="uml-div" x1="46" y1="2268" x2="368" y2="2268"/>
-<text class="uml-mem" x="53" y="2279">- float m_eggTimer</text>
-<text class="uml-mem" x="53" y="2292">- int m_spawnCount</text>
-<line class="uml-div" x1="46" y1="2302" x2="368" y2="2302"/>
-<text class="uml-mem" x="53" y="2313">+ Lakitu(sf::Vector2f position)</text>
-<text class="uml-mem" x="53" y="2326">+ ~Lakitu()</text>
-<text class="uml-mem" x="53" y="2339">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="2352">+ void onStomped()</text>
-<text class="uml-mem" x="53" y="2365">+ void onHitByFireball()</text>
-<text class="uml-mem" x="53" y="2378">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="2391">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="2404">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="53" y="2417">+ bool collidesWithTiles() const</text>
-<text class="uml-mem" x="53" y="2430">+ float getEggTimer() const</text>
-<text class="uml-mem" x="53" y="2443">+ int getSpawnCount() const</text>
-<rect class="uml-box" x="384" y="2332" width="322" height="192" rx="5"/>
-<text class="uml-title" x="544" y="2348" text-anchor="middle">PiranhaPlant</text>
-<line class="uml-div" x1="384" y1="2352" x2="705" y2="2352"/>
-<line class="uml-div" x1="384" y1="2360" x2="705" y2="2360"/>
-<text class="uml-mem" x="390" y="2371">+ PiranhaPlant(sf::Vector2f position)</text>
-<text class="uml-mem" x="390" y="2384">+ ~PiranhaPlant()</text>
-<text class="uml-mem" x="390" y="2397">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="390" y="2410">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="390" y="2423">+ void onStomped()</text>
-<text class="uml-mem" x="390" y="2436">+ void onHitByFireball()</text>
-<text class="uml-mem" x="390" y="2449">+ void render(sf::RenderTarget&amp; target)</text>
-<text class="uml-mem" x="390" y="2462">+ bool isCollidable() const</text>
-<text class="uml-mem" x="390" y="2475">+ float artworkVisibleHeight() const</text>
-<text class="uml-mem" x="390" y="2488">+ float getGravityMultiplier() const</text>
-<text class="uml-mem" x="390" y="2501">+ bool collidesWithTiles() const</text>
-<text class="uml-mem" x="390" y="2514">- float emergedHeight() const</text>
-<rect class="uml-box" x="721" y="2462" width="322" height="192" rx="5"/>
-<text class="uml-title" x="882" y="2478" text-anchor="middle">Spiny</text>
-<line class="uml-div" x1="721" y1="2482" x2="1043" y2="2482"/>
-<text class="uml-mem" x="728" y="2493">- bool m_isEgg</text>
-<text class="uml-mem" x="728" y="2506">- Animation m_eggAnim</text>
-<line class="uml-div" x1="721" y1="2516" x2="1043" y2="2516"/>
-<text class="uml-mem" x="728" y="2527">+ Spiny(sf::Vector2f position, bool isEgg = false)</text>
-<text class="uml-mem" x="728" y="2540">+ ~Spiny()</text>
-<text class="uml-mem" x="728" y="2553">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="728" y="2566">+ void onStomped()</text>
-<text class="uml-mem" x="728" y="2579">+ void onHitByFireball()</text>
-<text class="uml-mem" x="728" y="2592">+ void update(float dt)</text>
-<text class="uml-mem" x="728" y="2605">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="728" y="2618">+ bool isCollidable() const</text>
-<text class="uml-mem" x="728" y="2631">+ bool isEgg() const</text>
-<text class="uml-mem" x="728" y="2644">+ void setEgg(bool isEgg)</text>
-<rect class="uml-box" x="46" y="2475" width="322" height="166" rx="5"/>
-<text class="uml-title" x="207" y="2491" text-anchor="middle">Thwomp</text>
-<line class="uml-div" x1="46" y1="2495" x2="368" y2="2495"/>
-<text class="uml-mem" x="53" y="2506">- Animation m_dormantAnim</text>
-<text class="uml-mem" x="53" y="2519">- Animation m_activeAnim</text>
-<line class="uml-div" x1="46" y1="2529" x2="368" y2="2529"/>
-<text class="uml-mem" x="53" y="2540">+ Thwomp(sf::Vector2f position)</text>
-<text class="uml-mem" x="53" y="2553">+ ~Thwomp()</text>
-<text class="uml-mem" x="53" y="2566">+ std::string getTypeName() const</text>
-<text class="uml-mem" x="53" y="2579">+ void update(float dt)</text>
-<text class="uml-mem" x="53" y="2592">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
-<text class="uml-mem" x="53" y="2605">+ void onStomped()</text>
-<text class="uml-mem" x="53" y="2618">+ void onHitByFireball()</text>
-<text class="uml-mem" x="53" y="2631">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="7" y="313">+ bool onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="7" y="326">  info, bool stomped)</text>
+<text class="uml-mem" x="7" y="339">+ bool isHazardToEnemies() const</text>
+<text class="uml-mem" x="7" y="352">+ EntityCategory getCategory() const</text>
+<text class="uml-mem" x="7" y="365">+ int getScoreValue() const</text>
+<text class="uml-mem" x="7" y="378">+ void setScoreValue(int value)</text>
+<text class="uml-mem" x="7" y="391">+ void applySpeedScale(float scale)</text>
+<text class="uml-mem" x="7" y="404">+ void setSpeed(float newSpeed)</text>
+<text class="uml-mem" x="7" y="417">+ bool isFlipped() const</text>
+<text class="uml-mem" x="7" y="430">+ bool isDyingDownward() const</text>
+<text class="uml-mem" x="7" y="443">+ bool isDeadOrDying() const</text>
+<text class="uml-mem" x="7" y="456">+ void triggerFlipDeath(sf::Vector2f launchVel = {80.0f,</text>
+<text class="uml-mem" x="7" y="469">  -250.0f})</text>
+<text class="uml-mem" x="7" y="482">+ void triggerDownwardDeath(sf::Vector2f launchVel = {0.0f,</text>
+<text class="uml-mem" x="7" y="495">  150.0f})</text>
+<text class="uml-mem" x="7" y="508">+ bool isCollidable() const</text>
+<text class="uml-mem" x="7" y="521">… 4 more — see Entities/Enemy.hpp</text>
+<rect class="uml-box uml-abs" x="46" y="553" width="345" height="531" rx="5"/>
+<text class="uml-st" x="218" y="566" text-anchor="middle">&#171;abstract&#187;</text>
+<text class="uml-title" x="218" y="581" text-anchor="middle">Boss</text>
+<line class="uml-div" x1="46" y1="587" x2="391" y2="587"/>
+<text class="uml-mem uml-mem-static" x="53" y="598">+ constexpr float STOMP_MIN_DESCENT_SPEED</text>
+<text class="uml-mem" x="53" y="611">- std::string m_displayName</text>
+<text class="uml-mem" x="53" y="624">- int m_maxHealth</text>
+<text class="uml-mem" x="53" y="637">- int m_health</text>
+<text class="uml-mem" x="53" y="650">- int m_phase</text>
+<text class="uml-mem" x="53" y="663">- float m_invulnerableTimer</text>
+<text class="uml-mem" x="53" y="676">- float m_staggerTimer</text>
+<text class="uml-mem" x="53" y="689">- float m_defeatTimer</text>
+<text class="uml-mem" x="53" y="702">- bool m_defeatAnnounced</text>
+<text class="uml-mem" x="53" y="715">- AABB m_arena</text>
+<line class="uml-div" x1="46" y1="725" x2="391" y2="725"/>
+<text class="uml-mem" x="53" y="736">+ Boss(sf::Vector2f position, std::string displayName, int</text>
+<text class="uml-mem" x="53" y="749">  maxHealth, int scoreValue, sf::Vector2f size)</text>
+<text class="uml-mem" x="53" y="762">+ ~Boss()</text>
+<text class="uml-mem" x="53" y="775">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="788">+ void onStomped()</text>
+<text class="uml-mem" x="53" y="801">+ void onHitByFireball()</text>
+<text class="uml-mem" x="53" y="814">+ bool onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="53" y="827">  info, bool stomped)</text>
+<text class="uml-mem" x="53" y="840">+ int getHealth() const</text>
+<text class="uml-mem" x="53" y="853">+ int getMaxHealth() const</text>
+<text class="uml-mem" x="53" y="866">+ int getPhase() const</text>
+<text class="uml-mem" x="53" y="879">+ const std::string&amp; getDisplayName() const</text>
+<text class="uml-mem" x="53" y="892">+ bool isDefeated() const</text>
+<text class="uml-mem" x="53" y="905">+ const AABB&amp; getArena() const</text>
+<text class="uml-mem" x="53" y="918">+ void setArena(const AABB&amp; arena)</text>
+<text class="uml-mem" x="53" y="931">+ bool hasArena() const</text>
+<text class="uml-mem" x="53" y="944">+ bool isDeadOrDying() const</text>
+<text class="uml-mem" x="53" y="957">+ bool isInvulnerable() const</text>
+<text class="uml-mem" x="53" y="970">+ bool tryStomp()</text>
+<text class="uml-mem" x="53" y="983">+ bool isStaggered() const</text>
+<text class="uml-mem" x="53" y="996">+ float getStaggerTimer() const</text>
+<text class="uml-mem" x="53" y="1009">+ void defeatNow()</text>
+<text class="uml-mem uml-mem-pure" x="53" y="1022"># void updateBehaviour(float dt)</text>
+<text class="uml-mem" x="53" y="1035"># int phaseForHealth(int health) const</text>
+<text class="uml-mem" x="53" y="1048"># void onPhaseChanged(int newPhase)</text>
+<text class="uml-mem" x="53" y="1061"># void onTookHit()</text>
+<text class="uml-mem" x="53" y="1074">… 7 more — see Entities/Boss.hpp</text>
+<rect class="uml-box" x="92" y="1106" width="322" height="283" rx="5"/>
+<text class="uml-title" x="253" y="1122" text-anchor="middle">BoomBoom</text>
+<line class="uml-div" x1="92" y1="1126" x2="414" y2="1126"/>
+<text class="uml-mem" x="99" y="1137">- Action m_action</text>
+<text class="uml-mem" x="99" y="1150">- float m_actionTimer</text>
+<text class="uml-mem" x="99" y="1163">- int m_spinBounces</text>
+<text class="uml-mem" x="99" y="1176">- float m_arenaLeft</text>
+<text class="uml-mem" x="99" y="1189">- float m_arenaRight</text>
+<text class="uml-mem" x="99" y="1202">- bool m_arenaResolved</text>
+<text class="uml-mem" x="99" y="1215">- Animation m_walkAnim</text>
+<text class="uml-mem" x="99" y="1228">- Animation m_spinAnim</text>
+<line class="uml-div" x1="92" y1="1238" x2="414" y2="1238"/>
+<text class="uml-mem" x="99" y="1249">+ BoomBoom(sf::Vector2f position)</text>
+<text class="uml-mem" x="99" y="1262">+ ~BoomBoom()</text>
+<text class="uml-mem" x="99" y="1275">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="99" y="1288">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="99" y="1301"># void updateBehaviour(float dt)</text>
+<text class="uml-mem" x="99" y="1314"># int phaseForHealth(int health) const</text>
+<text class="uml-mem" x="99" y="1327"># void onPhaseChanged(int newPhase)</text>
+<text class="uml-mem" x="99" y="1340"># void onTookHit()</text>
+<text class="uml-mem" x="99" y="1353">- void enter(Action action)</text>
+<text class="uml-mem" x="99" y="1366">- float chargeSpeed() const</text>
+<text class="uml-mem" x="99" y="1379">- float recoverDuration() const</text>
+<rect class="uml-box" x="424" y="1106" width="322" height="348" rx="5"/>
+<text class="uml-title" x="585" y="1122" text-anchor="middle">Bowser</text>
+<line class="uml-div" x1="424" y1="1126" x2="746" y2="1126"/>
+<text class="uml-mem uml-mem-static" x="431" y="1137">+ constexpr int FIRE_HITS_PER_STAGGER</text>
+<text class="uml-mem" x="431" y="1150">- float m_fireTimer</text>
+<text class="uml-mem" x="431" y="1163">- float m_jumpTimer</text>
+<text class="uml-mem" x="431" y="1176">- int m_fireHits</text>
+<text class="uml-mem" x="431" y="1189">- float m_patrolLeft</text>
+<text class="uml-mem" x="431" y="1202">- float m_patrolRight</text>
+<text class="uml-mem" x="431" y="1215">- bool m_patrolInitialised</text>
+<text class="uml-mem" x="431" y="1228">- Animation m_walkLeftAnim</text>
+<text class="uml-mem" x="431" y="1241">- Animation m_walkRightAnim</text>
+<line class="uml-div" x1="424" y1="1251" x2="746" y2="1251"/>
+<text class="uml-mem" x="431" y="1262">+ Bowser(sf::Vector2f position)</text>
+<text class="uml-mem" x="431" y="1275">+ ~Bowser()</text>
+<text class="uml-mem" x="431" y="1288">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="431" y="1301">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="431" y="1314">+ void onHitByFireball()</text>
+<text class="uml-mem" x="431" y="1327">+ int getFireHitsToStagger() const</text>
+<text class="uml-mem" x="431" y="1340"># void updateBehaviour(float dt)</text>
+<text class="uml-mem" x="431" y="1353"># void onPhaseChanged(int newPhase)</text>
+<text class="uml-mem" x="431" y="1366"># void onTookHit()</text>
+<text class="uml-mem" x="431" y="1379"># void onStaggerBegan()</text>
+<text class="uml-mem" x="431" y="1392"># void onStaggerEnded()</text>
+<text class="uml-mem" x="431" y="1405">- void breatheFire()</text>
+<text class="uml-mem" x="431" y="1418">- void leap()</text>
+<text class="uml-mem" x="431" y="1431">- float fireInterval() const</text>
+<text class="uml-mem" x="431" y="1444">- float walkSpeed() const</text>
+<rect class="uml-box" x="46" y="1476" width="367" height="387" rx="5"/>
+<text class="uml-title" x="230" y="1492" text-anchor="middle">KoopaTroopa</text>
+<line class="uml-div" x1="46" y1="1496" x2="413" y2="1496"/>
+<text class="uml-mem" x="53" y="1507"># bool m_isRed</text>
+<text class="uml-mem" x="53" y="1520"># KoopaState m_state</text>
+<text class="uml-mem" x="53" y="1533"># float m_shellTimer</text>
+<text class="uml-mem" x="53" y="1546"># float m_kickGrace</text>
+<text class="uml-mem" x="53" y="1559"># Animation m_shellAnim</text>
+<text class="uml-mem" x="53" y="1572"># Player* m_holder</text>
+<line class="uml-div" x1="46" y1="1582" x2="413" y2="1582"/>
+<text class="uml-mem" x="53" y="1593">+ KoopaTroopa(sf::Vector2f position, bool isRed = false)</text>
+<text class="uml-mem" x="53" y="1606">+ ~KoopaTroopa()</text>
+<text class="uml-mem" x="53" y="1619">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="1632">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="1645">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="1658">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="1671">+ void onStomped()</text>
+<text class="uml-mem" x="53" y="1684">+ void onHitByFireball()</text>
+<text class="uml-mem" x="53" y="1697">+ bool onPlayerTouch(Player&amp; player, const CollisionInfo&amp;</text>
+<text class="uml-mem" x="53" y="1710">  info, bool stomped)</text>
+<text class="uml-mem" x="53" y="1723">+ void kick(sf::Vector2f velocity)</text>
+<text class="uml-mem" x="53" y="1736">+ void pickUp(Player* holder)</text>
+<text class="uml-mem" x="53" y="1749">+ void throwShell(float speed = 420.0f, float angleDeg = 8.0f)</text>
+<text class="uml-mem" x="53" y="1762">+ void release()</text>
+<text class="uml-mem" x="53" y="1775">+ bool isHarmlessToKicker() const</text>
+<text class="uml-mem" x="53" y="1788">+ bool isRed() const</text>
+<text class="uml-mem" x="53" y="1801">+ KoopaState getState() const</text>
+<text class="uml-mem" x="53" y="1814">+ float getShellTimer() const</text>
+<text class="uml-mem" x="53" y="1827">+ bool isCollidable() const</text>
+<text class="uml-mem" x="53" y="1840">+ bool isDeadOrDying() const</text>
+<text class="uml-mem" x="53" y="1853">+ bool isHazardToEnemies() const</text>
+<rect class="uml-box" x="92" y="1885" width="356" height="218" rx="5"/>
+<text class="uml-title" x="270" y="1901" text-anchor="middle">KoopaParatroopa</text>
+<line class="uml-div" x1="92" y1="1905" x2="448" y2="1905"/>
+<text class="uml-mem" x="99" y="1916">- bool m_hasWings</text>
+<text class="uml-mem" x="99" y="1929">- float m_transformInvincibilityTimer</text>
+<text class="uml-mem" x="99" y="1942">- Animation m_flyAnim</text>
+<line class="uml-div" x1="92" y1="1952" x2="448" y2="1952"/>
+<text class="uml-mem" x="99" y="1963">+ KoopaParatroopa(sf::Vector2f position, bool isRed = false)</text>
+<text class="uml-mem" x="99" y="1976">+ ~KoopaParatroopa()</text>
+<text class="uml-mem" x="99" y="1989">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="99" y="2002">+ void update(float dt)</text>
+<text class="uml-mem" x="99" y="2015">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="99" y="2028">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="99" y="2041">+ void onStomped()</text>
+<text class="uml-mem" x="99" y="2054">+ void onHitByFireball()</text>
+<text class="uml-mem" x="99" y="2067">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="99" y="2080">+ bool hasWings() const</text>
+<text class="uml-mem" x="99" y="2093">+ bool isTransforming() const</text>
+<rect class="uml-box" x="46" y="2125" width="322" height="192" rx="5"/>
+<text class="uml-title" x="207" y="2141" text-anchor="middle">Boo</text>
+<line class="uml-div" x1="46" y1="2145" x2="368" y2="2145"/>
+<text class="uml-mem" x="53" y="2156">- Animation m_seenAnim</text>
+<text class="uml-mem" x="53" y="2169">- Animation m_moveAnim</text>
+<line class="uml-div" x1="46" y1="2179" x2="368" y2="2179"/>
+<text class="uml-mem" x="53" y="2190">+ Boo(sf::Vector2f position)</text>
+<text class="uml-mem" x="53" y="2203">+ ~Boo()</text>
+<text class="uml-mem" x="53" y="2216">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="2229">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="2242">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="53" y="2255">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="2268">+ void onStomped()</text>
+<text class="uml-mem" x="53" y="2281">+ void onHitByFireball()</text>
+<text class="uml-mem" x="53" y="2294">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="53" y="2307">+ bool collidesWithTiles() const</text>
+<rect class="uml-box" x="384" y="2125" width="328" height="140" rx="5"/>
+<text class="uml-title" x="547" y="2141" text-anchor="middle">BulletBill</text>
+<line class="uml-div" x1="384" y1="2145" x2="711" y2="2145"/>
+<line class="uml-div" x1="384" y1="2153" x2="711" y2="2153"/>
+<text class="uml-mem" x="390" y="2164">+ BulletBill(sf::Vector2f position, float dirX = -1.0f)</text>
+<text class="uml-mem" x="390" y="2177">+ ~BulletBill()</text>
+<text class="uml-mem" x="390" y="2190">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="390" y="2203">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="390" y="2216">+ void onStomped()</text>
+<text class="uml-mem" x="390" y="2229">+ void onHitByFireball()</text>
+<text class="uml-mem" x="390" y="2242">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="390" y="2255">+ bool collidesWithTiles() const</text>
+<rect class="uml-box" x="721" y="2125" width="322" height="114" rx="5"/>
+<text class="uml-title" x="882" y="2141" text-anchor="middle">ChainChomp</text>
+<line class="uml-div" x1="721" y1="2145" x2="1043" y2="2145"/>
+<line class="uml-div" x1="721" y1="2153" x2="1043" y2="2153"/>
+<text class="uml-mem" x="728" y="2164">+ ChainChomp(sf::Vector2f position)</text>
+<text class="uml-mem" x="728" y="2177">+ ~ChainChomp()</text>
+<text class="uml-mem" x="728" y="2190">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="728" y="2203">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="728" y="2216">+ void onStomped()</text>
+<text class="uml-mem" x="728" y="2229">+ void onHitByFireball()</text>
+<rect class="uml-box" x="721" y="2261" width="322" height="270" rx="5"/>
+<text class="uml-title" x="882" y="2277" text-anchor="middle">Goomba</text>
+<line class="uml-div" x1="721" y1="2281" x2="1043" y2="2281"/>
+<text class="uml-mem" x="728" y="2292">- bool m_isRed</text>
+<text class="uml-mem" x="728" y="2305">- bool m_isSquished</text>
+<text class="uml-mem" x="728" y="2318">- float m_squishTimer</text>
+<text class="uml-mem" x="728" y="2331">- Animation m_squishAnim</text>
+<line class="uml-div" x1="721" y1="2341" x2="1043" y2="2341"/>
+<text class="uml-mem" x="728" y="2352">+ Goomba(sf::Vector2f position, bool isRed = false)</text>
+<text class="uml-mem" x="728" y="2365">+ ~Goomba()</text>
+<text class="uml-mem" x="728" y="2378">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="728" y="2391">+ void update(float dt)</text>
+<text class="uml-mem" x="728" y="2404">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="728" y="2417">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="728" y="2430">+ void onStomped()</text>
+<text class="uml-mem" x="728" y="2443">+ void onHitByFireball()</text>
+<text class="uml-mem" x="728" y="2456">+ bool isRed() const</text>
+<text class="uml-mem" x="728" y="2469">+ bool isSquished() const</text>
+<text class="uml-mem" x="728" y="2482">+ float getSquishTimer() const</text>
+<text class="uml-mem" x="728" y="2495">+ const AABB&amp; getBoundingBox() const</text>
+<text class="uml-mem" x="728" y="2508">+ bool isDeadOrDying() const</text>
+<text class="uml-mem" x="728" y="2521">+ bool collidesWithTiles() const</text>
+<rect class="uml-box" x="384" y="2287" width="322" height="114" rx="5"/>
+<text class="uml-title" x="544" y="2303" text-anchor="middle">HammerBro</text>
+<line class="uml-div" x1="384" y1="2307" x2="705" y2="2307"/>
+<line class="uml-div" x1="384" y1="2315" x2="705" y2="2315"/>
+<text class="uml-mem" x="390" y="2326">+ HammerBro(sf::Vector2f position)</text>
+<text class="uml-mem" x="390" y="2339">+ ~HammerBro()</text>
+<text class="uml-mem" x="390" y="2352">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="390" y="2365">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="390" y="2378">+ void onStomped()</text>
+<text class="uml-mem" x="390" y="2391">+ void onHitByFireball()</text>
+<rect class="uml-box" x="46" y="2339" width="322" height="218" rx="5"/>
+<text class="uml-title" x="207" y="2355" text-anchor="middle">Lakitu</text>
+<line class="uml-div" x1="46" y1="2359" x2="368" y2="2359"/>
+<text class="uml-mem uml-mem-static" x="53" y="2370">+ constexpr int MAX_SPINIES</text>
+<text class="uml-mem" x="53" y="2383">- float m_eggTimer</text>
+<text class="uml-mem" x="53" y="2396">- int m_spawnCount</text>
+<line class="uml-div" x1="46" y1="2406" x2="368" y2="2406"/>
+<text class="uml-mem" x="53" y="2417">+ Lakitu(sf::Vector2f position)</text>
+<text class="uml-mem" x="53" y="2430">+ ~Lakitu()</text>
+<text class="uml-mem" x="53" y="2443">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="2456">+ void onStomped()</text>
+<text class="uml-mem" x="53" y="2469">+ void onHitByFireball()</text>
+<text class="uml-mem" x="53" y="2482">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="2495">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="2508">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="53" y="2521">+ bool collidesWithTiles() const</text>
+<text class="uml-mem" x="53" y="2534">+ float getEggTimer() const</text>
+<text class="uml-mem" x="53" y="2547">+ int getSpawnCount() const</text>
+<rect class="uml-box" x="384" y="2423" width="322" height="192" rx="5"/>
+<text class="uml-title" x="544" y="2439" text-anchor="middle">PiranhaPlant</text>
+<line class="uml-div" x1="384" y1="2443" x2="705" y2="2443"/>
+<line class="uml-div" x1="384" y1="2451" x2="705" y2="2451"/>
+<text class="uml-mem" x="390" y="2462">+ PiranhaPlant(sf::Vector2f position)</text>
+<text class="uml-mem" x="390" y="2475">+ ~PiranhaPlant()</text>
+<text class="uml-mem" x="390" y="2488">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="390" y="2501">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="390" y="2514">+ void onStomped()</text>
+<text class="uml-mem" x="390" y="2527">+ void onHitByFireball()</text>
+<text class="uml-mem" x="390" y="2540">+ void render(sf::RenderTarget&amp; target)</text>
+<text class="uml-mem" x="390" y="2553">+ bool isCollidable() const</text>
+<text class="uml-mem" x="390" y="2566">+ float artworkVisibleHeight() const</text>
+<text class="uml-mem" x="390" y="2579">+ float getGravityMultiplier() const</text>
+<text class="uml-mem" x="390" y="2592">+ bool collidesWithTiles() const</text>
+<text class="uml-mem" x="390" y="2605">- float emergedHeight() const</text>
+<rect class="uml-box" x="721" y="2553" width="322" height="192" rx="5"/>
+<text class="uml-title" x="882" y="2569" text-anchor="middle">Spiny</text>
+<line class="uml-div" x1="721" y1="2573" x2="1043" y2="2573"/>
+<text class="uml-mem" x="728" y="2584">- bool m_isEgg</text>
+<text class="uml-mem" x="728" y="2597">- Animation m_eggAnim</text>
+<line class="uml-div" x1="721" y1="2607" x2="1043" y2="2607"/>
+<text class="uml-mem" x="728" y="2618">+ Spiny(sf::Vector2f position, bool isEgg = false)</text>
+<text class="uml-mem" x="728" y="2631">+ ~Spiny()</text>
+<text class="uml-mem" x="728" y="2644">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="728" y="2657">+ void onStomped()</text>
+<text class="uml-mem" x="728" y="2670">+ void onHitByFireball()</text>
+<text class="uml-mem" x="728" y="2683">+ void update(float dt)</text>
+<text class="uml-mem" x="728" y="2696">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="728" y="2709">+ bool isCollidable() const</text>
+<text class="uml-mem" x="728" y="2722">+ bool isEgg() const</text>
+<text class="uml-mem" x="728" y="2735">+ void setEgg(bool isEgg)</text>
+<rect class="uml-box" x="46" y="2579" width="322" height="166" rx="5"/>
+<text class="uml-title" x="207" y="2595" text-anchor="middle">Thwomp</text>
+<line class="uml-div" x1="46" y1="2599" x2="368" y2="2599"/>
+<text class="uml-mem" x="53" y="2610">- Animation m_dormantAnim</text>
+<text class="uml-mem" x="53" y="2623">- Animation m_activeAnim</text>
+<line class="uml-div" x1="46" y1="2633" x2="368" y2="2633"/>
+<text class="uml-mem" x="53" y="2644">+ Thwomp(sf::Vector2f position)</text>
+<text class="uml-mem" x="53" y="2657">+ ~Thwomp()</text>
+<text class="uml-mem" x="53" y="2670">+ std::string getTypeName() const</text>
+<text class="uml-mem" x="53" y="2683">+ void update(float dt)</text>
+<text class="uml-mem" x="53" y="2696">+ void setupAnimations(const SpriteSheet* spriteSheet)</text>
+<text class="uml-mem" x="53" y="2709">+ void onStomped()</text>
+<text class="uml-mem" x="53" y="2722">+ void onHitByFireball()</text>
+<text class="uml-mem" x="53" y="2735">+ float getGravityMultiplier() const</text>
 </svg></div><figcaption>Figure 8 (full detail) — The complete Enemy/Boss hierarchy, every attribute and method.</figcaption></figure>
 <figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 819 916" role="img" aria-label="IPlayerState detailed class diagram" style="width:100%;height:auto;font-family:var(--mono,monospace)">
 <style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-title{font-family:var(--ui,sans-serif);font-size:12px;fill:var(--tx,#111);font-weight:700}.uml-st{font-family:var(--ui,sans-serif);font-size:9px;fill:var(--accent,#b5322a);font-style:italic}.uml-div{stroke:var(--line,#ccc);stroke-width:1}.uml-mem{font-size:9px;fill:var(--mut,#555)}.uml-mem-static{text-decoration:underline}.uml-mem-pure{font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
@@ -2694,7 +2727,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <polygon class="uml-tri" points="7,173 15,173 11,167"/>
 <path class="uml-edge" d="M 11 167 V 1044.5 H 423.40000000000003"/>
 <polygon class="uml-tri" points="7,173 15,173 11,167"/>
-<path class="uml-edge" d="M 11 167 V 1337.0 H 46.0"/>
+<path class="uml-edge" d="M 11 167 V 1298.0 H 46.0"/>
 <polygon class="uml-tri" points="7,173 15,173 11,167"/>
 <path class="uml-edge" d="M 11 167 V 1336.5 H 423.40000000000003"/>
 <polygon class="uml-tri" points="7,173 15,173 11,167"/>
@@ -2848,7 +2881,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="430" y="1163">- std::function&lt;void()&gt; m_onRestartLevel</text>
 <text class="uml-mem" x="430" y="1176">- std::function&lt;void()&gt; m_onSaveGame</text>
 <text class="uml-mem" x="430" y="1189">- std::function&lt;void()&gt; m_onQuitToMenu</text>
-<rect class="uml-box" x="46" y="929" width="367" height="816" rx="5"/>
+<rect class="uml-box" x="46" y="929" width="367" height="738" rx="5"/>
 <text class="uml-title" x="230" y="945" text-anchor="middle">PlayingState</text>
 <line class="uml-div" x1="46" y1="949" x2="413" y2="949"/>
 <text class="uml-mem" x="53" y="960">- PhysicsEngine m_physicsEngine</text>
@@ -2856,26 +2889,26 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="53" y="986">- std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt; m_entities</text>
 <text class="uml-mem" x="53" y="999">- std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt; m_pendingSpawns</text>
 <text class="uml-mem" x="53" y="1012">- MapEditor m_mapEditor</text>
-<text class="uml-mem" x="53" y="1025">- float m_warpCooldown</text>
-<text class="uml-mem uml-mem-static" x="53" y="1038">- constexpr float DEATH_FALL_SECONDS</text>
-<text class="uml-mem uml-mem-static" x="53" y="1051">- constexpr float DEATH_FALL_MINIMUM</text>
-<text class="uml-mem" x="53" y="1064">- DeathState m_death</text>
-<text class="uml-mem" x="53" y="1077">- DeathState m_death2</text>
-<text class="uml-mem" x="53" y="1090">- Player* m_player</text>
-<text class="uml-mem" x="53" y="1103">- Player* m_player2</text>
-<text class="uml-mem" x="53" y="1116">- std::unique_ptr&lt;AIController&gt; m_aiController</text>
-<text class="uml-mem" x="53" y="1129">- ShadowMario* m_shadow</text>
-<text class="uml-mem" x="53" y="1142">- MatchConfig m_match</text>
-<text class="uml-mem" x="53" y="1155">- int m_selectedCharIndex</text>
-<text class="uml-mem" x="53" y="1168">- int m_selectedLevelIndex</text>
-<text class="uml-mem" x="53" y="1181">- Camera m_camera</text>
-<text class="uml-mem" x="53" y="1194">- TimeRewindManager m_rewindManager</text>
-<text class="uml-mem" x="53" y="1207">- std::unique_ptr&lt;Hud&gt; m_hud</text>
-<text class="uml-mem" x="53" y="1220">- float m_levelTimer</text>
-<text class="uml-mem" x="53" y="1233">- bool m_timeWarningFired</text>
-<text class="uml-mem" x="53" y="1246">- bool m_levelComplete</text>
-<text class="uml-mem" x="53" y="1259">- float m_levelCompleteTimer</text>
-<text class="uml-mem" x="53" y="1272">… 37 more — see Core/PlayingState.hpp</text>
+<text class="uml-mem" x="53" y="1025">- EventBus::ScopedSubscription m_checkpointSub</text>
+<text class="uml-mem" x="53" y="1038">- EventBus::ScopedSubscription m_playerDiedSub</text>
+<text class="uml-mem" x="53" y="1051">- EventBus::ScopedSubscription m_powerUpSub</text>
+<text class="uml-mem" x="53" y="1064">- EventBus::ScopedSubscription m_levelCompleteSub</text>
+<text class="uml-mem" x="53" y="1077">- EventBus::ScopedSubscription m_entitySpawnSub</text>
+<text class="uml-mem" x="53" y="1090">- EventBus::ScopedSubscription m_fireballSub</text>
+<text class="uml-mem" x="53" y="1103">- float m_warpCooldown</text>
+<text class="uml-mem uml-mem-static" x="53" y="1116">- constexpr float DEATH_FALL_SECONDS</text>
+<text class="uml-mem uml-mem-static" x="53" y="1129">- constexpr float DEATH_FALL_MINIMUM</text>
+<text class="uml-mem" x="53" y="1142">- DeathState m_death</text>
+<text class="uml-mem" x="53" y="1155">- DeathState m_death2</text>
+<text class="uml-mem" x="53" y="1168">- Player* m_player</text>
+<text class="uml-mem" x="53" y="1181">- Player* m_player2</text>
+<text class="uml-mem" x="53" y="1194">- std::unique_ptr&lt;AIController&gt; m_aiController</text>
+<text class="uml-mem" x="53" y="1207">- ShadowMario* m_shadow</text>
+<text class="uml-mem" x="53" y="1220">- MatchConfig m_match</text>
+<text class="uml-mem" x="53" y="1233">- int m_selectedCharIndex</text>
+<text class="uml-mem" x="53" y="1246">- int m_selectedLevelIndex</text>
+<text class="uml-mem" x="53" y="1259">- Camera m_camera</text>
+<text class="uml-mem" x="53" y="1272">… 52 more — see Core/PlayingState.hpp</text>
 <line class="uml-div" x1="46" y1="1282" x2="413" y2="1282"/>
 <text class="uml-mem" x="53" y="1293">+ PlayingState(bool startInEditor = false, bool isProcedural =</text>
 <text class="uml-mem" x="53" y="1306">  false, const MapGeneratorConfig&amp; genConfig =</text>
@@ -2893,25 +2926,19 @@ inside it) are the very next diagrams, each in full detail.</p>
 <text class="uml-mem" x="53" y="1462">- void regenerateProceduralLevel()</text>
 <text class="uml-mem" x="53" y="1475">- void saveToSlot(int slot)</text>
 <text class="uml-mem" x="53" y="1488">- void loadFromSlot(int slot)</text>
-<text class="uml-mem" x="53" y="1501">- EventBus::SubscriptionId m_checkpointSubId =</text>
-<text class="uml-mem" x="53" y="1514">  static_cast&lt;EventBus::SubscriptionId&gt;(-1)</text>
-<text class="uml-mem" x="53" y="1527">- EventBus::SubscriptionId m_playerDiedSubId =</text>
-<text class="uml-mem" x="53" y="1540">  static_cast&lt;EventBus::SubscriptionId&gt;(-1)</text>
-<text class="uml-mem" x="53" y="1553">- EventBus::SubscriptionId m_powerUpSubId =</text>
-<text class="uml-mem" x="53" y="1566">  static_cast&lt;EventBus::SubscriptionId&gt;(-1)</text>
-<text class="uml-mem" x="53" y="1579">- EventBus::SubscriptionId m_levelCompleteSubId =</text>
-<text class="uml-mem" x="53" y="1592">  static_cast&lt;EventBus::SubscriptionId&gt;(-1)</text>
-<text class="uml-mem" x="53" y="1605">- EventBus::SubscriptionId m_entitySpawnSubId =</text>
-<text class="uml-mem" x="53" y="1618">  static_cast&lt;EventBus::SubscriptionId&gt;(-1)</text>
-<text class="uml-mem" x="53" y="1631">- EventBus::SubscriptionId m_fireballSubId =</text>
-<text class="uml-mem" x="53" y="1644">  static_cast&lt;EventBus::SubscriptionId&gt;(-1)</text>
-<text class="uml-mem" x="53" y="1657">- DeathState* deathStateFor(const Player* who)</text>
-<text class="uml-mem" x="53" y="1670">- bool anyDeathInProgress() const</text>
-<text class="uml-mem" x="53" y="1683">- void updateDeathSequence(float dt)</text>
-<text class="uml-mem" x="53" y="1696">- void respawnPlayer(Player* who)</text>
-<text class="uml-mem" x="53" y="1709">- void spawnMatchParticipants()</text>
-<text class="uml-mem" x="53" y="1722">- void updateShadow(float dt)</text>
-<text class="uml-mem" x="53" y="1735">… 47 more — see Core/PlayingState.hpp</text>
+<text class="uml-mem" x="53" y="1501">- DeathState* deathStateFor(const Player* who)</text>
+<text class="uml-mem" x="53" y="1514">- bool anyDeathInProgress() const</text>
+<text class="uml-mem" x="53" y="1527">- void updateDeathSequence(float dt)</text>
+<text class="uml-mem" x="53" y="1540">- void respawnPlayer(Player* who)</text>
+<text class="uml-mem" x="53" y="1553">- void spawnMatchParticipants()</text>
+<text class="uml-mem" x="53" y="1566">- void updateShadow(float dt)</text>
+<text class="uml-mem" x="53" y="1579">- float shadowProximitySeconds() const</text>
+<text class="uml-mem" x="53" y="1592">- void updateVersusCamera(float dt)</text>
+<text class="uml-mem" x="53" y="1605">- bool allPlayersOut() const</text>
+<text class="uml-mem" x="53" y="1618">- void renderMatchHud(sf::RenderTarget&amp; target) const</text>
+<text class="uml-mem" x="53" y="1631">- void advanceToNextLevel()</text>
+<text class="uml-mem" x="53" y="1644">- void restartLevel()</text>
+<text class="uml-mem" x="53" y="1657">… 33 more — see Core/PlayingState.hpp</text>
 <rect class="uml-box" x="423" y="1221" width="345" height="231" rx="5"/>
 <text class="uml-title" x="596" y="1237" text-anchor="middle">VictoryState</text>
 <line class="uml-div" x1="423" y1="1241" x2="768" y2="1241"/>
@@ -3198,7 +3225,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 </svg></div><figcaption>Figure 12 (full detail) — The complete Strategy hierarchy, every attribute and method.</figcaption></figure>
 
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>
-Generated by <code>reports/build_report.py</code> from the repository at commit a159276.
+Generated by <code>reports/build_report.py</code> from the repository at commit edbae74.
 Self-contained: opens from disk, no network, prints to PDF.</footer>
 
 </main>
