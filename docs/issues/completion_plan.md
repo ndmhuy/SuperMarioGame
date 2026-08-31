@@ -157,10 +157,18 @@ Four more pre-existing bugs surfaced while doing it:
 | 21 | **5.10** Water & lava animation | A | 2 h |
 | 22 | **4.3** Camera lookahead + scroll modes | A | 1.5 h |
 
-### Tier 4 — Hygiene (~3 h) — **DONE**
+### Tier 4 — Hygiene (~3 h) — **3 of 4 done**
 
-All four. `main` is level with `dev` at `679d301` and tagged `v1.0-complete`;
-both are unpushed, because pushing is the user's call.
+> **Correction (2026-08-31 audit):** item 25 was previously claimed DONE here, but
+> only half of it landed. `EventBus::ScopedSubscription` exists
+> (`include/Core/EventBus.hpp`) yet has **zero users outside `EventBus` itself** —
+> `PlayingState.hpp` still holds 14 raw `SubscriptionId` members and unsubscribes
+> by hand. The token was written; nothing was migrated onto it. Item 25 is open.
+> Also `X-8` has one residual: `.member_profile.json` is still git-tracked.
+> See `docs/issues/spec_feature_audit_2026-08-31.md`.
+
+Items 23, 24 and 26 are done. `main` is level with `dev` at `679d301` and tagged
+`v1.0-complete`; both are unpushed, because pushing is the user's call.
 
 X-8 turned out to be 208 files, not 207, and A-13 seven files rather than four —
 three of the seven were new screens I added in Tiers 1 and 3, each having copied

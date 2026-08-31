@@ -19,17 +19,19 @@ Some SPEC.md-described behaviour did **not** make this list because the audit
 could not confirm it is reachable from the running game — for example,
 climbing/vines, the ground-pound hover pause and enemy-stun radius, the
 skid mechanic, input-locking on knockback, `noclip`/`kill_all`/`stats` debug
-commands, dynamic lighting shaders, and a true infinite "Endless Mode". Listing
+commands, and dynamic lighting shaders. Listing
 those would have been the kind of optimistic claim this project's own
-`AGENTS.md` explicitly warns against.
+`AGENTS.md` explicitly warns against. (A true infinite "Endless Mode" was on
+this exclusion list at the original audit; it has since been implemented for
+real and is now item #96 below.)
 
 ---
 
 ## 1. Core Engine & Architecture
 1. **Fixed-Timestep Game Loop** — 1/60s accumulator with interpolated rendering, independent of frame rate; the same determinism the time-rewind and replay systems rely on.
 2. **Game State Management (State Pattern)** — `GameStateManager` stacks 8 screens (Menu, Character Select, World Map, Playing, Pause, Options, Game Over, Victory); Pause/Victory overlay the level rather than replacing it.
-3. **Singleton Managers** — `Game`, `ResourceManager`, `SoundManager`, `InputManager`, `EventBus`, `AchievementManager` and 8 more, all Meyers singletons with defined construction order.
-4. **Event System (Observer Pattern)** — `EventBus` with 35+ event types; HUD, sound, achievements, statistics and the combo tracker all subscribe independently.
+3. **Singleton Managers** — `Game`, `ResourceManager`, `SoundManager`, `InputManager`, `EventBus`, `AchievementManager` and 7 more (13 total), Meyers singletons with defined construction order (`ResourceManager` deliberately uses a never-destroyed instance instead, so textures outlive every other static).
+4. **Event System (Observer Pattern)** — `EventBus` with 28 event types; HUD, sound, achievements, statistics and the combo tracker all subscribe independently.
 5. **Input Handling (Command Pattern)** — every action is an `ICommand` object (`JumpCommand`, `MoveLeftCommand`, `RunCommand`, `GroundPoundCommand`, `WallJumpCommand`, `CrouchCommand`, `FireCommand`…), rebindable and shared by Player 2 through a second binding table.
 6. **Object Pooling** — `ObjectPool<T>` reuses fireballs, hammers and boss projectiles; particles are pooled separately (200 pre-allocated).
 7. **Spatial Hashing** — 64px broad-phase collision grid; an *O(n²)* all-pairs test becomes *O(n)* expected work against bucket neighbours.
@@ -39,7 +41,7 @@ those would have been the kind of optimistic claim this project's own
 
 ## 2. Physics & Collision
 11. **AABB Collision Detection** — axis-aligned bounding boxes for every entity, checked through the spatial hash.
-12. **Ten-Stage Kinematic Physics Pipeline** — conveyor push → interactive tiles → acceleration/friction → gravity → X-axis integrate/resolve → Y-axis integrate/resolve → map bounds → broad phase → narrow phase/resolution → intent-flag clear, in a fixed, load-bearing order.
+12. **Nine-Stage Kinematic Physics Pipeline** — conveyor push → interactive tiles → acceleration/friction → gravity → X-axis integrate/resolve → Y-axis integrate/resolve → map bounds → broad phase + narrow phase/resolution → intent-flag clear, in a fixed, load-bearing order.
 13. **Collision Resolution** — dispatches by entity-pair type: stomp, side-damage, item collection, block bump, shell kick, boss contact, player-vs-player in multiplayer.
 14. **Coyote Time & Jump Buffering** — 6-frame (100ms) forgiveness windows on both sides of a jump.
 15. **Dual Bounding-Box Architecture** — a `physicsBox` for collision and a separate `combatBox` for hit detection, so a stomp and a solid-tile check never fight over the same rectangle.
@@ -71,8 +73,8 @@ those would have been the kind of optimistic claim this project's own
 35. **Koopa Paratroopa** *(editor-authored)* — vertical-bounce and sinusoidal-patrol flight variants, selectable through the level editor's entity palette.
 36. **Piranha Plant** — timer-based emergence from a pipe, implemented via `TimerEmergenceStrategy`.
 37. **Hammer Bro** — tracks the player's side and throws a rotating hammer projectile roughly every 1.5s.
-38. **Boo** *(editor-authored)* — freezes when faced, pursues at 100px/s the moment the player looks away; immune to stomping and fireballs.
-39. **Thwomp** *(editor-authored)* — teeth-gritting wind-up, a 700px/s slam, a floor rest, and a slow climb back to its start height.
+38. **Boo** *(editor-authored)* — freezes when faced, pursues at 80px/s the moment the player looks away; immune to stomping and fireballs.
+39. **Thwomp** *(editor-authored)* — teeth-gritting wind-up, a 600px/s slam, a floor rest, and a slow climb back to its start height.
 40. **Lakitu & Spiny** *(Lakitu editor-authored)* — Lakitu flies overhead and spawns Spiny enemies via the same Factory the rest of the game uses; Spiny patrols the ground in the shipped campaign.
 41. **Bullet Bill & Chain Chomp** *(editor-authored)* — a straight-line projectile enemy and a tethered lunge-and-recover enemy, both fully implemented and placeable.
 
@@ -88,7 +90,7 @@ those would have been the kind of optimistic claim this project's own
 48. **Coins & the 100-Coin 1-Up** — collecting 100 coins grants an extra life.
 49. **POW Block** — flips every grounded, on-screen enemy when hit.
 50. **P-Switch** — a 15-second window that swaps bricks and coins level-wide.
-51. **Trampoline** — configurable spring bounce, placed throughout the campaign and both sub-vaults.
+51. **Trampoline** — configurable spring bounce, placed throughout the campaign and all three sub-vaults.
 52. **Star Coins** — exactly 3 per main/bonus level (1 per sub-vault), tracked per level and persisted across sessions.
 
 ## 8. Blocks & World Objects
@@ -123,7 +125,7 @@ those would have been the kind of optimistic claim this project's own
 
 ## 12. Save/Load & Persistence
 75. **Three Save Slots** — full player/level/progress/statistics/settings state, written as JSON.
-76. **Auto-Save at Checkpoints** — a warp pipe or debug checkpoint silently persists progress.
+76. **Auto-Save at Checkpoints** — a `CheckpointActivated` event silently persists progress; currently only the debug checkpoint key publishes it (the warp-pipe trigger was deliberately removed as a defect fix, so pipes are side-effect free).
 77. **Manual Save** — "Save Game" from the pause menu.
 78. **High Score Table** — recorded per run (score, coins, star coins, character, level) and viewable from Options.
 
@@ -152,7 +154,7 @@ those would have been the kind of optimistic claim this project's own
 94. **Achievement System** — ten tracked milestones (first stomp, level completions, secret finds, coin totals and more) driving toast notifications and character unlocks.
 95. **Colorblind Mode** — an Okabe-Ito-derived palette swap applied to the minimap and debug overlays.
 96. **Endless Mode** — a true infinite runner, not just a wide procedural level: the tilemap starts as one generated chunk and grows a fresh chunk of rising difficulty each time the player nears the current edge, forever, with no flagpole and distance travelled as the score. Reachable from Main Menu → Procedural Level → Play Endless.
-97. **Level Solvability Oracle** — every procedurally generated level or Endless Mode chunk is checked by an independent reachability pass (bounded by the game's own jump/run physics constants) before it ships to the player, with automatic reseeded retries if a generated layout fails the check.
+97. **Level Solvability Oracle** — every procedurally generated level or Endless Mode chunk is checked by an independent reachability pass (bounded by the game's own jump/run physics constants), with automatic reseeded retries if a generated layout fails the check; if all bounded attempts fail, the last layout is kept and the failure logged rather than blocking play.
 
 ---
 
