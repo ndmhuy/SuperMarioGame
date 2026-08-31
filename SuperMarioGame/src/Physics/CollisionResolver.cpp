@@ -6,7 +6,6 @@
 #include "Entities/Fireball.hpp"
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
-#include "Entities/KoopaTroopa.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
@@ -349,19 +348,13 @@ void CollisionResolver::resolveEnemyVsEnemy(Enemy& a, Enemy& b) {
     // A shell sliding after a kick clears everything it touches. Without this
     // branch the resolver had no enemy-vs-enemy case at all, so shells passed
     // straight through and shell chains were impossible (audit B-8).
-    auto slidingShell = [](Enemy& e) -> KoopaTroopa* {
-        auto koopa = dynamic_cast<KoopaTroopa*>(&e);
-        if (koopa && koopa->getState() == KoopaState::ShellKicked) return koopa;
-        return nullptr;
-    };
-
-    KoopaTroopa* shellA = slidingShell(a);
-    KoopaTroopa* shellB = slidingShell(b);
+    const bool shellA = a.isHazardToEnemies();
+    const bool shellB = b.isHazardToEnemies();
 
     // Two shells meeting cancel each other rather than fighting over who wins.
     if (shellA && shellB) {
-        shellA->onHitByFireball();
-        shellB->onHitByFireball();
+        a.onHitByFireball();
+        b.onHitByFireball();
         return;
     }
 

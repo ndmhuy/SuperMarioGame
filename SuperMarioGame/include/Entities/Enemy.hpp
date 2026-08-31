@@ -47,6 +47,14 @@ public:
     // used to be named inside the resolver by dynamic_cast (audit A-10 / D8).
     virtual bool onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped);
 
+    // Is this enemy currently a moving hazard to *other* enemies?
+    //
+    // A shell sliding after a kick clears everything it touches; ordinary
+    // walkers ignore each other, as in the original games. The resolver used to
+    // answer this with a dynamic_cast to KoopaTroopa plus a shell-state test
+    // (audit A-10 / D8, and B-8 for the missing case itself).
+    virtual bool isHazardToEnemies() const { return false; }
+
     EntityCategory getCategory() const override { return EntityCategory::Enemy; }
 
     // Score properties

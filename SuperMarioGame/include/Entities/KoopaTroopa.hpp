@@ -49,6 +49,8 @@ public:
 
     bool isCollidable() const override;
     bool isDeadOrDying() const override { return Enemy::isDeadOrDying() || m_state == KoopaState::ShellHeld; }
+    // A kicked shell is the game's one enemy-killing enemy.
+    bool isHazardToEnemies() const override { return m_state == KoopaState::ShellKicked; }
 
 protected:
     bool m_isRed;
