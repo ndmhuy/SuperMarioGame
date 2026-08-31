@@ -1,0 +1,85 @@
+# R12 (e) — rebind Player 1's JUMP from its bound key (W, per saves/config.json
+# checked before writing this script) to K in Options -> Controls, then prove
+# the NEW binding drives play in the same run: press the OLD key (W) and show
+# nothing happens, then press the NEW key (K) and show Mario leave the ground.
+#
+# Main menu rows (MenuState.cpp): START=0, LOAD=1, VERSUS=2, DAILY=3, EDITOR=4,
+# GENERATOR=5, RECORDS=6, OPTIONS=7, QUIT=8. Seven Down presses from START
+# reaches OPTIONS. OptionsState opens on the Settings page; Tab moves to
+# Controls, where buildRows() auto-skips the "-- PLAYER 1 --" caption and lands
+# on P1's "left" row; two more Down presses reaches "jump".
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_key_rebind.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.4
+shot r12_rebind_00_options_row_selected
+press Enter
+wait 0.6
+shot r12_rebind_01_settings_page
+press Tab
+wait 0.4
+shot r12_rebind_02_controls_page_p1_left
+press Down
+wait 0.2
+press Down
+wait 0.2
+shot r12_rebind_03_on_p1_jump_row
+press Enter
+wait 0.3
+press K
+wait 0.4
+shot r12_rebind_04_jump_now_bound_to_k
+press Escape
+wait 0.5
+shot r12_rebind_06_back_at_options_settings
+press Up
+wait 0.2
+press Up
+wait 0.2
+press Up
+wait 0.2
+press Up
+wait 0.2
+press Up
+wait 0.2
+press Up
+wait 0.2
+press Up
+wait 0.4
+shot r12_rebind_07_back_on_start_row
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+press A
+wait 0.4
+press A
+wait 0.6
+press Enter
+wait 2.0
+shot r12_rebind_08_in_1_1_grounded
+press W
+wait 0.15
+shot r12_rebind_09_old_key_w_no_jump
+wait 0.6
+shot r12_rebind_10_settled_after_w
+press K
+wait 0.15
+shot r12_rebind_11_new_key_k_jumps
+wait 1.0
+quit

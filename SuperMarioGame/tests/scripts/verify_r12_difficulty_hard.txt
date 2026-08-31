@@ -1,0 +1,17 @@
+# R12 (d) — Hard difficulty, same level (1-1), no level/spawn edits at all.
+# HardDifficulty (DifficultyStrategy.hpp): startingLives=2, levelTimeScale=0.75
+# (225s off Constants::LEVEL_TIME=300), enemySpeedScale=1.30, bossHealthScale=
+# 1.40. saves/config.json's "difficulty" was set to "hard" immediately before
+# this run (restored to its original value afterward).
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_difficulty_hard.txt
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.0
+press Enter
+wait 2.0
+shot r12_diff_hard_00_start
+wait 1.5
+quit

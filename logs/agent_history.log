@@ -4880,3 +4880,162 @@ Summary of Changes:
 - Added ReplayRecorder::loadFromFile() (arbitrary path, not just the save directory) so the bundled demo can live under committed assets/ rather than gitignored saves/replays/; added InputScript's "savereplay" verb and its Game.cpp handling specifically to produce that bundled demo, since the debug console's own "replay save" cannot be driven by a script (scripted events never reach ImGui::SFML::ProcessEvent).
 - Did not merge, did not push. build/ removed at session end; disk had ample free space throughout, no ENOSPC.
 ---
+[2026-08-31 23:05:00] Branch: dev -> A/verify/full-playtest-pass
+Git Fingerprint: 04a12bd (before, == dev HEAD, R10 attract-mode merge) -> 04a12bd (after; no runtime-code commits, doc/test-script commit only, see below)
+Fetched Remotes: yes, before reading any repository state; local dev was 3 commits ahead of origin/dev (1c731b9), which is expected/deliberate per a teammate testing against the older commit — not stale in the g-rule-8 sense.
+Prompt: R12 — full playtest & evidence pass (spec_feature_audit_2026-08-31.md), the final phase of that remediation plan: exercise, via the --script harness, (a) a full campaign walkthrough incl. Boom Boom and Bowser to completion, (b) P-Switch/POW/axe/100-coin 1-UP, (c) a 2P versus death, (d) Easy vs Hard same level, (e) a live key rebind driving play, (f) a 60s FPS trace; update docs/verification/README.md; tick TASKS.md ONLY for what was actually observed; reconcile the D14 Windows-crash log discrepancy; file new defects rather than fixing them; no merge, no push.
+Files Modified:
+  - TASKS.md (11.5 Final Testing: ticked "Test 2P mode, difficulty modes, key
+    rebinding" and "Verify steady 60fps"; left the other three items unticked
+    with an inline honest-status note each; annotated "Clamp player inside
+    camera" as not observed this session)
+  - docs/issues/spec_feature_audit_2026-08-31.md (D14 row reconciled with a
+    dated note; two new defects filed, D29 and D30; R12's own entry in §6
+    updated from OPEN to "PARTIAL, evidence captured" with a result summary)
+  - docs/verification/README.md (new "R12" section: per-item OBSERVED/PARTIAL/
+    NOT ACHIEVED table, full narrative per item, attempt counts, a note on
+    tests/scripts/versus_cpu.txt's stale post-R8 menu navigation)
+  - docs/verification/*.png (11 new screenshots, one per item plus the axe/
+    Boom Boom evidence)
+  - SuperMarioGame/tests/scripts/verify_r12_*.txt (10 new scripts)
+  - saves/config.json, saves/progress.json, SuperMarioGame/imgui_layout_v2.ini:
+    used as temporary/live test scaffolding during the session (difficulty
+    toggled easy/hard/normal, a live key rebind, a progress unlock to reach
+    each boss arena directly, an ImGui layout pre-seed to expose the dev
+    panel's Position/Velocity/FPS readouts a mouseless harness cannot open by
+    clicking) — all gitignored, none committed. config.json and progress.json
+    restored to this session's own pre-flight backup at the end (progress.json
+    removed outright, since it did not exist before). saves/highscores.json
+    and saves/profile.json were NOT reverted — they did not exist before this
+    session either, and are organic byproducts of actually playing (real
+    achievement unlocks, a real high score), not edited test scaffolding.
+  - assets/levels/level_1.json, level_2.json, level_3.json: spawnPoint
+    TEMPORARILY overridden per script (never more than one file at a time,
+    always reverted with `git checkout --` before moving to the next item);
+    confirmed clean with `git diff --stat` (empty) before this commit — no
+    level file is part of this commit.
+Reachable From Main: n/a — this session touched no runtime code; every change
+  is a test script, a screenshot, or documentation. Verified By below refers to
+  observations made by actually running the shipped game, not by a harness
+  constructing something in isolation.
+Verified By: ran the game — ./build/SuperMarioGame --script tests/scripts/
+  verify_r12_*.txt, ten separate scripted sessions this entry accounts for.
+  ctest was also run once after the shared-build.cmake build (-j4, foreground,
+  not backgrounded past its first 120s chunk — see below): 15/15 passed,
+  including guard_saves_hermeticity_check, and saves/ was diffed byte-identical
+  to this session's own pre-build backup afterward, confirming the guard held.
+Summary of Changes:
+- BUILD: `cmake -S . -B build -C .../shared-build.cmake && cmake --build build
+  -j 4`, exit 0, all targets including SuperMarioGame itself. The build tool
+  auto-backgrounded past its 120s foreground timeout on its own (not manually
+  backgrounded, and not interrupted/killed) — trusted as-is per the
+  instructions, since "wipe after an interrupted build" applies to a build
+  that was cut off, not one whose tool wrapper moved a still-running,
+  eventually-successful process to a background slot.
+- (f) FPS TRACE — OBSERVED. Game.cpp:176's readout is drawn to an ImGui panel,
+  not logged, and ships collapsed with no mouse available to this harness;
+  worked around by pre-seeding the repo's own gitignored, versioned
+  imgui_layout_v2.ini with that panel (and the "Gameplay Controls &
+  Navigation" one, whose live Player Position/Velocity readout became the
+  single most useful diagnostic tool this session) already expanded — a saved
+  ImGui layout wins over ImGuiCond_FirstUseEver by the engine's own design.
+  Seven shots across 60s of 1-1 (through a death and a Game Over screen, which
+  still render the panel) read 54.1-57.3 FPS steadily — under the 60fps cap,
+  not exactly at it, reported as observed rather than chased further.
+- (e) KEY REBIND — OBSERVED. Read saves/config.json first (P1 jump=W) per the
+  README's own warning. Rebound P1's JUMP to K through the real Options ->
+  Controls UI; the row's own bound-key column changed from W to K live in a
+  screenshot. Same run, no restart: pressing old key W did nothing, pressing
+  new key K sent Mario airborne — InputManager::applyBindings driving play
+  immediately, as R7 already established the wiring for. SELF-INFLICTED BUG,
+  CAUGHT AND FIXED: this script's own "quit" persists the K rebind to
+  saves/config.json on shutdown, which silently broke every subsequent
+  script's "press W" jump attempts (three separate pipe/POW mounting attempts
+  looked like a positioning puzzle before the Position/Velocity panel showed
+  velocity pinned at (0,0) after "press W" with the binding ALSO wrong — fixed
+  by restoring config.json from this session's own backup partway through,
+  documented rather than silently worked around).
+- (c) 2P VERSUS DEATH — OBSERVED, 1 attempt. MatchConfig defaults to
+  VersusHuman with a human opponent; going straight to START on the
+  Multiplayer page (no MODE/OPPONENT change needed) starts a real two-human
+  match on 1-1. Walked Player 2 (arrow keys) straight into the Goomba 9 tiles
+  from spawn without ever jumping — a side touch is not a stomp, and
+  Player::powerDown() publishes PlayerDied instantly for a Small player with
+  nothing to lose. Stdout confirmed it; HUD P2 lives dropped 3->2.
+  NAVIGATION BUG FOUND (not fixed, documented instead): tests/scripts/
+  versus_cpu.txt's own comment says one Down from START reaches Multiplayer —
+  true before R8 inserted LOAD GAME between START and VERSUS; on this dev HEAD
+  it now lands on LOAD GAME instead. This session's own scripts use two Downs.
+- (d) EASY VS HARD — OBSERVED, no traversal needed (a static HUD read at level
+  load). saves/config.json difficulty toggled easy/hard/normal per run.
+  IDifficultyStrategy values are direct HUD reads: Easy showed Lives:5,
+  TIME 387 (300*1.30 scaled by ~3s of menu-transition time already elapsed);
+  Hard showed Lives:2, TIME 222 (300*0.75, same scaling) — exactly the
+  DifficultyStrategy.hpp constants, live in the running game.
+- (b) P-SWITCH / POW / AXE — OBSERVED for all three; 100-COIN 1-UP NOT
+  ATTEMPTED (deprioritised for time). POW and P-Switch reached via a temporary
+  spawnPoint directly above level_1.json's own warp pipe (98,19) rather than
+  R16's ~95-tile blind overworld approach (1-in-13 historical rate) — chosen
+  after a first attempt spawning BESIDE the pipe wedged the player under a
+  staircase overhang (diagnosed via the dev panel: Position/Velocity frozen at
+  (3112,642)/(0,0) even after jump presses — bad luck of the exact spawn tile,
+  not a defect). POW: "POW block: flipped 1 enemy(ies)." on stdout. P-Switch:
+  a first combined attempt ran/jumped clean over it (position readout showed
+  it cleared in mid-air); a focused follow-up computed the run duration from
+  Constants::RUN_SPEED (960px at 300px/s = 3.2s) instead of guessing, timing
+  the only jump for an earlier Goomba rather than the switch itself, so the
+  player was grounded crossing it — "P-Switch: swapped 11 tile(s) for 15s." on
+  stdout, HUD showed a live P-SWITCH 13->12 countdown with bricks turned coins.
+- (a) BOOM BOOM / BOWSER — PARTIAL. No full blind 1-1->1-3 walkthrough was
+  attempted (R9/R16 already spent 9 and 13 attempts on shorter distances;
+  poor time-to-value here per the plan's own framing). Each boss arena was
+  instead reached via a temporary spawnPoint (a few tiles inside its own
+  arena) plus, for 1-2/1-3, a temporary saves/progress.json unlocking the
+  needed World Map node (both reverted; git diff clean on the three level
+  files before this commit).
+  * BOWSER: full defeat, 1 attempt, via the axe (bridge_axe at 190,20, inside
+    his own locked arena at arenaX 180). Boss::defeatNow() fires unconditionally
+    on axe contact (PlayingState::chopBridge, PlayingState.cpp:1343) — SPEC's
+    OTHER victory condition, not the fireball/stagger loop, reported as such.
+    Result: "Level complete!", achievements Speed Demon + "Toad Unlocked
+    (Complete all 3 levels)", VictoryState, HUD "LEVEL CLEAR! WORLD 1-3".
+  * BOWSER'S 4-FIREBALL/3S STAGGER LOOP: 1 bounded attempt, NOT ACHIEVED. Needs
+    Fire Mario (Mushroom at tile 36,16, then Fire Flower at tile 66,17) before
+    the ~114-tile run to the arena. Spawned under the Mushroom block; killed
+    almost immediately by an unidentified fortress hazard sitting at that
+    exact tile (level has Thwomps/Bullet Bills/a Chain Chomp per R9), Game
+    Over reached without landing the first jump. No read obtained on whether
+    the stagger window feels tunable.
+  * BOOM BOOM: 2 of 3 hits landed (stdout: "entering phase 2" then "entering
+    phase 3", HUD health bar down to its last third — screenshot evidence),
+    in the R15-widened arena, by jumping repeatedly while walking back and
+    forth. The player then took a hit, died, and respawned — and Boom Boom
+    was gone from every screenshot after, NOT because he was defeated: stdout
+    printed "Boss arena released" / "Cleared 1 enemy(ies) from the respawn
+    point" right there. NEW DEFECT FOUND, filed as D29, not fixed (scope
+    discipline): PlayingState.cpp:2701-2718's respawn-safety net destroys any
+    EntityCategory::Enemy within 2.5 tiles of the respawn point, with no
+    exemption for one that is m_activeBoss — a convenient death near a boss
+    silently ends the fight instead of losing it.
+  * ALSO FOUND WHILE INVESTIGATING A ROUTE TO INJECT FIRE MARIO DIRECTLY:
+    LOAD GAME always resumes into World 1-1 regardless of the save slot's own
+    recorded level (MenuState.cpp hardcodes levelIndex 0 when constructing the
+    PlayingState that loadFromSlot runs against; loadFromSlot itself never
+    reads the level id back). Filed as D30, not fixed.
+- D14 RECONCILED (not closed): :4210 (2026-08-22 16:05) says plainly "NOT
+  CONFIRMED ON WINDOWS"; :4303 (same branch, ~5.5h later, same session) claims
+  "Rebuilt SuperMarioGame.exe cleanly with MSVC C++17" with Files Modified
+  limited to logs/agent_history.log — no source or build-config change
+  alongside the claim. CI (.github/workflows/ci.yml) is Ubuntu-only and always
+  has been; no environment in this project's own toolchain (this one included)
+  can build or run a Windows .exe. Two older instances of the same
+  unsubstantiated-MSVC-claim pattern exist in the same log (~:604, ~:2569).
+  Conclusion recorded in D14's own row: :4210's honest "not confirmed" is this
+  project's true status; :4303's claim cannot be treated as verification. The
+  underlying crash fix itself is unaffected — independently supported by a UB
+  analysis (docs/learning/mid-frame-entity-spawn-crash.html) and two scripted
+  macOS runs holding 1-3 through Bowser's fireballs without a crash.
+- SCOPE: no src/ or include/ file was touched. No -DCMAKE_BUILD_TYPE or flag
+  override was passed. build/ removed at session end (not committed either
+  way). Did not merge, did not push, per instruction.
+---

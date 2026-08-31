@@ -1,0 +1,53 @@
+# R12 (f) — a 60-second FPS trace of World 1-1, read from the same readout
+# Game.cpp:176 prints to the "Super Mario Engine Dev Tools" ImGui panel
+# ("Application Average: %.3f ms/frame (%.1f FPS)").
+#
+# The panel ships collapsed by default (ImGuiCond_FirstUseEver in Game.cpp), and
+# this harness has no mouse, so it cannot click the collapse arrow. Instead the
+# repo's own persisted ImGui layout file (imgui_layout_v2.ini, gitignored, see
+# Game::initImGui) was pre-seeded before this run with:
+#   [Window][Super Mario Engine Dev Tools]
+#   Pos=780,600
+#   Size=360,96
+#   Collapsed=0
+# A saved layout wins over ImGuiCond_FirstUseEver by design (that is the whole
+# point of the versioned ini file per Game.cpp's own comment), so the panel
+# opens already expanded and visible for every shot below.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_fps_trace_1_1.txt
+#
+# Screenshots land in saves/shots/; the FPS number is read directly off the
+# panel in each one (visual inspection), not printed to stdout — ImGui text is
+# drawn, not logged. Timestamps below are seconds elapsed inside World 1-1,
+# starting the clock at the 00s shot.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+press A
+wait 0.4
+press A
+wait 0.6
+press Enter
+wait 2.0
+shot r12_fps_00s
+hold D 60.0
+wait 10.0
+press W
+shot r12_fps_10s
+wait 10.0
+press W
+shot r12_fps_20s
+wait 10.0
+press W
+shot r12_fps_30s
+wait 10.0
+press W
+shot r12_fps_40s
+wait 10.0
+press W
+shot r12_fps_50s
+wait 10.0
+shot r12_fps_60s
+quit

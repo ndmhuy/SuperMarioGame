@@ -1,0 +1,56 @@
+# R12 (b), part 1b — a focused, arithmetic (not blind-guessed) follow-up aimed
+# only at the P-Switch in level_1_sub.json (tile 35,17 = pixel 1120,544), after
+# the first combined POW+P-Switch attempt
+# (verify_r12_pswitch_pow_via_spawn_override.txt) confirmed the POW block
+# ("[PlayingState] POW block: flipped 1 enemy(ies)." on stdout) but overshot
+# the P-Switch entirely — the dev panel's Player Position readout showed the
+# run+jump cadence cleared it in mid-air (a jump timed to land past the switch
+# instead of on it) and only stopped 900+ px further on, walled by something
+# else in the corridor.
+#
+# This run computes the hold duration from Constants::RUN_SPEED (300 px/s)
+# rather than guessing it: pipe-exit spawn is (160, 512) (from this session's
+# own "[PlayingState] Loaded sub-level ... at spawn (160, 512)" log line), the
+# switch is at x=1120, so (1120-160)/300 = 3.2s of running covers exactly that
+# distance — the run is held to 3.4s to land a little past it rather than
+# short. The lone Goomba between spawn and the switch is at x=416 (13 tiles in
+# world_1_1's own tile numbering is level-1-sub's tile 13); a jump at t=0.8s
+# either clears or stomps it — either is fine, a stomp does not hurt the
+# player and this session already unlocked "First Stomp" from an earlier run.
+# No jump is thrown near the switch itself, so the player is grounded (not
+# mid-air) at the moment they cross x=1120 and the switch gets a real contact.
+#
+# Same temporary spawnPoint override in level_1.json ((99,18), directly above
+# the warp pipe at (98,19)) to skip the long overworld approach. Revert the
+# override afterwards — see the R12 log entry and `git diff` on this file.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_pswitch_focused.txt
+#
+# The "Gameplay Controls & Navigation" dev panel (pre-seeded expanded via
+# imgui_layout_v2.ini) prints the live Player Position each shot. Screenshots
+# land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+press A
+wait 0.4
+press A
+wait 0.6
+press Enter
+wait 2.0
+wait 1.0
+hold S 1.5
+wait 1.8
+shot r12_psw_00_sub_level
+hold LShift 3.4
+hold D 3.4
+wait 0.8
+press W
+wait 2.8
+shot r12_psw_01_after_run
+wait 1.0
+shot r12_psw_02_after_pswitch
+wait 1.0
+quit

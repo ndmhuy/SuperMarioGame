@@ -1,0 +1,79 @@
+# R12 (a) — Boom Boom fight to completion in the R15-widened arena
+# (level_2.json: arenaW 7->16, arenaX 185->176), reached via a TEMPORARY
+# spawnPoint override (178,19), two tiles inside the arena's left edge, and a
+# TEMPORARY saves/progress.json (level 0 completed only, so WorldMapState opens
+# on World 1-2). Both reverted after this script runs.
+#
+# BoomBoom (3 hits, BoomBoom.cpp) cycles Charging -> Recovering (stationary,
+# vulnerable, 1.6s on phase 1) -> Charging. The plan is simply to stay near him
+# and jump repeatedly; a long enough engagement should land stomps during his
+# stationary windows without needing exact timing feedback the harness cannot
+# give. Boss::onPlayerTouch(...) makes an untimed touch cost the player a hit
+# instead (Boss.cpp), so a jump that lands short is a hit taken, not a wasted
+# script — an honest coin-flip-per-jump, not a guaranteed clear.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_boomboom_fight.txt
+#
+# Screenshots land in saves/shots/; the HUD's boss health/phase readout and
+# stdout ("[PlayingState] Boss arena locked/released", "Level complete!" if he
+# falls) are the evidence either way.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.0
+press Enter
+wait 2.0
+shot r12_bb_00_arena_start
+hold D 0.6
+wait 0.7
+press W
+wait 1.0
+shot r12_bb_01
+press W
+wait 1.0
+hold D 0.4
+wait 0.5
+press W
+wait 1.0
+shot r12_bb_02
+press W
+wait 1.0
+hold D 0.4
+wait 0.5
+press W
+wait 1.0
+shot r12_bb_03
+press W
+wait 1.0
+hold D 0.4
+wait 0.5
+press W
+wait 1.0
+shot r12_bb_04
+press W
+wait 1.0
+hold D 0.4
+wait 0.5
+press W
+wait 1.0
+shot r12_bb_05
+press W
+wait 1.0
+hold A 0.4
+wait 0.5
+press W
+wait 1.0
+shot r12_bb_06
+press W
+wait 1.0
+hold D 0.4
+wait 0.5
+press W
+wait 1.0
+shot r12_bb_07
+press W
+wait 1.0
+shot r12_bb_08_final
+wait 1.5
+quit
