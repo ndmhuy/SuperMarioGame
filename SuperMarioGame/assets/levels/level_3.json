@@ -223,21 +223,6 @@
       "y": 20
     },
     {
-      "type": "bullet_bill",
-      "x": 118,
-      "y": 19
-    },
-    {
-      "type": "bullet_bill",
-      "x": 150,
-      "y": 19
-    },
-    {
-      "type": "bullet_bill",
-      "x": 176,
-      "y": 20
-    },
-    {
       "type": "hidden_block",
       "x": 81,
       "y": 17
@@ -252,6 +237,21 @@
       "type": "question_block",
       "x": 91,
       "y": 17
+    },
+    {
+      "type": "bullet_bill",
+      "x": 40,
+      "y": 19
+    },
+    {
+      "type": "bullet_bill",
+      "x": 56,
+      "y": 20
+    },
+    {
+      "type": "bullet_bill",
+      "x": 96,
+      "y": 18
     }
   ],
   "flagpole": {
