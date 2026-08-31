@@ -1,0 +1,20 @@
+# R10 acceptance run (F5 attract mode, SPEC 10.2): the literal shipped
+# default — no SUPERMARIO_ATTRACT_IDLE_SECONDS override — so this actually
+# waits out 30 real seconds on the main menu before the demo should start.
+# verify_r10_attract_mode_fast.txt covers the same mechanism with the env var
+# override for iteration; this is the one run that proves the shipped
+# 30s constant (Constants::ATTRACT_MODE_IDLE_SECONDS) itself.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r10_attract_mode_30s.txt
+#
+# Screenshots land in saves/shots/.
+wait 1.0
+shot r10_30_00_menu
+wait 27.0
+shot r10_30_01_still_menu_before_30s
+wait 4.0
+shot r10_30_02_demo_should_be_playing
+press Space
+wait 0.3
+shot r10_30_03_back_at_menu
+quit

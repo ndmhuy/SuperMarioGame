@@ -1,0 +1,25 @@
+# R10 fast live verification (F5 attract mode, SPEC 10.2). Same mechanism as
+# the real 30s default, just with SUPERMARIO_ATTRACT_IDLE_SECONDS set low so
+# this run does not have to sit through a literal 30 real seconds — see
+# MenuState.cpp's attractIdleThresholdSeconds(). The shipped default (no env
+# var) is still exactly 30s; verify_r10_attract_mode_30s.txt exercises that
+# literal path once as the acceptance run.
+#
+# Deliberately dismisses with Enter — also a menu-activate key — to check
+# that the dismiss does not simultaneously activate the row under the cursor
+# (ROW_START, index 0, is whatever a freshly-constructed MenuState defaults
+# to): if it did, the post-dismiss screenshot would show CharacterSelectState
+# instead of the main menu.
+#
+#   SUPERMARIO_ATTRACT_IDLE_SECONDS=3 ./build/SuperMarioGame --script tests/scripts/verify_r10_attract_mode_fast.txt
+#
+# Screenshots land in saves/shots/.
+wait 1.0
+shot r10_00_menu_before_idle
+wait 3.5
+wait 1.0
+shot r10_01_demo_playing
+press Enter
+wait 0.3
+shot r10_02_back_at_menu_after_enter_dismiss
+quit

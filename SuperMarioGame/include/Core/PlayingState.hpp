@@ -55,11 +55,17 @@ public:
     // instance, so it builds one specifically to load into, and enter() calls
     // loadFromSlot(pendingLoadSlot) on itself once the level is otherwise set
     // up. 0 (the default) means "no pending load, play normally".
+    // `isAttractDemo` is F5 attract mode (SPEC 10.2): instead of the usual
+    // "always recording" behaviour (setupTestScene()), this instance loads the
+    // bundled demo replay and plays it back — see the comment at that call
+    // site. It is always constructed with plain defaults for everything else
+    // (SinglePlayer, not endless) by MenuState's idle timer, so it can never be
+    // an Endless or versus run.
     explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
                           const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
                           int characterIndex = 0, int levelIndex = 0,
                           MatchConfig match = MatchConfig{}, bool isEndless = false,
-                          int pendingLoadSlot = 0);
+                          int pendingLoadSlot = 0, bool isAttractDemo = false);
     ~PlayingState() override;
 
     void enter() override;
@@ -343,6 +349,28 @@ private:
     // or 0 for none. Consumed (reset to 0) once acted on, so a later level
     // transition that reuses this same instance never re-triggers it.
     int m_pendingLoadSlot = 0;
+
+    // F5 attract mode (SPEC 10.2). setupTestScene() checks this to load and
+    // play the bundled demo replay instead of recording a new one; update()
+    // returns to MenuState once the replay runs out; handleInput() returns to
+    // MenuState on the first key of any kind rather than running its usual
+    // per-key logic (see the top of handleInput()).
+    bool m_isAttractDemo = false;
+
+    // Replay playback pacing (update()'s ReplayRecorder::isPlaying() branch).
+    // ReplayRecorder::record() keeps only 1 real simulation frame in every
+    // kFrameInterval, so advance() must not be called once per update() tick —
+    // that would play the whole recording back kFrameInterval times faster
+    // than it was captured (a ~28s attract-mode demo finished in well under
+    // 5 seconds — caught by actually watching it, not by the existing
+    // ReplayRecorder-only regression test, which never drives it through
+    // PlayingState's update loop). m_replayHoldTicks holds the last applied
+    // snapshot for the frames in between; m_replayPlaybackActive detects a
+    // fresh isPlaying()==true edge (the console's "replay play" can start a
+    // new playback in an instance that already ran one) so a stale hold count
+    // never carries over into it.
+    int m_replayHoldTicks = 0;
+    bool m_replayPlaybackActive = false;
 
     // Set when MapGenerator::generateSolvable() exhausted every reseed attempt
     // and kept the last (unverified) layout anyway — surfaced in the dev

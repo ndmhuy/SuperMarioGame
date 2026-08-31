@@ -6,6 +6,7 @@
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Core/ReplayRecorder.hpp"
 #include "Entities/Player.hpp"
 #include "Graphics/UiRenderer.hpp"
 #include "Utils/Constants.hpp"
@@ -150,6 +151,14 @@ void Game::run() {
             }
 
             if (effect == InputScript::Effect::Screenshot) m_pendingShot = shotName;
+            // Unlike a screenshot, this needs no deferral to after render(): it
+            // just persists whatever ReplayRecorder has already recorded, and
+            // recording is a background side effect of ordinary gameplay
+            // (PlayingState::setupTestScene's "Always recording"), not
+            // something render() produces.
+            if (effect == InputScript::Effect::SaveReplay) {
+                ReplayRecorder::getInstance().save(shotName);
+            }
             if (effect == InputScript::Effect::Quit) quit();
         }
 

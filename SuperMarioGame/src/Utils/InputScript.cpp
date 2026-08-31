@@ -95,6 +95,9 @@ bool InputScript::load(const std::string& path) {
         } else if (verb == "shot") {
             step.kind = Step::Kind::Shot;
             if (!(tokens >> step.text)) return fail("shot needs a name");
+        } else if (verb == "savereplay") {
+            step.kind = Step::Kind::SaveReplay;
+            if (!(tokens >> step.text)) return fail("savereplay needs a name");
         } else if (verb == "quit") {
             step.kind = Step::Kind::Quit;
         } else {
@@ -161,6 +164,9 @@ InputScript::Effect InputScript::update(float dt, std::vector<sf::Event>& out,
             case Step::Kind::Shot:
                 shotName = step.text;
                 return Effect::Screenshot;
+            case Step::Kind::SaveReplay:
+                shotName = step.text;
+                return Effect::SaveReplay;
             case Step::Kind::Quit:
                 return Effect::Quit;
         }

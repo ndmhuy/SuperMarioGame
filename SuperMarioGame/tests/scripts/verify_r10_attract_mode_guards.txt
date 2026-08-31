@@ -1,0 +1,40 @@
+# R10 guard verification (F5 attract mode, SPEC 10.2), run with
+# SUPERMARIO_ATTRACT_IDLE_SECONDS=3 so both guards can be checked without a
+# literal 30s wait each:
+#
+#  1. Debug console open: idling past the threshold while the console is up
+#     must not start the demo (MenuState::update() checks
+#     DebugConsole::isVisible() before touching m_idleTime — see MenuState.cpp).
+#  2. Load Game picker (Page::Load, added in R8): idling past the threshold
+#     while sitting in the picker must not interrupt it (MenuState::update()
+#     only checks the idle timer on Page::Main).
+#
+#   SUPERMARIO_ATTRACT_IDLE_SECONDS=3 ./build/SuperMarioGame --script tests/scripts/verify_r10_attract_mode_guards.txt
+#
+# Screenshots land in saves/shots/.
+
+# --- Guard 1: debug console open ---
+wait 1.0
+press Grave
+wait 5.0
+shot guard_00_console_open_no_demo
+press Grave
+wait 4.0
+shot guard_01_demo_after_console_closed
+press Escape
+wait 0.3
+shot guard_02_back_at_menu
+
+# --- Guard 2: Load Game picker (Page::Load) ---
+wait 0.3
+press Down
+wait 0.3
+press Enter
+wait 0.3
+shot guard_10_load_picker_open
+wait 5.0
+shot guard_11_load_picker_still_open_no_demo
+press Escape
+wait 0.3
+shot guard_12_back_to_main_page
+quit

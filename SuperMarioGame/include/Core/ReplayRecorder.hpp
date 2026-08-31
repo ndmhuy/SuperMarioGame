@@ -46,7 +46,15 @@ public:
 
     // --- Persistence ---
     bool save(const std::string& name) const;
+    // Loads by name from the save directory's replays/ folder (saves/replays,
+    // in the developer's real tree) — the console's "replay load" command.
     bool load(const std::string& name);
+    // Loads from an arbitrary path instead of the save directory. Attract mode
+    // (F5, SPEC 10.2) ships its demo under assets/ rather than saves/: assets/
+    // is committed and shipped with the build, saves/ is gitignored per-player
+    // data (see AGENTS.md's saves/ rationale) and would not exist on a fresh
+    // checkout. Same parsing as load(), just a different path.
+    bool loadFromFile(const std::string& path);
     static std::vector<std::string> list();
 
     std::size_t frameCount() const { return m_frames.size(); }
@@ -66,6 +74,10 @@ private:
     ~ReplayRecorder() = default;
 
     static std::string pathFor(const std::string& name);
+    // Shared by load() and loadFromFile(): parses the JSON at `path` into
+    // m_frames/m_levelName. Both public entry points differ only in how they
+    // resolve that path.
+    bool loadPath(const std::string& path);
 
     std::vector<GameSnapshot> m_frames;
     std::string m_levelName;
