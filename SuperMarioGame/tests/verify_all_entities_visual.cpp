@@ -10,7 +10,6 @@
 #include <imgui-SFML.h>
 
 #include "Core/ResourceManager.hpp"
-#include "Graphics/AnimationManager.hpp"
 #include "Graphics/EntityDeathEffect.hpp"
 #include "Graphics/ParticleSystem.hpp"
 #include "Utils/Constants.hpp"
@@ -60,31 +59,6 @@
 #include "Entities/ConveyorBelt.hpp"
 #include "TestSaveSandbox.hpp"
 
-static void registerAnimations() {
-    AnimationManager& am = AnimationManager::getInstance();
-    std::vector<std::string> characters = {"mario", "luigi", "toad", "peach"};
-
-    for (const auto& ch : characters) {
-        Animation smallIdle(ch + "_small_idle");
-        smallIdle.frameList = {{ch + "_small_idle", 0.15f}};
-        am.addAnimation(smallIdle);
-
-        Animation smallWalk(ch + "_small_walk");
-        smallWalk.frameList = {{ch + "_small_walk_0", 0.15f}, {ch + "_small_walk_1", 0.15f}};
-        am.addAnimation(smallWalk);
-
-        Animation smallRun(ch + "_small_run");
-        smallRun.frameList = {{ch + "_small_run_0", 0.10f}, {ch + "_small_run_1", 0.10f}};
-        am.addAnimation(smallRun);
-    }
-
-    for (std::string color : {"brown", "red", "blue", "grey"}) {
-        Animation gMove("goomba_" + color + "_move");
-        gMove.frameList = {{"goomba_" + color + "_move_0", 0.15f}, {"goomba_" + color + "_move_1", 0.15f}};
-        am.addAnimation(gMove);
-    }
-}
-
 int main() {
     // Every save path in this process now points at a throwaway
     // directory, so nothing here can read or delete real save data
@@ -113,8 +87,6 @@ int main() {
     SpriteSheet itemSheet("item", "assets/spriteSheet/item/item.json");
     SpriteSheet enemySheet("enemy_projectile", "assets/spriteSheet/enemy_projectile/enemy_projectile.json");
     SpriteSheet scenerySheet("world_scenery_item", "assets/spriteSheet/world_scenery_item/world_scenery_item.json");
-
-    registerAnimations();
 
     // Create entity containers
     std::vector<std::pair<std::string, std::unique_ptr<Player>>> players;

@@ -383,7 +383,16 @@
 
 ### 5.2 Animation System
 - [x] Create [Animation.hpp/.cpp](SuperMarioGame/include/Graphics/Animation.hpp)
-- [x] Create [AnimationManager.hpp/.cpp](SuperMarioGame/include/Graphics/AnimationManager.hpp)
+- [x] ~~Create AnimationManager.hpp/.cpp~~ — **deleted 2026-08-31** (audit D5/R2): a
+  global name-keyed registry that compiled and passed its harness but was never
+  populated nor queried by any code reachable from `main()`; the harness's own
+  `registerAnimations()` wrote into it and nothing, including the harness itself,
+  ever read it back. Real per-entity animation setup already lives in
+  `Character`/`Player::setupCharacterAnimations()` and each `Enemy` subclass's own
+  `setupAnimations()`, built directly against `Animator`/`SpriteSheet` with
+  fallback-aware frame lookups the static registry never had. Adopting it would
+  have meant re-deriving that fallback logic as hardcoded registrations —
+  strictly worse than what already ships. See `A/fix/animation-manager-disposition`.
   - Expanded animation states: wall_slide, ground_pound, swim, climb, crouch, slide, skid [v2.0]
 - [x] Commit: `feat: implement Animation and AnimationManager`
 

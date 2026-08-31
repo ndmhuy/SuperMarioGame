@@ -127,7 +127,6 @@ list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 add_executable(${PROJECT_NAME} ${SOURCES}
     src/Entities/EntityFactory.cpp
     include/Graphics/SpriteSheet.hpp
-    src/Graphics/AnimationManager.cpp
     include/Graphics/Animator.hpp
     src/Graphics/Animator.cpp
     src/Graphics/Hud.cpp
