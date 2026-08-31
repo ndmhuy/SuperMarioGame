@@ -89,6 +89,13 @@ public:
     // dynamic_cast to Fireball in each of the X and Y passes (audit A-10 / D8).
     virtual bool onTileImpact(const CollisionInfo& info) { (void)info; return false; }
 
+    // What this entity does when it reaches the edge of the level.
+    //
+    // A patrolling enemy turns around; a player or an item simply stops against
+    // the border. PhysicsEngine asked with a dynamic_cast to Enemy at each of
+    // the two borders (audit A-10 / D8).
+    virtual bool reversesAtLevelEdge() const { return false; }
+
     // Whether this entity takes part in entity-vs-entity collision right now.
     //
     // Five classes used to express "ignore me" by returning a zero-sized AABB

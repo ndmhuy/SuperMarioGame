@@ -291,11 +291,8 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         if (pos.x < 0.0f) {
             pos.x = 0.0f;
             if (vel.x < 0.0f) {
-                if (dynamic_cast<Enemy*>(entity.get())) {
-                    vel.x = -vel.x; // Patrol enemy turns around at left map border
-                } else {
-                    vel.x = 0.0f;   // Player/Item stops at left map border
-                }
+                // Patrol enemies turn around; players and items stop dead.
+                vel.x = entity->reversesAtLevelEdge() ? -vel.x : 0.0f;
             }
             entity->setPosition(pos);
             entity->setVelocity(vel);
@@ -304,11 +301,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         else if (pos.x + width > maxMapX && maxMapX > 0.0f) {
             pos.x = maxMapX - width;
             if (vel.x > 0.0f) {
-                if (dynamic_cast<Enemy*>(entity.get())) {
-                    vel.x = -vel.x; // Patrol enemy turns around at right map border
-                } else {
-                    vel.x = 0.0f;   // Player/Item stops at right map border
-                }
+                vel.x = entity->reversesAtLevelEdge() ? -vel.x : 0.0f;
             }
             entity->setPosition(pos);
             entity->setVelocity(vel);

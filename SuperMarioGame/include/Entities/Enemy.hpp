@@ -80,6 +80,9 @@ public:
     // A dead or held enemy plays out its own death or carry animation; gravity
     // and tile collision must not touch it in the meantime.
     bool isPhysicsDriven() const override { return !isDeadOrDying(); }
+    // Patrol enemies turn around at the level border rather than piling up
+    // against it.
+    bool reversesAtLevelEdge() const override { return true; }
 
 protected:
     // Despawn plane for a flipped/falling enemy: one tile below the current
