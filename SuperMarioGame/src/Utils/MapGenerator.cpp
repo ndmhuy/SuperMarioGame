@@ -333,7 +333,14 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     if (seed == 0) seed = 424242;
     std::mt19937 rng(seed);
 
-    TileType groundTile = (theme == MapTheme::Castle) ? TileType::Ground : TileType::Brick;
+    // Always Ground, never Brick: this is the level's floor/ceiling boundary,
+    // and the P-Switch swaps every Brick tile in the level to a Coin (see
+    // PlayingState::beginPSwitch). Theming it as Brick for every non-Castle
+    // sub-level used to mean pressing the switch turned the entire floor and
+    // ceiling into coins, stranding the player with no ground to stand on
+    // (D21) — Ground renders with the same themed sprites (PlayingState::
+    // render) but is immune to the swap.
+    TileType groundTile = TileType::Ground;
 
     // Ceilings and floors
     for (int x = 0; x < subWidth; ++x) {
@@ -349,9 +356,15 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     auto player = std::make_unique<Mario>(sf::Vector2f(96.0f, (floorY - 2) * Constants::TILE_SIZE));
     entities.push_back(std::move(player));
 
-    // Entrance Pipe (non-functional return point visual)
+    // Entrance Pipe (non-functional return point visual). Two columns wide,
+    // matching every other pipe in the game (the head/body sprite pair needs
+    // both a left and a right column to compose a full pipe) — one column
+    // used to render as a half pipe, using only the head_left/body_left
+    // quarter sprites (D22/D23).
     tileMap.setTile(3, floorY - 1, TileType::Pipe);
     tileMap.setTile(3, floorY - 2, TileType::Pipe);
+    tileMap.setTile(4, floorY - 1, TileType::Pipe);
+    tileMap.setTile(4, floorY - 2, TileType::Pipe);
 
     // Fill coin canopy & item blocks inside sub level
     for (int x = 10; x < subWidth - 12; x += 4) {
