@@ -160,6 +160,14 @@ std::vector<UiMenuItem> MenuState::buildMultiplayerItems() const {
 }
 
 void MenuState::moveSelection(int delta) {
+    // SPEC 17.3: "Menu selection: click sound on highlight change". CharSelect
+    // and WorldMapState only ever play "bump" for a *blocked* move (a locked
+    // slot, the array edge); no state actually had the plain per-row cue this
+    // asks for (R7 audit — the plan's premise that CharSelect/Pause already had
+    // one did not hold on inspection). Reusing "bump" here rather than adding a
+    // new asset, same short blip the blocked-move case already uses.
+    SoundManager::getInstance().playSound("bump");
+
     if (m_page == Page::Main) {
         m_mainSelected = (m_mainSelected + delta + ROW_COUNT) % ROW_COUNT;
         return;
