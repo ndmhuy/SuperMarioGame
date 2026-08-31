@@ -10,6 +10,7 @@
 
 class PhysicsEngine;
 class CollisionResolver;
+struct CollisionInfo;
 
 // Broad kind of an entity, reported by the entity itself.
 //
@@ -79,6 +80,14 @@ public:
     // a plain "koopa_troopa".
     virtual std::string getTypeName() const { return "unknown"; }
     virtual bool collidesWithTiles() const { return true; }
+
+    // Answer a collision with the tile map on this entity's own terms.
+    //
+    // Returns true if the entity consumed the impact, in which case the
+    // resolver's push-out does not run. A fireball bursts against a wall and
+    // bounces off a floor; PhysicsEngine used to encode that itself, behind a
+    // dynamic_cast to Fireball in each of the X and Y passes (audit A-10 / D8).
+    virtual bool onTileImpact(const CollisionInfo& info) { (void)info; return false; }
 
     // Whether this entity takes part in entity-vs-entity collision right now.
     //

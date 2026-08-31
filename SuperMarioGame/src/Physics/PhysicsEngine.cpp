@@ -197,12 +197,8 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             }
         }
 
-        if (maxCollision.collided) {
-            if (auto fireball = dynamic_cast<Fireball*>(entity.get())) {
-                fireball->destroy();
-            } else {
-                m_resolver.resolveEntityVsTile(*entity, maxCollision);
-            }
+        if (maxCollision.collided && !entity->onTileImpact(maxCollision)) {
+            m_resolver.resolveEntityVsTile(*entity, maxCollision);
         }
     }
 
@@ -230,13 +226,9 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         }
 
         if (maxCollision.collided) {
-            if (auto fireball = dynamic_cast<Fireball*>(entity.get())) {
-                if (maxCollision.normal.y == -1.0f) {
-                    fireball->bounce();
-                } else {
-                    fireball->destroy();
-                }
-            } else {
+            // The entity gets first refusal on the impact: a fireball bursts or
+            // bounces instead of being pushed out of the tile.
+            if (!entity->onTileImpact(maxCollision)) {
                 m_resolver.resolveEntityVsTile(*entity, maxCollision);
 
                 // Head-butt logic for Player hitting ceiling tiles from below.
