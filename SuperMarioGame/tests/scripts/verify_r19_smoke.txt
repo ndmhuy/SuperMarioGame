@@ -1,0 +1,27 @@
+# R19 smoke run (D26): not a proof of audio sequencing (I have no audio
+# perception, and R3's headless-audio guard means this box may have no
+# playback device at all) — this only exercises Game::run()'s real fixed
+# -timestep loop, with SoundManager::update() now wired into it every frame
+# (see Game.cpp), across menu -> level entry -> movement -> pause, to confirm
+# the new per-frame poll does not crash or hang the loop it was added to.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r19_smoke.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+shot r19_00_overworld_start
+hold D 2.0
+wait 2.2
+shot r19_01_after_moving
+press Escape
+wait 0.5
+shot r19_02_paused
+press Escape
+wait 0.5
+quit

@@ -207,25 +207,70 @@ static std::string resolveBGMIdentifier(const std::string& input) {
     return input;
 }
 
+void SoundManager::startMusicNow(const std::string& resolvedPath, bool loop) {
+    m_hasPendingMusic = false;
+    m_musicPath = resolvedPath;
+    if (!m_music.openFromFile(resolvedPath)) {
+        std::cerr << "[SoundManager] Could not open music file: " << resolvedPath << std::endl;
+        return;
+    }
+    m_music.setLooping(loop);
+    m_music.setVolume(m_musicVolume);
+    m_music.play();
+}
+
 void SoundManager::playMusic(const std::string& path, bool loop) {
     if (!m_audioAvailable) return;
 
     std::string bgmPath = resolveBGMIdentifier(path);
     std::string resolved = ResourceManager::resolvePath(bgmPath);
-    if (resolved != m_musicPath) {
-        m_musicPath = resolved;
-        if (!m_music.openFromFile(resolved)) {
-            std::cerr << "[SoundManager] Could not open music file: " << resolved << std::endl;
-            return;
-        }
-        m_music.setLooping(loop);
-        m_music.setVolume(m_musicVolume);
-        m_music.play();
-    } else {
+
+    if (resolved == m_musicPath) {
+        // Re-requesting the already-current track cancels any deferred swap —
+        // e.g. LevelComplete re-publishing (the flagpole can fire more than
+        // once) should not resurrect a stale pending track.
+        m_hasPendingMusic = false;
         if (m_music.getStatus() != sf::SoundSource::Status::Playing) {
             m_music.play();
         }
+        return;
     }
+
+    // Audit D26: a one-shot celebratory jingle (loop=false) that is still
+    // playing must be allowed to finish rather than be clobbered mid-playback
+    // by a SECOND one-shot jingle — the reproducible case is a boss level,
+    // where Boss::update() fires BossDefeated -> playMusic("castle_complete",
+    // false) the instant the defeat sequence starts, and shortly after
+    // touching the now-clear flag fires LevelComplete -> playMusic
+    // ("level_complete", false), which used to cut castle_complete off
+    // mid-fanfare.
+    //
+    // The deferral requires the INCOMING request to also be a one-shot
+    // (loop == false): ordinary BGM switching — a jingle handing off to real
+    // level/level-select/starman music (loop == true) — must keep interrupting
+    // immediately, exactly as before. testJinglesDoNotLoop
+    // (tests/verify_regressions.cpp) depends on this: it plays a jingle then
+    // immediately switches to looping "overworld" music and expects the switch
+    // to take effect at once.
+    if (!loop && !m_music.isLooping() &&
+        m_music.getStatus() == sf::SoundSource::Status::Playing) {
+        m_pendingMusicPath = resolved;
+        m_pendingMusicLoop = loop;
+        m_hasPendingMusic = true;
+        return;
+    }
+
+    startMusicNow(resolved, loop);
+}
+
+void SoundManager::update(float /*dt*/) {
+    if (!m_audioAvailable || !m_hasPendingMusic) return;
+    // Still playing the current one-shot jingle — keep waiting.
+    if (m_music.getStatus() == sf::SoundSource::Status::Playing) return;
+
+    std::string resolved = m_pendingMusicPath;
+    bool loop = m_pendingMusicLoop;
+    startMusicNow(resolved, loop);
 }
 
 void SoundManager::playLevelBGM(int levelIndex) {
@@ -261,6 +306,9 @@ void SoundManager::restoreLevelBGM() {
 
 void SoundManager::stopMusic() {
     m_music.stop();
+    // An explicit stop means "stop everything now" — do not let a deferred
+    // swap (see update()) surprise-start a track right after it.
+    m_hasPendingMusic = false;
 }
 
 void SoundManager::pauseMusic() {
@@ -287,6 +335,7 @@ void SoundManager::setMusicVolume(float volume) {
 
 void SoundManager::shutdown() {
     m_music.stop();
+    m_hasPendingMusic = false;
     for (auto& sound : m_soundPool) {
         sound.stop();
     }

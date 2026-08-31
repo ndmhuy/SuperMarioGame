@@ -160,6 +160,9 @@ void Game::run() {
             // thing advancing it, so a toast raised as a level ended froze on
             // screen once the state changed.
             AchievementManager::getInstance().update(timeStep);
+            // Starts a deferred music swap once the celebratory jingle it was
+            // held behind finishes playing (audit D26).
+            SoundManager::getInstance().update(timeStep);
             lag -= timeStep;
         }
 

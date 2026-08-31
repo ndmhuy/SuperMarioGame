@@ -2949,6 +2949,37 @@ void testLevelBGMMapping() {
           "level 3 (Bonus Stage) plays the bonus-room track");
 }
 
+void testCastleCompleteSurvivesLevelComplete() {
+    section("reported  a still-playing one-shot jingle survives a second one-shot request (audit D26)");
+
+    // Boss levels fire BossDefeated -> playMusic("castle_complete", false) the
+    // instant the defeat sequence starts, and shortly after, touching the now
+    // -clear flag fires LevelComplete -> playMusic("level_complete", false).
+    // playMusic() used to switch tracks unconditionally, so the second jingle
+    // silently cut the first off mid-fanfare (audit D26). It must now be held
+    // as a pending swap until castle_complete finishes on its own.
+    SoundManager& sound = SoundManager::getInstance();
+
+    sound.playMusic("castle_complete", /*loop=*/false);
+    check(sound.getCurrentMusicPath().find("castle_complete") != std::string::npos,
+          "castle_complete starts playing");
+    check(!sound.isMusicLooping(), "castle_complete is a one-shot, not a loop");
+
+    // Requested immediately, while castle_complete is still playing (SFML sets
+    // Status::Playing synchronously inside play(), so this is not a timing race).
+    sound.playMusic("level_complete", /*loop=*/false);
+    check(sound.getCurrentMusicPath().find("castle_complete") != std::string::npos,
+          "level_complete does not clobber the still-playing castle_complete");
+
+    // Ordinary BGM switching must still interrupt immediately — a looping
+    // request is never deferred, so this fix cannot silently widen its own
+    // seam and break level-entry/star-power/pause music changes.
+    sound.playMusic("overworld", /*loop=*/true);
+    check(sound.getCurrentMusicPath().find("overworld") != std::string::npos,
+          "a looping BGM request still interrupts immediately, even mid one-shot");
+    check(sound.isMusicLooping(), "and it loops, as requested");
+}
+
 void testPlayerTwoHasEveryControl() {
     section("reported  Player 2's controls are complete and reachable");
 
@@ -3494,6 +3525,7 @@ int main() {
     testDeathReportsWhichPlayerDied();
     testJinglesDoNotLoop();
     testLevelBGMMapping();
+    testCastleCompleteSurvivesLevelComplete();
     testPlayerTwoHasEveryControl();
 
     // Reported from the Windows playtest, August 2026.
