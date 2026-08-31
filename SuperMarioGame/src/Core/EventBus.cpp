@@ -2,9 +2,30 @@
 #include <algorithm>
 #include <utility>
 
+namespace {
+// Set once, in ~EventBus(). AchievementManager, StatisticsTracker and Camera
+// each hold long-lived ScopedSubscriptions in a Meyer's-singleton-owned (or,
+// for Camera, program-lifetime) container; at program exit, function-local
+// statics destruct in reverse order of first construction, which is
+// determined by which code path calls EventBus::getInstance() first — not
+// something callers control or should have to reason about. If EventBus
+// happens to destruct before one of those containers does, each
+// ScopedSubscription's destructor would call EventBus::getInstance() again
+// AFTER it was already destroyed — a dead-reference access, not merely a
+// leak. This is a compile-time-constant-initialized global (zero/constant
+// init happens before any dynamic or function-local static construction),
+// so it is safe to read from any other object's destructor regardless of
+// destruction order.
+bool g_eventBusAlive = true;
+}
+
 EventBus& EventBus::getInstance() {
     static EventBus instance;
     return instance;
+}
+
+EventBus::~EventBus() {
+    g_eventBusAlive = false;
 }
 
 EventBus::SubscriptionId EventBus::subscribe(EventType type, Callback callback) {
@@ -96,5 +117,6 @@ EventBus::ScopedSubscription& EventBus::ScopedSubscription::operator=(
 void EventBus::ScopedSubscription::reset() {
     if (!m_active) return;
     m_active = false;
-    EventBus::getInstance().unsubscribe(m_id);
+    // Guards against static destruction order: see g_eventBusAlive above.
+    if (g_eventBusAlive) EventBus::getInstance().unsubscribe(m_id);
 }

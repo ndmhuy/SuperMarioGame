@@ -92,7 +92,7 @@ public:
 
 private:
   EventBus() = default;
-  ~EventBus() = default;
+  ~EventBus();
 
   struct Subscription {
     SubscriptionId id;
