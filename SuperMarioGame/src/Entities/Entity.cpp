@@ -63,8 +63,15 @@ void Entity::drawSprite(sf::RenderTarget& target,
         sprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y));
         sprite.setScale(sf::Vector2f(flipX ? -scale : scale,
                                      flipY ? -scale : scale));
+        // The bottom-centre origin is normally anchored to the AABB's bottom
+        // edge (boundingBox.y + m_targetSize.y). When flipY mirrors the sprite
+        // (scale.y < 0), anchoring to that same bottom edge makes the mirrored
+        // sprite hang entirely below the AABB — i.e. the flip pivots about the
+        // bottom edge. Anchoring to the top edge instead reflects the mirrored
+        // sprite back into the same AABB band it occupies unflipped, which is
+        // pivoting about the AABB's vertical centre line, as intended.
         sprite.setPosition(sf::Vector2f(boundingBox.x + m_targetSize.x * 0.5f,
-                                        boundingBox.y + m_targetSize.y));
+                                        boundingBox.y + (flipY ? 0.0f : m_targetSize.y)));
     }
 
     target.draw(sprite);
