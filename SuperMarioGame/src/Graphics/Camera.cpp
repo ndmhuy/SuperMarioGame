@@ -162,33 +162,31 @@ float Camera::getShakeElapsedTime() const {
 void Camera::subscribeToEvents() {
     if (m_subscribedToEvents) return;
 
-    EventBus& bus = EventBus::getInstance();
-
-    m_subscriptionIds.push_back(bus.subscribe(EventType::POWBlockHit, [this](const GameEvent&) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::POWBlockHit, [this](const GameEvent&) {
         triggerScreenShake(6.0f, 0.30f, sf::Vector2f(0.0f, 1.0f), true);
     }));
 
-    m_subscriptionIds.push_back(bus.subscribe(EventType::ThwompSlam, [this](const GameEvent&) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::ThwompSlam, [this](const GameEvent&) {
         triggerScreenShake(5.0f, 0.25f, sf::Vector2f(0.0f, 1.0f), true);
     }));
 
-    m_subscriptionIds.push_back(bus.subscribe(EventType::GroundPoundSlam, [this](const GameEvent&) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::GroundPoundSlam, [this](const GameEvent&) {
         triggerScreenShake(4.0f, 0.20f, sf::Vector2f(0.0f, 1.0f), true);
     }));
 
-    m_subscriptionIds.push_back(bus.subscribe(EventType::PlayerDamaged, [this](const GameEvent&) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::PlayerDamaged, [this](const GameEvent&) {
         triggerScreenShake(ShakePreset::Medium);
     }));
 
-    m_subscriptionIds.push_back(bus.subscribe(EventType::BossDefeated, [this](const GameEvent&) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::BossDefeated, [this](const GameEvent&) {
         triggerScreenShake(8.0f, 0.60f, sf::Vector2f(0.0f, 0.0f), true);
     }));
 
-    m_subscriptionIds.push_back(bus.subscribe(EventType::BlockBroken, [this](const GameEvent&) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::BlockBroken, [this](const GameEvent&) {
         triggerScreenShake(ShakePreset::Light);
     }));
 
-    m_subscriptionIds.push_back(bus.subscribe(EventType::ScreenShakeTriggered, [this](const GameEvent& ev) {
+    m_subscriptions.push_back(EventBus::ScopedSubscription(EventType::ScreenShakeTriggered, [this](const GameEvent& ev) {
         if (ev.data.has_value()) {
             try {
                 if (ev.data.type() == typeid(ShakeParams)) {
@@ -208,11 +206,7 @@ void Camera::subscribeToEvents() {
 
 void Camera::unsubscribeFromEvents() {
     if (!m_subscribedToEvents) return;
-    EventBus& bus = EventBus::getInstance();
-    for (auto id : m_subscriptionIds) {
-        bus.unsubscribe(id);
-    }
-    m_subscriptionIds.clear();
+    m_subscriptions.clear();
     m_subscribedToEvents = false;
 }
 
