@@ -15,25 +15,23 @@ void AchievementManager::init() {
 
     setupDefaultAchievementsList();
 
-    EventBus& bus = EventBus::getInstance();
-    m_subscriptions.push_back(bus.subscribe(EventType::CoinCollected, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::PlayerDied, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::LevelComplete, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::ComboHit, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::StarCoinCollected, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::BossDefeated, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::BlockBroken, [this](const GameEvent& ev) { handleEvent(ev); }));
-    m_subscriptions.push_back(bus.subscribe(EventType::PlayerDamaged, [this](const GameEvent& ev) { handleEvent(ev); }));
+    auto sub = [this](EventType type) {
+        return EventBus::ScopedSubscription(type, [this](const GameEvent& ev) { handleEvent(ev); });
+    };
+    m_subscriptions.push_back(sub(EventType::CoinCollected));
+    m_subscriptions.push_back(sub(EventType::EnemyDefeated));
+    m_subscriptions.push_back(sub(EventType::PlayerDied));
+    m_subscriptions.push_back(sub(EventType::LevelComplete));
+    m_subscriptions.push_back(sub(EventType::ComboHit));
+    m_subscriptions.push_back(sub(EventType::StarCoinCollected));
+    m_subscriptions.push_back(sub(EventType::BossDefeated));
+    m_subscriptions.push_back(sub(EventType::BlockBroken));
+    m_subscriptions.push_back(sub(EventType::PlayerDamaged));
 
     m_initialized = true;
 }
 
 void AchievementManager::shutdown() {
-    EventBus& bus = EventBus::getInstance();
-    for (auto subId : m_subscriptions) {
-        bus.unsubscribe(subId);
-    }
     m_subscriptions.clear();
     m_initialized = false;
 }

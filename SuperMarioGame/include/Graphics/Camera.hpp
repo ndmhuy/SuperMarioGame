@@ -120,7 +120,7 @@ private:
     float m_shakeElapsedTime = 0.0f;
 
     // EventBus subscriptions tracking
-    std::vector<EventBus::SubscriptionId> m_subscriptionIds;
+    std::vector<EventBus::ScopedSubscription> m_subscriptions;
     bool m_subscribedToEvents = false;
 
     // Internal offset generator

@@ -1,0 +1,35 @@
+# Verifies R4 (audit X-7, EventBus::ScopedSubscription adoption): the
+# resubscribe path — pause, quit to menu, play again — is where a
+# double-subscribe or a stale-callback bug would show up first, since
+# PlayingState's subscriptions are torn down in exit() and rebuilt fresh
+# by the next PlayingState's enter().
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r4_resubscribe.txt
+
+wait 2.0
+press Enter               # START GAME
+wait 1.2
+press Enter               # character select
+wait 1.2
+press Enter               # world map: enter level
+wait 2.5
+shot r4_01_in_level
+press Escape              # pause
+wait 0.6
+shot r4_02_paused
+press Down
+press Down
+press Down
+press Down                # move to "Quit to menu"
+wait 0.3
+press Enter
+wait 1.5
+shot r4_03_back_at_menu
+press Enter               # START GAME again
+wait 1.2
+press Enter               # character select
+wait 1.2
+press Enter               # world map: enter level again
+wait 2.5
+shot r4_04_in_level_again
+quit

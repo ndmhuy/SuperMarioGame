@@ -60,7 +60,7 @@ private:
 
     std::vector<Achievement> m_achievements;
     std::vector<AchievementToast> m_activeToasts;
-    std::vector<EventBus::SubscriptionId> m_subscriptions;
+    std::vector<EventBus::ScopedSubscription> m_subscriptions;
 
     // Session-based counters for achievement criteria verification
     int m_coinsThisRun = 0;

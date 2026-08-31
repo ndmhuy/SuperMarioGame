@@ -108,12 +108,18 @@ private:
     // is why deleting Bowser "fixed" the level.
     std::vector<std::unique_ptr<Entity>> m_pendingSpawns;
     MapEditor m_mapEditor;
-    EventBus::SubscriptionId m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_playerDiedSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_powerUpSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_levelCompleteSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_entitySpawnSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
+    // RAII subscription tokens (audit X-7): each unsubscribes itself in its own
+    // destructor, so there is no sentinel value to check and no way to forget
+    // one. exit() still resets them explicitly rather than waiting on
+    // ~PlayingState(), since these lambdas capture `this` and the intent is
+    // "dead the moment the state exits", not merely "eventually, when this
+    // object is destroyed".
+    EventBus::ScopedSubscription m_checkpointSub;
+    EventBus::ScopedSubscription m_playerDiedSub;
+    EventBus::ScopedSubscription m_powerUpSub;
+    EventBus::ScopedSubscription m_levelCompleteSub;
+    EventBus::ScopedSubscription m_entitySpawnSub;
+    EventBus::ScopedSubscription m_fireballSub;
     // One press of the crouch key is one warp, not one per frame.
     float m_warpCooldown = 0.0f;
 
@@ -269,10 +275,10 @@ private:
 
     // Combat/impact particle bursts, driven from EventBus
     ParticleEmitter m_particleEmitter;
-    EventBus::SubscriptionId m_enemyDefeatedSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_blockBrokenSubId   = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_coinParticleSubId  = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_playerDamagedSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::ScopedSubscription m_enemyDefeatedSub;
+    EventBus::ScopedSubscription m_blockBrokenSub;
+    EventBus::ScopedSubscription m_coinParticleSub;
+    EventBus::ScopedSubscription m_playerDamagedSub;
 
     // --- Boss fights ---------------------------------------------------
     // The boss in this level, or null. Found once when the level loads rather
@@ -348,7 +354,7 @@ private:
     BackgroundRenderer m_background;
 
     std::array<bool, 3> m_starCoinsCollected = {false, false, false};
-    EventBus::SubscriptionId m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::ScopedSubscription m_starCoinSub;
 
     // Tell the parallax backdrop where this level's floor is, so the layers that
     // are meant to stand on the ground actually do.
@@ -440,9 +446,9 @@ private:
     std::vector<SwappedTile> m_pSwitchSwaps;
     float m_pSwitchTimer = 0.0f;
     bool  m_pSwitchActive = false;
-    EventBus::SubscriptionId m_pSwitchSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
-    EventBus::SubscriptionId m_bridgeSubId = static_cast<EventBus::SubscriptionId>(-1);
+    EventBus::ScopedSubscription m_pSwitchSub;
+    EventBus::ScopedSubscription m_powSub;
+    EventBus::ScopedSubscription m_bridgeSub;
 
     void setupTestScene();
     void cleanupTestScene();

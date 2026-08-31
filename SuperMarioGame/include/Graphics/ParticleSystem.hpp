@@ -2,7 +2,6 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
-#include "Core/EventBus.hpp"
 
 struct ParticleData {
     sf::Vector2f position;          // Initial position
@@ -55,6 +54,4 @@ private:
     std::vector<Particle> m_particlePool;
     sf::VertexArray m_vertexArray;  // Quad rendering
     const sf::Texture* m_particleTexture = nullptr; // Shared texture for particles
-
-    std::vector<EventBus::SubscriptionId> m_eventIds;
 };

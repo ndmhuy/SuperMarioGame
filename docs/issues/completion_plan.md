@@ -157,7 +157,7 @@ Four more pre-existing bugs surfaced while doing it:
 | 21 | **5.10** Water & lava animation | A | 2 h |
 | 22 | **4.3** Camera lookahead + scroll modes | A | 1.5 h |
 
-### Tier 4 — Hygiene (~3 h) — **3 of 4 done**
+### Tier 4 — Hygiene (~3 h) — **4 of 4 done**
 
 > **Correction (2026-08-31 audit):** item 25 was previously claimed DONE here, but
 > only half of it landed. `EventBus::ScopedSubscription` exists
@@ -166,6 +166,21 @@ Four more pre-existing bugs surfaced while doing it:
 > by hand. The token was written; nothing was migrated onto it. Item 25 is open.
 > Also `X-8` has one residual: `.member_profile.json` is still git-tracked.
 > See `docs/issues/spec_feature_audit_2026-08-31.md`.
+>
+> **Item 25 closed (2026-08-31, R4, branch `A/fix/scoped-subscription-adoption`):**
+> every raw `SubscriptionId` outside `EventBus` itself — 14 in `PlayingState`, plus
+> `AchievementManager`, `StatisticsTracker` and `Camera` — now uses
+> `ScopedSubscription`. Two genuinely dead `SubscriptionId` members (`Hud`,
+> `ParticleSystem`) were deleted rather than converted; neither was ever
+> populated. Migrating exposed a real bug the raw-id version never hit: a Meyer's
+> singleton (`AchievementManager`/`StatisticsTracker`) destructing its
+> `ScopedSubscription`s at static-destruction time could call
+> `EventBus::getInstance()` *after* `EventBus`'s own static instance had already
+> been destroyed (destruction order between independent function-local statics
+> depends on which is first constructed, not something callers control) — fixed
+> with a `g_eventBusAlive` guard flag set in a newly-added `~EventBus()`. `X-8`'s
+> `.member_profile.json` residual is unrelated to this item and still open — see
+> `docs/issues/spec_feature_audit_2026-08-31.md` R6.
 
 Items 23, 24 and 26 are done. `main` is level with `dev` at `679d301` and tagged
 `v1.0-complete`; both are unpushed, because pushing is the user's call.

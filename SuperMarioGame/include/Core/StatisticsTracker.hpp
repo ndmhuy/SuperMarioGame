@@ -37,6 +37,6 @@ private:
     void handleEvent(const GameEvent& event);
 
     GameStatistics m_stats;
-    std::vector<EventBus::SubscriptionId> m_subscriptions;
+    std::vector<EventBus::ScopedSubscription> m_subscriptions;
     bool m_initialized = false;
 };

@@ -203,7 +203,7 @@ void PlayingState::enter() {
     }
 
     // Auto-save at checkpoint
-    m_checkpointSubId = EventBus::getInstance().subscribe(EventType::CheckpointActivated, [this](const GameEvent& ev) {
+    m_checkpointSub = EventBus::ScopedSubscription(EventType::CheckpointActivated, [this](const GameEvent& ev) {
         // Remember where to respawn. Death used to teleport to a hardcoded
         // (96,64) regardless of level or progress (audit G-3).
         if (m_player) {
@@ -222,7 +222,7 @@ void PlayingState::enter() {
     });
 
     // Fireball Shooting Event Listener
-    m_fireballSubId = EventBus::getInstance().subscribe(EventType::PlayerShotFireball, [this](const GameEvent& ev) {
+    m_fireballSub = EventBus::ScopedSubscription(EventType::PlayerShotFireball, [this](const GameEvent& ev) {
         auto* player = std::any_cast<Player*>(ev.data);
         if (!player) return;
 
@@ -262,7 +262,7 @@ void PlayingState::enter() {
     //
     // The debug key publishes an int rather than a Player*, so the cast is
     // guarded and falls back to Player 1.
-    m_playerDiedSubId = EventBus::getInstance().subscribe(
+    m_playerDiedSub = EventBus::ScopedSubscription(
         EventType::PlayerDied, [this](const GameEvent& ev) {
             Player* who = nullptr;
             if (const Player* const* asPlayer = std::any_cast<Player*>(&ev.data)) {
@@ -272,7 +272,7 @@ void PlayingState::enter() {
         });
 
     m_starCoinsCollected = {false, false, false};
-    m_starCoinSubId = EventBus::getInstance().subscribe(EventType::StarCoinCollected, [this](const GameEvent& ev) {
+    m_starCoinSub = EventBus::ScopedSubscription(EventType::StarCoinCollected, [this](const GameEvent& ev) {
         for (int i = 0; i < 3; ++i) {
             if (!m_starCoinsCollected[i]) {
                 m_starCoinsCollected[i] = true;
@@ -289,9 +289,7 @@ void PlayingState::enter() {
     m_minimap->initialize(m_tileMap);
 
     // --- Particle bursts + death effects, driven from the EventBus ---
-    EventBus& bus = EventBus::getInstance();
-
-    m_enemyDefeatedSubId = bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent&) {
+    m_enemyDefeatedSub = EventBus::ScopedSubscription(EventType::EnemyDefeated, [this](const GameEvent&) {
         // The event only carries a score value, so locate the enemy that just went
         // inactive to place the burst and the flip animation at its last position.
         if (!m_enemySheet) return;
@@ -307,21 +305,21 @@ void PlayingState::enter() {
         }
     });
 
-    m_blockBrokenSubId = bus.subscribe(EventType::BlockBroken, [this](const GameEvent&) {
+    m_blockBrokenSub = EventBus::ScopedSubscription(EventType::BlockBroken, [this](const GameEvent&) {
         if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter() + sf::Vector2f(0.0f, -24.0f),
                                               ParticleType::BrickBreak);
     });
 
-    m_coinParticleSubId = bus.subscribe(EventType::CoinCollected, [this](const GameEvent&) {
+    m_coinParticleSub = EventBus::ScopedSubscription(EventType::CoinCollected, [this](const GameEvent&) {
         if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::CoinSparkle);
     });
 
-    m_playerDamagedSubId = bus.subscribe(EventType::PlayerDamaged, [this](const GameEvent&) {
+    m_playerDamagedSub = EventBus::ScopedSubscription(EventType::PlayerDamaged, [this](const GameEvent&) {
         if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::DeathPoof);
     });
 
     // --- Question blocks: actually produce the item they announce ---
-    m_powerUpSubId = bus.subscribe(EventType::PowerUpRequested, [this](const GameEvent& ev) {
+    m_powerUpSub = EventBus::ScopedSubscription(EventType::PowerUpRequested, [this](const GameEvent& ev) {
         if (!ev.data.has_value() || ev.data.type() != typeid(PowerUpRequest)) return;
         const auto request = std::any_cast<PowerUpRequest>(ev.data);
 
@@ -343,7 +341,7 @@ void PlayingState::enter() {
     // --- Entities asking for other entities (Lakitu's Spinies, Hammer Bro's
     // hammers). Entities have no handle on the world list, so they publish and
     // this performs the spawn (audit B-6, B-7). ---
-    m_entitySpawnSubId = bus.subscribe(EventType::EntitySpawnRequested, [this](const GameEvent& ev) {
+    m_entitySpawnSub = EventBus::ScopedSubscription(EventType::EntitySpawnRequested, [this](const GameEvent& ev) {
         if (!ev.data.has_value() || ev.data.type() != typeid(EntitySpawnRequest)) return;
         const auto request = std::any_cast<EntitySpawnRequest>(ev.data);
 
@@ -360,23 +358,23 @@ void PlayingState::enter() {
     // then did nothing at all. Both effects are the level's business, not the
     // item's, so they are performed here where the tilemap and the entity list
     // are in reach. ---
-    m_pSwitchSubId = bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent& ev) {
+    m_pSwitchSub = EventBus::ScopedSubscription(EventType::PSwitchActivated, [this](const GameEvent& ev) {
         float seconds = 15.0f;
         if (const float* asFloat = std::any_cast<float>(&ev.data)) seconds = *asFloat;
         beginPSwitch(seconds);
     });
 
-    m_powSubId = bus.subscribe(EventType::POWBlockHit, [this](const GameEvent&) {
+    m_powSub = EventBus::ScopedSubscription(EventType::POWBlockHit, [this](const GameEvent&) {
         detonatePOW();
     });
 
-    m_bridgeSubId = bus.subscribe(EventType::BridgeChopped, [this](const GameEvent&) {
+    m_bridgeSub = EventBus::ScopedSubscription(EventType::BridgeChopped, [this](const GameEvent&) {
         chopBridge();
     });
 
     // --- Level complete: the flagpole fires this; without a listener the game
     // could be flagged but never actually finished (audit G-1). ---
-    m_levelCompleteSubId = bus.subscribe(EventType::LevelComplete, [this](const GameEvent&) {
+    m_levelCompleteSub = EventBus::ScopedSubscription(EventType::LevelComplete, [this](const GameEvent&) {
         if (m_levelComplete) return;   // flagpole can fire more than once
         // "No escape until defeated" (SPEC 6.4) applies to finishing the level,
         // not only to leaving the arena: a boss level's flagpole must not clear
@@ -416,47 +414,26 @@ void PlayingState::exit() {
     std::cout << "Exiting PlayingState" << std::endl;
     cleanupTestScene();
 
-    if (m_checkpointSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_checkpointSubId);
-        m_checkpointSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-    if (m_playerDiedSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_playerDiedSubId);
-        m_playerDiedSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-    if (m_fireballSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_fireballSubId);
-        m_fireballSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-    if (m_starCoinSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_starCoinSubId);
-        m_starCoinSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-    if (m_pSwitchSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_pSwitchSubId);
-        m_pSwitchSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-    if (m_powSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_powSubId);
-        m_powSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-    if (m_bridgeSubId != static_cast<EventBus::SubscriptionId>(-1)) {
-        EventBus::getInstance().unsubscribe(m_bridgeSubId);
-        m_bridgeSubId = static_cast<EventBus::SubscriptionId>(-1);
-    }
-
-    // Particle / death-effect subscriptions. These capture `this`, so they must go
-    // before the state is destroyed or the next publish dereferences freed memory.
-    {
-        EventBus& bus = EventBus::getInstance();
-        const auto NONE = static_cast<EventBus::SubscriptionId>(-1);
-        for (auto* id : { &m_enemyDefeatedSubId, &m_blockBrokenSubId,
-                          &m_coinParticleSubId, &m_playerDamagedSubId,
-                          &m_powerUpSubId, &m_levelCompleteSubId,
-                          &m_entitySpawnSubId }) {
-            if (*id != NONE) { bus.unsubscribe(*id); *id = NONE; }
-        }
-    }
+    // RAII subscription tokens (audit X-7): reset() unsubscribes immediately
+    // rather than waiting for ~PlayingState(). These lambdas capture `this`, so
+    // they must go before the state is destroyed or the next publish
+    // dereferences freed memory — exit() always runs immediately before
+    // GameStateManager destroys this object (see GameStateManager.cpp), so this
+    // ordering is unchanged from before; there is just no sentinel to check.
+    m_checkpointSub.reset();
+    m_playerDiedSub.reset();
+    m_fireballSub.reset();
+    m_starCoinSub.reset();
+    m_pSwitchSub.reset();
+    m_powSub.reset();
+    m_bridgeSub.reset();
+    m_enemyDefeatedSub.reset();
+    m_blockBrokenSub.reset();
+    m_coinParticleSub.reset();
+    m_playerDamagedSub.reset();
+    m_powerUpSub.reset();
+    m_levelCompleteSub.reset();
+    m_entitySpawnSub.reset();
 
     m_minimap.reset();
     EntityDeathEffect::getInstance().clear();

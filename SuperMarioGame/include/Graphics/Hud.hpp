@@ -9,7 +9,6 @@
 #include <SFML/Graphics/ConvexShape.hpp>
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
-#include "Core/EventBus.hpp"
 
 struct HudData {
     int score = 0;
@@ -79,7 +78,6 @@ protected:
 
 private:
     HudData m_curData;
-    std::vector<EventBus::SubscriptionId> m_subscribedIds;
 
     sf::Text m_scoreText, m_coinsText, m_worldText,
              m_timeLeftText, m_livesText, m_comboCountText, m_pSwitchTimeText,
