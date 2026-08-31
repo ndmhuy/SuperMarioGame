@@ -931,3 +931,55 @@ These features are **not in MVP scope** but are planned for post-MVP development
 | AI | 5 | 7+ strategies, Lakitu spawner, HammerBro arcs, Thwomp state machine, Boo proximity, Boss phases, config-driven variants |
 | Multiple Players | 5 | 4 characters (Mario, Luigi, Toad, Peach), character select + hotkey switch, unlockable progression, 2P versus |
 | **Total** | **110/115** | (no 3D = -5, compensated by GLSL shader effects) |
+
+---
+
+## 21. Descope Addendum (2026-08-31)
+
+The following features, named in the SPEC but not built, have been formally descoped as of this date and will not be implemented. Items planned for build in later phases (marked "planned R#") are listed here for clarity but omitted from this descope section.
+
+### Features Descoped
+
+- **F7 Dynamic music layers** (§11.5) — Current single `sf::Music` playback architecture is documented and sufficient; layering adds substantial implementation cost with low grading value.
+
+- **§19.4 Dynamic Lighting & Weather (SFML Shaders)** — Advanced graphics feature requiring shader programming and visual effect tuning; deferred beyond scope.
+
+- **§9.5 Autoscroll sections** — Vertical scrolling level sections would require additional level design and camera state management; deferred.
+
+- **§9.4 Timed bonus rooms** (15-second countdown challenge rooms) — Concept requires level data extension and timer integration; deferred.
+
+- **Climbing/vines mechanic** (§4.3.5) — Would require new player state and level tile interaction system; deferred.
+
+- **Swimming as a state** (§4.3.4) — Complex fluid-physics state distinct from current water handling; deferred.
+
+- **Skid mechanic** (§4.3.7) — Inertia-based directional control variant; deferred.
+
+- **Hover-pause and stun effects** (§4.3.2) — Ground-pound hover state and knockback stun lock; deferred.
+
+- **Knockback input-lock** (§4.3.6) — Input rejection during knockback recovery; deferred.
+
+- **Red enemy variants** (§6.3) — Constructor parameters exist; factory hardcodes `false`; deferred.
+
+- **Cape swoop mechanic** (§5.2) — Secondary cape action requiring state and animation extension; deferred.
+
+- **Mini abilities** (§5.2) — Walk-on-water and mini-pipes for Mini Mario state; deferred.
+
+- **Character-switch hotkey** (§5.1) — In-gameplay character switching; planned **R10** for attract mode / presentation system.
+
+- **Floating score text** (§10.5) — Damage numbers and combo feedback particles; deferred.
+
+- **Extra object pools** (§16.1) — Bullet Bill and floating-text dedicated memory pools; deferred.
+
+- **A* pathfinding** — Remains descoped per `TASKS.md`; stateless behavior via proximity and patrol strategies sufficient.
+
+- **Split-screen speedrun mode** — Remains descoped per `TASKS.md`.
+
+### Features Planned for Later Phases
+
+The following features remain in scope and will be implemented in designated phases:
+
+- **Attract mode** — Planned **phase R10** (30-second idle replay playback).
+- **Load Game menu row** — Planned **phase R8** (main menu UI integration).
+- **Surface footsteps** — Planned **phase R7** item 4 (audio playback on step events).
+- **Menu audio navigation cues** — Planned **phase R7** item 6 (per-row menu SFX).
+- **Hidden block placed in shipped level** — Planned **phase R9** (secret placement and `secret_finder` achievement enablement).
