@@ -964,7 +964,7 @@ The following features, named in the SPEC but not built, have been formally desc
 
 - **Mini abilities** (§5.2) — Walk-on-water and mini-pipes for Mini Mario state; deferred.
 
-- **Character-switch hotkey** (§5.1) — In-gameplay character switching; planned **R10** for attract mode / presentation system.
+- **Character-switch hotkey** (§5.1) — In-gameplay character switching without mode switching; deferred.
 
 - **Floating score text** (§10.5) — Damage numbers and combo feedback particles; deferred.
 
@@ -984,6 +984,8 @@ The following features remain in scope and will be implemented in designated pha
 - **Menu audio navigation cues** — Planned **phase R7** item 6 (per-row menu SFX).
 - **Hidden block placed in shipped level** — Planned **phase R9** (secret placement and `secret_finder` achievement enablement).
 
+**Note on design decisions**: See §22 for rationale on the friend-class sprawl trade-off in Entity and Character hierarchies.
+
 ---
 
 ## 22. Design Decision: Encapsulation Trade-off (A-11)
@@ -992,17 +994,22 @@ The following features remain in scope and will be implemented in designated pha
 
 **Decision**: ACCEPTED AS DELIBERATE DESIGN CHOICE.
 
-Both `Entity` and `Character` maintain 12 friend declarations each, granting direct write access to protected coordinate and physics state to the physics engine, collision resolution, movement strategies, and game state manager.
+Both `Entity` and `Character` maintain 12 friend declarations each, granting direct write access to protected coordinate and physics state to:
+- `PhysicsEngine` and `CollisionResolver` (physics integration)
+- `PlayingState` (game state transitions and respawning)
+- `IMovementStrategy` and its 8 concrete implementations (Patrol, Chase, Fly, TimerEmergence, Linear, HammerThrow, TetheredChase, ProximityTrigger)
 
-**Rationale**: Physics and entity movement are tightly coupled in this implementation. The friend relationships exist to:
+**Rationale**: Physics and entity movement are tightly coupled in this implementation. The friend relationships permit:
 
-1. Allow `PhysicsEngine` and `CollisionResolver` to directly update position, velocity, and collision state without setter overhead during the fixed-timestep integration loop.
-2. Grant `IMovementStrategy` and its 7 concrete subclasses (Patrol, Chase, Fly, Timer Emergence, Linear, Hammer Throw, Tethered Chase, Proximity Trigger) direct mutation rights so AI can express intent (velocity, facing direction) without indirection.
-3. Enable `PlayingState` to directly manipulate character state during level transitions, game-over recovery, and checkpoint respawning.
+1. Direct position, velocity, and collision-state updates during the fixed-timestep integration loop without function-call indirection.
+2. Direct mutation rights for the 8 AI strategy classes so they can express intent (target velocity, facing direction) without callback indirection.
+3. Direct character-state manipulation by `PlayingState` during level transitions, game-over recovery, and checkpoint respawning.
 
-**Alternatives considered**:
+The code comments document this as intentional (`// Friends are allowed direct write access to coordinate updates` in Entity.hpp:155, `// Friends for controlled physics write access` in Character.hpp:41).
 
-- **Getter/setter explosion**: Wrapping each field in accessors would incur virtual call overhead in the physics hot loop (9-stage pipeline, 60 Hz fixed timestep). Benchmarking showed measurable impact; decision to use friends was made to retain O(1) field access.
-- **Protected-only**: Keeping friends to the direct physics-engine layer and using strategy pattern callbacks for AI. This would require every movement call to re-derive state (position from velocity + dt, etc.), duplicating the physics calculation.
+**Design reasoning** (unmeasured):
 
-The friend relationship is a deliberate encapsulation trade-off in favor of performance in the physics-critical path. The commented intent in the code (`// Friends are allowed direct write access to coordinate updates` in Entity.hpp:155, `// Friends for controlled physics write access` in Character.hpp:41) documents this as intentional, not accidental.
+- **Alternative: Getter/setter wrapping**: Would require additional function calls in the physics integration loop. This trade-off was reasoned about but not experimentally measured.
+- **Alternative: Protected-only + callbacks**: Would require every movement call to re-derive state (position from velocity + dt, etc.), duplicating the physics calculation and increasing cognitive load on strategy implementations.
+
+The friend relationship is an intentional encapsulation trade-off documented in the code. No performance benchmark was conducted to validate the assumed cost of the alternatives.
