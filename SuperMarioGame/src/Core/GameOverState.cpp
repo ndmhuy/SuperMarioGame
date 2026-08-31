@@ -50,7 +50,8 @@ void GameOverState::enter() {
     entry.coins      = m_summary.coins;
     entry.starCoins  = m_summary.starCoins;
     entry.character  = m_summary.characterName;
-    entry.levelName  = m_summary.isProcedural ? "Procedural"
+    entry.levelName  = m_summary.isEndless ? "Endless"
+                     : m_summary.isProcedural ? "Procedural"
                                               : LevelCatalog::nameFor(m_summary.levelIndex);
     m_madeHighScore = Serializer::recordHighScore(entry);
 }
@@ -71,7 +72,8 @@ void GameOverState::activateSelection() {
         // what a run summary remembered.
         Game::getInstance().changeState(std::make_unique<PlayingState>(
             false, m_summary.isProcedural, m_summary.generatorConfig,
-            m_summary.characterIndex, m_summary.levelIndex, m_summary.match));
+            m_summary.characterIndex, m_summary.levelIndex, m_summary.match,
+            m_summary.isEndless));
     } else {
         Game::getInstance().changeState(std::make_unique<MenuState>());
     }
@@ -161,9 +163,11 @@ void GameOverState::render(sf::RenderTarget& target) {
     UiRenderer::drawShadowedText(target, headline, {centerX, py + 40.0f}, 32,
                                  headlineColor, true);
 
-    const std::string levelName = m_summary.isProcedural
-        ? "PROCEDURAL"
-        : upper(LevelCatalog::nameFor(m_summary.levelIndex));
+    const std::string levelName = m_summary.isEndless
+        ? ("ENDLESS - " + std::to_string(m_summary.endlessDistanceTiles) + "M")
+        : m_summary.isProcedural
+            ? "PROCEDURAL"
+            : upper(LevelCatalog::nameFor(m_summary.levelIndex));
 
     float y = py + 82.0f;
     // How the run ended, in the words PlayingState used when it ended it.

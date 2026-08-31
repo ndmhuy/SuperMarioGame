@@ -340,6 +340,11 @@ void MenuState::activateSelection() {
             m_dismissed = true;
             game.changeState(std::make_unique<PlayingState>(true, true, m_generatorConfig));
             break;
+        case GenRow::PlayEndless:
+            m_dismissed = true;
+            game.changeState(std::make_unique<PlayingState>(
+                false, true, m_generatorConfig, 0, 0, MatchConfig{}, /*isEndless=*/true));
+            break;
         case GenRow::Back:
             m_page = Page::Main;
             break;
@@ -544,6 +549,7 @@ void MenuState::render(sf::RenderTarget& target) {
     rows.emplace_back("COINS",       percent(m_generatorConfig.coinClusterRate));
     rows.emplace_back("GENERATE & PLAY");
     rows.emplace_back("GENERATE & EDIT");
+    rows.emplace_back("PLAY ENDLESS");
     rows.emplace_back("BACK");
 
     UiRenderer::drawPanel(target, {centerX - 280.0f, 200.0f}, {560.0f, 400.0f},

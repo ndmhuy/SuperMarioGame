@@ -12,6 +12,8 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/SerializationUtils.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/MapGenerator.hpp"
+#include "Utils/LevelSolvability.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
 #include "Entities/IPlayerState.hpp"
@@ -1025,6 +1027,46 @@ void testEndOfLevelCastleHasBuffer() {
         check(levelRight - castleRight >= Constants::TILE_SIZE,
               file + "'s castle leaves at least one tile of buffer to the level edge");
     }
+}
+
+void testGeneratedLevelsAreVerifiedSolvable() {
+    section("16.2  MapGenerator::generateSolvable actually verifies what it claims");
+
+    // The pit/platform placement heuristics in MapGenerator.cpp are trusted on
+    // faith today — "Generated winnable procedural level" is printed
+    // unconditionally, whether or not the level actually is. generateSolvable()
+    // adds an independent BFS reachability check (Utils/LevelSolvability) and
+    // retries with a new seed if it fails. This is a stress pass across every
+    // theme/difficulty combination the menu's generator page can produce.
+    int verifiedCount = 0;
+    int total = 0;
+    for (int themeIdx = 0; themeIdx < 4; ++themeIdx) {
+        for (int diffIdx = 0; diffIdx < 3; ++diffIdx) {
+            MapGeneratorConfig config;
+            config.theme = static_cast<MapTheme>(themeIdx);
+            config.difficulty = static_cast<MapDifficulty>(diffIdx);
+            config.width = 200;
+            config.seed = static_cast<unsigned int>(1000 + themeIdx * 10 + diffIdx);
+
+            TileMap map;
+            std::vector<std::unique_ptr<Entity>> entities;
+            const bool verified = MapGenerator::generateSolvable(map, entities, config);
+            ++total;
+            if (verified) ++verifiedCount;
+
+            // Whatever generateSolvable returned, re-check independently — the
+            // function must not claim success on a level LevelSolvability
+            // itself would reject.
+            const bool actuallyReachable =
+                LevelSolvability::isPathReachable(map, entities, 3, config.width - 15);
+            check(!verified || actuallyReachable,
+                  "theme " + std::to_string(themeIdx) + "/difficulty " + std::to_string(diffIdx) +
+                  ": a level generateSolvable verified is independently reachable");
+        }
+    }
+    check(verifiedCount == total,
+          "every theme/difficulty combination generated a verifiably solvable level ("
+          + std::to_string(verifiedCount) + "/" + std::to_string(total) + ")");
 }
 
 void testEveryBossTypeIsBuildable() {
@@ -3331,6 +3373,7 @@ int main() {
     testLevelTwoContainsItsMidBoss();
     testEndOfLevelCastleHasBuffer();
     testEveryBossTypeIsBuildable();
+    testGeneratedLevelsAreVerifiedSolvable();
     testDifficultyStrategyActuallyChangesTheGame();
     testDifficultyScalesEnemiesAndBosses();
     testThwompRunsItsStateMachine();
