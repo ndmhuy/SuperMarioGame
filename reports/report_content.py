@@ -1039,31 +1039,46 @@ one pass rather than hunting back through the prose. Each is regenerated from th
 build time by the same <code>gen_class_diagram.py</code> pass that draws the inline copies
 (&sect;6's opening note), so this appendix cannot go stale relative to them the way a hand-drawn
 "master diagram" done once and forgotten would.</p>
+<p>Seven of the nine show <strong>every attribute and method, with its real visibility</strong> —
+a classic three-compartment UML box, not just a name in a box — specifically so encapsulation is
+something a reader can verify by eye (how much of each box is <code>-</code>/<code>#</code> versus
+<code>+</code>) rather than take &sect;6's prose about it on faith. Static members are underlined and
+pure-virtual operations italicised, both standard UML notation; the same dashed border and
+&#171;stereotype&#187; tag from &sect;6 still mark an abstract class or interface. Two roots
+(<code>Entity</code>, <code>Character</code>) are kept to the compact, name-only form instead: both
+contain <code>Player</code> (109 members) or <code>PlayingState</code> (132), and a full listing for
+either one alone makes the whole diagram many times taller than every other class on it combined —
+measured at roughly seven times the width in height before this exception was made, against one-to-two
+times for every other group here. Their full member lists are not missing, only shown a different way:
+Entity's own branches (Item, Block, Enemy) and Character's own children (Enemy, and Player's siblings
+inside it) are the very next diagrams, each in full detail.</p>
 <div class="tbl"><table>
-<thead><tr><th>Figure</th><th>Root class</th><th>Discussed in</th><th>What it shows</th></tr></thead>
+<thead><tr><th>Figure</th><th>Root class</th><th>Discussed in</th><th>Detail</th><th>What it shows</th></tr></thead>
 <tbody>
-<tr><td>6</td><td><code>Entity</code></td><td>&sect;6.1</td><td>The four branches under the abstract root: Character, Item, Block, Projectile.</td></tr>
-<tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>Twelve concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
-<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right.</td></tr>
-<tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
-<tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>
-<tr><td>9</td><td><code>IPlayerState</code></td><td>&sect;6.4</td><td>Five player forms plus the two Decorators that wrap them.</td></tr>
-<tr><td>10</td><td><code>IGameState</code></td><td>&sect;6.5</td><td>Eight screens behind one State interface.</td></tr>
-<tr><td>11</td><td><code>ICommand</code></td><td>&sect;6.5</td><td>Input as objects — the Command pattern's own hierarchy.</td></tr>
-<tr><td>12</td><td><code>IMovementStrategy</code></td><td>&sect;6.5</td><td>Eight interchangeable enemy movements — the Strategy pattern's own hierarchy.</td></tr>
+<tr><td>6</td><td><code>Entity</code></td><td>&sect;6.1</td><td>compact</td><td>The four branches under the abstract root: Character, Item, Block, Projectile.</td></tr>
+<tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>full</td><td>Twelve concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
+<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>full</td><td>Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right.</td></tr>
+<tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>compact</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
+<tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>full</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>
+<tr><td>9</td><td><code>IPlayerState</code></td><td>&sect;6.4</td><td>full</td><td>Five player forms plus the two Decorators that wrap them.</td></tr>
+<tr><td>10</td><td><code>IGameState</code></td><td>&sect;6.5</td><td>full</td><td>Eight screens behind one State interface.</td></tr>
+<tr><td>11</td><td><code>ICommand</code></td><td>&sect;6.5</td><td>full</td><td>Input as objects — the Command pattern's own hierarchy.</td></tr>
+<tr><td>12</td><td><code>IMovementStrategy</code></td><td>&sect;6.5</td><td>full</td><td>Eight interchangeable enemy movements — the Strategy pattern's own hierarchy.</td></tr>
 </tbody></table></div>
 
-{uml('Entity', None, 'Figure 6 (full) — The complete Entity hierarchy.',
-     'Every concrete Entity subclass the game has, four branches deep from one abstract root.')}
-{uml('Item', None, 'Figure 6a (full) — The complete Item hierarchy.', None)}
-{uml('Block', None, 'Figure 6b (full) — The complete Block hierarchy.', None)}
-{uml('Character', None, 'Figure 7 (full) — The complete Character hierarchy.',
-     'Every playable character and every enemy, including the Boss sub-branch, in one tree.')}
-{uml('Enemy', None, 'Figure 8 (full) — The complete Enemy/Boss hierarchy.', None)}
-{uml('IPlayerState', None, 'Figure 9 (full) — The complete player-form hierarchy.', None)}
-{uml('IGameState', None, 'Figure 10 (full) — The complete screen/State hierarchy.', None)}
-{uml('ICommand', None, 'Figure 11 (full) — The complete Command hierarchy.', None)}
-{uml('IMovementStrategy', None, 'Figure 12 (full) — The complete Strategy hierarchy.', None)}
+{uml('Entity', None, 'Figure 6 (full tree, compact boxes) — The complete Entity hierarchy.',
+     'Every concrete Entity subclass the game has, four branches deep from one abstract root. Compact '
+     'rather than detailed — see the note above the index table.')}
+{uml('Item', None, 'Figure 6a (full detail) — The complete Item hierarchy, every attribute and method.', None, detailed=True)}
+{uml('Block', None, 'Figure 6b (full detail) — The complete Block hierarchy, every attribute and method.', None, detailed=True)}
+{uml('Character', None, 'Figure 7 (full tree, compact boxes) — The complete Character hierarchy.',
+     'Every playable character and every enemy, including the Boss sub-branch, in one tree. Compact '
+     'rather than detailed for the same reason as Figure 6.')}
+{uml('Enemy', None, 'Figure 8 (full detail) — The complete Enemy/Boss hierarchy, every attribute and method.', None, detailed=True)}
+{uml('IPlayerState', None, 'Figure 9 (full detail) — The complete player-form hierarchy, every attribute and method.', None, detailed=True)}
+{uml('IGameState', None, 'Figure 10 (full detail) — The complete screen/State hierarchy, every attribute and method.', None, detailed=True)}
+{uml('ICommand', None, 'Figure 11 (full detail) — The complete Command hierarchy, every attribute and method.', None, detailed=True)}
+{uml('IMovementStrategy', None, 'Figure 12 (full detail) — The complete Strategy hierarchy, every attribute and method.', None, detailed=True)}
 
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>
 Generated by <code>reports/build_report.py</code> from the repository at commit {F['head']}.
