@@ -55,6 +55,11 @@ public:
     bool collidesWithTiles() const override { return !m_isFlipped && !m_isDyingDownward; }
 
 protected:
+    // Despawn plane for a flipped/falling enemy: one tile below the current
+    // level's own tilemap height, not a fixed screen constant — correct for
+    // any level height, not only the 720px window (audit D2).
+    static float fallDespawnPlaneY();
+
     std::unique_ptr<IMovementStrategy> m_aiStrategy;
     int m_scoreValue;
     bool m_isFlipped = false;
