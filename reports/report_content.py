@@ -96,7 +96,7 @@ def render(F, img, uml, arch):
   <p class="sub" style="margin-top:14px">
     Nguy&#7877;n &#272;&#236;nh Minh Huy (25125083) &middot; Tr&#7847;n Gia Huy (25125084)</p>
   <p class="meta">C++17 &middot; SFML 3.0.2 &middot; ImGui-SFML &middot; CMake<br>
-  Verified against commit {F['head']} &middot; 2026-08-22</p>
+  Verified against commit {F['head']} &middot; 2026-08-31</p>
 </div>
 
 <div class="toc"><ol>
@@ -282,7 +282,7 @@ exist without deciding what it does. The three second-level abstracts each add e
 <code>Character</code>'s velocity and grounded state.</p>
 
 <h3>6.2 The other two branches: Item and Block</h3>
-{uml('Item', 2, 'Figure 6a &mdash; Twelve items behind one activate() call.',
+{uml('Item', 2, 'Figure 6a &mdash; Thirteen items behind one activate() call.',
      'A Mushroom, a Star and a 1-Up all answer the same question &mdash; what happens to the player who '
      'touches me &mdash; with a different body. QuestionBlock never asks which one it is holding.')}
 {uml('Block', 2, 'Figure 6b &mdash; Ten blocks, three of them stateful.',
@@ -303,7 +303,7 @@ supposed to replace. <code>PSwitch</code> is the edge case that proves the split
 just naming: it is a <code>Block</code> (grounded, collidable) whose <code>onHitFromBelow</code> triggers
 a level-wide event rather than reacting locally &mdash; still a block, because the physics engine still
 needs to resolve a jump-bump against it, but the one that most resembles an item.</p>
-<p>Ten concrete blocks and twelve concrete items ship in this project, twice what the rubric's five-item
+<p>Ten concrete blocks and thirteen concrete items ship in this project, more than twice what the rubric's five-item
 minimum would need per SPEC's rubric-alignment reasoning (&sect;2) &mdash; the same doubled-scope
 argument the feature list makes, made visible in a diagram instead of a count.</p>
 
@@ -485,8 +485,9 @@ plays.</p>
 <p>Step 5's position is not cosmetic; &sect;10.6 is the crash that put it there.</p>
 
 <h3>8.2 The physics pipeline</h3>
-<p><code>PhysicsEngine::update</code> runs ten ordered stages, and the order is load-bearing at almost
-every step.</p>
+<p><code>PhysicsEngine::update</code> runs ten ordered steps &mdash; nine numbered stages in the code,
+with the broad and narrow phases sharing one stage and split into two rows below for readability &mdash;
+and the order is load-bearing at almost every step.</p>
 <div class="tbl"><table>
 <thead><tr><th>Stage</th><th>What it does, and why it is here</th></tr></thead>
 <tbody>
@@ -610,7 +611,7 @@ hazard and is unmoved by collision, because shoving it off its path would desync
 driving it.</p>
 
 <h3>8.10 Graphics</h3>
-<p>Sprites come from JSON-described atlases (<code>player.json</code> alone has 92 validated frames);
+<p>Sprites come from JSON-described atlases (<code>player.json</code> alone has 236 frames &mdash; 59 per playable character);
 <code>Animator</code> plays named clips against them. The camera does look-ahead in the direction of
 travel, clamps to level bounds, and applies screen shake <em>between two clamps</em> so a shake cannot
 push the view outside the map. The parallax backdrop composes per-theme layers at fractional scroll
@@ -623,6 +624,29 @@ category. The JSON parser and the editor's palette both read it, and a CTest cas
 entry is constructible by the factory and that each class's own <code>getTypeName()</code> matches its
 catalogue name &mdash; because a mismatch means a level saved from the editor loads back as a different
 entity. Before this existed the list was hand-written in three places and had drifted: &sect;10.4.</p>
+
+<h3>8.12 Procedural generation, solvability and Endless Mode</h3>
+<p><code>MapGenerator</code> builds a level from a seed: multi-tier elevation, biome-specific ceilings,
+lava pits, reachability-guarded platform gaps and a threat-pacing curve. It drives three player-facing
+modes &mdash; the date-seeded Daily Challenge (deterministic for every player on the same day), a
+"Generate &amp; Play/Edit" page, and Endless Mode.</p>
+<p><strong>Endless Mode</strong> is a true infinite runner, not a wide level. The tilemap starts as one
+generated chunk; <code>PlayingState::extendEndlessLevelIfNeeded()</code>, called once per frame, appends
+a fresh 100-tile chunk whenever the player nears the current edge. Each chunk is generated into an
+<em>isolated</em> tilemap and entity list &mdash; the generator unconditionally clears whatever entity
+vector it is handed, which would otherwise delete the live player &mdash; then spliced in at an x-offset
+with a flat safety bridge across the seam. Pit probability, enemy rate, terrain roughness and the
+difficulty tier all rise with the chunk index; no flagpole ever exists, and distance travelled is the
+score, recorded distinctly from the other modes on the Game Over screen.</p>
+<p><strong>Solvability.</strong> Every generated level and every Endless chunk is checked by
+<code>LevelSolvability</code>, an independent column-reachability BFS bounded by the game's own jump and
+run constants from <code>Constants.hpp</code> (a moving or falling platform counts as standable ground
+at its column, so a platform-bridged pit is not a false rejection).
+<code>MapGenerator::generateSolvable()</code> retries with a new seed on failure, bounded; if every
+attempt fails it keeps the last layout and logs the failure rather than blocking play &mdash; a check
+with retries, not a shipping gate (&sect;13). The idea was salvaged from an abandoned GAN/RL side branch
+whose quality gate outlived its framework; the shipped implementation is a dependency-free rewrite,
+stress-tested by a CTest case across every theme and difficulty the menu can produce.</p>
 
 <h2 id="storage">9 &middot; Data storage and serialization</h2>
 <p>Everything persistent is JSON via <code>nlohmann/json</code>, chosen over a binary format because a
@@ -765,7 +789,7 @@ game.</li>
 is reachable from <code>main()</code> and has been observed running. A harness proves a class works in
 isolation; it does not prove the game ever builds one. That is why &sect;4 records how each capability
 was confirmed. The menu music, which had been failing silently at startup for weeks, was found by
-running the game for six seconds &mdash; not by any of the 86 harnesses.</blockquote>
+running the game for six seconds &mdash; not by any of the test harnesses.</blockquote>
 
 <h3>10.6 A crash on Windows that could not be reproduced on macOS</h3>
 <p>A teammate reported that the game crashed in 1-3, and that deleting Bowser from the level file made
@@ -848,7 +872,7 @@ previously-unlocked achievements popped up again after every load.</li>
 <p>All five figures are unretouched frames captured from the running game by a scripted input driver
 (<code>--script</code>), which synthesises events into the same path the OS event queue feeds. Nothing
 outside the process is touched, so a verification run is reproducible.</p>
-{img('01_menu.png', 'Main menu', 'Figure 1 &mdash; The main menu, over the parallax backdrop. Seven entries including the four multiplayer modes, the map editor and a procedurally generated level.')}
+{img('01_menu.png', 'Main menu', 'Figure 1 &mdash; The main menu, over the parallax backdrop. Eight entries including the four multiplayer modes, the map editor and the procedural generator page.')}
 {img('02_world_1_3.png', 'World 1-3', 'Figure 2 &mdash; World 1-3, Bowser&#39;s Castle. The HUD reads WORLD 1-3, taken from the level catalogue rather than a constant. The castle towers and fencing of the parallax backdrop stand on the floor the player walks on, at the correct depth tint for the castle theme.')}
 {img('03_level_end.png', 'End of 1-3', 'Figure 3 &mdash; The rebuilt end of 1-3, seen through the editor&#39;s free camera. Left to right: lava spanned by the brick bridge Bowser paces, the axe that drops it, the goal flagpole standing on the ground, and the castle drawn from the atlas&#39;s castle_end art. The editor&#39;s tile palette is open on the right.')}
 {img('04_versus_cpu.png', 'Versus CPU', 'Figure 4 &mdash; Versus CPU. Both players have an icon and a life count in the HUD; the bottom strip carries the score line and who is leading. The dev panel reports the opponent&#39;s policy and what it currently believes it is doing (&quot;crossing gap&quot;) &mdash; the CPU drives a real Player through the same commands a human uses.')}
@@ -927,8 +951,9 @@ test (&sect;8.3) is the model. The counterexample is instructive too: this very 
 a script that counts what it claims, and doing so caught two wrong figures before they were
 printed &mdash; a class count inflated by a substring match, and "23 test files" reported as if it
 meant "23 things CI runs".</p>
-<p>The second pattern is thinner: <strong>86 test harnesses against 4 recorded playtests</strong> at
-the time of the audit. Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was invisible to the test
+<p>The second pattern is thinner: <strong>86 test harnesses written across the project's logged
+sessions against 4 recorded playtests</strong> at the time of the audit ({F['harnesses']} harnesses
+survive in the tree today after consolidation). Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was invisible to the test
 suite and obvious within seconds of looking at the running game. The suite is not the problem &mdash;
 it is what makes the fixes stick &mdash; but it verifies what someone already thought to doubt.</p>
 
@@ -937,7 +962,7 @@ it is what makes the fixes stick &mdash; but it verifies what someone already th
 {F['ctests']} of those are registered as CTest cases and run by GitHub Actions on every push to the
 integration branches &mdash; the difference is the harnesses that open a window and cannot run on a
 headless runner, which are compiled but not executed there. The registered suite is currently
-{F['ctests']}/{F['ctests']} green, with 497 individual checks in the regression binary alone. Cases are added whenever a defect escapes to the audit stage, so the suite is a
+{F['ctests']}/{F['ctests']} green, with 504 individual checks in the regression binary alone at the last logged run. Cases are added whenever a defect escapes to the audit stage, so the suite is a
 record of every bug the project has shipped.</p>
 <h3>What is not done</h3>
 <ul>
@@ -950,10 +975,22 @@ its duration (three seconds) are reasoned, not measured against a player.</li>
 <li><strong>The test suite is not hermetic.</strong> It reads and writes the real <code>saves/</code>
 directory; one run was observed deleting campaign progress, and one high-score assertion passes or fails
 depending on what is already on disk. This violates the project's own CI rule and is open work.</li>
-<li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against 86 test harnesses is the
-project's standing imbalance, and the reason several of the defects in &sect;10 survived as long as they
-did.</li>
-</ul>
+<li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against {F['harnesses']} test
+harnesses in the tree (86 written over the project's history) is the project's standing imbalance, and
+the reason several of the defects in &sect;10 survived as long as they did.</li>
+<li><strong>World 1-3 plays the wrong background music.</strong> <code>SoundManager::playLevelBGM</code>
+maps catalog index 2 to the underwater theme, but index 2 is Bowser's Castle &mdash; the registered
+castle track is never played as level BGM. Found by the August 31 documentation audit; open.</li>
+<li><strong>One graphics subsystem is still inert.</strong> <code>AnimationManager</code> compiles and
+passes its harness but is constructed by nothing reachable from <code>main()</code> &mdash; the last
+survivor of the six-inert-subsystems finding (&sect;10.5).</li>
+<li><strong>The solvability oracle does not gate shipping.</strong> If all bounded reseed attempts fail,
+<code>MapGenerator::generateSolvable</code> keeps the last unverified layout and logs the failure; both
+call sites discard the return value. "Checked with retries" is true; "verified before shipping" is not.</li>
+<li><strong>Six implemented enemy types never appear in the shipped campaign.</strong> Koopa Paratroopa,
+Boo, Bullet Bill, Thwomp, Chain Chomp and Lakitu are fully functional and editor-placeable, but no
+campaign level file uses them &mdash; and no shipped level places a hidden block, which also leaves the
+<code>secret_finder</code> achievement unreachable in the campaign.</li></ul>
 
 <h2 id="conclusion">14 &middot; Conclusion and future work</h2>
 <p>The project delivers a complete, playable platformer whose value as coursework lies in its
@@ -972,9 +1009,10 @@ manufacturing.</p>
 found &sect;10.1 on its first run.</li>
 <li>Wrap the entity list in a type whose <code>push_back</code> only the flush step can reach, so the
 &sect;10.1 invariant is impossible to break rather than merely easy to keep.</li>
-<li>Playtest and tune the Bowser fight, and record enough playtests to correct the 86:4 imbalance.</li>
-<li>Finish the procedural generator's integration &mdash; it produces winnable levels today but is not
-part of the campaign.</li>
+<li>Playtest and tune the Bowser fight, and record enough playtests to correct the harness-to-playtest
+imbalance.</li>
+<li>Populate the campaign levels with the six implemented-but-unplaced enemy types, and place at least
+one hidden block so the <code>secret_finder</code> achievement is reachable without the editor.</li>
 </ul>
 
 <h2 id="refs">15 &middot; References</h2>
@@ -1006,11 +1044,11 @@ ctest --output-on-failure # 13 verification targets
 <div class="tbl"><table>
 <thead><tr><th>Action</th><th>Player 1</th><th>Player 2</th></tr></thead>
 <tbody>
-<tr><td>Move</td><td>A / D or &larr; / &rarr;</td><td>&larr; / &rarr;</td></tr>
-<tr><td>Jump</td><td>W, &uarr; or Space</td><td>&uarr;</td></tr>
-<tr><td>Crouch / ground pound</td><td>S or &darr;</td><td>&darr;</td></tr>
-<tr><td>Run (hold)</td><td>Left Shift</td><td>Right Shift</td></tr>
-<tr><td>Fireball</td><td>F or J</td><td>M</td></tr>
+<tr><td>Move</td><td>A / D</td><td>&larr; / &rarr;</td></tr>
+<tr><td>Jump</td><td>W or Space</td><td>&uarr; or Right Shift</td></tr>
+<tr><td>Crouch / ground pound</td><td>S</td><td>&darr;</td></tr>
+<tr><td>Run (hold)</td><td>Left Shift</td><td>N</td></tr>
+<tr><td>Fireball</td><td>F</td><td>M</td></tr>
 <tr><td>Rewind time (hold)</td><td>R</td><td>&mdash;</td></tr>
 <tr><td>Level editor</td><td>F1</td><td>&mdash;</td></tr>
 <tr><td>Dev panel / debug console</td><td>F12 / ~</td><td>&mdash;</td></tr>
@@ -1056,7 +1094,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <thead><tr><th>Figure</th><th>Root class</th><th>Discussed in</th><th>Detail</th><th>What it shows</th></tr></thead>
 <tbody>
 <tr><td>6</td><td><code>Entity</code></td><td>&sect;6.1</td><td>compact</td><td>The four branches under the abstract root: Character, Item, Block, Projectile.</td></tr>
-<tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>full</td><td>Twelve concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
+<tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>full</td><td>Thirteen concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
 <tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>full</td><td>Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right.</td></tr>
 <tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>compact</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
 <tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>full</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>

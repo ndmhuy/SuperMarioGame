@@ -3,6 +3,12 @@
 > **Project**: 110-feature Super Mario Bros (C++17, SFML 3.0.2)
 > **Reference**: [TASKS.md](TASKS.md), [SPEC.md](SPEC.md)
 > **Phase 0** (Environment Setup) is already complete and shared.
+>
+> **Audit reconciliation (2026-08-31)**: unchecked boxes were triaged against the
+> code on `main`; verified-done items were ticked. `Commit:` boxes are moot (work
+> landed via the real `A/*`/`B/*` branches). See
+> [docs/issues/spec_feature_audit_2026-08-31.md](docs/issues/spec_feature_audit_2026-08-31.md)
+> for the full triage and the remaining-work plan.
 
 ---
 
@@ -74,20 +80,20 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 - [ ] Commit: `feat: implement camera with multi-mode scrolling`
 
 #### Phase 5 — World Visuals (partial)
-- [ ] **5.5** Parallax Background — multi-layer scrolling
-- [ ] **5.7** Screen Transitions & Screen Shake — fade-in/out, light/medium/heavy shake
+- [x] **5.5** Parallax Background — multi-layer scrolling
+- [x] **5.7** Screen Transitions & Screen Shake — fade-in/out, light/medium/heavy shake
 - [ ] **5.10** Water & Lava Animation — sine-wave water surface, bubble/ember particles
 - [ ] Commit: `feat: implement parallax, screen transitions, water/lava VFX`
 
 #### Phase 7 — Player-Facing Game States (partial)
 - [ ] **7.1** Animated Menu State — animated background, running Mario, spinning coins, attract mode after 30s idle
-- [ ] **7.3** World Map State — overhead map with level nodes, animated paths, star coin display, sequential level unlock
+- [x] **7.3** World Map State — overhead map with level nodes, animated paths, star coin display, sequential level unlock
 - [ ] **7.4** Playing State (Full Implementation) — integrate level load, player spawn, physics, camera, HUD, minimap, all collision callbacks, swimming/climbing/wall sliding/ground pounding, P-Switch timer, combo system, star coin tracking, ImGui dev panel
-- [ ] **7.8** Options State & High Scores — volume sliders, difficulty selection, controls rebinding, colorblind mode toggle, high score persistence
+- [x] **7.8** Options State & High Scores — volume sliders, difficulty selection, controls rebinding, colorblind mode toggle, high score persistence
 - [ ] Commit: `feat: implement Menu, WorldMap, Playing, Options states`
 
 #### Phase 11 — Two-Player & Meta-Game (partial)
-- [ ] **11.1** Two-Player Versus Mode — Player 2 keyboard mappings, shared camera following leading player, versus rules
+- [x] **11.1** Two-Player Versus Mode — Player 2 keyboard mappings, shared camera following leading player, versus rules
 - [ ] **11.3** Meta-Game — New Game+ (mirrored levels, faster enemies), Daily Challenge (date-seeded procedural level), unlockable character conditions
 - [ ] Commit: `feat: implement 2P mode, NG+, daily challenge, unlockables`
 
@@ -151,18 +157,18 @@ Instead of splitting by horizontal layer (one person does all systems, the other
 - [ ] Commit: `feat: wire all audio events with dynamic music`
 
 #### Phase 7 — Interaction Game States (partial)
-- [ ] **7.2** Character Select State — Mario/Luigi side-by-side, locked/unlocked Toad/Peach display
+- [x] **7.2** Character Select State — Mario/Luigi side-by-side, locked/unlocked Toad/Peach display
 - [ ] **7.5** Pause State — transparent overlay with Resume, Restart, Save, World Map, Menu, Quit
-- [ ] **7.6** Game Over State — death counter, retry screen
-- [ ] **7.7** Victory State — score calculations, star coin summary, level transition
-- [ ] **7.9** Statistics State — total enemies, coins, deaths, time, combos
-- [ ] **7.10** Achievements Display — list screen from Main Menu, toast notification system (top-right slide-in)
+- [x] **7.6** Game Over State — death counter, retry screen
+- [x] **7.7** Victory State — score calculations, star coin summary, level transition
+- [x] **7.9** Statistics State — total enemies, coins, deaths, time, combos
+- [x] **7.10** Achievements Display — list screen from Main Menu, toast notification system (top-right slide-in)
 - [ ] Commit: `feat: implement CharSelect, Pause, GameOver, Victory, Stats, Achievements`
 
 #### Phase 9 — Enemy AI & Bosses (full)
-- [ ] **9.1** AI Behavior Tuning — tune all 13 enemy types + 3 variants, Lakitu spawner, Thwomp state machine, ChainChomp tether, ImGui AI debug overlay
-- [ ] **9.2** Boom Boom Mid-Boss — 3-phase boss for Level 2, charge→spin→recover, boss arena
-- [ ] **9.3** Bowser Boss — Phase 1 (walk + fire), Phase 2 (jump + faster fire), health bar, boss arena
+- [x] **9.1** AI Behavior Tuning — tune all 13 enemy types + 3 variants, Lakitu spawner, Thwomp state machine, ChainChomp tether, ImGui AI debug overlay
+- [x] **9.2** Boom Boom Mid-Boss — 3-phase boss for Level 2, charge→spin→recover, boss arena
+- [x] **9.3** Bowser Boss — Phase 1 (walk + fire), Phase 2 (jump + faster fire), health bar, boss arena
 - [ ] **9.4** Difficulty Scaling — Easy/Normal/Hard DifficultyStrategy, entity distribution balancing
 - [ ] Commit: `feat: tune AI, implement bosses, add difficulty modes`
 

@@ -3,6 +3,16 @@
 > **Reference**: [SPEC.md](SPEC.md) v2.0 for all constants and specifications.
 > **Rule**: Each phase = one feature branch off `dev`. Merge to `dev` when phase is complete.
 > **Version**: 2.0 — Updated 2026-06-02 with expanded 110-feature scope.
+>
+> **Audit reconciliation (2026-08-31)**: every unchecked box was triaged against
+> the code on `main` — see
+> [docs/issues/spec_feature_audit_2026-08-31.md](docs/issues/spec_feature_audit_2026-08-31.md).
+> Boxes verified as *implemented, wired from `main()` and observed* were ticked
+> in that pass. The `Commit:`/`Merge: git checkout dev && git merge feature/*`
+> boxes reference a planned branch scheme that was replaced by the real `A/*`
+> and `B/*` branch flow; they are tracked as moot in the audit rather than
+> ticked here. Boxes still unchecked below (other than those) are genuinely
+> open work — the audit lists each with what is missing.
 
 ---
 
@@ -416,7 +426,7 @@
 
 ### 5.9 Invincibility Visual FX [v2.0]
 - [ ] Star power: rainbow color cycling + sparkle trail
-- [ ] Hit invincibility: sprite flashing
+- [x] Hit invincibility: sprite flashing
 - [ ] Commit: `feat: implement invincibility visual effects`
 
 ### 5.10 Water & Lava Animation [v2.0]
@@ -428,8 +438,8 @@
 - [x] Commit: `feat: implement water and lava visual effects`
 
 ### 5.11 Source & Integrate Assets
-- [ ] Download spritesheets, wire to all entities
-- [ ] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
+- [x] Download spritesheets, wire to all entities
+- [x] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
 - [ ] Commit: `feat: integrate sprite assets and wire to all entities`
 - [ ] **Merge**: `git checkout dev && git merge feature/graphics`
 
@@ -441,18 +451,18 @@
 > **Branch**: `git checkout -b feature/audio dev`
 
 ### 6.1 Source Audio Assets
-- [ ] Find retro SFX and BGM assets (17+ SFX, 10+ BGM tracks) [v2.0: expanded]
+- [x] Find retro SFX and BGM assets (17+ SFX, 10+ BGM tracks) [v2.0: expanded]
 - [ ] Commit: `feat: add audio assets`
 
 ### 6.2 Wire Sound Events
-- [ ] Subscribe SoundManager to EventBus (15+ event types) [v2.0: expanded]
+- [x] Subscribe SoundManager to EventBus (15+ event types) [v2.0: expanded]
 - [ ] Surface-dependent footstep sounds [v2.0]
 - [ ] Combo SFX escalation [v2.0]
 - [ ] Dynamic music layer system [v2.0]
 - [ ] Commit: `feat: wire all sound events with dynamic music`
 
 ### 6.3 Volume Controls
-- [ ] Volume sliders in Options, persist to config.json
+- [x] Volume sliders in Options, persist to config.json
 - [ ] Commit: `feat: add volume controls`
 - [ ] **Merge**: `git checkout dev && git merge feature/audio`
 
@@ -484,11 +494,11 @@
 - [x] Commit: `feat: implement WorldMapState`
 
 ### 7.4 Playing State (Full Implementation)
-- [ ] Integrate: level load, player spawn, physics, camera, HUD, minimap
-- [ ] All collision callbacks including new block/item types [v2.0]
+- [x] Integrate: level load, player spawn, physics, camera, HUD, minimap
+- [x] All collision callbacks including new block/item types [v2.0]
 - [ ] Swimming, climbing, wall sliding, ground pounding [v2.0]
-- [ ] P-Switch timer, combo system, star coin tracking [v2.0]
-- [ ] ImGui development panel
+- [x] P-Switch timer, combo system, star coin tracking [v2.0]
+- [x] ImGui development panel
 - [ ] Commit: `feat: implement full PlayingState with all v2.0 systems`
 
 ### 7.5 Pause State
@@ -512,15 +522,15 @@
 - [x] Commit: `feat: implement OptionsState with difficulty and key rebinding`
 
 ### 7.9 Statistics State [v2.0]
-- [ ] Create StatisticsState — total enemies, coins, deaths, time, combos
+- [x] Create StatisticsState — total enemies, coins, deaths, time, combos *(shipped as `OptionsState::Page::Statistics`, reached via the RECORDS menu row, not a standalone class)*
 - [ ] Commit: `feat: implement StatisticsState`
 
 ### 7.10 Achievements Display [v2.0]
-- [ ] Achievement list screen (from Main Menu)
-- [ ] Toast notification system (top-right slide-in)
+- [x] Achievement list screen (from Main Menu)
+- [x] Toast notification system (top-right slide-in)
 - [ ] Commit: `feat: implement achievement display and toast notifications`
 
-- [ ] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
+- [x] Update [CMakeLists.txt](SuperMarioGame/CMakeLists.txt)
 - [ ] **Merge**: `git checkout dev && git merge feature/game-states`
 
 ---
@@ -648,10 +658,10 @@
       other alone.
 
 ### 11.2 Edge Cases & Bug Fixes
-- [ ] Respawn at checkpoint with death animation
-- [ ] Flashing invincibility frames
+- [x] Respawn at checkpoint with death animation
+- [x] Flashing invincibility frames
 - [ ] Clamp player inside camera
-- [ ] Shell collision chains, time-out death, 100 coin 1-UP, pipe transitions
+- [x] Shell collision chains, time-out death, 100 coin 1-UP, pipe transitions
 - [ ] Commit: `feat: fix edge cases and polish`
 
 ### 11.3 Meta-Game [v2.0]
@@ -693,10 +703,10 @@
 - [x] Play-test button
 
 ### Bonus B — Time Rewind (`feature/time-rewind`)
-- [ ] Circular buffer storing 300 frames of game state snapshots
-- [ ] Memento Pattern: `GameSnapshot` struct
-- [ ] Hold Shift → reverse playback
-- [ ] VHS rewind visual overlay
+- [x] Circular buffer storing 300 frames of game state snapshots
+- [x] Memento Pattern: `GameSnapshot` struct
+- [x] Hold Shift → reverse playback *(deliberately bound to R instead — LShift is Player 1's run key; see audit B-10)*
+- [x] VHS rewind visual overlay
 
 ### Bonus C — Shadow Mario (`A/shadow-mario-ai-multiplayer`)
 - [x] Record player input, spawn Shadow Mario, replay with 3s delay — a 60Hz
@@ -741,6 +751,6 @@
 - [ ] Optional day/night cycle
 
 ### Bonus E — Procedural Generation (`feature/procedural-levels`)
-- [ ] "Endless Mode" menu option
-- [ ] Chunk-based terrain generation
-- [ ] Difficulty scaling, validated placement
+- [x] "Endless Mode" menu option
+- [x] Chunk-based terrain generation
+- [x] Difficulty scaling, validated placement
