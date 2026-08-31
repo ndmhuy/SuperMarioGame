@@ -15,8 +15,8 @@ We declare that Artificial Intelligence (AI) tools were utilized during the deve
 4. **Documentation:** Generating report drafts, logging task history, and formatting class diagrams.
 
 ## Tools Used
-- **Claude Code** (Anthropic) — the primary agentic coding tool used throughout the project: implementing engine subsystems and design patterns, diagnosing and fixing gameplay defects, writing and running the `verify_*` regression test suite, and generating/expanding this submission's documents (report, feature list, member contributions, testing checklist) directly from the codebase, git history and weekly reports rather than from a blank page.
-- Gemini and other agentic assistants (via internal tooling referred to as "AgentHub" in `AGENTS.md`) were also used at points earlier in the project's history for code generation and documentation drafting.
+- **Antigravity** (Google, Gemini-based) — the primary agentic coding tool used across most of the project's history: implementing engine subsystems and design patterns, enemy/entity work, level content, weekly report drafting, and the majority of the git history's commits.
+- **Claude Code** (Anthropic) — introduced later in the project, for the final push: diagnosing and fixing the three reported gameplay defects, implementing Endless Mode and the level-solvability oracle, writing and running the `verify_*` regression test suite additions, and generating/expanding this submission's documents (report, feature list, member contributions, testing checklist) directly from the codebase, git history and weekly reports rather than from a blank page.
 
 ## Academic Integrity
 While AI assisted in the development, we carefully reviewed, tested, and integrated all AI-generated code. We understand the underlying logic of the submitted system and take full responsibility for its correctness, architecture, and behavior. The custom game logic, level design, and system integration were actively directed, guided, and verified by the human developers.
