@@ -84,6 +84,32 @@ add_custom_target(ctest_binaries)
 function(add_verify_test name source)
     cmake_parse_arguments(AVT "NO_CTEST" "" "" ${ARGN})
     add_executable(${name} "${source}" ${APP_SOURCES})
+    # Release (see shared-build.cmake) compiles with the stock -O3 -DNDEBUG,
+    # which compiles every assert() in these harnesses to nothing: the process
+    # runs, prints PASSED, and exits 0 without evaluating a single assertion.
+    # Proven in phase R5 — forcing HiddenBlock::onCharacterTouch to always
+    # return BlockTouch::Solid still left verify_blocks exiting 0.
+    #
+    # Undefining NDEBUG here, for test targets only, fixes the root cause at
+    # the one chokepoint every verify_* target already flows through, so any
+    # harness using assert() — today's or tomorrow's — works correctly forever.
+    # The alternative, converting ~230 assert() call sites across 10 files to
+    # a counting check() helper, only fixes today's instances: a harness
+    # written tomorrow with a bare assert() would be silently vacuous again,
+    # and the rewrite itself is high-churn mechanical editing across 10 files
+    # with real transcription-error risk in exactly the code meant to catch
+    # errors. This keeps the correct asymmetry too: the shipped game target
+    # keeps NDEBUG (asserts compiled out, as a release build should), while
+    # only test targets get live assertions.
+    #
+    # Real cost, stated honestly: assert() aborts on first failure, so a
+    # failing harness reports one failure rather than a full list. The newest
+    # harnesses (verify_regressions.cpp, and R5's new sections in
+    # verify_blocks.cpp / verify_enemies.cpp) already use a counting check()
+    # helper instead and report every failure; converting the older
+    # bare-assert harnesses to that pattern remains a worthwhile follow-up for
+    # report quality, but it is not what fixes this defect.
+    target_compile_options(${name} PRIVATE -UNDEBUG)
     # tests/ too, so a harness can include the shared TestSaveSandbox helper that
     # seals it off from the real saves/ directory.
     target_include_directories(${name} PUBLIC
