@@ -52,6 +52,12 @@ namespace Constants {
     constexpr int INITIAL_LIVES = 3;
     constexpr int COINS_FOR_LIFE = 100;
 
+    // SPEC 10.2: idle time on the main menu before attract-mode demo playback
+    // starts. Overridable at runtime for verification (see MenuState.cpp's
+    // SUPERMARIO_ATTRACT_IDLE_SECONDS env var) — this constant is the shipped
+    // default, not something a script should have to wait out literally.
+    constexpr float ATTRACT_MODE_IDLE_SECONDS = 30.0f;
+
     // Enemy Constants
     constexpr float ENEMY_GOOMBA_SPEED = 50.0f;
     constexpr float GOOMBA_SQUISH_DURATION = 0.5f;

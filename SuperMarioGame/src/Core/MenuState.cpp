@@ -1,6 +1,7 @@
 #include "Core/MenuState.hpp"
 #include "Core/AchievementManager.hpp"
 #include "Core/CharacterSelectState.hpp"
+#include "Core/DebugConsole.hpp"
 #include "Core/OptionsState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/Game.hpp"
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -101,6 +103,26 @@ int indexOfMode(GameMode mode) {
         if (kMultiplayerModes[i] == mode) return i;
     }
     return 0;
+}
+
+// SPEC 10.2's 30s is the shipped default (Constants::ATTRACT_MODE_IDLE_SECONDS).
+// A verification script that actually waited out 30 real seconds per run would
+// be exactly the kind of unreliable long wait R9/R16 already ran into, so this
+// env var lets a `--script` shorten it — read once per process, not per frame,
+// so a script cannot change it mid-run by surprise.
+float attractIdleThresholdSeconds() {
+    static const float threshold = [] {
+        if (const char* env = std::getenv("SUPERMARIO_ATTRACT_IDLE_SECONDS")) {
+            try {
+                const float parsed = std::stof(env);
+                if (parsed > 0.0f) return parsed;
+            } catch (...) {
+                // Fall through to the shipped default.
+            }
+        }
+        return Constants::ATTRACT_MODE_IDLE_SECONDS;
+    }();
+    return threshold;
 }
 
 } // namespace
@@ -462,6 +484,12 @@ void MenuState::handleInput(const sf::Event& event) {
     if (!keyPressed) return;
     using Key = sf::Keyboard::Key;
 
+    // Any key this menu actually handles counts as activity, on every page —
+    // not just Page::Main. Reset unconditionally rather than only from the
+    // trigger's own page check, so idle time browsing a submenu does not carry
+    // over and fire the instant the player steps back to Page::Main.
+    m_idleTime = 0.0f;
+
     switch (keyPressed->code) {
         case Key::Up:
         case Key::W:
@@ -503,6 +531,29 @@ void MenuState::update(float dt) {
     m_walkerX += dt * 70.0f;
     if (m_walkerX > static_cast<float>(Constants::WINDOW_WIDTH) + 64.0f) {
         m_walkerX = -64.0f;
+    }
+
+    // F5 attract mode (SPEC 10.2). Gated to Page::Main: the Load/Multiplayer/
+    // Generator submenus must never be interrupted mid-navigation, and this
+    // MenuState is the only place that page lives, so checking it here is
+    // enough — there is no separate "picker" state to strand. Also gated on
+    // the debug console being closed: unlike a pushed overlay (Options,
+    // Records), which suspends this state's update() entirely, the console
+    // does not — Game::run() keeps calling m_gsm.update() while it is open, so
+    // without this check typing a long console command would silently start a
+    // demo underneath it.
+    if (!m_dismissed && m_page == Page::Main && !DebugConsole::getInstance().isVisible()) {
+        m_idleTime += dt;
+        if (m_idleTime >= attractIdleThresholdSeconds()) {
+            m_dismissed = true;
+            // Plain defaults throughout (SinglePlayer, not endless, no pending
+            // load): the guard against ever landing in Endless or versus mode
+            // is simply never asking for either here.
+            Game::getInstance().changeState(std::make_unique<PlayingState>(
+                /*startInEditor=*/false, /*isProcedural=*/false, MapGeneratorConfig(),
+                /*characterIndex=*/0, /*levelIndex=*/0, MatchConfig{},
+                /*isEndless=*/false, /*pendingLoadSlot=*/0, /*isAttractDemo=*/true));
+        }
     }
 }
 

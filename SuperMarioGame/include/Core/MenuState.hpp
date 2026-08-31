@@ -71,6 +71,16 @@ private:
     int m_loadSelected = 0;
     float m_elapsed = 0.0f;
 
+    // F5 attract mode (SPEC 10.2). Seconds since the last key this menu
+    // actually handled — reset in handleInput() regardless of page or key, so
+    // browsing a submenu counts as activity too. Only checked against the idle
+    // threshold while sitting on Page::Main with the debug console closed (see
+    // update()): a submenu page freezes this by virtue of MenuState::update()
+    // itself not running while an overlay (Options/Records) sits on top, and
+    // the console-visible case is checked explicitly since the console does
+    // not suspend the state underneath it.
+    float m_idleTime = 0.0f;
+
     // Refreshed by refreshSlotPreviews() every time the Load page opens.
     std::array<SaveSlotPreview, 3> m_slotPreviews;
 

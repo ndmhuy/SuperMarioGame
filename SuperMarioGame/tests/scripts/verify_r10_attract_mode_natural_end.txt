@@ -1,0 +1,21 @@
+# R10: does the demo return to the menu on its own when nobody presses a key
+# (PlayingState::update()'s m_isAttractDemo branch after "Playback finished")?
+# Also confirms playback pacing: the bundled demo is ~28s of recorded real
+# time (289 stored frames * kFrameInterval=6 / 60fps), so it should still be
+# playing well past +10s and finish somewhere around +28s, not the ~4.7s a
+# pre-fix build of this script showed (advance() was being called once per
+# update() tick instead of once per kFrameInterval ticks).
+#
+#   SUPERMARIO_ATTRACT_IDLE_SECONDS=3 ./build/SuperMarioGame --script tests/scripts/verify_r10_attract_mode_natural_end.txt
+wait 1.0
+wait 3.5
+shot natural_00_demo_start
+wait 10.0
+shot natural_01_plus10s_still_playing
+wait 10.0
+shot natural_02_plus20s_still_playing
+wait 7.0
+shot natural_03_plus27s
+wait 3.0
+shot natural_04_plus30s_should_be_back_at_menu
+quit

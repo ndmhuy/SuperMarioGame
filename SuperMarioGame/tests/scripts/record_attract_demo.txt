@@ -1,0 +1,53 @@
+# Records the F5 attract-mode bundled demo (SPEC 10.2): a ~30s run on World
+# 1-1, deliberately conservative rather than a real playthrough.
+#
+# Level 1's first goomba sits at tile 12 (384px from the level's own JSON —
+# assets/levels/level_1.json) and Mario spawns at tile 3 (96px). An earlier
+# version of this script held right for one second (~5 tiles) before
+# stopping, and the recording still showed Mario dying twice, respawning back
+# at the spawn point each time — evidently something in this level reaches
+# even a few tiles out faster than expected, unconfirmed which. So this
+# version never presses a direction key at all: it stands exactly on the
+# spawn tile and only jumps in place, which is as far from every entity in
+# the level's JSON (nearest is that tile-12 goomba) as the run can get without
+# leaving the level. A longer scripted traversal with no visual feedback is
+# exactly what R9 and R16 already found unreliable (9 and 13 attempts
+# respectively to get further into this same level blind) — a short demo that
+# reliably records beats an ambitious one that mostly dies partway through.
+#
+# Menu navigation mirrors tests/scripts/verify_r19_smoke.txt and
+# verify_r8_load_game_menu.txt's proven "Enter x3" opening (Start Game ->
+# character select -> into the level).
+#
+#   ./build/SuperMarioGame --script tests/scripts/record_attract_demo.txt
+#
+# Writes saves/replays/attract_demo.json (ReplayRecorder's "Always recording"
+# default — see PlayingState::setupTestScene). Copy that file to
+# assets/replays/attract_demo.json (git-tracked; saves/ is gitignored) — that
+# copy is what MenuState's idle timer actually plays back.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+press Space
+wait 3.0
+press Space
+wait 3.0
+press Space
+wait 3.0
+press Space
+wait 3.0
+press Space
+wait 3.0
+press Space
+wait 3.0
+press Space
+wait 3.0
+press Space
+wait 5.5
+savereplay attract_demo
+wait 0.3
+quit

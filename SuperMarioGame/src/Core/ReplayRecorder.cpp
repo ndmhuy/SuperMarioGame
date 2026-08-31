@@ -127,8 +127,15 @@ bool ReplayRecorder::save(const std::string& name) const {
 }
 
 bool ReplayRecorder::load(const std::string& name) {
+    return loadPath(pathFor(name));
+}
+
+bool ReplayRecorder::loadFromFile(const std::string& path) {
+    return loadPath(path);
+}
+
+bool ReplayRecorder::loadPath(const std::string& path) {
     try {
-        const std::string path = pathFor(name);
         if (!std::filesystem::exists(path)) return false;
 
         std::ifstream file(path);

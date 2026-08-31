@@ -33,6 +33,14 @@
 //   hold <key> <seconds>    press now, release after the given time
 //   release <key>           release a key held by `hold`
 //   shot <name>             save a PNG of the window to saves/shots/<name>.png
+//   savereplay <name>       save ReplayRecorder's current frames to
+//                           saves/replays/<name>.json (F5 attract mode's
+//                           bundled demo is produced this way — see
+//                           tests/scripts/record_attract_demo.txt — rather
+//                           than through the debug console, whose ImGui text
+//                           field this harness cannot type into: scripted
+//                           events never reach ImGui::SFML::ProcessEvent, only
+//                           InputManager and the state stack (Game.cpp))
 //   quit                    close the game
 //
 // Key names are InputManager's own (`W`, `Space`, `Left`, `Enter`, ...) plus
@@ -40,7 +48,7 @@
 class InputScript {
 public:
     // What the host loop has to do for a step, beyond delivering events.
-    enum class Effect { None, Screenshot, Quit };
+    enum class Effect { None, Screenshot, SaveReplay, Quit };
 
     // Parses `path`. Returns false and leaves this object inactive if the file
     // cannot be read or contains a line it cannot parse — a script that silently
@@ -52,15 +60,15 @@ public:
 
     // Advance by `dt`, appending any events that came due to `out`. The returned
     // effect is what the caller must do this frame; `shotName` names the file
-    // when the effect is Screenshot.
+    // when the effect is Screenshot or SaveReplay.
     Effect update(float dt, std::vector<sf::Event>& out, std::string& shotName);
 
 private:
     struct Step {
-        enum class Kind { Wait, Press, Hold, Release, Shot, Quit } kind = Kind::Wait;
+        enum class Kind { Wait, Press, Hold, Release, Shot, SaveReplay, Quit } kind = Kind::Wait;
         float seconds = 0.0f;
         sf::Keyboard::Key key = sf::Keyboard::Key::Unknown;
-        std::string text;   // Shot: the file name
+        std::string text;   // Shot / SaveReplay: the file name
     };
 
     // A key held by `hold`, and how long until it is released.

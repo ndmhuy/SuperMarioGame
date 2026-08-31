@@ -88,12 +88,13 @@ BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
                            int characterIndex, int levelIndex, MatchConfig match, bool isEndless,
-                           int pendingLoadSlot)
+                           int pendingLoadSlot, bool isAttractDemo)
     : m_match(match),
       m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
       m_startInEditor(startInEditor), m_isProcedural(isProcedural),
-      m_genConfig(genConfig), m_isEndless(isEndless), m_pendingLoadSlot(pendingLoadSlot) {
+      m_genConfig(genConfig), m_isEndless(isEndless), m_pendingLoadSlot(pendingLoadSlot),
+      m_isAttractDemo(isAttractDemo) {
     // Published now rather than in enter(), because the collision resolver can
     // be reached by a harness that never enters a state, and a stale co-op flag
     // there would silently turn a versus stomp into a friendly boost.
@@ -488,6 +489,21 @@ void PlayingState::exit() {
 }
 
 void PlayingState::handleInput(const sf::Event& event) {
+    if (m_isAttractDemo) {
+        // SPEC 10.2: "dismissed instantly by any key". Handled here, before any
+        // of the ordinary per-key logic below runs, so a dismiss key that also
+        // happens to be a game action (Escape opening pause, Num1 faking a
+        // coin, ...) does not also perform that action on the way out — this
+        // returns and does nothing else. changeState() only queues the switch
+        // (GameStateManager::applyPendingOps runs at the top of the *next*
+        // handleInput/update call), so this same key event cannot also reach
+        // the MenuState it is switching to.
+        if (event.is<sf::Event::KeyPressed>()) {
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+        }
+        return;
+    }
+
     if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
         if (keyPressed->code == sf::Keyboard::Key::F1) {
             m_mapEditor.toggleActive();
@@ -614,14 +630,63 @@ void PlayingState::update(float dt) {
     // switched off for the frame, so what is shown is what was recorded rather
     // than a re-simulation that would drift.
     if (ReplayRecorder::getInstance().isPlaying()) {
-        if (const GameSnapshot* frame = ReplayRecorder::getInstance().advance()) {
+        if (!m_replayPlaybackActive) {
+            // A fresh isPlaying()==true edge — the console's "replay play" can
+            // start a new playback in a PlayingState that already ran one to
+            // completion, and a stale hold count left over from that earlier
+            // run must not eat into this one's first frames.
+            m_replayPlaybackActive = true;
+            m_replayHoldTicks = 0;
+        }
+
+        // ReplayRecorder::record() keeps 1 real simulation frame in every
+        // kFrameInterval (see its doc comment), so pulling a new one from
+        // advance() every single update() tick plays the whole recording back
+        // kFrameInterval times faster than it was captured — a ~28s
+        // attract-mode demo finished in under 5 seconds the first time this
+        // was actually watched rather than just built. Hold the last applied
+        // snapshot for the frames in between instead.
+        bool stillPlaying = true;
+        if (m_replayHoldTicks > 0) {
+            --m_replayHoldTicks;
+        } else if (const GameSnapshot* frame = ReplayRecorder::getInstance().advance()) {
             applySnapshot(*frame);
+            m_replayHoldTicks = ReplayRecorder::kFrameInterval - 1;
+        } else {
+            stillPlaying = false;
+        }
+
+        if (stillPlaying) {
             m_camera.update(dt);
             m_background.update(dt);
             m_tileAnimTimer += dt;
+            // Same defect the map editor's early return above already names:
+            // enter() always starts a 0.45s fade-in, and this branch returns
+            // before the code that would otherwise tick it, which pinned a
+            // full-screen black rectangle over the whole demo forever — first
+            // seen on attract mode (F5), whose replay starts playing from
+            // frame 1 of enter(), so the fade never gets a normal frame to
+            // advance on before this early return takes over.
+            ScreenTransitionManager::getInstance().update(dt);
             return;
         }
+
+        m_replayPlaybackActive = false;
         std::cout << "[Replay] Playback finished." << std::endl;
+        if (m_isAttractDemo) {
+            // The demo ran out on its own (nobody pressed a key) — go back to
+            // the menu rather than falling through into live physics with
+            // whatever input state the idle player happened to leave behind.
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+            return;
+        }
+    } else if (m_replayPlaybackActive) {
+        // Playback was stopped from outside (the console's "replay stop")
+        // between ticks, so the block above never got a chance to reset this
+        // itself. Left alone, the next "replay play" in this same instance
+        // would wrongly think it was resuming a playback already in progress
+        // and skip the fresh-start reset a few lines up.
+        m_replayPlaybackActive = false;
     }
 
     // 0. Time Rewind check (Hold R or Left/Right Shift keys to rewind time using Memento snapshots)
@@ -1751,6 +1816,40 @@ void PlayingState::setupTestScene() {
     spawnMatchParticipants();
 
     findActiveBoss();
+
+    if (m_isAttractDemo) {
+        // F5 attract mode (SPEC 10.2): play the bundled demo instead of
+        // recording this run. Bundled under assets/ rather than saves/replays/
+        // because assets/ ships with the build and saves/ is gitignored
+        // per-player data that would not exist on a fresh checkout (see
+        // ReplayRecorder::loadFromFile's doc comment). Tried from a few
+        // relative roots for the same reason setupTestScene's own level-path
+        // lookup above does: ctest, a build/ launch and a repo-root launch all
+        // have different working directories.
+        static const std::vector<std::string> kDemoCandidates = {
+            "assets/replays/attract_demo.json",
+            "SuperMarioGame/assets/replays/attract_demo.json",
+            "../assets/replays/attract_demo.json",
+            "../SuperMarioGame/assets/replays/attract_demo.json"
+        };
+        ReplayRecorder& replay = ReplayRecorder::getInstance();
+        replay.clear();
+        bool started = false;
+        for (const auto& candidate : kDemoCandidates) {
+            if (replay.loadFromFile(candidate)) {
+                started = replay.startPlayback();
+                break;
+            }
+        }
+        if (!started) {
+            // No demo to show is not a state worth sitting in — go straight
+            // back rather than leaving an attract "demo" that plays nothing.
+            std::cerr << "[PlayingState] Attract demo replay missing or empty; "
+                         "returning to menu." << std::endl;
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+        }
+        return;
+    }
 
     // Always recording, so "replay save" after something interesting happens
     // actually has the interesting thing in it. Bounded by kMaxFrames.
