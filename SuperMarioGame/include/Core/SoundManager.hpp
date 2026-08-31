@@ -67,6 +67,12 @@ private:
     std::string m_savedLevelMusicPath;
     bool m_soundsLoaded = false;
     bool m_eventsSubscribed = false;
-    
+
+    // Probed once at construction via sf::PlaybackDevice::getDefaultDevice().
+    // When false, playSound()/playMusic() are silent no-ops instead of driving
+    // sf::Sound/sf::Music against hardware that was never there — a machine
+    // with no audio device used to abort at startup instead of degrading.
+    bool m_audioAvailable = true;
+
     sf::SoundBuffer m_fallbackBuffer;
 };
