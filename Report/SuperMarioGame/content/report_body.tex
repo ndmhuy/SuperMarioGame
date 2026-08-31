@@ -114,6 +114,22 @@ A dashed border and a \emph{$\ll$stereotype$\gg$} tag mark an abstract class or 
 
 The root is abstract in the strict sense --- \codebreak{Entity::update}, \codebreak{Entity::render} and \codebreak{Entity::getBoundingBox} are pure virtual, so no leaf can exist without deciding what it does. The three second-level abstracts each add exactly one obligation: \codebreak{Item::activate(Player\&)}, \codebreak{Block::onHitFromBelow(Player\&)}, and \codebreak{Character}'s velocity and grounded state.
 
+\subsection{The other two branches: Item and Block}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_item_2.pdf}
+\end{center}
+
+\begin{center}\small\itshape Figure 6a --- Twelve items behind one activate() call. \\ A Mushroom, a Star and a 1-Up all answer the same question --- what happens to the player who touches me --- with a different body. QuestionBlock never asks which one it is holding.\end{center}
+\begin{center}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_block_2.pdf}
+\end{center}
+
+\begin{center}\small\itshape Figure 6b --- Ten blocks, three of them stateful. \\ FallingPlatform and Thwomp are State machines in their own right (Idle/Shaking/Falling/Respawning; wind-up/slam/rest/climb); Pipe and Flagpole are not --- they fire once. Block does not know the difference, which is the point of putting it here rather than in each concrete class.\end{center}
+
+\codebreak{Item} and \codebreak{Block} look similar --- both are collidable, both are mostly inert until the player reaches them --- and the project's own history has a concrete argument for keeping them as separate branches rather than merging them into one "InteractableEntity". A block's defining question is \emph{what is on the other side of this collision, structurally} (\codebreak{collidesWithTiles()}, \codebreak{onHitFromBelow}) --- the physics engine needs to know before it resolves a frame. An item's defining question is \emph{what happens to the player who reaches it} (\codebreak{activate(Player\&)}) --- physics does not need to know in advance, because touching a Star does not change how the world resolves collisions this frame. Collapsing the two would have handed the physics engine's collision-resolution code a branch on "is this actually solid" for every entity that is nominally a block, which is exactly the kind of type-testing OOP's dispatch is supposed to replace. \codebreak{PSwitch} is the edge case that proves the split is real work and not just naming: it is a \codebreak{Block} (grounded, collidable) whose \codebreak{onHitFromBelow} triggers a level-wide event rather than reacting locally --- still a block, because the physics engine still needs to resolve a jump-bump against it, but the one that most resembles an item.
+
+Ten concrete blocks and twelve concrete items ship in this project, twice what the rubric's five-item minimum would need per SPEC's rubric-alignment reasoning (\S{}2) --- the same doubled-scope argument the feature list makes, made visible in a diagram instead of a count.
+
 \subsection{Characters, enemies and bosses}
 \begin{center}
 \includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_character_2.pdf}
@@ -187,6 +203,18 @@ Ten, each solving a problem the codebase actually had. The rubric asks for five.
 \textbf{Template Method} & \codebreak{Boss::update} is \codebreak{final} and calls \codebreak{updateBehaviour()}; \codebreak{IMovementStrategy::execute} & Every boss needs i-frames, phase transitions and a defeat sequence in the right order. Sealing the skeleton means a new boss writes only its attack pattern and \emph{cannot} forget the rest. \\
 \bottomrule
 \end{longtable}}
+
+\subsection{The naive alternative, for four of them}
+
+"The rubric asks for five" is not a reason to use a pattern; the table above names the actual problem each one solved. Four are worth walking through the alternative that was rejected, because the alternative is not a straw man --- it is what an early, smaller version of this codebase actually looked like before the pattern replaced it.
+
+\textbf{Factory.} The naive alternative is a level loader that \codebreak{\#include}s every concrete entity header and switches on the type string: \codebreak{if (name == "goomba") return new Goomba(pos); else if (name == "koopa\_troopa") ...}. It works for the first ten types. By 41 types it is a 41-branch function that every new entity must be added to, in a file (the level loader) that has no other reason to know a Spiny exists. \codebreak{EntityFactory} moves that one decision into one file whose entire job is making that decision, and the loader asks a question ("build me a Spiny") instead of making one.
+
+\textbf{Observer.} The naive alternative is \codebreak{Coin::activate(Player\& p)} calling \codebreak{p.addCoins(1); hud.refresh(); soundManager.play("coin"); stats.recordCoin(); achievements.checkCoinMilestones();} directly --- and then \codebreak{Star::activate}, \codebreak{OneUpMushroom::activate} and every other item repeating some subset of the same list, because each item's designer has to remember which systems care this time. \codebreak{EventBus::publish} lets \codebreak{Coin::activate} know only that something happened, not who is listening --- and a fifth system (say, a future daily-challenge coin counter) subscribes without \codebreak{Coin.cpp} changing at all.
+
+\textbf{State + Decorator, together.} The naive alternative is not a competing pattern but the thing both of these replaced: a pile of booleans on \codebreak{Player} --- \codebreak{isSuper, isFire, isCape, isMini, isStarred, isMega} --- and an \codebreak{if/else} chain in every place form matters (hitbox, jump height, death behaviour, rendering). The moment a Star is picked up as Fire Mario, that boolean pile has to encode "currently Fire, but also temporarily starred" as a combination no single flag names, and every one of those \codebreak{if} chains has to be taught the combination separately. Five state objects handle the base forms; two decorators wrap whichever one is active without either of them needing to know what they are wrapping. The combination was never a special case to design for --- it falls out of the two patterns being orthogonal to begin with.
+
+\textbf{Template Method.} The naive alternative is copying \codebreak{Bowser}'s \codebreak{update()} into \codebreak{BoomBoom} and editing the attack pattern in place --- which is exactly how the second boss \emph{would} have been built without this pattern, and is the standard way an i-frame check or a phase-transition line quietly diverges between two copies over several edits. Sealing \codebreak{Boss::update()} as \codebreak{final} is a compiler-enforced version of "do not copy this function": a third boss can only be added by writing \codebreak{updateBehaviour()}, which is not capable of skipping the sequencing the base class already owns.
 
 \section{Implementation details}
 
@@ -477,7 +505,7 @@ All five figures are unretouched frames captured from the running game by a scri
 
 \section{Process and project history}
 
-The project ran from 29 May to 22 August 2026 across 7 weekly reporting periods (\codebreak{docs/Group52\_04/} through \codebreak{Group52\_10/}), 256 commits and 235 recorded working sessions in \codebreak{logs/agent\_history.log}. That log is not a changelog: each entry records the commit before and after, whether the remotes were fetched, whether the work is reachable from \codebreak{main()}, and how it was verified. Several sections of this report are drawn from it, including the failures below.
+The project ran from 29 May to 22 August 2026 across 7 weekly reporting periods (\codebreak{docs/Group52\_04/} through \codebreak{Group52\_10/}), 258 commits and 235 recorded working sessions in \codebreak{logs/agent\_history.log}. That log is not a changelog: each entry records the commit before and after, whether the remotes were fetched, whether the work is reachable from \codebreak{main()}, and how it was verified. Several sections of this report are drawn from it, including the failures below.
 
 {\small\begin{longtable}{p{0.22\linewidth}p{0.16\linewidth}p{0.54\linewidth}}
 \toprule
@@ -611,9 +639,30 @@ Lines of C++ (excluding third-party) & 27,539 \\
 Concrete entity classes & 5 players, 13 enemies, 13 items, 10 blocks \\
 Design patterns & 10 \\
 Verification harnesses & 23 source files, 22 built, 13 registered as CTest cases \\
-Commits on the integration branch & 256 \\
+Commits on the integration branch & 258 \\
 Sound effects / music tracks & 29 / 12 \\
 Achievements & 12 \\
 \bottomrule
 \end{longtable}}
-Group 52 \textperiodcentered{} CS202 Object-Oriented Programming \textperiodcentered{} University of Science, VNU-HCM \\  Generated by \codebreak{reports/build\_report.py} from the repository at commit bac6c49. Self-contained: opens from disk, no network, prints to PDF.
+
+\subsection{UML diagrams, collected}
+
+Every class diagram in this report in one place, for a reader who wants the structure without re-finding it inside \S{}6's prose. Each is generated from the headers at build time by \codebreak{gen\_class\_diagram.py} (\S{}6's opening note), so this index cannot drift from the figures themselves the way a hand-kept one would.
+
+{\small\begin{longtable}{p{0.16\linewidth}p{0.14\linewidth}p{0.30\linewidth}p{0.30\linewidth}}
+\toprule
+\textbf{Figure} & \textbf{Root class} & \textbf{Discussed in} & \textbf{What it shows} \\
+\midrule
+\endhead
+6 & \codebreak{Entity} & \S{}6.1 & The four branches under the abstract root: Character, Item, Block, Projectile. \\
+6a & \codebreak{Item} & \S{}6.2 & Twelve concrete power-ups and pickups behind one \codebreak{activate()} call. \\
+6b & \codebreak{Block} & \S{}6.2 & Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right. \\
+7 & \codebreak{Character} & \S{}6.3 & Player and Enemy split, including the ShadowMario replay rival. \\
+8 & \codebreak{Enemy} & \S{}6.3 & The enemy branch, with the Boss sub-hierarchy sealed by Template Method. \\
+9 & \codebreak{IPlayerState} & \S{}6.4 & Five player forms plus the two Decorators that wrap them. \\
+10 & \codebreak{IGameState} & \S{}6.5 & Eight screens behind one State interface. \\
+11 & \codebreak{ICommand} & \S{}6.5 & Input as objects --- the Command pattern's own hierarchy. \\
+12 & \codebreak{IMovementStrategy} & \S{}6.5 & Eight interchangeable enemy movements --- the Strategy pattern's own hierarchy. \\
+\bottomrule
+\end{longtable}}
+Group 52 \textperiodcentered{} CS202 Object-Oriented Programming \textperiodcentered{} University of Science, VNU-HCM \\  Generated by \codebreak{reports/build\_report.py} from the repository at commit 4aad874. Self-contained: opens from disk, no network, prints to PDF.
