@@ -330,6 +330,15 @@ void PlayingState::enter() {
         if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::DeathPoof);
     });
 
+    // ParticleType::Combo: the fourth declared-but-unused particle type
+    // (R7 audit). Same event SoundManager's combo pitch escalation listens for
+    // (Player.cpp publishes ComboHit once per chained kill); kept as a
+    // separate subscriber here rather than widening either existing one.
+    m_comboParticleSub = EventBus::ScopedSubscription(EventType::ComboHit, [this](const GameEvent&) {
+        if (m_player) m_particleEmitter.burst(
+            m_player->getBoundingBox().getCenter() + sf::Vector2f(0.0f, -32.0f), ParticleType::Combo);
+    });
+
     // --- Question blocks: actually produce the item they announce ---
     m_powerUpSub = EventBus::ScopedSubscription(EventType::PowerUpRequested, [this](const GameEvent& ev) {
         if (!ev.data.has_value() || ev.data.type() != typeid(PowerUpRequest)) return;
@@ -714,6 +723,46 @@ void PlayingState::update(float dt) {
         return;
     }
 
+    // 3b1a. Ambient zone particles (ParticleEmitter had WaterBubble and LavaEmber
+    // settings defined but nothing ever called burst() with them — R7 audit).
+    // Timer-gated per player so standing in a zone queues an occasional puff
+    // rather than one every single frame.
+    for (Player* who : {m_player, m_player2}) {
+        if (!who || !who->isActive() || who->isDying()) continue;
+        const AABB box = who->getBoundingBox();
+        const sf::Vector2f center = box.getCenter();
+        const TileType occupied = m_tileMap.getTileSurfaceType(center.x, center.y);
+        if (occupied != TileType::Water && occupied != TileType::Lava) continue;
+
+        m_ambientParticleTimer -= dt;
+        if (m_ambientParticleTimer <= 0.0f) {
+            m_ambientParticleTimer = 0.4f;
+            m_particleEmitter.burst(center, occupied == TileType::Water
+                                             ? ParticleType::WaterBubble
+                                             : ParticleType::LavaEmber);
+        }
+        break; // one zone check is enough to keep the timer meaningful
+    }
+
+    // 3b1b. Wall-slide dust. isOnWall() while airborne is exactly the condition
+    // CollisionResolver uses to cap the fall speed into a slide (see the wall
+    // slide comment in resolveEntityVsTile) — the same state, just read here
+    // instead of re-derived.
+    const bool sliding = (m_player && m_player->isOnWall() && !m_player->isOnGround()) ||
+                         (m_player2 && m_player2->isOnWall() && !m_player2->isOnGround());
+    if (sliding) {
+        m_wallDustTimer -= dt;
+        if (m_wallDustTimer <= 0.0f) {
+            m_wallDustTimer = 0.1f;
+            Player* slidingPlayer = (m_player && m_player->isOnWall() && !m_player->isOnGround())
+                                    ? m_player : m_player2;
+            if (slidingPlayer) {
+                m_particleEmitter.burst(slidingPlayer->getBoundingBox().getCenter(), ParticleType::WallDust);
+            }
+        }
+    } else {
+        m_wallDustTimer = 0.0f;
+    }
     // 3b2. Lava burns. A Lava tile is not solid — you fall into it, you do not
     // stand on it — so nothing in the physics engine would ever have noticed it.
     // Checked against the player's feet, which is the part that touches first.
