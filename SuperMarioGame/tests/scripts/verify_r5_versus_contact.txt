@@ -1,0 +1,54 @@
+# R5 (D8 / A-10) live run: VERSUS CPU, for the player-vs-player half of the
+# resolver.
+#
+# versus_cpu.txt already proves a versus match runs; this one is aimed at
+# CollisionResolver::resolvePlayerVsPlayer, which is the one pairing in
+# resolveEntityVsEntity that still reaches a concrete type by static_cast (the
+# category *is* the type there, so there is nothing to dispatch to). Player 1
+# and the CPU spawn on top of each other and the CPU's HUNTER policy keeps it
+# there, so bunny-hopping on the spot should land versus stomps and move the
+# scoreboard at the bottom of the screen off TIED.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r5_versus_contact.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Down
+wait 0.4
+press Enter               # multiplayer page
+wait 0.6
+press Right               # VERSUS -> VERSUS CPU
+wait 0.5
+press Down                # -> OPPONENT
+wait 0.3
+press Down                # -> AI SKILL
+wait 0.3
+press Down                # -> AI STYLE
+wait 0.3
+press Down                # -> START
+wait 0.4
+press Enter
+wait 2.5
+shot r5_vs_00_match_start
+press W
+wait 0.5
+shot r5_vs_01_hop_a
+press W
+wait 0.5
+shot r5_vs_02_hop_b
+press W
+wait 0.5
+shot r5_vs_03_hop_c
+press W
+wait 0.5
+shot r5_vs_04_hop_d
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot r5_vs_05_hop_e
+wait 1.0
+shot r5_vs_06_scoreboard
+quit
