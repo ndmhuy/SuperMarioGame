@@ -59,6 +59,13 @@ jobs:
       # SIGABRT before its first check. snd-dummy is a real loopback device and is
       # preferred; the null ALSA default is the fallback for runners that will not
       # load the module.
+      #
+      # SoundManager now probes sf::PlaybackDevice::getDefaultDevice() once at
+      # construction and skips building the sf::Sound pool when it is absent
+      # (audit D6, branch A/fix/no-audio-device-degrade), which should make this
+      # step unnecessary. Left in place rather than removed sight-unseen: this
+      # was verified locally by stubbing the probe, not by an actual device-less
+      # CI run. Remove this step only after a run with it disabled goes green.
       - name: Provide an audio device
         run: |
           sudo apt-get install -y alsa-utils libasound2-plugins
