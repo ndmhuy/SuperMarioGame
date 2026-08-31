@@ -8,12 +8,14 @@
 #include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/MetaGame.hpp"
+#include "Utils/Serializer.hpp"
 
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Window/Event.hpp>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <iomanip>
@@ -23,7 +25,7 @@
 namespace {
 
 // Main-menu rows, in display order.
-enum MainRow { ROW_START = 0, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
+enum MainRow { ROW_START = 0, ROW_LOAD, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
                ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
@@ -35,6 +37,33 @@ constexpr int kDifficultyCount = 3;
 std::string percent(float value) {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(0) << (value * 100.0f) << "%";
+    return ss.str();
+}
+
+std::string toUpper(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    return s;
+}
+
+// m:ss, matching the minimap/statistics convention for play time elsewhere.
+std::string minutesSeconds(float seconds) {
+    const int total = static_cast<int>(seconds);
+    const int m = total / 60;
+    const int s = total % 60;
+    std::ostringstream ss;
+    ss << m << ":" << std::setfill('0') << std::setw(2) << s;
+    return ss.str();
+}
+
+// One save slot's value column: character, level, score, star coins, play
+// time (SPEC 12.3) — or "EMPTY" so an unused slot reads as available rather
+// than broken.
+std::string formatSlotSummary(const SaveSlotPreview& preview) {
+    if (!preview.exists) return "EMPTY";
+    std::ostringstream ss;
+    ss << toUpper(preview.character) << "  L" << preview.levelId
+       << "  " << preview.score << "PT  STARS " << preview.starCoinsCount << "/3  "
+       << minutesSeconds(preview.playTime);
     return ss.str();
 }
 
@@ -94,6 +123,7 @@ void MenuState::enter() {
     // The New Game+ cycle is shown on the start row, so a player can see the
     // campaign has reset rather than wondering why 1-2 is locked again.
     m_mainItems.emplace_back("START GAME", MetaGame::newGamePlusLabel());
+    m_mainItems.emplace_back("LOAD GAME");
     m_mainItems.emplace_back("MULTIPLAYER", "4 MODES");
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
@@ -159,6 +189,22 @@ std::vector<UiMenuItem> MenuState::buildMultiplayerItems() const {
     return rows;
 }
 
+void MenuState::refreshSlotPreviews() {
+    for (int slot = 1; slot <= 3; ++slot) {
+        m_slotPreviews[static_cast<std::size_t>(slot - 1)] = Serializer::getSlotPreview(slot);
+    }
+}
+
+std::vector<UiMenuItem> MenuState::buildLoadItems() const {
+    std::vector<UiMenuItem> rows;
+    for (int i = 0; i < 3; ++i) {
+        rows.emplace_back("SLOT " + std::to_string(i + 1),
+                          formatSlotSummary(m_slotPreviews[static_cast<std::size_t>(i)]));
+    }
+    rows.emplace_back("BACK");
+    return rows;
+}
+
 void MenuState::moveSelection(int delta) {
     // SPEC 17.3: "Menu selection: click sound on highlight change". CharSelect
     // and WorldMapState only ever play "bump" for a *blocked* move (a locked
@@ -175,6 +221,14 @@ void MenuState::moveSelection(int delta) {
     if (m_page == Page::Generator) {
         const int n = static_cast<int>(GenRow::COUNT);
         m_genSelected = (m_genSelected + delta + n) % n;
+        return;
+    }
+    if (m_page == Page::Load) {
+        // Every row (three slots plus Back) is always selectable, even an empty
+        // slot — activating one just plays the blocked-move cue rather than
+        // hiding the row, so a new player can see there are three slots at all.
+        const int n = static_cast<int>(LoadRow::COUNT);
+        m_loadSelected = (m_loadSelected + delta + n) % n;
         return;
     }
 
@@ -272,6 +326,14 @@ void MenuState::activateSelection() {
                 m_dismissed = true;
                 game.changeState(std::make_unique<CharacterSelectState>(false, false));
                 break;
+            case ROW_LOAD:
+                // Read the slots fresh every time this opens: a save made from
+                // the pause menu since the game last returned here must show up,
+                // and an entry removed elsewhere must stop showing up.
+                m_page = Page::Load;
+                m_loadSelected = 0;
+                refreshSlotPreviews();
+                break;
             case ROW_VERSUS:
                 // Opens the multiplayer page rather than starting a match. This
                 // row used to drop straight into a hardcoded human-vs-human
@@ -314,6 +376,38 @@ void MenuState::activateSelection() {
                 break;
             default:
                 break;
+        }
+        return;
+    }
+
+    if (m_page == Page::Load) {
+        switch (static_cast<LoadRow>(m_loadSelected)) {
+            case LoadRow::Back:
+                m_page = Page::Main;
+                break;
+            default: {
+                // LoadRow::Slot1..Slot3 are 0..2, matching Serializer's 1-based
+                // slot numbering by +1 — same mapping DevPanel's Save/Load Slots
+                // loop uses (`for (int slot = 1; slot <= 3; ++slot)`).
+                const int slot = m_loadSelected + 1;
+                if (m_slotPreviews[static_cast<std::size_t>(m_loadSelected)].exists) {
+                    m_dismissed = true;
+                    // A fresh Level-1 PlayingState exists only to give
+                    // loadFromSlot somewhere to run — see its constructor's
+                    // pendingLoadSlot doc. This is the same private method
+                    // DevPanel's Load button calls on an already-running
+                    // instance; nothing here reimplements it.
+                    game.changeState(std::make_unique<PlayingState>(
+                        false, false, MapGeneratorConfig(), 0, 0, MatchConfig{},
+                        /*isEndless=*/false, /*pendingLoadSlot=*/slot));
+                } else {
+                    // Same convention as CharacterSelectState::confirmSelection()
+                    // confirming a locked card: a blocked action gets the "bump"
+                    // cue rather than silently doing nothing.
+                    SoundManager::getInstance().playSound("bump");
+                }
+                break;
+            }
         }
         return;
     }
@@ -542,6 +636,27 @@ void MenuState::render(sf::RenderTarget& target) {
         }
 
         UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
+                                     {centerX, kTop + panelHeight + 18.0f}, 11,
+                                     sf::Color(220, 220, 220), true);
+        return;
+    }
+
+    if (m_page == Page::Load) {
+        const std::vector<UiMenuItem> rows = buildLoadItems();
+
+        constexpr float kTop = 220.0f;
+        constexpr float kRowHeight = 38.0f;
+        const float rowsTop = kTop + 56.0f;
+        const float panelHeight = (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 30.0f) - kTop;
+
+        UiRenderer::drawPanel(target, {centerX - 300.0f, kTop}, {600.0f, panelHeight},
+                              sf::Color(0, 0, 0, 200));
+        UiRenderer::drawText(target, "LOAD GAME", {centerX, kTop + 20.0f}, 14,
+                             sf::Color(120, 220, 160), true);
+        UiRenderer::drawMenuItems(target, rows, m_loadSelected,
+                                  {centerX - 230.0f, rowsTop}, kRowHeight, 12,
+                                  centerX + 10.0f, m_elapsed);
+        UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  LOAD      ESC  BACK",
                                      {centerX, kTop + panelHeight + 18.0f}, 11,
                                      sf::Color(220, 220, 220), true);
         return;

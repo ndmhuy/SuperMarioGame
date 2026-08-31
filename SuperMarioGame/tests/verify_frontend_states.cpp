@@ -27,7 +27,9 @@
 #include "Core/SoundManager.hpp"
 #include "Core/EventBus.hpp"
 #include "Utils/Serializer.hpp"
+#include "Utils/Constants.hpp"
 #include "Entities/Boss.hpp"
+#include "Entities/Player.hpp"
 #include "Graphics/Camera.hpp"
 
 // Declared in the global namespace to match PlayingState.hpp's
@@ -38,6 +40,9 @@ class LevelCompletionCameraTestHooks {
 public:
     static bool isLevelComplete(const PlayingState& state) { return state.m_levelComplete; }
     static Boss* activeBoss(const PlayingState& state) { return state.m_activeBoss; }
+    // The active player, so a load-slot test can read back lives/coins/score
+    // without a public getter nothing else would ever call.
+    static Player* activePlayer(const PlayingState& state) { return state.m_player; }
 
     // Stands in for "this instance just spent the last level locked onto a
     // boss arena" without needing to actually fight one.
@@ -434,6 +439,78 @@ void testMenuNavigatesWithoutImGui(sf::RenderTexture* target) {
     menu.exit();
 }
 
+void testLoadGameMenuNavigatesAndBacksOut(sf::RenderTexture* target) {
+    section("10.2  LOAD GAME opens a 3-slot picker and Escape backs out cleanly");
+
+    MenuState menu;
+    menu.enter();
+
+    step(menu, sf::Keyboard::Key::Down);   // START GAME -> LOAD GAME
+    step(menu, sf::Keyboard::Key::Enter);  // open the picker
+    renderOnce(menu, target);
+    check(true, "opening the Load Game picker renders without crashing, even with saves/ empty");
+
+    for (int i = 0; i < 4; ++i) {           // walk every row: 3 slots + BACK
+        step(menu, sf::Keyboard::Key::Down);
+        renderOnce(menu, target);
+    }
+    check(true, "navigating all four Load Game rows (3 slots + BACK) is side-effect-free");
+
+    menu.handleInput(keyEvent(sf::Keyboard::Key::Escape));
+    menu.update(0.016f);
+    renderOnce(menu, target);
+    check(true, "Escape backs the Load Game page out to the main menu without crashing");
+
+    menu.exit();
+}
+
+// The menu picker itself is exercised above without confirming a slot, so as
+// not to route a headless harness through Game::changeState()'s real state
+// swap. What that confirm actually does — build a fresh PlayingState with
+// pendingLoadSlot set and let it call loadFromSlot() on itself — is exercised
+// directly here instead, the same way testLevelCompleteIsGatedByAnActiveBoss
+// drives PlayingState without going through CharacterSelectState first.
+void testLoadGameRestoresPlayerFromSlot() {
+    section("12.3  a menu-driven Load Game restores lives/coins/score/star coins from the saved slot");
+
+    int seededLives = 0, seededCoins = 0, seededScore = 0;
+    {
+        // Stands in for "the pause menu saved here": the same
+        // Serializer::saveGame() call PlayingState::saveToSlot() makes.
+        PlayingState seed(false, false, MapGeneratorConfig(), 0, 0);
+        seed.enter();
+        Player* player = LevelCompletionCameraTestHooks::activePlayer(seed);
+        check(player != nullptr, "seed level has an active player to save");
+        if (player) {
+            player->restoreStats(7, 42, 13500);
+            seededLives = player->getLives();
+            seededCoins = player->getCoins();
+            seededScore = player->getScore();
+            check(Serializer::saveGame(2, *player, 1, "Level 1", Constants::LEVEL_TIME,
+                                       player->getPosition().x, player->getPosition().y,
+                                       {true, false, true}),
+                  "test save written to slot 2");
+        }
+        seed.exit();
+    }
+
+    // Same construction MenuState::activateSelection() performs on a LOAD
+    // GAME confirm for slot 2: a fresh Level-1 PlayingState with
+    // pendingLoadSlot=2, whose enter() calls the exact private loadFromSlot()
+    // DevPanel's Save/Load Slots panel already calls on a live instance.
+    PlayingState loaded(false, false, MapGeneratorConfig(), 0, 0, MatchConfig{},
+                        /*isEndless=*/false, /*pendingLoadSlot=*/2);
+    loaded.enter();
+    Player* player = LevelCompletionCameraTestHooks::activePlayer(loaded);
+    check(player != nullptr, "loading slot 2 produced an active player");
+    if (player) {
+        check(player->getLives() == seededLives, "lives restored from slot 2");
+        check(player->getCoins() == seededCoins, "coins restored from slot 2");
+        check(player->getScore() == seededScore, "score restored from slot 2");
+    }
+    loaded.exit();
+}
+
 } // namespace
 
 
@@ -687,9 +764,11 @@ int main() {
     testCharacterSelectGatesLockedSlots(target);
     testWorldMapRefusesLockedLevels(target);
     testMenuNavigatesWithoutImGui(target);
+    testLoadGameMenuNavigatesAndBacksOut(target);
     testEditorIsNotStuckBehindTheEntryFade(target);
     testLevelCompleteIsGatedByAnActiveBoss();
     testCameraResetsAcrossALevelTransition();
+    testLoadGameRestoresPlayerFromSlot();
 
     // These screens play sounds and load atlases, so both the audio device and a
     // GL context are live. Both singletons hold SFML resources that must be

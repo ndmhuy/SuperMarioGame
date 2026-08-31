@@ -110,7 +110,7 @@ real and is now item #96 below.)
 64. **In-Game Level Editor (Mario Maker)** — F1 toggles a live editor with tile/entity palettes, an undo/redo command stack, and JSON save/load, reachable from the pause-free main menu or mid-level.
 
 ## 10. Game Flow & UI
-65. **Main Menu** — Start Game, Multiplayer, Daily Challenge, Map Editor, Procedural Level, Records, Options and Quit, with an animated parallax background and a walking-Mario idle sprite.
+65. **Main Menu** — Start Game, Load Game, Multiplayer, Daily Challenge, Map Editor, Procedural Level, Records, Options and Quit, with an animated parallax background and a walking-Mario idle sprite.
 66. **Pause Menu** — Resume, Save Game, Options, Restart Level and Quit to Menu, overlaying the still-visible level.
 67. **HUD** — live score, coins, world/level, timer, lives, combo counter, and Star Coin indicators.
 68. **Minimap** — a toggleable (Tab) overview of the whole level and every live entity, colour-coded and colourblind-palette aware.
@@ -124,7 +124,7 @@ real and is now item #96 below.)
 74. **Volume Controls** — independent music/SFX sliders in Options, persisted to `config.json`.
 
 ## 12. Save/Load & Persistence
-75. **Three Save Slots** — full player/level/progress/statistics/settings state, written as JSON.
+75. **Three Save Slots** — full player/level/progress/statistics/settings state, written as JSON; loadable from the main menu's LOAD GAME picker, which previews character, level, score, star coins and play time per slot (or labels a slot Empty), confirming through the same `PlayingState::loadFromSlot` path the dev panel's Save/Load Slots tool already used.
 76. **Auto-Save at Checkpoints** — a `CheckpointActivated` event silently persists progress; currently only the debug checkpoint key publishes it (the warp-pipe trigger was deliberately removed as a defect fix, so pipes are side-effect free).
 77. **Manual Save** — "Save Game" from the pause menu.
 78. **High Score Table** — recorded per run (score, coins, star coins, character, level) and viewable from Options.
