@@ -5,6 +5,7 @@
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/LevelSolvability.hpp"
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -382,4 +383,35 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     entities.push_back(std::move(exitPipe));
 
     std::cout << "[MapGenerator] Generated subterranean bonus vault (Width: " << subWidth << ", Return Target: " << returnLevelPath << ")" << std::endl;
+}
+
+bool MapGenerator::generateSolvable(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities,
+                                     const MapGeneratorConfig& config, int maxAttempts) {
+    MapGeneratorConfig attemptConfig = config;
+    const unsigned int baseSeed = config.seed;   // 0 means "pick randomly", preserved on attempt 1
+
+    for (int attempt = 0; attempt < std::max(1, maxAttempts); ++attempt) {
+        // Attempt 1 honors the caller's exact seed (a reproducible daily
+        // challenge must not silently become a different level); only a
+        // rejected attempt perturbs it.
+        attemptConfig.seed = (attempt == 0) ? baseSeed
+                            : (baseSeed != 0 ? baseSeed + static_cast<unsigned int>(attempt)
+                                              : 0);
+        generate(tileMap, entities, attemptConfig);
+
+        const int startTileX = 3;
+        const int endTileX = std::max(startTileX + 1, attemptConfig.width - 15);
+        if (LevelSolvability::isPathReachable(tileMap, entities, startTileX, endTileX)) {
+            if (attempt > 0) {
+                std::cout << "[MapGenerator] Solvability check passed on attempt "
+                          << (attempt + 1) << "/" << maxAttempts << std::endl;
+            }
+            return true;
+        }
+        std::cout << "[MapGenerator] Solvability check FAILED on attempt "
+                  << (attempt + 1) << "/" << maxAttempts
+                  << (attempt + 1 < maxAttempts ? " — regenerating with a new seed" : " — keeping it anyway, unverified")
+                  << std::endl;
+    }
+    return false;
 }

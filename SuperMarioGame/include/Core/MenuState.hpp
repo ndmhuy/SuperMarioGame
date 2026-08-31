@@ -32,7 +32,7 @@ private:
 
     // Rows of the generator submenu, in display order.
     enum class GenRow { Theme, Difficulty, PitProbability, PipeFrequency,
-                        EnemyRate, CoinRate, GeneratePlay, GenerateEdit, Back, COUNT };
+                        EnemyRate, CoinRate, GeneratePlay, GenerateEdit, PlayEndless, Back, COUNT };
 
     // Rows of the multiplayer submenu, in display order.
     //

@@ -1,0 +1,123 @@
+# Live verification for Endless Mode: navigate Main Menu -> PROCEDURAL LEVEL ->
+# PLAY ENDLESS, then run right long enough to cross at least one chunk seam
+# (100 tiles = ~3200px) and confirm the tilemap actually grows and the world
+# label shows a live distance instead of a fixed level name.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_endless_mode.txt
+
+wait 2.0
+shot e0_menu
+press Down                 # VERSUS
+press Down                 # DAILY CHALLENGE
+press Down                 # MAP EDITOR
+press Down                 # PROCEDURAL LEVEL
+press Enter                # open the generator submenu
+wait 0.5
+shot e1_generator_menu
+press Down                 # DIFFICULTY
+press Down                 # PITS
+press Down                 # PIPES
+press Down                 # ENEMIES
+press Down                 # COINS
+press Down                 # GENERATE & PLAY
+press Down                 # GENERATE & EDIT
+press Down                 # PLAY ENDLESS
+wait 0.3
+shot e2_on_play_endless_row
+press Enter                # start Endless Mode
+wait 2.0
+shot e3_endless_started
+
+hold D 40.0
+hold LShift 40.0
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e4_running_t2s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e5_running_t4s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e6_running_t6s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e7_running_t8s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e8_running_t10s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e9_running_t12s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e10_running_t14s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e11_running_t16s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e12_running_t18s
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+press W
+wait 0.5
+shot e13_running_t20s
+quit

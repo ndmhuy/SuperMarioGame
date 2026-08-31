@@ -19,6 +19,11 @@ struct RunSummary {
     std::string characterName = "mario";
     bool isProcedural = false;
     MapGeneratorConfig generatorConfig;
+    // Endless Mode has no level to name and no fixed score budget: the score
+    // already includes a distance bonus (see PlayingState::buildRunSummary),
+    // and the game-over/high-score screens show distance instead of a level.
+    bool isEndless = false;
+    int endlessDistanceTiles = 0;
 
     // Which match ended, and how. Without these the game-over screen shows the
     // same "GAME OVER" for a solo run, a versus loss and being caught by your

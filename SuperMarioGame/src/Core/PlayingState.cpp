@@ -87,12 +87,12 @@ BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
 } // namespace
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
-                           int characterIndex, int levelIndex, MatchConfig match)
+                           int characterIndex, int levelIndex, MatchConfig match, bool isEndless)
     : m_match(match),
       m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
       m_startInEditor(startInEditor), m_isProcedural(isProcedural),
-      m_genConfig(genConfig) {
+      m_genConfig(genConfig), m_isEndless(isEndless) {
     // Published now rather than in enter(), because the collision resolver can
     // be reached by a harness that never enters a state, and a stale co-op flag
     // there would silently turn a versus stomp into a friendly boost.
@@ -134,7 +134,7 @@ void PlayingState::enter() {
 
     if (m_isProcedural) {
         cleanupTestScene();
-        MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+        MapGenerator::generateSolvable(m_tileMap, m_entities, m_genConfig);
         m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
         syncBackdropGround();
         syncVoidPlane();
@@ -172,6 +172,24 @@ void PlayingState::enter() {
         spawnMatchParticipants();
         Game::getInstance().setTileMap(&m_tileMap);
         m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+
+        if (m_isEndless) {
+            // The first chunk came from the same generate() call every
+            // procedural run uses, which always places a flagpole and a
+            // castle near its own exitX (MapGenerator.cpp). Endless Mode has
+            // neither — there is nothing to reach, only how far you get — so
+            // both are removed once, here, rather than teaching the generator
+            // a mode it does not otherwise need to know about.
+            for (auto it = m_entities.begin(); it != m_entities.end(); ) {
+                const std::string type = (*it)->getTypeName();
+                if (type == "flagpole" || type == "castle") {
+                    it = m_entities.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            m_worldLabel = "ENDLESS";
+        }
     } else {
         setupTestScene();
     }
@@ -702,6 +720,17 @@ void PlayingState::update(float dt) {
                 killPlayer(m_player, "fell into the lava");
                 return;
             }
+        }
+    }
+
+    // 3b3. Endless Mode: keep the road ahead of the player generated, and the
+    // world label showing how far they have actually gotten.
+    if (m_isEndless && m_player) {
+        extendEndlessLevelIfNeeded();
+        const float distanceTiles = m_player->getPosition().x / Constants::TILE_SIZE;
+        if (distanceTiles > m_endlessBestDistanceTiles) {
+            m_endlessBestDistanceTiles = distanceTiles;
+            m_worldLabel = "ENDLESS  " + std::to_string(static_cast<int>(m_endlessBestDistanceTiles)) + "m";
         }
     }
 
@@ -1722,7 +1751,7 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
 
 void PlayingState::regenerateProceduralLevel() {
-    MapGenerator::generate(m_tileMap, m_entities, m_genConfig);
+    MapGenerator::generateSolvable(m_tileMap, m_entities, m_genConfig);
     m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
     syncBackdropGround();
     syncVoidPlane();
@@ -1752,6 +1781,77 @@ void PlayingState::regenerateProceduralLevel() {
     m_checkpointPosition = m_levelSpawnPoint;
     m_hasCheckpoint = false;
     if (m_minimap) m_minimap->initialize(m_tileMap);
+}
+
+void PlayingState::extendEndlessLevelIfNeeded() {
+    if (!m_player) return;
+
+    const float lookaheadPx = static_cast<float>(ENDLESS_LOOKAHEAD_TILES) * Constants::TILE_SIZE;
+    const float currentWidthPx = static_cast<float>(m_tileMap.getWidth()) * Constants::TILE_SIZE;
+    if (m_player->getPosition().x + lookaheadPx < currentWidthPx) return;
+
+    // Generated into an ISOLATED tilemap and entity list, never into m_tileMap
+    // or m_entities directly: MapGenerator::generate() clears whatever entity
+    // vector it is given (it is meant to build a whole level from nothing),
+    // which would delete the player already alive in m_entities.
+    ++m_endlessChunkIndex;
+    MapGeneratorConfig chunkConfig = m_genConfig;
+    chunkConfig.width = ENDLESS_CHUNK_TILES;
+    chunkConfig.seed = 0;   // fresh randomness per chunk, not a repeat of chunk 0
+    // Rising difficulty with distance, capped so it stays a platformer and not
+    // a wall — SPEC's "escalating difficulty curve" for this feature.
+    chunkConfig.pitProbability  = std::min(0.35f, 0.10f + 0.02f * m_endlessChunkIndex);
+    chunkConfig.enemySpawnRate  = std::min(0.35f, 0.15f + 0.02f * m_endlessChunkIndex);
+    chunkConfig.roughness       = std::min(1.0f,  0.30f + 0.05f * m_endlessChunkIndex);
+    chunkConfig.difficulty = m_endlessChunkIndex >= 6 ? MapDifficulty::Hard
+                            : m_endlessChunkIndex >= 3 ? MapDifficulty::Medium
+                                                        : MapDifficulty::Easy;
+
+    TileMap chunkMap;
+    std::vector<std::unique_ptr<Entity>> chunkEntities;
+    MapGenerator::generateSolvable(chunkMap, chunkEntities, chunkConfig);
+
+    const int offsetTiles = m_tileMap.getWidth();
+    const float offsetPx = static_cast<float>(offsetTiles) * Constants::TILE_SIZE;
+
+    m_tileMap.expandToFit(offsetTiles + chunkConfig.width, chunkMap.getHeight());
+    for (int y = 0; y < chunkMap.getHeight(); ++y) {
+        for (int x = 0; x < chunkConfig.width; ++x) {
+            m_tileMap.setTile(offsetTiles + x, y, chunkMap.getTileType(x, y));
+        }
+    }
+    // A flat safety bridge across the seam: each chunk's terrain is generated
+    // independently, so nothing guarantees chunk N's left edge lines up with
+    // chunk N-1's right edge. Without this, a seam could open onto a pit the
+    // player had no way to see coming.
+    const int seamGroundY = m_tileMap.getHeight() - 2;
+    for (int x = offsetTiles - 2; x < offsetTiles + 4 && x < m_tileMap.getWidth(); ++x) {
+        for (int y = seamGroundY; y < m_tileMap.getHeight(); ++y) {
+            m_tileMap.setTile(x, y, TileType::Ground);
+        }
+    }
+
+    // Splice entities, shifted by the chunk's offset. The generator always
+    // builds its own Mario and, near its own local exitX, a flagpole/castle —
+    // none of which belong in a middle-of-nowhere chunk: the real player
+    // already exists, and Endless Mode has no "end" to reach.
+    for (auto& entity : chunkEntities) {
+        if (!entity) continue;
+        const std::string type = entity->getTypeName();
+        if (dynamic_cast<Player*>(entity.get())) continue;
+        if (type == "flagpole" || type == "castle" || type == "pipe") continue;
+        entity->setPosition(entity->getPosition() + sf::Vector2f(offsetPx, 0.0f));
+        admitEntity(entity.get());
+        m_entities.push_back(std::move(entity));
+    }
+
+    m_camera.setBounds(AABB{0.0f, 0.0f,
+                            static_cast<float>(m_tileMap.getWidth()) * Constants::TILE_SIZE,
+                            static_cast<float>(m_tileMap.getHeight()) * Constants::TILE_SIZE});
+    if (m_minimap) m_minimap->initialize(m_tileMap);
+
+    std::cout << "[PlayingState] Endless Mode: appended chunk " << m_endlessChunkIndex
+              << ", tilemap now " << m_tileMap.getWidth() << " tiles wide." << std::endl;
 }
 
 void PlayingState::saveToSlot(int slot) {
@@ -2493,6 +2593,8 @@ RunSummary PlayingState::buildRunSummary() const {
     summary.characterIndex  = m_selectedCharIndex;
     summary.isProcedural    = m_isProcedural;
     summary.generatorConfig = m_genConfig;
+    summary.isEndless = m_isEndless;
+    summary.endlessDistanceTiles = static_cast<int>(m_endlessBestDistanceTiles);
     summary.starCoins = static_cast<int>(std::count(m_starCoinsCollected.begin(),
                                                     m_starCoinsCollected.end(), true));
     summary.match = m_match;
@@ -2502,6 +2604,13 @@ RunSummary PlayingState::buildRunSummary() const {
         summary.score         = m_player->getScore();
         summary.coins         = m_player->getCoins();
         summary.characterName = m_player->getCharacterName();
+        // Endless Mode has no time bonus and no flagpole height bonus to end
+        // on, so distance is what the score actually measures — 10 points per
+        // tile travelled, on top of whatever coins/stomps were picked up
+        // along the way.
+        if (m_isEndless) {
+            summary.score += summary.endlessDistanceTiles * 10;
+        }
     }
     if (m_player2) {
         summary.opponentScore = m_player2->getScore();
