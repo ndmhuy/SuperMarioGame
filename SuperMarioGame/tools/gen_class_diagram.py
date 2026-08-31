@@ -27,6 +27,7 @@ import argparse
 import html
 import re
 import sys
+import textwrap
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[1]
@@ -40,13 +41,33 @@ DECL = re.compile(
 BASE = re.compile(r"public\s+([A-Za-z_][\w:]*)")
 
 
+class Member:
+    """One attribute or method, with the visibility a UML diagram is actually
+    for: not shown to name-check the type, shown so a reader can verify
+    encapsulation by eye (how much of this class is `-`/`#` vs `+`) rather
+    than take the report's word for it.
+    """
+    __slots__ = ("visibility", "kind", "text", "is_static", "is_pure")
+
+    def __init__(self, visibility, kind, text, is_static=False, is_pure=False):
+        self.visibility = visibility            # 'public' | 'protected' | 'private'
+        self.kind = kind                        # 'field' | 'method'
+        self.text = text                        # display text, C++ order (type name / returnType name(params))
+        self.is_static = is_static              # UML convention: underlined
+        self.is_pure = is_pure                  # pure virtual — UML convention: italicised
+
+
+VIS_SYMBOL = {"public": "+", "protected": "#", "private": "-"}
+
+
 class ClassInfo:
-    def __init__(self, name, bases, header, abstract, methods):
+    def __init__(self, name, bases, header, abstract, attributes, methods):
         self.name = name
         self.bases = bases
         self.header = header
         self.abstract = abstract
-        self.methods = methods
+        self.attributes = attributes    # list[Member], kind='field'
+        self.methods = methods          # list[Member], kind='method'
 
     def stereotype(self):
         if self.name.startswith("I") and self.name[1:2].isupper() and self.abstract:
@@ -66,7 +87,7 @@ def parse_headers():
             name, baselist = m.group(1), m.group(2) or ""
             bases = BASE.findall(baselist)
 
-            # The class body, for the pure-virtual test and the method list.
+            # The class body, for the pure-virtual test and the member lists.
             body = _body_of(stripped, m.end() - 1)
             # A pure virtual is "= 0" attached to a FUNCTION declaration, so the
             # "= 0" must follow the closing paren of a parameter list (with the
@@ -76,9 +97,9 @@ def parse_headers():
             # which wrongly stereotyped Bowser and WorldMapState.
             abstract = bool(re.search(
                 r"\)\s*(?:const\s*)?(?:noexcept\s*)?(?:override\s*)?=\s*0\s*;", body))
-            methods = _public_methods(body)
+            attributes, methods = _parse_members(body)
             classes[name] = ClassInfo(name, bases, path.relative_to(INCLUDE),
-                                      abstract, methods)
+                                      abstract, attributes, methods)
     return classes
 
 
@@ -95,22 +116,118 @@ def _body_of(text, brace_index):
     return ""
 
 
-def _public_methods(body, limit=5):
-    """A few representative public methods, for the diagram's method compartment."""
-    section = body.split("protected:")[0].split("private:")[0]
-    if "public:" in section:
-        section = section.split("public:", 1)[1]
-    found = []
-    for m in re.finditer(r"^\s*(?:virtual\s+)?(?:static\s+)?"
-                         r"(?:[\w:<>&*~\s]+?)\s+([a-z]\w*)\s*\(([^)]*)\)", section, re.M):
-        name = m.group(1)
-        if name in ("if", "for", "while", "return", "switch"):
-            continue
-        if name not in found:
-            found.append(name)
-        if len(found) >= limit:
-            break
-    return found
+def _strip_inline_bodies(text):
+    """Replace every brace-delimited block with a single ';' — but only a
+    block starting outside an open parameter list.
+
+    A getter defined inline (`int getX() const { return m_x; }`) would
+    otherwise contribute its *body*'s semicolons as fake top-level
+    statements once the section is split on ';'; matching depth rather than
+    a regex means a body containing its own nested braces (an if, a lambda)
+    collapses correctly too. The paren-depth guard is what keeps this from
+    also eating a brace-init default ARGUMENT — `Entity(sf::Vector2f pos =
+    {0.0f, 0.0f})` has a `{...}` while still inside the constructor's own
+    unclosed '(', which is not a function body and must not be spliced out;
+    doing so used to split that one parameter list into three fake
+    statements at the ','s the stripped braces had exposed.
+    """
+    out = []
+    i, n = 0, len(text)
+    paren_depth = 0
+    while i < n:
+        ch = text[i]
+        if ch == "(":
+            paren_depth += 1
+            out.append(ch)
+            i += 1
+        elif ch == ")":
+            paren_depth = max(0, paren_depth - 1)
+            out.append(ch)
+            i += 1
+        elif ch == "{" and paren_depth == 0:
+            depth = 1
+            j = i + 1
+            while j < n and depth > 0:
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                j += 1
+            out.append(";")
+            i = j
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
+
+
+def _visibility_sections(body):
+    """(visibility, text) chunks in source order.
+
+    A class may (and in this codebase does) reopen `public:`/`private:`
+    more than once, so this yields every chunk rather than only the first
+    of each — `_public_methods` used to read only the first `public:` block,
+    which is why it saw a handful of methods rather than most of them.
+    Unlabelled leading text is `private`, matching `class`'s C++ default.
+    """
+    labels = list(re.finditer(r"(?<!:)\b(public|protected|private)\s*:(?!:)", body))
+    if not labels:
+        return [("private", body)]
+    chunks = []
+    if labels[0].start() > 0:
+        chunks.append(("private", body[:labels[0].start()]))
+    for idx, lm in enumerate(labels):
+        start = lm.end()
+        end = labels[idx + 1].start() if idx + 1 < len(labels) else len(body)
+        chunks.append((lm.group(1), body[start:end]))
+    return chunks
+
+
+_SKIP_STMT = re.compile(
+    r"^(friend\b|using\b|typedef\b|template\b|enum\b|struct\b|class\b|static_assert\b)")
+
+
+def _parse_members(body):
+    """Every attribute and method the class body declares, in source order,
+    grouped by the visibility they were actually declared under.
+
+    Not a C++ parser (see the module docstring's rationale for that choice):
+    it matches this codebase's own style — one declaration per statement,
+    inline bodies collapsed by `_strip_inline_bodies`, defaults/`override`/
+    `= 0`/`= default`/`= delete` trimmed for display. A statement this
+    cannot classify (a lambda member, a bitfield) is dropped rather than
+    guessed at, matching the module's existing policy of reporting gaps
+    instead of papering over them.
+    """
+    attributes, methods = [], []
+    for vis, chunk in _visibility_sections(body):
+        for stmt in _strip_inline_bodies(chunk).split(";"):
+            stmt = stmt.strip()
+            if not stmt or _SKIP_STMT.match(stmt):
+                continue
+
+            is_static = bool(re.match(r"^static\b", stmt))
+            is_pure = bool(re.search(r"=\s*0\s*$", stmt))
+
+            paren = stmt.find("(")
+            if paren != -1:
+                sig = stmt
+                sig = re.sub(r"^(virtual|static|explicit|friend)\s+", "", sig)
+                sig = re.sub(r"\s*(override|final)\b\s*", " ", sig)
+                sig = re.sub(r"\s*=\s*(0|default|delete)\s*$", "", sig)
+                sig = re.sub(r"\s+", " ", sig).strip()
+                sig = re.sub(r"\s+\)", ")", sig)
+                if not sig:
+                    continue
+                methods.append(Member(vis, "method", sig, is_static, is_pure))
+            else:
+                sig = re.sub(r"^(static|mutable)\s+", "", stmt)
+                sig = re.sub(r"\s*=.*$", "", sig)
+                sig = re.sub(r"\s+", " ", sig).strip()
+                if not sig or not re.search(r"[A-Za-z_]\w*$", sig):
+                    continue
+                attributes.append(Member(vis, "field", sig, is_static, False))
+    return attributes, methods
 
 
 # --------------------------------------------------------------------------
@@ -175,16 +292,19 @@ def emit_mermaid(classes):
         for name, _ in nodes:
             info = classes[name]
             st = info.stereotype()
-            if st:
+            members = list(info.attributes) + list(info.methods)
+            if st or members:
                 lines.append(f"    class {name} {{")
-                lines.append(f"        <<{st}>>")
-                for meth in info.methods:
-                    lines.append(f"        +{meth}()")
-                lines.append("    }")
-            elif info.methods:
-                lines.append(f"    class {name} {{")
-                for meth in info.methods:
-                    lines.append(f"        +{meth}()")
+                if st:
+                    lines.append(f"        <<{st}>>")
+                for member in members:
+                    text = member.text.replace("{", "(").replace("}", ")")
+                    line = f"{VIS_SYMBOL[member.visibility]}{text}"
+                    if member.is_static:
+                        line += "$"
+                    if member.is_pure:
+                        line += "*"
+                    lines.append(f"        {line}")
                 lines.append("    }")
             else:
                 lines.append(f"    class {name}")
@@ -326,12 +446,206 @@ def emit_svg(classes, root, title, max_depth=None):
     return "\n".join(parts)
 
 
+# --------------------------------------------------------------------------
+# Detailed SVG: a classic three-compartment UML box (name / attributes /
+# methods), every member shown — the point being that a reader can VERIFY
+# encapsulation (how much of each box is -/# versus +), abstraction (dashed
+# border, «interface»/«abstract» tag, italicised pure-virtual operations) and
+# inheritance (the same generalization triangles) by eye, rather than take
+# the report's prose about them on faith. compact emit_svg() above stays the
+# inline, name-only diagram section 6 uses to illustrate a point mid-prose;
+# this is the appendix's full reference copy.
+# --------------------------------------------------------------------------
+D_LINE_H = 13
+D_PAD = 7
+D_CHAR_W = 5.7          # monospace at the member font-size below
+D_WRAP_CHARS = 60
+D_MIN_W = 170
+D_MAX_W = 520
+D_INDENT = 46
+D_ROW_GAP = 22
+# PlayingState has 132 members, Player 109 — genuine outliers against a
+# codebase where the next-largest class has 58 (see the tool's own
+# `--list`-adjacent member-count check). Showing "every function and
+# attribute" for those two would make one box thousands of pixels tall and
+# every other class on the same diagram unreadable by comparison, so each
+# compartment is capped and says exactly how much it left out and where to
+# read the rest — the module's standing policy of reporting a gap rather
+# than silently dropping it, applied to length instead of syntax this time.
+D_MAX_MEMBERS = 24
+
+
+def _wrap_member(symbol, member):
+    """Visibility symbol + text, word-wrapped; continuation lines indent
+    under the text rather than repeating the symbol."""
+    wrapped = textwrap.wrap(member.text, width=D_WRAP_CHARS) or [""]
+    lines = [f"{symbol} {wrapped[0]}"]
+    lines += [f"  {cont}" for cont in wrapped[1:]]
+    return lines
+
+
+def _member_lines(members, header):
+    """Flattened (text, is_static, is_pure) rows; only a member's first
+    physical line carries its static/pure markers, so a wrapped continuation
+    is not double-underlined or double-italicised. Capped at D_MAX_MEMBERS
+    real members (not wrapped lines) with an honest count of what is cut."""
+    shown, cut = members[:D_MAX_MEMBERS], members[D_MAX_MEMBERS:]
+    rows = []
+    for m in shown:
+        for i, line in enumerate(_wrap_member(VIS_SYMBOL[m.visibility], m)):
+            rows.append((line, m.is_static if i == 0 else False,
+                        m.is_pure if i == 0 else False))
+    if cut:
+        rows.append((f"… {len(cut)} more — see {header}", False, False))
+    return rows
+
+
+def emit_svg_detailed(classes, root, title, max_depth=None):
+    if root not in classes:
+        raise SystemExit(f"unknown root: {root}")
+    kids = _children_map(classes)
+
+    boxes = []
+    edges = []
+    cursor = {"y": 0}
+
+    def measure(name):
+        info = classes[name]
+        attr_rows = _member_lines(info.attributes, info.header)
+        meth_rows = _member_lines(info.methods, info.header)
+        st = info.stereotype()
+        title_h = 34 if st else 20
+        name_w = len(info.name) * 7.6 + 24
+        member_w = max([len(t) * D_CHAR_W for t, _, _ in attr_rows + meth_rows] or [0])
+        w = min(D_MAX_W, max(D_MIN_W, name_w, member_w + D_PAD * 2))
+        attr_h = len(attr_rows) * D_LINE_H + 8 if attr_rows else 8
+        meth_h = len(meth_rows) * D_LINE_H + 8 if meth_rows else 8
+        h = title_h + attr_h + meth_h
+        return dict(name=name, w=w, h=h, title_h=title_h, attr_h=attr_h,
+                    attr_rows=attr_rows, meth_rows=meth_rows, st=st)
+
+    def place(name, depth):
+        box = measure(name)
+        box["x"] = depth * D_INDENT
+        box["y"] = cursor["y"]
+        boxes.append(box)
+        cursor["y"] += box["h"] + D_ROW_GAP
+
+        children = sorted(kids.get(name, []))
+        if not children or (max_depth is not None and depth + 1 > max_depth):
+            return box
+
+        leaves = [c for c in children if not kids.get(c)]
+        branches = [c for c in children if kids.get(c)]
+
+        # Branches carry their own structure and stay single-column, full
+        # width, one after another.
+        for child in branches:
+            edges.append((name, child))
+            place(child, depth + 1)
+
+        # Leaves do not: a class with a dozen same-level siblings (Enemy's
+        # thirteen concrete enemies, Item's twelve pickups) is exactly the
+        # case the compact renderer already grids into columns rather than
+        # one long chain — and it matters more here, where each box is tens
+        # of lines tall instead of one. Packed greedily into whichever
+        # column is shortest so far, since sibling boxes are rarely the same
+        # height once full member lists are shown (an even row/column
+        # assignment, like the compact renderer's, would leave columns
+        # badly unbalanced).
+        if leaves:
+            leaf_boxes = {c: measure(c) for c in leaves}
+            col_w = max(b["w"] for b in leaf_boxes.values()) + H_GAP
+            n_cols = 2 if len(leaves) <= 8 else 3
+            col_tops = [cursor["y"]] * n_cols
+            for child in leaves:
+                edges.append((name, child))
+                col = min(range(n_cols), key=lambda i: col_tops[i])
+                lb = leaf_boxes[child]
+                lb["x"] = (depth + 1) * D_INDENT + col * col_w
+                lb["y"] = col_tops[col]
+                boxes.append(lb)
+                col_tops[col] += lb["h"] + D_ROW_GAP
+            cursor["y"] = max(col_tops)
+        return box
+
+    place(root, 0)
+
+    by_name = {b["name"]: b for b in boxes}
+    width = max(b["x"] + b["w"] for b in boxes) + 16
+    height = cursor["y"] + 8
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}" '
+        f'role="img" aria-label="{html.escape(title)} detailed class diagram" '
+        f'style="width:100%;height:auto;font-family:var(--mono,monospace)">',
+        '<style>'
+        '.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}'
+        '.uml-abs{stroke-dasharray:5 3}'
+        '.uml-title{font-family:var(--ui,sans-serif);font-size:12px;fill:var(--tx,#111);font-weight:700}'
+        '.uml-st{font-family:var(--ui,sans-serif);font-size:9px;fill:var(--accent,#b5322a);font-style:italic}'
+        '.uml-div{stroke:var(--line,#ccc);stroke-width:1}'
+        '.uml-mem{font-size:9px;fill:var(--mut,#555)}'
+        '.uml-mem-static{text-decoration:underline}'
+        '.uml-mem-pure{font-style:italic}'
+        '.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}'
+        '.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}'
+        '</style>',
+    ]
+
+    for parent, child in edges:
+        p, c = by_name[parent], by_name[child]
+        x1, y1 = p["x"] + 11, p["y"] + p["h"]
+        y2, x2 = c["y"] + c["h"] / 2, c["x"]
+        parts.append(f'<path class="uml-edge" d="M {x1} {y1} V {y2} H {x2}"/>')
+        parts.append(f'<polygon class="uml-tri" points="{x1-4},{y1+6} {x1+4},{y1+6} {x1},{y1}"/>')
+
+    for b in boxes:
+        cls = "uml-box uml-abs" if b["st"] else "uml-box"
+        x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+        parts.append(f'<rect class="{cls}" x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" rx="5"/>')
+
+        if b["st"]:
+            parts.append(f'<text class="uml-st" x="{x+w/2:.0f}" y="{y+13:.0f}" text-anchor="middle">'
+                         f'&#171;{b["st"]}&#187;</text>')
+            parts.append(f'<text class="uml-title" x="{x+w/2:.0f}" y="{y+28:.0f}" text-anchor="middle">'
+                         f'{html.escape(b["name"])}</text>')
+        else:
+            parts.append(f'<text class="uml-title" x="{x+w/2:.0f}" y="{y+16:.0f}" text-anchor="middle">'
+                         f'{html.escape(b["name"])}</text>')
+
+        ty = y + b["title_h"]
+        parts.append(f'<line class="uml-div" x1="{x:.0f}" y1="{ty:.0f}" x2="{x+w:.0f}" y2="{ty:.0f}"/>')
+        cy = ty + D_LINE_H - 2
+        for text, is_static, _ in b["attr_rows"]:
+            cls2 = "uml-mem uml-mem-static" if is_static else "uml-mem"
+            parts.append(f'<text class="{cls2}" x="{x+D_PAD:.0f}" y="{cy:.0f}">{html.escape(text)}</text>')
+            cy += D_LINE_H
+
+        ty2 = ty + b["attr_h"]
+        parts.append(f'<line class="uml-div" x1="{x:.0f}" y1="{ty2:.0f}" x2="{x+w:.0f}" y2="{ty2:.0f}"/>')
+        cy = ty2 + D_LINE_H - 2
+        for text, is_static, is_pure in b["meth_rows"]:
+            cls2 = "uml-mem"
+            if is_static:
+                cls2 += " uml-mem-static"
+            if is_pure:
+                cls2 += " uml-mem-pure"
+            parts.append(f'<text class="{cls2}" x="{x+D_PAD:.0f}" y="{cy:.0f}">{html.escape(text)}</text>')
+            cy += D_LINE_H
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mermaid", action="store_true")
     ap.add_argument("--svg", metavar="ROOT")
     ap.add_argument("--depth", type=int, default=None,
                     help="stop descending past this depth below the root")
+    ap.add_argument("--detailed", action="store_true",
+                    help="with --svg, draw full attribute/method compartments instead of name-only boxes")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args()
 
@@ -345,7 +659,8 @@ def main():
     elif args.mermaid:
         sys.stdout.write(emit_mermaid(classes))
     elif args.svg:
-        sys.stdout.write(emit_svg(classes, args.svg, args.svg, args.depth))
+        emit = emit_svg_detailed if args.detailed else emit_svg
+        sys.stdout.write(emit(classes, args.svg, args.svg, args.depth))
     else:
         ap.error("choose --mermaid, --svg ROOT or --list")
 

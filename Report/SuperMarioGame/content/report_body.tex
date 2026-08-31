@@ -483,7 +483,7 @@ All five figures are unretouched frames captured from the running game by a scri
 
 \section{Process and project history}
 
-The project ran from 29 May to 22 August 2026 across 7 weekly reporting periods (\codebreak{docs/Group52\_04/} through \codebreak{Group52\_10/}), 271 commits and 240 recorded working sessions in \codebreak{logs/agent\_history.log}. That log is not a changelog: each entry records the commit before and after, whether the remotes were fetched, whether the work is reachable from \codebreak{main()}, and how it was verified. Several sections of this report are drawn from it, including the failures below.
+The project ran from 29 May to 22 August 2026 across 7 weekly reporting periods (\codebreak{docs/Group52\_04/} through \codebreak{Group52\_10/}), 281 commits and 241 recorded working sessions in \codebreak{logs/agent\_history.log}. That log is not a changelog: each entry records the commit before and after, whether the remotes were fetched, whether the work is reachable from \codebreak{main()}, and how it was verified. Several sections of this report are drawn from it, including the failures below.
 
 {\small\begin{longtable}{p{0.22\linewidth}p{0.16\linewidth}p{0.54\linewidth}}
 \toprule
@@ -617,7 +617,7 @@ Lines of C++ (excluding third-party) & 27,926 \\
 Concrete entity classes & 5 players, 13 enemies, 13 items, 10 blocks \\
 Design patterns & 10 \\
 Verification harnesses & 23 source files, 22 built, 13 registered as CTest cases \\
-Commits on the integration branch & 271 \\
+Commits on the integration branch & 281 \\
 Sound effects / music tracks & 29 / 12 \\
 Achievements & 12 \\
 \bottomrule
@@ -627,65 +627,67 @@ Achievements & 12 \\
 
 Every class diagram in this report, in one place, at full size --- not a redrawn summary, the same figures \S{}6 discusses in context, collected here for a reader who wants the whole structure in one pass rather than hunting back through the prose. Each is regenerated from the current headers at build time by the same \codebreak{gen\_class\_diagram.py} pass that draws the inline copies (\S{}6's opening note), so this appendix cannot go stale relative to them the way a hand-drawn "master diagram" done once and forgotten would.
 
-{\small\begin{longtable}{p{0.16\linewidth}p{0.14\linewidth}p{0.30\linewidth}p{0.30\linewidth}}
+Seven of the nine show \textbf{every attribute and method, with its real visibility} --- a classic three-compartment UML box, not just a name in a box --- specifically so encapsulation is something a reader can verify by eye (how much of each box is \codebreak{-}/\codebreak{\#} versus \codebreak{+}) rather than take \S{}6's prose about it on faith. Static members are underlined and pure-virtual operations italicised, both standard UML notation; the same dashed border and $\ll$stereotype$\gg$ tag from \S{}6 still mark an abstract class or interface. Two roots (\codebreak{Entity}, \codebreak{Character}) are kept to the compact, name-only form instead: both contain \codebreak{Player} (109 members) or \codebreak{PlayingState} (132), and a full listing for either one alone makes the whole diagram many times taller than every other class on it combined --- measured at roughly seven times the width in height before this exception was made, against one-to-two times for every other group here. Their full member lists are not missing, only shown a different way: Entity's own branches (Item, Block, Enemy) and Character's own children (Enemy, and Player's siblings inside it) are the very next diagrams, each in full detail.
+
+{\small\begin{longtable}{p{0.14\linewidth}p{0.13\linewidth}p{0.24\linewidth}p{0.24\linewidth}p{0.10\linewidth}}
 \toprule
-\textbf{Figure} & \textbf{Root class} & \textbf{Discussed in} & \textbf{What it shows} \\
+\textbf{Figure} & \textbf{Root class} & \textbf{Discussed in} & \textbf{Detail} & \textbf{What it shows} \\
 \midrule
 \endhead
-6 & \codebreak{Entity} & \S{}6.1 & The four branches under the abstract root: Character, Item, Block, Projectile. \\
-6a & \codebreak{Item} & \S{}6.2 & Twelve concrete power-ups and pickups behind one \codebreak{activate()} call. \\
-6b & \codebreak{Block} & \S{}6.2 & Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right. \\
-7 & \codebreak{Character} & \S{}6.3 & Player and Enemy split, including the ShadowMario replay rival. \\
-8 & \codebreak{Enemy} & \S{}6.3 & The enemy branch, with the Boss sub-hierarchy sealed by Template Method. \\
-9 & \codebreak{IPlayerState} & \S{}6.4 & Five player forms plus the two Decorators that wrap them. \\
-10 & \codebreak{IGameState} & \S{}6.5 & Eight screens behind one State interface. \\
-11 & \codebreak{ICommand} & \S{}6.5 & Input as objects --- the Command pattern's own hierarchy. \\
-12 & \codebreak{IMovementStrategy} & \S{}6.5 & Eight interchangeable enemy movements --- the Strategy pattern's own hierarchy. \\
+6 & \codebreak{Entity} & \S{}6.1 & compact & The four branches under the abstract root: Character, Item, Block, Projectile. \\
+6a & \codebreak{Item} & \S{}6.2 & full & Twelve concrete power-ups and pickups behind one \codebreak{activate()} call. \\
+6b & \codebreak{Block} & \S{}6.2 & full & Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right. \\
+7 & \codebreak{Character} & \S{}6.3 & compact & Player and Enemy split, including the ShadowMario replay rival. \\
+8 & \codebreak{Enemy} & \S{}6.3 & full & The enemy branch, with the Boss sub-hierarchy sealed by Template Method. \\
+9 & \codebreak{IPlayerState} & \S{}6.4 & full & Five player forms plus the two Decorators that wrap them. \\
+10 & \codebreak{IGameState} & \S{}6.5 & full & Eight screens behind one State interface. \\
+11 & \codebreak{ICommand} & \S{}6.5 & full & Input as objects --- the Command pattern's own hierarchy. \\
+12 & \codebreak{IMovementStrategy} & \S{}6.5 & full & Eight interchangeable enemy movements --- the Strategy pattern's own hierarchy. \\
 \bottomrule
 \end{longtable}}
 \begin{center}
 \includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_entity_full.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 6 (full) --- The complete Entity hierarchy. \\ Every concrete Entity subclass the game has, four branches deep from one abstract root.\end{center}
+\begin{center}\small\itshape Figure 6 (full tree, compact boxes) --- The complete Entity hierarchy. \\ Every concrete Entity subclass the game has, four branches deep from one abstract root. Compact rather than detailed --- see the note above the index table.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_item_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_item_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 6a (full) --- The complete Item hierarchy.\end{center}
+\begin{center}\small\itshape Figure 6a (full detail) --- The complete Item hierarchy, every attribute and method.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_block_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_block_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 6b (full) --- The complete Block hierarchy.\end{center}
+\begin{center}\small\itshape Figure 6b (full detail) --- The complete Block hierarchy, every attribute and method.\end{center}
 \begin{center}
 \includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_character_full.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 7 (full) --- The complete Character hierarchy. \\ Every playable character and every enemy, including the Boss sub-branch, in one tree.\end{center}
+\begin{center}\small\itshape Figure 7 (full tree, compact boxes) --- The complete Character hierarchy. \\ Every playable character and every enemy, including the Boss sub-branch, in one tree. Compact rather than detailed for the same reason as Figure 6.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_enemy_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_enemy_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 8 (full) --- The complete Enemy/Boss hierarchy.\end{center}
+\begin{center}\small\itshape Figure 8 (full detail) --- The complete Enemy/Boss hierarchy, every attribute and method.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_iplayerstate_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_iplayerstate_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 9 (full) --- The complete player-form hierarchy.\end{center}
+\begin{center}\small\itshape Figure 9 (full detail) --- The complete player-form hierarchy, every attribute and method.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_igamestate_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_igamestate_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 10 (full) --- The complete screen/State hierarchy.\end{center}
+\begin{center}\small\itshape Figure 10 (full detail) --- The complete screen/State hierarchy, every attribute and method.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_icommand_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_icommand_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 11 (full) --- The complete Command hierarchy.\end{center}
+\begin{center}\small\itshape Figure 11 (full detail) --- The complete Command hierarchy, every attribute and method.\end{center}
 \begin{center}
-\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_imovementstrategy_full.pdf}
+\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{img/uml_imovementstrategy_full_detailed.pdf}
 \end{center}
 
-\begin{center}\small\itshape Figure 12 (full) --- The complete Strategy hierarchy.\end{center}
-Group 52 \textperiodcentered{} CS202 Object-Oriented Programming \textperiodcentered{} University of Science, VNU-HCM \\  Generated by \codebreak{reports/build\_report.py} from the repository at commit 38bab75. Self-contained: opens from disk, no network, prints to PDF.
+\begin{center}\small\itshape Figure 12 (full detail) --- The complete Strategy hierarchy, every attribute and method.\end{center}
+Group 52 \textperiodcentered{} CS202 Object-Oriented Programming \textperiodcentered{} University of Science, VNU-HCM \\  Generated by \codebreak{reports/build\_report.py} from the repository at commit 53c4a43. Self-contained: opens from disk, no network, prints to PDF.

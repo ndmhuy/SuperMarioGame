@@ -115,18 +115,31 @@ FACTS["weeklies"] = len(sorted((REPO / "docs").glob("Group52_*/52.md")))
 UML_CALLS = []
 
 
-def uml(root, depth, caption, note=None):
+def uml(root, depth, caption, note=None, detailed=False):
     """A UML class diagram, generated from the headers at build time.
 
     Inline SVG rather than Mermaid: this document has to open from disk with no
     network (g-rule-14), so a diagram that needs a JS runtime to render would be
     a block of source text on the page. The SVG styles itself from the report's
     own CSS variables, so it follows the light/dark theme like everything else.
+
+    `detailed=True` draws the classic three-compartment box (name/attributes/
+    methods, full visibility markers) gen_class_diagram.py's --detailed flag
+    produces, instead of the compact name-only box the inline §6 figures use.
+    Not used for every root: Entity and Character's full trees include Player
+    (109 members) and PlayingState (132), and a full member listing for those
+    two specifically makes the whole diagram many times taller than every
+    other class on it combined — measured, not guessed: rendered at 1:6.8 and
+    1:4.1 width:height before this doc-comment was written, against 1:1-1:2.5
+    for every other group. Kept compact there; the smaller pattern-groups
+    below get the full treatment because they can actually afford it.
     """
-    UML_CALLS.append((root, depth))
+    UML_CALLS.append((root, depth, detailed))
     cmd = [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"), "--svg", root]
     if depth is not None:
         cmd += ["--depth", str(depth)]
+    if detailed:
+        cmd += ["--detailed"]
     svg = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True, check=True).stdout
     body = f'<figure class="uml"><div class="uml-scroll">{svg}</div>'
     if note:
@@ -214,7 +227,7 @@ def arch():
     """The architecture diagram, tracked the same way uml() tracks its
     figures — see architecture_svg_raw()'s docstring for why that matters.
     """
-    UML_CALLS.append(("__ARCH__", None))
+    UML_CALLS.append(("__ARCH__", None, False))
     return architecture_svg_raw()
 
 
@@ -245,13 +258,15 @@ def build_latex(content):
 
     # UML: the SVG is regenerated as PDF, so the diagrams stay vector in print
     # and still come from the headers rather than a checked-in picture.
-    for i, (root, depth) in enumerate(UML_CALLS):
+    for i, (root, depth, detailed) in enumerate(UML_CALLS):
         if root == "__ARCH__":
             svg = architecture_svg_raw()
         else:
             cmd = [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"), "--svg", root]
             if depth is not None:
                 cmd += ["--depth", str(depth)]
+            if detailed:
+                cmd += ["--detailed"]
             svg = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True, check=True).stdout
         # The SVG styles itself from the report's CSS variables, which mean
         # nothing to a rasteriser; substitute the light-theme literals.
@@ -261,10 +276,11 @@ def build_latex(content):
                          ("var(--mut,#555)", "#57534c"),
                          ("var(--dim,#999)", "#8b867d"),
                          ("var(--accent,#b5322a)", "#b5322a"),
-                         ("var(--ui,sans-serif)", "Helvetica,Arial,sans-serif")):
+                         ("var(--ui,sans-serif)", "Helvetica,Arial,sans-serif"),
+                         ("var(--mono,monospace)", "monospace")):
             svg = svg.replace(var, lit)
         depth_tag = depth if depth is not None else "full"
-        file_tag = "arch_layers" if root == "__ARCH__" else f"uml_{root.lower()}_{depth_tag}"
+        file_tag = "arch_layers" if root == "__ARCH__" else f"uml_{root.lower()}_{depth_tag}{'_detailed' if detailed else ''}"
         svg_path = img_dir / f"{file_tag}.svg"
         pdf_path = img_dir / f"{file_tag}.pdf"
         svg_path.write_text(svg, encoding="utf-8")
