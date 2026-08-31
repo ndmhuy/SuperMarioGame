@@ -50,6 +50,8 @@ void Lakitu::update(float dt) {
     // Drop a Spiny on a timer. This used to increment a counter and play a
     // sound without ever creating anything, so Lakitu was a hovering sprite
     // (audit B-7). Entities cannot reach the world's entity list, so it asks.
+    if (m_spawnCount >= MAX_SPINIES) return;
+
     m_eggTimer += dt;
     if (m_eggTimer >= 4.0f) {
         m_eggTimer = 0.0f;

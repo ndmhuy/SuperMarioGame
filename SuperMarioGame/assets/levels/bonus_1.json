@@ -157,6 +157,11 @@
       "type": "castle",
       "x": 108,
       "y": 15
+    },
+    {
+      "type": "hidden_block",
+      "x": 44,
+      "y": 16
     }
   ],
   "flagpole": {

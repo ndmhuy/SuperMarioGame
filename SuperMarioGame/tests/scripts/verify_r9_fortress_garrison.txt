@@ -1,0 +1,62 @@
+# Verifies R9 / F1's new 1-3 garrison live, through the real main() path:
+# menu -> Start -> character select -> world map -> Enter -> level_3.json.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r9_fortress_garrison.txt
+#
+# Prerequisite: saves/progress.json with levels[0].completed and
+# levels[1].completed true, so the world map opens on node 1-3 and one Enter
+# starts the fortress. Without it the map opens on 1-1 and this script plays the
+# wrong level.
+#
+# Also switch on the AI Debug Overlay to read the evidence: DevPanel's
+# "Save/Load & Persistence (Phase 8)" window has a "Show AI Debug Overlay"
+# checkbox. The overlay lists every live enemy with its strategy, state, position
+# and velocity, which is what turns a dark castle screenshot into a statement
+# about behaviour.
+#
+# The script deliberately does NOT move. Standing at the 1-3 spawn is enough to
+# observe all three new enemy types, because two of them come to you:
+#
+#   * bullet_bill (40,19), (56,20), (96,18) — LinearStrategy drives them west
+#     from frame zero at 200 px/s (260 on Hard). Watch their positions fall in
+#     the overlay across the shots; the first one reaches the spawn column and
+#     kills a stationary player at around t+8s. That is the whole point of the
+#     placement: flying west while the player walks east, they are guaranteed to
+#     cross.
+#   * thwomp (60,15) and (94,15) — visible as "ProximityTrigger / Idle" with
+#     velocity 0,0 while the player is far away. Walk under one and the state
+#     goes Slamming -> Resting -> Rising (velocity 0,-50) before returning to
+#     Idle at its home row.
+#   * chain_chomp (104,20) — "TetheredChase" with a small non-zero velocity
+#     even at rest: it wanders its 128 px chain and lunges only inside 150 px of
+#     its anchor.
+#
+# HONESTY NOTE: --script replays fixed input with no positional feedback, so
+# nothing here should be read as a traversal test. It is a stationary
+# observation post. A run that reports "Player 1 was defeated" without the
+# player ever pressing a direction key is the Bullet Bill arriving, not a
+# failure.
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+shot r9_fortress_00_worldmap
+press Enter
+wait 1.0
+shot r9_fortress_01_t1
+wait 2.0
+shot r9_fortress_02_t3
+wait 2.0
+shot r9_fortress_03_t5
+wait 2.0
+shot r9_fortress_04_t7_bullet_arrives
+wait 2.0
+shot r9_fortress_05_t9
+wait 2.0
+shot r9_fortress_06_t11
+wait 3.0
+shot r9_fortress_07_t14
+quit

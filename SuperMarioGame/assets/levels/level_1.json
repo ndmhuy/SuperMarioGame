@@ -190,16 +190,6 @@
       "y": 20
     },
     {
-      "type": "goomba",
-      "x": 155,
-      "y": 20
-    },
-    {
-      "type": "goomba",
-      "x": 174,
-      "y": 20
-    },
-    {
       "type": "flagpole",
       "x": 185,
       "y": 15
@@ -208,6 +198,42 @@
       "type": "castle",
       "x": 188,
       "y": 15
+    },
+    {
+      "type": "koopa_paratroopa",
+      "x": 36,
+      "y": 14
+    },
+    {
+      "type": "koopa_paratroopa",
+      "x": 85,
+      "y": 13
+    },
+    {
+      "type": "koopa_paratroopa",
+      "x": 146,
+      "y": 14
+    },
+    {
+      "type": "lakitu",
+      "x": 175,
+      "y": 11
+    },
+    {
+      "type": "hidden_block",
+      "x": 81,
+      "y": 17
+    },
+    {
+      "type": "hidden_block",
+      "x": 124,
+      "y": 17
+    },
+    {
+      "itemType": 7,
+      "type": "question_block",
+      "x": 152,
+      "y": 17
     }
   ],
   "flagpole": {

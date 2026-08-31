@@ -94,6 +94,31 @@
       "type": "goomba",
       "x": 39,
       "y": 17
+    },
+    {
+      "type": "hidden_block",
+      "x": 13,
+      "y": 14
+    },
+    {
+      "type": "hidden_block",
+      "x": 21,
+      "y": 14
+    },
+    {
+      "type": "hidden_block",
+      "x": 29,
+      "y": 14
+    },
+    {
+      "type": "hidden_block",
+      "x": 37,
+      "y": 14
+    },
+    {
+      "type": "hidden_block",
+      "x": 45,
+      "y": 14
     }
   ],
   "flagpole": {

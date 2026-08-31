@@ -1,0 +1,429 @@
+# One full run of World 1-1 on HARD, through the real main() path, with the
+# F1 population pass in place.
+#
+#   saves/config.json: "difficulty": "hard"
+#   ./build/SuperMarioGame --script tests/scripts/verify_r9_hard_run_1_1.txt
+#
+# Hard means IDifficultyStrategy's HardDifficulty: enemy speed x1.3, two
+# starting lives instead of three, level clock x0.75 (225 s), boss health x1.4.
+# The point of the run is the rebalanced population under those modifiers: three
+# Koopa Paratroopas weaving in at -60 px/s instead of -45, a Lakitu tracking at
+# -125 px/s instead of -95 and dripping Spinies over the final stretch, and two
+# hidden blocks in the standard block row.
+#
+# HONESTY NOTE — THIS SCRIPT HAS NEVER COMPLETED THE LEVEL.
+#
+# InputScript replays fixed input with no positional feedback, so this is a
+# blind 185-tile run over eleven pits: it holds run + right for the whole level
+# and taps jump on a fixed cadence, which clears pits by luck and none by
+# design. Nine attempts were made during the F1 session, across four jump
+# cadences at run speed (0.42 / 0.55 / 0.68 / 0.80 s) and three at walk speed
+# (0.60 / 0.78 / 0.95 s). Every one ended in "Game Over — was defeated" well
+# short of the flagpole; the furthest reached about the middle of the level
+# (score 2800).
+#
+# Two controls say the failure is the harness and not this phase's population
+# pass or Hard's modifiers:
+#
+#   * the same script against the PRE-F1 level_1.json (git show
+#     dev:SuperMarioGame/assets/levels/level_1.json) game-overs identically;
+#   * the same script on the default difficulty game-overs identically.
+#
+# R16 recorded the same limit: a blind ~95-tile run of this level landed once in
+# 13 attempts on the default difficulty with three lives. On Hard, with two, a
+# 185-tile blind clear is out of reach for this harness. For a Hard run that
+# does reach the flagpole, see verify_r9_hard_lakitu_finish.txt, which starts in
+# the level's final stretch and says plainly what that does and does not prove.
+#
+# Keep this script anyway: it is a real Hard run of the level's first half with
+# the new population in it, the screenshots are taken on a fixed cadence so
+# whatever the player reached is photographed, and if the traversal ever becomes
+# reliable this is the case that should pass.
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+press A
+wait 0.4
+press A
+wait 0.6
+press Enter
+wait 2.0
+shot r9_hard_00_start
+hold LShift 90.0
+hold D 90.0
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_01
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_02
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_03
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_04
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_05
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_06
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+shot r9_hard_07
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+press W
+wait 0.42
+release D
+release LShift
+wait 1.5
+shot r9_hard_99_end
+quit

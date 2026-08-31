@@ -1,0 +1,76 @@
+# Completes World 1-1's final stretch on HARD, through the real main() path:
+# the Lakitu's open run (170-179), the staircase at 180-184, and the flagpole at
+# 185.
+#
+#   saves/config.json: "difficulty": "hard"
+#   level_1.json:      "spawnPoint": {"x": 166, "y": 19}   <-- TEMPORARY
+#   ./build/SuperMarioGame --script tests/scripts/verify_r9_hard_lakitu_finish.txt
+#
+# WHY THE TEMPORARY SPAWN, AND WHAT THIS DOES AND DOES NOT PROVE
+# --------------------------------------------------------------
+# It does not prove a full 1-1 clear on Hard. Nine blind attempts at the whole
+# level were made (see verify_r9_hard_run_1_1.txt) and every one ended in Game
+# Over, as did a control attempt against the pre-F1 level_1.json and an attempt
+# on the default difficulty — the harness cannot traverse 185 tiles and eleven
+# pits on fixed input, which is the same limit R16 recorded.
+#
+# What it does prove is that the hardest new content in the level is survivable
+# and completable under Hard's modifiers (enemy speed x1.3, two starting lives,
+# clock x0.75): starting in the Lakitu's stretch and running east, the observed
+# run reached the flagpole and entered VictoryState with BOTH "Speed Demon" and
+# "Untouchable" unlocked — i.e. it finished without taking a single hit.
+#
+# It also documents the balance finding that produced the Lakitu Spiny cap. With
+# the cap absent, a stationary player in this same stretch on Hard lost both
+# lives inside six seconds to Spinies dropped straight onto their head. The
+# script moves off the spawn immediately for the same reason a player would.
+#
+# Revert the spawnPoint edit afterwards and confirm with `git diff`.
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+press A
+wait 0.4
+press A
+wait 0.6
+press Enter
+wait 1.5
+shot r9_hardfin_00_start
+hold D 25.0
+wait 0.4
+press W
+wait 0.7
+press W
+wait 0.7
+shot r9_hardfin_01
+press W
+wait 0.7
+press W
+wait 0.7
+press W
+wait 0.7
+shot r9_hardfin_02_staircase
+press W
+wait 0.7
+press W
+wait 0.7
+press W
+wait 0.7
+shot r9_hardfin_03
+press W
+wait 0.7
+press W
+wait 0.7
+press W
+wait 0.7
+shot r9_hardfin_04_flag
+release D
+wait 2.0
+shot r9_hardfin_05_after
+wait 4.0
+shot r9_hardfin_06_end
+quit

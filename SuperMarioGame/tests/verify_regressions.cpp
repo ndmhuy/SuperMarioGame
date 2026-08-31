@@ -58,6 +58,7 @@
 #include "Entities/Castle.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Spiny.hpp"
+#include "Entities/Lakitu.hpp"
 #include "Entities/PatrolStrategy.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Physics/CollisionResolver.hpp"
@@ -66,8 +67,10 @@
 #include "Entities/Item.hpp"
 #include "Entities/Block.hpp"
 #include "Entities/PiranhaPlant.hpp"
+#include "Core/AchievementManager.hpp"
 
 #include <filesystem>
+#include <map>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -2477,6 +2480,200 @@ void testCampaignPathContainsOnlyCompletableLevels() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// F1 — the shipped campaign is held to the same reachability bar as a generated
+// level.
+//
+// LevelSolvability existed only to police MapGenerator's output; the seven
+// hand-authored files under assets/levels/ were never checked by anything. That
+// mattered the moment level design became an editable thing again: the F1
+// population pass added flying enemies, Thwomps, Bullet Bills, hidden blocks and
+// a Chain Chomp across every shipped level, and a level file is one mistyped `y`
+// away from an unwalkable stage that still loads, still renders, and still
+// passes every other case in this suite.
+//
+// This is a permanent regression case, not a one-off audit: it re-derives the
+// start and goal columns from the level's own data every run, so a future edit
+// that moves the spawn, the flagpole or the return pipe is covered without
+// anyone remembering to update a table here.
+void testShippedLevelsAreSolvable() {
+    section("F1  all seven shipped levels are walkable from spawn to goal");
+
+    const std::vector<std::string> shipped = {
+        "level_1.json",     "level_2.json",     "level_3.json", "bonus_1.json",
+        "level_1_sub.json", "level_2_sub.json", "level_3_sub.json"
+    };
+
+    for (const auto& name : shipped) {
+        const std::string path = levelPath(name);
+        if (!std::filesystem::exists(path)) {
+            check(false, name + " exists on disk");
+            continue;
+        }
+
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!loader.loadLevel(path, map, data)) {
+            check(false, name + " loads");
+            continue;
+        }
+
+        const int startX = static_cast<int>(data.spawnPoint.x / Constants::TILE_SIZE);
+
+        // A main level's goal is its flagpole. A pipe side room has none — its
+        // goal is the pipe that leads back out, which is the rightmost pipe in
+        // the room.
+        int goalX = -1;
+        for (const auto& e : data.entities) {
+            if (!e) continue;
+            const int column = static_cast<int>(e->getPosition().x / Constants::TILE_SIZE);
+            if (dynamic_cast<Flagpole*>(e.get())) {
+                goalX = column;
+                break;
+            }
+            if (dynamic_cast<Pipe*>(e.get())) {
+                goalX = std::max(goalX, column);
+            }
+        }
+
+        const bool hasGoal = (goalX > startX);
+        check(hasGoal,
+              name + ": a goal (flagpole or return pipe) sits to the right of the spawn");
+        if (!hasGoal) continue;
+
+        check(LevelSolvability::isPathReachable(map, data.entities, startX, goalX),
+              name + ": walk/jump path from column " + std::to_string(startX) +
+              " to the goal at column " + std::to_string(goalX));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F1 — six enemies and the hidden block were implemented, tested in isolation
+// and shipped in no level at all.
+//
+// KoopaParatroopa, Boo, BulletBill, Thwomp, ChainChomp and Lakitu each have a
+// class, an animation, a movement strategy, a catalogue entry, an editor palette
+// slot and a verify_* case — and appeared in zero of the seven files under
+// assets/levels/, so no player could ever meet one. So did HiddenBlock, which
+// additionally made the "Secret Finder" achievement unearnable. "Implemented" and
+// "in the game" are different claims (AGENTS.md directive 9); this case is the
+// one that measures the second.
+void testEveryImplementedEnemyIsUsedByTheCampaign() {
+    section("F1  the enemies the game can build are enemies the game ships");
+
+    const std::vector<std::string> shipped = {
+        "level_1.json",     "level_2.json",     "level_3.json", "bonus_1.json",
+        "level_1_sub.json", "level_2_sub.json", "level_3_sub.json"
+    };
+    const std::vector<std::string> mainPath = {
+        "level_1.json", "level_2.json", "level_3.json", "bonus_1.json"
+    };
+
+    std::map<std::string, int> placed;            // type name -> count campaign-wide
+    std::map<std::string, int> hiddenPerFile;     // file -> hidden blocks in it
+
+    for (const auto& name : shipped) {
+        const std::string path = levelPath(name);
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!std::filesystem::exists(path) || !loader.loadLevel(path, map, data)) {
+            check(false, name + " loads");
+            continue;
+        }
+        for (const auto& e : data.entities) {
+            if (!e) continue;
+            ++placed[e->getTypeName()];
+            if (e->getTypeName() == "hidden_block") ++hiddenPerFile[name];
+        }
+    }
+
+    // The six that were absent. Named individually so a failure says which one
+    // fell out of the campaign rather than only that a count moved.
+    for (const std::string& type : {"koopa_paratroopa", "boo", "bullet_bill",
+                                    "thwomp", "chain_chomp", "lakitu"}) {
+        check(placed[type] > 0,
+              "a " + type + " is placed somewhere in the campaign (" +
+              std::to_string(placed[type]) + ")");
+    }
+
+    for (const auto& name : mainPath) {
+        check(hiddenPerFile[name] > 0,
+              name + " hides at least one block (" +
+              std::to_string(hiddenPerFile[name]) + ")");
+    }
+
+    // Secret Finder wants five. A campaign that cannot supply five across the
+    // levels a player actually visits leaves the achievement decorative.
+    int totalHidden = 0;
+    for (const auto& entry : hiddenPerFile) totalHidden += entry.second;
+    check(totalHidden >= 5,
+          "the campaign holds at least the five hidden blocks Secret Finder asks for (" +
+          std::to_string(totalHidden) + ")");
+}
+
+// F1 — a placed Lakitu has to be a bounded encounter, not a Spiny fountain.
+//
+// FlyStrategy::FollowPlayer tracks the player from the frame the level loads and
+// never stops, and the egg timer fired every 4 s forever: a single Lakitu placed
+// anywhere in a 200-tile level would drop fifteen-plus Spinies over one
+// playthrough, and a Spiny cannot be stomped. Standing still next to one on Hard
+// killed a full-health Mario twice inside six seconds during this phase's
+// playtest. m_spawnCount was already being incremented and never read; this is
+// the limit it counts towards.
+void testLakituStopsThrowingSpinies() {
+    section("F1  one Lakitu drops a bounded number of Spinies");
+
+    int spawnRequests = 0;
+    EventBus::ScopedSubscription counter(
+        EventType::EntitySpawnRequested,
+        [&spawnRequests](const GameEvent&) { ++spawnRequests; });
+
+    Lakitu lakitu({1000.0f, 200.0f});
+    check(lakitu.getSpawnCount() == 0, "starts having thrown nothing");
+
+    // 60 seconds is fifteen egg timers — an entire level's worth of following.
+    for (int frame = 0; frame < 60 * 60; ++frame) lakitu.update(1.0f / 60.0f);
+
+    check(lakitu.getSpawnCount() == Lakitu::MAX_SPINIES,
+          "after a minute of following it has thrown exactly MAX_SPINIES (" +
+          std::to_string(lakitu.getSpawnCount()) + ")");
+    check(spawnRequests == Lakitu::MAX_SPINIES,
+          "and asked the world for exactly that many Spinies (" +
+          std::to_string(spawnRequests) + "), not one per 4 s forever");
+}
+
+// The achievement whose description is literally "Find all hidden blocks" was
+// counting EventType::BlockBroken — every brick a Super player smashed — and
+// HiddenBlock published nothing at all, so finding one moved no counter. The
+// event is now HiddenBlockFound, published by HiddenBlock::onHitFromBelow.
+void testFindingHiddenBlocksUnlocksSecretFinder() {
+    section("F1  revealing hidden blocks is what unlocks Secret Finder");
+
+    AchievementManager& achievements = AchievementManager::getInstance();
+    achievements.init();      // idempotent; installs the event subscriptions
+    achievements.reset();
+    check(!achievements.isUnlocked("secret_finder"), "starts locked");
+
+    // A brick shattering is not a secret found. This is the mis-wiring the
+    // "here mocked" comment used to stand in for.
+    for (int i = 0; i < 6; ++i) EventBus::getInstance().publish({EventType::BlockBroken, 100});
+    check(!achievements.isUnlocked("secret_finder"),
+          "six broken bricks do not count as six secrets");
+
+    Mario finder({100.0f, 140.0f});
+    for (int i = 0; i < 5; ++i) {
+        HiddenBlock block({100.0f + 64.0f * static_cast<float>(i), 100.0f});
+        block.onHitFromBelow(finder);
+        check(block.isRevealed(), "hidden block " + std::to_string(i + 1) + " revealed");
+    }
+    check(achievements.isUnlocked("secret_finder"),
+          "five revealed hidden blocks unlock Secret Finder");
+
+    achievements.reset();     // leave the singleton as this suite found it
+}
+
 // The cape was a costume. CapeState's enter/exit/handleInput/update were all
 // empty bodies, so a Cape Feather changed the sprite and nothing else — the one
 // power-up whose entire point is a behaviour had none.
@@ -3509,6 +3706,10 @@ int main() {
     testBossesStandOnOpenArenaFloor();
     testWarpPipesLandInsideTheirDestination();
     testCampaignPathContainsOnlyCompletableLevels();
+    testShippedLevelsAreSolvable();
+    testEveryImplementedEnemyIsUsedByTheCampaign();
+    testLakituStopsThrowingSpinies();
+    testFindingHiddenBlocksUnlocksSecretFinder();
     testCapeActuallyDoesSomething();
     testEveryEntityTypeDrawsRealArt();
     testDefeatingABossDoesNotDangle();
