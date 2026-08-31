@@ -58,6 +58,7 @@
 #include "Entities/Castle.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Spiny.hpp"
+#include "Entities/Lakitu.hpp"
 #include "Entities/PatrolStrategy.hpp"
 #include "Physics/PhysicsEngine.hpp"
 #include "Physics/CollisionResolver.hpp"
@@ -2612,6 +2613,37 @@ void testEveryImplementedEnemyIsUsedByTheCampaign() {
           std::to_string(totalHidden) + ")");
 }
 
+// F1 — a placed Lakitu has to be a bounded encounter, not a Spiny fountain.
+//
+// FlyStrategy::FollowPlayer tracks the player from the frame the level loads and
+// never stops, and the egg timer fired every 4 s forever: a single Lakitu placed
+// anywhere in a 200-tile level would drop fifteen-plus Spinies over one
+// playthrough, and a Spiny cannot be stomped. Standing still next to one on Hard
+// killed a full-health Mario twice inside six seconds during this phase's
+// playtest. m_spawnCount was already being incremented and never read; this is
+// the limit it counts towards.
+void testLakituStopsThrowingSpinies() {
+    section("F1  one Lakitu drops a bounded number of Spinies");
+
+    int spawnRequests = 0;
+    EventBus::ScopedSubscription counter(
+        EventType::EntitySpawnRequested,
+        [&spawnRequests](const GameEvent&) { ++spawnRequests; });
+
+    Lakitu lakitu({1000.0f, 200.0f});
+    check(lakitu.getSpawnCount() == 0, "starts having thrown nothing");
+
+    // 60 seconds is fifteen egg timers — an entire level's worth of following.
+    for (int frame = 0; frame < 60 * 60; ++frame) lakitu.update(1.0f / 60.0f);
+
+    check(lakitu.getSpawnCount() == Lakitu::MAX_SPINIES,
+          "after a minute of following it has thrown exactly MAX_SPINIES (" +
+          std::to_string(lakitu.getSpawnCount()) + ")");
+    check(spawnRequests == Lakitu::MAX_SPINIES,
+          "and asked the world for exactly that many Spinies (" +
+          std::to_string(spawnRequests) + "), not one per 4 s forever");
+}
+
 // The achievement whose description is literally "Find all hidden blocks" was
 // counting EventType::BlockBroken — every brick a Super player smashed — and
 // HiddenBlock published nothing at all, so finding one moved no counter. The
@@ -3676,6 +3708,7 @@ int main() {
     testCampaignPathContainsOnlyCompletableLevels();
     testShippedLevelsAreSolvable();
     testEveryImplementedEnemyIsUsedByTheCampaign();
+    testLakituStopsThrowingSpinies();
     testFindingHiddenBlocksUnlocksSecretFinder();
     testCapeActuallyDoesSomething();
     testEveryEntityTypeDrawsRealArt();
