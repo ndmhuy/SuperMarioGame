@@ -53,6 +53,7 @@
 #include "Entities/Hammer.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/Castle.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Spiny.hpp"
 #include "Entities/PatrolStrategy.hpp"
@@ -980,6 +981,50 @@ void testLevelTwoContainsItsMidBoss() {
     }
     check(flagpoleX > boss->getArena().x,
           "and the flagpole is past it — SPEC 6.4's 'opens path to the flagpole'");
+
+    // The check above only asked whether the flagpole is past the arena's LEFT
+    // edge, which was already true even when the arena was wide enough to
+    // swallow the flagpole whole: a player who simply ran right, inside the
+    // "no escape until defeated" clamp (PlayingState::updateBossArena), still
+    // landed on a touchable flagpole with Boom Boom alive — the level ended
+    // without the fight ever happening. The real invariant is that the arena's
+    // RIGHT edge must clear the flagpole, the way Bowser's does in level_3.json.
+    const AABB& arena = boss->getArena();
+    check(flagpoleX >= arena.x + arena.width,
+          "and specifically past the arena's far edge, not just its near one — "
+          "the arena cannot overlap the flagpole it is supposed to gate");
+}
+
+void testEndOfLevelCastleHasBuffer() {
+    section("9.2  the end-of-level castle leaves room past its own back wall");
+
+    // MapGenerator::MapGenerator.cpp enforces castleStartX + Castle::WIDTH_TILES
+    // + 1 < config.width for procedurally-generated levels, but the hand-authored
+    // campaign files went through no such check — level_2.json and level_3.json
+    // once placed the castle with its back wall 16px (half a tile) from the
+    // level boundary, a fifth of the buffer level_1.json and bonus_1.json leave,
+    // which is what read as an unfinished-looking ending on those two stages.
+    for (const std::string& file : {"level_2.json", "level_3.json"}) {
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!loader.loadLevel(levelPath(file), map, data)) {
+            check(false, file + " loads");
+            continue;
+        }
+
+        float castleX = -1.0f;
+        for (const auto& entity : data.entities) {
+            if (entity && entity->getTypeName() == "castle") castleX = entity->getPosition().x;
+        }
+        check(castleX >= 0.0f, file + " has a castle");
+        if (castleX < 0.0f) continue;
+
+        const float castleRight = castleX + Castle::WIDTH_TILES * Constants::TILE_SIZE;
+        const float levelRight  = data.width * Constants::TILE_SIZE;
+        check(levelRight - castleRight >= Constants::TILE_SIZE,
+              file + "'s castle leaves at least one tile of buffer to the level edge");
+    }
 }
 
 void testEveryBossTypeIsBuildable() {
@@ -3284,6 +3329,7 @@ int main() {
     testBoomBoomEscalatesOncePerHit();
     testBoomBoomStaysInsideItsArena();
     testLevelTwoContainsItsMidBoss();
+    testEndOfLevelCastleHasBuffer();
     testEveryBossTypeIsBuildable();
     testDifficultyStrategyActuallyChangesTheGame();
     testDifficultyScalesEnemiesAndBosses();

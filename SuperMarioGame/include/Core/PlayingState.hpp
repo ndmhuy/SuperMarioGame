@@ -70,6 +70,14 @@ private:
     // entity list, tilemap and generator config to everyone.
     friend class DevPanel;
 
+    // tests/verify_frontend_states.cpp's LevelCompletionCameraTestHooks reaches
+    // m_activeBoss, m_camera and m_selectedLevelIndex to regression-test two
+    // defects that only show up across a level transition on a live instance
+    // (the boss-alive completion gate and the camera carrying stale arena state
+    // into the next level) — narrower than adding getters nothing else would
+    // ever call, the same tradeoff DevPanel's friendship above already makes.
+    friend class LevelCompletionCameraTestHooks;
+
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
     void regenerateProceduralLevel();
@@ -218,9 +226,14 @@ private:
     float m_levelTimer = Constants::LEVEL_TIME;
     bool  m_timeWarningFired = false;
 
-    // Level completion (flagpole -> short celebration -> advance)
+    // Level completion (flagpole -> walk to the castle door -> short celebration -> advance)
     bool  m_levelComplete = false;
     float m_levelCompleteTimer = 0.0f;
+    // Where the castle door is, so the player visibly walks up to it instead of
+    // just standing at the flagpole until the summary screen cuts in. Captured
+    // once, from the Castle entity found when LevelComplete fires.
+    bool  m_hasLevelCompleteCastle = false;
+    sf::Vector2f m_levelCompleteCastleTarget{0.0f, 0.0f};
 
     // Where this level says the player starts — the respawn fallback before any
     // checkpoint is reached.
