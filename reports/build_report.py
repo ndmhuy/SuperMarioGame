@@ -18,6 +18,7 @@ Writes reports/Group52_SuperMarioGame_FinalReport.html
 """
 
 import base64
+import html
 import re
 import subprocess
 import sys
@@ -123,16 +124,98 @@ def uml(root, depth, caption, note=None):
     own CSS variables, so it follows the light/dark theme like everything else.
     """
     UML_CALLS.append((root, depth))
-    svg = subprocess.run(
-        [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"),
-         "--svg", root, "--depth", str(depth)],
-        cwd=GAME, capture_output=True, text=True, check=True).stdout
+    cmd = [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"), "--svg", root]
+    if depth is not None:
+        cmd += ["--depth", str(depth)]
+    svg = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True, check=True).stdout
     body = f'<figure class="uml"><div class="uml-scroll">{svg}</div>'
     if note:
         body += f'<figcaption>{caption}<br><span class="note">{note}</span></figcaption>'
     else:
         body += f'<figcaption>{caption}</figcaption>'
     return body + "</figure>"
+
+
+def architecture_svg_raw():
+    """The five-layer architecture as boxes and arrows, not a monospace box-
+    drawing. Hand-authored rather than generated (unlike the UML figures,
+    there is no header to parse a *layer* out of — "Entities depends on Core"
+    is architectural intent, not a C++ relationship gen_class_diagram.py can
+    discover), but it reuses that tool's own CSS classes and variables
+    (uml-box/uml-name/uml-edge) so it reads as part of the same family of
+    diagrams rather than a one-off. Lives here (not report_content.py)
+    specifically so it goes through the same UML_CALLS tracking `uml()`
+    does — the LaTeX pass indexes every <svg> in the document by order of
+    appearance, and this diagram sits before all of section 6's; skipping
+    that tracking silently shifted every UML figure after it by one.
+    """
+    layers = [
+        ("Core", "Game loop, states, input, audio, events, commands, rewind"),
+        ("Entities", "Entity → Character → Player / Enemy; Item; Block; strategies"),
+        ("Physics", "SpatialHash, CollisionDetector, CollisionResolver, PhysicsEngine"),
+        ("Graphics", "Camera, SpriteSheet, Animator, HUD, particles, parallax, minimap"),
+        ("Utils", "TileMap, LevelLoader, Serializer, MapEditor, MapGenerator, catalogue"),
+    ]
+    # Down = who depends on whom (solid, filled triangle, UML dependency);
+    # up = the narrower channel the lower layer answers back through (dashed).
+    down_labels = ["owns states", "vector<unique_ptr<Entity>>", "reads positions", ""]
+    up_labels = ["publish / subscribe", "AABB, resolve", "tile queries", ""]
+
+    # W leaves ~150px of margin on each side of the box — room for the
+    # dependency-direction labels next to the arrows, which is the part that
+    # got clipped when W only cleared the boxes themselves.
+    W, BOX_W, BOX_H = 860, 560, 64
+    GAP = 58
+    X = (W - BOX_W) / 2
+    rows_y = [i * (BOX_H + GAP) for i in range(len(layers))]
+    height = rows_y[-1] + BOX_H + 8
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {height:.0f}" '
+        f'role="img" aria-label="Five-layer architecture, dependencies pointing one way" '
+        f'style="width:100%;height:auto;font-family:var(--ui,sans-serif)">',
+        '<style>'
+        '.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}'
+        '.uml-name{font-size:14px;fill:var(--tx,#111);font-weight:700}'
+        '.uml-desc{font-size:11px;fill:var(--mut,#555)}'
+        '.uml-edge{stroke:var(--dim,#999);stroke-width:1.3;fill:none}'
+        '.uml-edge-back{stroke:var(--dim,#999);stroke-width:1.1;fill:none;stroke-dasharray:4 3}'
+        '.uml-tri{fill:var(--dim,#999);stroke:none}'
+        '.uml-lbl{font-size:10px;fill:var(--dim,#999);font-style:italic}'
+        '</style>',
+    ]
+
+    for i, (name, desc) in enumerate(layers):
+        y = rows_y[i]
+        parts.append(f'<rect class="uml-box" x="{X:.0f}" y="{y:.0f}" width="{BOX_W}" height="{BOX_H}" rx="8"/>')
+        parts.append(f'<text class="uml-name" x="{X+18:.0f}" y="{y+26:.0f}">{html.escape(name)}</text>')
+        parts.append(f'<text class="uml-desc" x="{X+18:.0f}" y="{y+46:.0f}">{html.escape(desc)}</text>')
+
+        if i + 1 < len(layers):
+            y1 = y + BOX_H
+            y2 = rows_y[i + 1]
+            mid = (y1 + y2) / 2
+            downX = X + BOX_W * 0.42
+            upX = X + BOX_W * 0.58
+            parts.append(f'<path class="uml-edge" d="M {downX:.0f} {y1:.0f} V {y2:.0f}"/>')
+            parts.append(f'<polygon class="uml-tri" points="{downX-5:.0f},{y2-7:.0f} {downX+5:.0f},{y2-7:.0f} {downX:.0f},{y2:.0f}"/>')
+            parts.append(f'<path class="uml-edge-back" d="M {upX:.0f} {y2:.0f} V {y1:.0f}"/>')
+            parts.append(f'<polygon class="uml-tri" points="{upX-5:.0f},{y1+7:.0f} {upX+5:.0f},{y1+7:.0f} {upX:.0f},{y1:.0f}"/>')
+            if down_labels[i]:
+                parts.append(f'<text class="uml-lbl" x="{X-4:.0f}" y="{mid:.0f}" text-anchor="end">{html.escape(down_labels[i])}</text>')
+            if up_labels[i]:
+                parts.append(f'<text class="uml-lbl" x="{X+BOX_W+4:.0f}" y="{mid:.0f}">{html.escape(up_labels[i])}</text>')
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def arch():
+    """The architecture diagram, tracked the same way uml() tracks its
+    figures — see architecture_svg_raw()'s docstring for why that matters.
+    """
+    UML_CALLS.append(("__ARCH__", None))
+    return architecture_svg_raw()
 
 
 def img(name, alt, caption):
@@ -163,21 +246,27 @@ def build_latex(content):
     # UML: the SVG is regenerated as PDF, so the diagrams stay vector in print
     # and still come from the headers rather than a checked-in picture.
     for i, (root, depth) in enumerate(UML_CALLS):
-        svg = subprocess.run(
-            [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"),
-             "--svg", root, "--depth", str(depth)],
-            cwd=GAME, capture_output=True, text=True, check=True).stdout
+        if root == "__ARCH__":
+            svg = architecture_svg_raw()
+        else:
+            cmd = [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"), "--svg", root]
+            if depth is not None:
+                cmd += ["--depth", str(depth)]
+            svg = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True, check=True).stdout
         # The SVG styles itself from the report's CSS variables, which mean
         # nothing to a rasteriser; substitute the light-theme literals.
         for var, lit in (("var(--surface,#fff)", "#ffffff"),
                          ("var(--line,#ccc)", "#c9c4ba"),
                          ("var(--tx,#111)", "#1b1a18"),
+                         ("var(--mut,#555)", "#57534c"),
                          ("var(--dim,#999)", "#8b867d"),
                          ("var(--accent,#b5322a)", "#b5322a"),
                          ("var(--ui,sans-serif)", "Helvetica,Arial,sans-serif")):
             svg = svg.replace(var, lit)
-        svg_path = img_dir / f"uml_{root.lower()}_{depth}.svg"
-        pdf_path = img_dir / f"uml_{root.lower()}_{depth}.pdf"
+        depth_tag = depth if depth is not None else "full"
+        file_tag = "arch_layers" if root == "__ARCH__" else f"uml_{root.lower()}_{depth_tag}"
+        svg_path = img_dir / f"{file_tag}.svg"
+        pdf_path = img_dir / f"{file_tag}.pdf"
         svg_path.write_text(svg, encoding="utf-8")
         subprocess.run(["rsvg-convert", "-f", "pdf", "-o", str(pdf_path), str(svg_path)],
                        check=True)
@@ -198,7 +287,7 @@ def build_latex(content):
 
 if __name__ == "__main__":
     from report_content import render
-    content = render(FACTS, img, uml)
+    content = render(FACTS, img, uml, arch)
 
     # Explicit head/body boundary. A browser would infer it at the <main>, but
     # an inferred boundary is not one a reader of the file can see.

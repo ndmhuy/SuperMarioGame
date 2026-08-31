@@ -84,7 +84,7 @@ footer{max-width:74ch;margin:56px auto 0;padding-top:18px;border-top:1px solid v
   <p class="sub" style="margin-top:14px">
     Nguy&#7877;n &#272;&#236;nh Minh Huy (25125083) &middot; Tr&#7847;n Gia Huy (25125084)</p>
   <p class="meta">C++17 &middot; SFML 3.0.2 &middot; ImGui-SFML &middot; CMake<br>
-  Verified against commit 4aad874 &middot; 2026-08-22</p>
+  Verified against commit 38bab75 &middot; 2026-08-22</p>
 </div>
 
 <div class="toc"><ol>
@@ -112,7 +112,7 @@ written in C++17 with SFML 3.0.2 and ImGui-SFML. The project's purpose is not th
 architecture behind it: a four-level abstract inheritance tree over 13 enemy,
 13 item, 10 block and 5 player classes, driven polymorphically by a
 fixed-timestep engine, and organised by ten software design patterns. The deliverable is
-27,539 lines across 129 translation units and 138 headers, with
+27,926 lines across 130 translation units and 139 headers, with
 23 verification harnesses, 13 of which are registered with CTest and run by CI on every push.</p>
 <p>Two things distinguish this report from a feature list. First, every capability claimed here has
 been checked to be <strong>reachable from <code>main()</code> and observed running</strong> &mdash; a
@@ -121,11 +121,11 @@ history of confusing the two. Second, &sect;12 states plainly what is <em>not</e
 rubric line the project deliberately forfeits.</p>
 
 <div class="kpi">
-<div><b>27,539</b><span>lines C++</span></div>
-<div><b>267</b><span>files</span></div>
+<div><b>27,926</b><span>lines C++</span></div>
+<div><b>269</b><span>files</span></div>
 <div><b>10</b><span>patterns</span></div>
 <div><b>13</b><span>CI tests</span></div>
-<div><b>258</b><span>commits</span></div>
+<div><b>271</b><span>commits</span></div>
 </div>
 
 <h2 id="intro">2 &middot; Introduction and objectives</h2>
@@ -236,35 +236,51 @@ run and the behaviour seen; "test" means a CTest case exercises it.</p>
 <p>The engine is layered, and the dependency arrows point one way only. Nothing in
 <code>Entities</code> includes anything from <code>Core</code> except the singletons and the event bus;
 nothing in <code>Physics</code> knows what a Goomba is.</p>
-<pre><code>            +-----------------------------------------------+
-            |  Core        Game loop, states, input, audio,  |
-            |              events, commands, rewind          |
-            +-----------------------------------------------+
-               |  owns states           ^  publish/subscribe
-               v                        |
-            +-----------------------------------------------+
-            |  Entities    Entity -> Character -> Player     |
-            |              / Enemy; Item; Block; strategies  |
-            +-----------------------------------------------+
-               |  vector&lt;unique_ptr&lt;Entity&gt;&gt;   ^ AABB, resolve
-               v                                |
-            +-----------------------------------------------+
-            |  Physics     SpatialHash, CollisionDetector,   |
-            |              CollisionResolver, PhysicsEngine  |
-            +-----------------------------------------------+
-               |  reads positions               ^ tile queries
-               v                                |
-            +-----------------------------------------------+
-            |  Graphics    Camera, SpriteSheet, Animator,    |
-            |              HUD, particles, parallax, minimap |
-            +-----------------------------------------------+
-                                |
-                                v
-            +-----------------------------------------------+
-            |  Utils       TileMap, LevelLoader, Serializer, |
-            |              MapEditor, MapGenerator, catalogue|
-            +-----------------------------------------------+
-</code></pre>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 560" role="img" aria-label="Five-layer architecture, dependencies pointing one way" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-name{font-size:14px;fill:var(--tx,#111);font-weight:700}.uml-desc{font-size:11px;fill:var(--mut,#555)}.uml-edge{stroke:var(--dim,#999);stroke-width:1.3;fill:none}.uml-edge-back{stroke:var(--dim,#999);stroke-width:1.1;fill:none;stroke-dasharray:4 3}.uml-tri{fill:var(--dim,#999);stroke:none}.uml-lbl{font-size:10px;fill:var(--dim,#999);font-style:italic}</style>
+<rect class="uml-box" x="150" y="0" width="560" height="64" rx="8"/>
+<text class="uml-name" x="168" y="26">Core</text>
+<text class="uml-desc" x="168" y="46">Game loop, states, input, audio, events, commands, rewind</text>
+<path class="uml-edge" d="M 385 64 V 122"/>
+<polygon class="uml-tri" points="380,115 390,115 385,122"/>
+<path class="uml-edge-back" d="M 475 122 V 64"/>
+<polygon class="uml-tri" points="470,71 480,71 475,64"/>
+<text class="uml-lbl" x="146" y="93" text-anchor="end">owns states</text>
+<text class="uml-lbl" x="714" y="93">publish / subscribe</text>
+<rect class="uml-box" x="150" y="122" width="560" height="64" rx="8"/>
+<text class="uml-name" x="168" y="148">Entities</text>
+<text class="uml-desc" x="168" y="168">Entity → Character → Player / Enemy; Item; Block; strategies</text>
+<path class="uml-edge" d="M 385 186 V 244"/>
+<polygon class="uml-tri" points="380,237 390,237 385,244"/>
+<path class="uml-edge-back" d="M 475 244 V 186"/>
+<polygon class="uml-tri" points="470,193 480,193 475,186"/>
+<text class="uml-lbl" x="146" y="215" text-anchor="end">vector&lt;unique_ptr&lt;Entity&gt;&gt;</text>
+<text class="uml-lbl" x="714" y="215">AABB, resolve</text>
+<rect class="uml-box" x="150" y="244" width="560" height="64" rx="8"/>
+<text class="uml-name" x="168" y="270">Physics</text>
+<text class="uml-desc" x="168" y="290">SpatialHash, CollisionDetector, CollisionResolver, PhysicsEngine</text>
+<path class="uml-edge" d="M 385 308 V 366"/>
+<polygon class="uml-tri" points="380,359 390,359 385,366"/>
+<path class="uml-edge-back" d="M 475 366 V 308"/>
+<polygon class="uml-tri" points="470,315 480,315 475,308"/>
+<text class="uml-lbl" x="146" y="337" text-anchor="end">reads positions</text>
+<text class="uml-lbl" x="714" y="337">tile queries</text>
+<rect class="uml-box" x="150" y="366" width="560" height="64" rx="8"/>
+<text class="uml-name" x="168" y="392">Graphics</text>
+<text class="uml-desc" x="168" y="412">Camera, SpriteSheet, Animator, HUD, particles, parallax, minimap</text>
+<path class="uml-edge" d="M 385 430 V 488"/>
+<polygon class="uml-tri" points="380,481 390,481 385,488"/>
+<path class="uml-edge-back" d="M 475 488 V 430"/>
+<polygon class="uml-tri" points="470,437 480,437 475,430"/>
+<rect class="uml-box" x="150" y="488" width="560" height="64" rx="8"/>
+<text class="uml-name" x="168" y="514">Utils</text>
+<text class="uml-desc" x="168" y="534">TileMap, LevelLoader, Serializer, MapEditor, MapGenerator, catalogue</text>
+</svg></div>
+<figcaption>Figure 5 &mdash; The five-layer architecture.<br><span class="note">Solid arrows are the
+ownership/data direction (Core owns the states that hold entities; entities are read as a flat list by
+physics; physics writes positions graphics then draws). Dashed arrows are the narrower channel each
+layer answers back through &mdash; an event, a resolved collision, a tile lookup &mdash; never a
+direct call in the other direction.</span></figcaption></figure>
 <p>The frame is a fixed-timestep loop: input is drained from the OS event queue, the accumulator runs
 <code>update(1/60)</code> as many times as it owes, and rendering interpolates between the last two
 states. Physics is therefore deterministic and independent of frame rate, which is what makes the
@@ -317,11 +333,11 @@ the hollow triangle is UML generalization, pointing at the base.</p>
 <path class="uml-edge" d="M 33 598 V 622.0 H 164.4"/>
 <path class="uml-edge" d="M 33 598 V 622.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 584.0 H 22"/>
-<polygon class="uml-tri" points="29,376 37,376 33,370"/>
 <polygon class="uml-tri" points="29,262 37,262 33,256"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="29,604 37,604 33,598"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,376 37,376 33,370"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -522,8 +538,8 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 33 294 V 356.0 H 157.2"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 22"/>
 <polygon class="uml-tri" points="29,300 37,300 33,294"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
 <rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
@@ -582,9 +598,9 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 11 28 V 280.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 142.4"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 262.8"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,148 37,148 33,142"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="116" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Enemy</text>
 <text class="uml-st" x="104" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -636,8 +652,8 @@ charge. Neither can forget the rest, because neither is given the chance.</p>
 <path class="uml-edge" d="M 11 28 V 128.0 H 234.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 128.0"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="166" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">IPlayerState</text>
 <text class="uml-st" x="154" y="18" text-anchor="end">&#171;interface&#187;</text>
@@ -1274,8 +1290,8 @@ outside the process is touched, so a verification run is reproducible.</p>
 
 <h2 id="process">12 &middot; Process and project history</h2>
 <p>The project ran from 29 May to 22 August 2026 across 7 weekly reporting periods
-(<code>docs/Group52_04/</code> through <code>Group52_10/</code>), 258 commits and
-235 recorded working sessions in <code>logs/agent_history.log</code>. That log is not a changelog: each entry records the
+(<code>docs/Group52_04/</code> through <code>Group52_10/</code>), 271 commits and
+240 recorded working sessions in <code>logs/agent_history.log</code>. That log is not a changelog: each entry records the
 commit before and after, whether the remotes were fetched, whether the work is reachable from
 <code>main()</code>, and how it was verified. Several sections of this report are drawn from it,
 including the failures below.</p>
@@ -1438,23 +1454,25 @@ ctest --output-on-failure # 13 verification targets
 <div class="tbl"><table>
 <thead><tr><th>Measure</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>C++ source files / headers</td><td>129 / 138</td></tr>
-<tr><td>Lines of C++ (excluding third-party)</td><td>27,539</td></tr>
+<tr><td>C++ source files / headers</td><td>130 / 139</td></tr>
+<tr><td>Lines of C++ (excluding third-party)</td><td>27,926</td></tr>
 <tr><td>Concrete entity classes</td><td>5 players, 13 enemies,
     13 items, 10 blocks</td></tr>
 <tr><td>Design patterns</td><td>10</td></tr>
 <tr><td>Verification harnesses</td><td>23 source files, 22 built,
     13 registered as CTest cases</td></tr>
-<tr><td>Commits on the integration branch</td><td>258</td></tr>
+<tr><td>Commits on the integration branch</td><td>271</td></tr>
 <tr><td>Sound effects / music tracks</td><td>29 / 12</td></tr>
 <tr><td>Achievements</td><td>12</td></tr>
 </tbody></table></div>
 
 <h3>16.4 UML diagrams, collected</h3>
-<p>Every class diagram in this report in one place, for a reader who wants the structure without
-re-finding it inside &sect;6's prose. Each is generated from the headers at build time by
-<code>gen_class_diagram.py</code> (&sect;6's opening note), so this index cannot drift from the figures
-themselves the way a hand-kept one would.</p>
+<p>Every class diagram in this report, in one place, at full size &mdash; not a redrawn summary, the
+same figures &sect;6 discusses in context, collected here for a reader who wants the whole structure in
+one pass rather than hunting back through the prose. Each is regenerated from the current headers at
+build time by the same <code>gen_class_diagram.py</code> pass that draws the inline copies
+(&sect;6's opening note), so this appendix cannot go stale relative to them the way a hand-drawn
+"master diagram" done once and forgotten would.</p>
 <div class="tbl"><table>
 <thead><tr><th>Figure</th><th>Root class</th><th>Discussed in</th><th>What it shows</th></tr></thead>
 <tbody>
@@ -1469,8 +1487,516 @@ themselves the way a hand-kept one would.</p>
 <tr><td>12</td><td><code>IMovementStrategy</code></td><td>&sect;6.5</td><td>Eight interchangeable enemy movements — the Strategy pattern's own hierarchy.</td></tr>
 </tbody></table></div>
 
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 996" role="img" aria-label="Entity inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 33 66 V 90.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 90.0 H 186.0"/>
+<path class="uml-edge" d="M 33 66 V 90.0 H 328.0"/>
+<path class="uml-edge" d="M 33 66 V 128.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 128.0 H 186.0"/>
+<path class="uml-edge" d="M 33 66 V 128.0 H 328.0"/>
+<path class="uml-edge" d="M 33 66 V 166.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 166.0 H 186.0"/>
+<path class="uml-edge" d="M 33 66 V 166.0 H 328.0"/>
+<path class="uml-edge" d="M 33 66 V 204.0 H 44.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22"/>
+<path class="uml-edge" d="M 77 332 V 356.0 H 88.0"/>
+<path class="uml-edge" d="M 77 332 V 356.0 H 179.6"/>
+<path class="uml-edge" d="M 55 294 V 318.0 H 66"/>
+<path class="uml-edge" d="M 77 408 V 432.0 H 88.0"/>
+<path class="uml-edge" d="M 55 294 V 394.0 H 66"/>
+<path class="uml-edge" d="M 55 294 V 470.0 H 66.0"/>
+<path class="uml-edge" d="M 55 294 V 470.0 H 186.4"/>
+<path class="uml-edge" d="M 55 294 V 470.0 H 306.8"/>
+<path class="uml-edge" d="M 55 294 V 508.0 H 66.0"/>
+<path class="uml-edge" d="M 55 294 V 508.0 H 186.4"/>
+<path class="uml-edge" d="M 55 294 V 508.0 H 306.8"/>
+<path class="uml-edge" d="M 55 294 V 546.0 H 66.0"/>
+<path class="uml-edge" d="M 55 294 V 546.0 H 186.4"/>
+<path class="uml-edge" d="M 55 294 V 546.0 H 306.8"/>
+<path class="uml-edge" d="M 33 256 V 280.0 H 44"/>
+<path class="uml-edge" d="M 55 598 V 622.0 H 66.0"/>
+<path class="uml-edge" d="M 55 598 V 622.0 H 179.2"/>
+<path class="uml-edge" d="M 55 598 V 622.0 H 292.4"/>
+<path class="uml-edge" d="M 55 598 V 660.0 H 66.0"/>
+<path class="uml-edge" d="M 55 598 V 660.0 H 179.2"/>
+<path class="uml-edge" d="M 33 256 V 584.0 H 44"/>
+<path class="uml-edge" d="M 11 28 V 242.0 H 22"/>
+<path class="uml-edge" d="M 33 712 V 736.0 H 44.0"/>
+<path class="uml-edge" d="M 33 712 V 736.0 H 171.60000000000002"/>
+<path class="uml-edge" d="M 33 712 V 736.0 H 299.20000000000005"/>
+<path class="uml-edge" d="M 33 712 V 774.0 H 44.0"/>
+<path class="uml-edge" d="M 33 712 V 774.0 H 171.60000000000002"/>
+<path class="uml-edge" d="M 33 712 V 774.0 H 299.20000000000005"/>
+<path class="uml-edge" d="M 33 712 V 812.0 H 44.0"/>
+<path class="uml-edge" d="M 33 712 V 812.0 H 171.60000000000002"/>
+<path class="uml-edge" d="M 33 712 V 812.0 H 299.20000000000005"/>
+<path class="uml-edge" d="M 33 712 V 850.0 H 44.0"/>
+<path class="uml-edge" d="M 33 712 V 850.0 H 171.60000000000002"/>
+<path class="uml-edge" d="M 33 712 V 850.0 H 299.20000000000005"/>
+<path class="uml-edge" d="M 33 712 V 888.0 H 44.0"/>
+<path class="uml-edge" d="M 11 28 V 698.0 H 22"/>
+<path class="uml-edge" d="M 33 940 V 964.0 H 44.0"/>
+<path class="uml-edge" d="M 33 940 V 964.0 H 164.4"/>
+<path class="uml-edge" d="M 33 940 V 964.0 H 284.8"/>
+<path class="uml-edge" d="M 11 28 V 926.0 H 22"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="51,300 59,300 55,294"/>
+<polygon class="uml-tri" points="51,604 59,604 55,598"/>
+<polygon class="uml-tri" points="73,414 81,414 77,408"/>
+<polygon class="uml-tri" points="29,946 37,946 33,940"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="29,718 37,718 33,712"/>
+<polygon class="uml-tri" points="29,262 37,262 33,256"/>
+<polygon class="uml-tri" points="73,338 81,338 77,332"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">Entity</text>
+<text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">Block</text>
+<text class="uml-st" x="126" y="56" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="44" y="76" width="132" height="28" rx="4"/>
+<text class="uml-name" x="56" y="94">BrickBlock</text>
+<rect class="uml-box" x="186" y="76" width="132" height="28" rx="4"/>
+<text class="uml-name" x="198" y="94">Castle</text>
+<rect class="uml-box" x="328" y="76" width="132" height="28" rx="4"/>
+<text class="uml-name" x="340" y="94">ConveyorBelt</text>
+<rect class="uml-box" x="44" y="114" width="132" height="28" rx="4"/>
+<text class="uml-name" x="56" y="132">FallingPlatform</text>
+<rect class="uml-box" x="186" y="114" width="132" height="28" rx="4"/>
+<text class="uml-name" x="198" y="132">Flagpole</text>
+<rect class="uml-box" x="328" y="114" width="132" height="28" rx="4"/>
+<text class="uml-name" x="340" y="132">HiddenBlock</text>
+<rect class="uml-box" x="44" y="152" width="132" height="28" rx="4"/>
+<text class="uml-name" x="56" y="170">IceBlock</text>
+<rect class="uml-box" x="186" y="152" width="132" height="28" rx="4"/>
+<text class="uml-name" x="198" y="170">MovingPlatform</text>
+<rect class="uml-box" x="328" y="152" width="132" height="28" rx="4"/>
+<text class="uml-name" x="340" y="170">Pipe</text>
+<rect class="uml-box" x="44" y="190" width="132" height="28" rx="4"/>
+<text class="uml-name" x="56" y="208">QuestionBlock</text>
+<rect class="uml-box" x="22" y="228" width="89" height="28" rx="4"/>
+<text class="uml-name" x="34" y="246">Character</text>
+<rect class="uml-box uml-abs" x="44" y="266" width="116" height="28" rx="4"/>
+<text class="uml-name" x="56" y="284">Enemy</text>
+<text class="uml-st" x="148" y="284" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box uml-abs" x="66" y="304" width="109" height="28" rx="4"/>
+<text class="uml-name" x="78" y="322">Boss</text>
+<text class="uml-st" x="163" y="322" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="88" y="342" width="82" height="28" rx="4"/>
+<text class="uml-name" x="100" y="360">BoomBoom</text>
+<rect class="uml-box" x="180" y="342" width="82" height="28" rx="4"/>
+<text class="uml-name" x="192" y="360">Bowser</text>
+<rect class="uml-box" x="66" y="380" width="103" height="28" rx="4"/>
+<text class="uml-name" x="78" y="398">KoopaTroopa</text>
+<rect class="uml-box" x="88" y="418" width="132" height="28" rx="4"/>
+<text class="uml-name" x="100" y="436">KoopaParatroopa</text>
+<rect class="uml-box" x="66" y="456" width="110" height="28" rx="4"/>
+<text class="uml-name" x="78" y="474">Boo</text>
+<rect class="uml-box" x="186" y="456" width="110" height="28" rx="4"/>
+<text class="uml-name" x="198" y="474">BulletBill</text>
+<rect class="uml-box" x="307" y="456" width="110" height="28" rx="4"/>
+<text class="uml-name" x="319" y="474">ChainChomp</text>
+<rect class="uml-box" x="66" y="494" width="110" height="28" rx="4"/>
+<text class="uml-name" x="78" y="512">Goomba</text>
+<rect class="uml-box" x="186" y="494" width="110" height="28" rx="4"/>
+<text class="uml-name" x="198" y="512">HammerBro</text>
+<rect class="uml-box" x="307" y="494" width="110" height="28" rx="4"/>
+<text class="uml-name" x="319" y="512">Lakitu</text>
+<rect class="uml-box" x="66" y="532" width="110" height="28" rx="4"/>
+<text class="uml-name" x="78" y="550">PiranhaPlant</text>
+<rect class="uml-box" x="186" y="532" width="110" height="28" rx="4"/>
+<text class="uml-name" x="198" y="550">Spiny</text>
+<rect class="uml-box" x="307" y="532" width="110" height="28" rx="4"/>
+<text class="uml-name" x="319" y="550">Thwomp</text>
+<rect class="uml-box uml-abs" x="44" y="570" width="123" height="28" rx="4"/>
+<text class="uml-name" x="56" y="588">Player</text>
+<text class="uml-st" x="155" y="588" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="66" y="608" width="103" height="28" rx="4"/>
+<text class="uml-name" x="78" y="626">Luigi</text>
+<rect class="uml-box" x="179" y="608" width="103" height="28" rx="4"/>
+<text class="uml-name" x="191" y="626">Mario</text>
+<rect class="uml-box" x="292" y="608" width="103" height="28" rx="4"/>
+<text class="uml-name" x="304" y="626">Peach</text>
+<rect class="uml-box" x="66" y="646" width="103" height="28" rx="4"/>
+<text class="uml-name" x="78" y="664">ShadowMario</text>
+<rect class="uml-box" x="179" y="646" width="103" height="28" rx="4"/>
+<text class="uml-name" x="191" y="664">Toad</text>
+<rect class="uml-box" x="22" y="684" width="53" height="28" rx="4"/>
+<text class="uml-name" x="34" y="702">Item</text>
+<rect class="uml-box" x="44" y="722" width="118" height="28" rx="4"/>
+<text class="uml-name" x="56" y="740">BridgeAxe</text>
+<rect class="uml-box" x="172" y="722" width="118" height="28" rx="4"/>
+<text class="uml-name" x="184" y="740">CapeFeather</text>
+<rect class="uml-box" x="299" y="722" width="118" height="28" rx="4"/>
+<text class="uml-name" x="311" y="740">Coin</text>
+<rect class="uml-box" x="44" y="760" width="118" height="28" rx="4"/>
+<text class="uml-name" x="56" y="778">FireFlower</text>
+<rect class="uml-box" x="172" y="760" width="118" height="28" rx="4"/>
+<text class="uml-name" x="184" y="778">MegaMushroom</text>
+<rect class="uml-box" x="299" y="760" width="118" height="28" rx="4"/>
+<text class="uml-name" x="311" y="778">MiniMushroom</text>
+<rect class="uml-box" x="44" y="798" width="118" height="28" rx="4"/>
+<text class="uml-name" x="56" y="816">Mushroom</text>
+<rect class="uml-box" x="172" y="798" width="118" height="28" rx="4"/>
+<text class="uml-name" x="184" y="816">OneUpMushroom</text>
+<rect class="uml-box" x="299" y="798" width="118" height="28" rx="4"/>
+<text class="uml-name" x="311" y="816">POWBlock</text>
+<rect class="uml-box" x="44" y="836" width="118" height="28" rx="4"/>
+<text class="uml-name" x="56" y="854">PSwitch</text>
+<rect class="uml-box" x="172" y="836" width="118" height="28" rx="4"/>
+<text class="uml-name" x="184" y="854">Star</text>
+<rect class="uml-box" x="299" y="836" width="118" height="28" rx="4"/>
+<text class="uml-name" x="311" y="854">StarCoin</text>
+<rect class="uml-box" x="44" y="874" width="118" height="28" rx="4"/>
+<text class="uml-name" x="56" y="892">Trampoline</text>
+<rect class="uml-box" x="22" y="912" width="96" height="28" rx="4"/>
+<text class="uml-name" x="34" y="930">Projectile</text>
+<rect class="uml-box" x="44" y="950" width="110" height="28" rx="4"/>
+<text class="uml-name" x="56" y="968">BossFireball</text>
+<rect class="uml-box" x="164" y="950" width="110" height="28" rx="4"/>
+<text class="uml-name" x="176" y="968">Fireball</text>
+<rect class="uml-box" x="285" y="950" width="110" height="28" rx="4"/>
+<text class="uml-name" x="297" y="968">Hammer</text>
+</svg></div><figcaption>Figure 6 (full) — The complete Entity hierarchy.<br><span class="note">Every concrete Entity subclass the game has, four branches deep from one abstract root.</span></figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 411 236" role="img" aria-label="Item inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 149.60000000000002"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 277.20000000000005"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 149.60000000000002"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 277.20000000000005"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 149.60000000000002"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 277.20000000000005"/>
+<path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 166.0 H 149.60000000000002"/>
+<path class="uml-edge" d="M 11 28 V 166.0 H 277.20000000000005"/>
+<path class="uml-edge" d="M 11 28 V 204.0 H 22.0"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<rect class="uml-box" x="0" y="0" width="53" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">Item</text>
+<rect class="uml-box" x="22" y="38" width="118" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">BridgeAxe</text>
+<rect class="uml-box" x="150" y="38" width="118" height="28" rx="4"/>
+<text class="uml-name" x="162" y="56">CapeFeather</text>
+<rect class="uml-box" x="277" y="38" width="118" height="28" rx="4"/>
+<text class="uml-name" x="289" y="56">Coin</text>
+<rect class="uml-box" x="22" y="76" width="118" height="28" rx="4"/>
+<text class="uml-name" x="34" y="94">FireFlower</text>
+<rect class="uml-box" x="150" y="76" width="118" height="28" rx="4"/>
+<text class="uml-name" x="162" y="94">MegaMushroom</text>
+<rect class="uml-box" x="277" y="76" width="118" height="28" rx="4"/>
+<text class="uml-name" x="289" y="94">MiniMushroom</text>
+<rect class="uml-box" x="22" y="114" width="118" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">Mushroom</text>
+<rect class="uml-box" x="150" y="114" width="118" height="28" rx="4"/>
+<text class="uml-name" x="162" y="132">OneUpMushroom</text>
+<rect class="uml-box" x="277" y="114" width="118" height="28" rx="4"/>
+<text class="uml-name" x="289" y="132">POWBlock</text>
+<rect class="uml-box" x="22" y="152" width="118" height="28" rx="4"/>
+<text class="uml-name" x="34" y="170">PSwitch</text>
+<rect class="uml-box" x="150" y="152" width="118" height="28" rx="4"/>
+<text class="uml-name" x="162" y="170">Star</text>
+<rect class="uml-box" x="277" y="152" width="118" height="28" rx="4"/>
+<text class="uml-name" x="289" y="170">StarCoin</text>
+<rect class="uml-box" x="22" y="190" width="118" height="28" rx="4"/>
+<text class="uml-name" x="34" y="208">Trampoline</text>
+</svg></div><figcaption>Figure 6a (full) — The complete Item hierarchy.</figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 454 198" role="img" aria-label="Block inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 164.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 306.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 164.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 306.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 164.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 306.0"/>
+<path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="116" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">Block</text>
+<text class="uml-st" x="104" y="18" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="22" y="38" width="132" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">BrickBlock</text>
+<rect class="uml-box" x="164" y="38" width="132" height="28" rx="4"/>
+<text class="uml-name" x="176" y="56">Castle</text>
+<rect class="uml-box" x="306" y="38" width="132" height="28" rx="4"/>
+<text class="uml-name" x="318" y="56">ConveyorBelt</text>
+<rect class="uml-box" x="22" y="76" width="132" height="28" rx="4"/>
+<text class="uml-name" x="34" y="94">FallingPlatform</text>
+<rect class="uml-box" x="164" y="76" width="132" height="28" rx="4"/>
+<text class="uml-name" x="176" y="94">Flagpole</text>
+<rect class="uml-box" x="306" y="76" width="132" height="28" rx="4"/>
+<text class="uml-name" x="318" y="94">HiddenBlock</text>
+<rect class="uml-box" x="22" y="114" width="132" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">IceBlock</text>
+<rect class="uml-box" x="164" y="114" width="132" height="28" rx="4"/>
+<text class="uml-name" x="176" y="132">MovingPlatform</text>
+<rect class="uml-box" x="306" y="114" width="132" height="28" rx="4"/>
+<text class="uml-name" x="318" y="132">Pipe</text>
+<rect class="uml-box" x="22" y="152" width="132" height="28" rx="4"/>
+<text class="uml-name" x="34" y="170">QuestionBlock</text>
+</svg></div><figcaption>Figure 6b (full) — The complete Block hierarchy.</figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 411 464" role="img" aria-label="Character inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 55 104 V 128.0 H 66.0"/>
+<path class="uml-edge" d="M 55 104 V 128.0 H 157.6"/>
+<path class="uml-edge" d="M 33 66 V 90.0 H 44"/>
+<path class="uml-edge" d="M 55 180 V 204.0 H 66.0"/>
+<path class="uml-edge" d="M 33 66 V 166.0 H 44"/>
+<path class="uml-edge" d="M 33 66 V 242.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 242.0 H 164.4"/>
+<path class="uml-edge" d="M 33 66 V 242.0 H 284.8"/>
+<path class="uml-edge" d="M 33 66 V 280.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 280.0 H 164.4"/>
+<path class="uml-edge" d="M 33 66 V 280.0 H 284.8"/>
+<path class="uml-edge" d="M 33 66 V 318.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 318.0 H 164.4"/>
+<path class="uml-edge" d="M 33 66 V 318.0 H 284.8"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22"/>
+<path class="uml-edge" d="M 33 370 V 394.0 H 44.0"/>
+<path class="uml-edge" d="M 33 370 V 394.0 H 157.2"/>
+<path class="uml-edge" d="M 33 370 V 394.0 H 270.4"/>
+<path class="uml-edge" d="M 33 370 V 432.0 H 44.0"/>
+<path class="uml-edge" d="M 33 370 V 432.0 H 157.2"/>
+<path class="uml-edge" d="M 11 28 V 356.0 H 22"/>
+<polygon class="uml-tri" points="51,186 59,186 55,180"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="29,376 37,376 33,370"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="51,110 59,110 55,104"/>
+<rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">Character</text>
+<rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">Enemy</text>
+<text class="uml-st" x="126" y="56" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box uml-abs" x="44" y="76" width="109" height="28" rx="4"/>
+<text class="uml-name" x="56" y="94">Boss</text>
+<text class="uml-st" x="141" y="94" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="66" y="114" width="82" height="28" rx="4"/>
+<text class="uml-name" x="78" y="132">BoomBoom</text>
+<rect class="uml-box" x="158" y="114" width="82" height="28" rx="4"/>
+<text class="uml-name" x="170" y="132">Bowser</text>
+<rect class="uml-box" x="44" y="152" width="103" height="28" rx="4"/>
+<text class="uml-name" x="56" y="170">KoopaTroopa</text>
+<rect class="uml-box" x="66" y="190" width="132" height="28" rx="4"/>
+<text class="uml-name" x="78" y="208">KoopaParatroopa</text>
+<rect class="uml-box" x="44" y="228" width="110" height="28" rx="4"/>
+<text class="uml-name" x="56" y="246">Boo</text>
+<rect class="uml-box" x="164" y="228" width="110" height="28" rx="4"/>
+<text class="uml-name" x="176" y="246">BulletBill</text>
+<rect class="uml-box" x="285" y="228" width="110" height="28" rx="4"/>
+<text class="uml-name" x="297" y="246">ChainChomp</text>
+<rect class="uml-box" x="44" y="266" width="110" height="28" rx="4"/>
+<text class="uml-name" x="56" y="284">Goomba</text>
+<rect class="uml-box" x="164" y="266" width="110" height="28" rx="4"/>
+<text class="uml-name" x="176" y="284">HammerBro</text>
+<rect class="uml-box" x="285" y="266" width="110" height="28" rx="4"/>
+<text class="uml-name" x="297" y="284">Lakitu</text>
+<rect class="uml-box" x="44" y="304" width="110" height="28" rx="4"/>
+<text class="uml-name" x="56" y="322">PiranhaPlant</text>
+<rect class="uml-box" x="164" y="304" width="110" height="28" rx="4"/>
+<text class="uml-name" x="176" y="322">Spiny</text>
+<rect class="uml-box" x="285" y="304" width="110" height="28" rx="4"/>
+<text class="uml-name" x="297" y="322">Thwomp</text>
+<rect class="uml-box uml-abs" x="22" y="342" width="123" height="28" rx="4"/>
+<text class="uml-name" x="34" y="360">Player</text>
+<text class="uml-st" x="133" y="360" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="44" y="380" width="103" height="28" rx="4"/>
+<text class="uml-name" x="56" y="398">Luigi</text>
+<rect class="uml-box" x="157" y="380" width="103" height="28" rx="4"/>
+<text class="uml-name" x="169" y="398">Mario</text>
+<rect class="uml-box" x="270" y="380" width="103" height="28" rx="4"/>
+<text class="uml-name" x="282" y="398">Peach</text>
+<rect class="uml-box" x="44" y="418" width="103" height="28" rx="4"/>
+<text class="uml-name" x="56" y="436">ShadowMario</text>
+<rect class="uml-box" x="157" y="418" width="103" height="28" rx="4"/>
+<text class="uml-name" x="169" y="436">Toad</text>
+</svg></div><figcaption>Figure 7 (full) — The complete Character hierarchy.<br><span class="note">Every playable character and every enemy, including the Boss sub-branch, in one tree.</span></figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 389 312" role="img" aria-label="Enemy inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 33 66 V 90.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 90.0 H 135.6"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22"/>
+<path class="uml-edge" d="M 33 142 V 166.0 H 44.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22"/>
+<path class="uml-edge" d="M 11 28 V 204.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 204.0 H 142.4"/>
+<path class="uml-edge" d="M 11 28 V 204.0 H 262.8"/>
+<path class="uml-edge" d="M 11 28 V 242.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 242.0 H 142.4"/>
+<path class="uml-edge" d="M 11 28 V 242.0 H 262.8"/>
+<path class="uml-edge" d="M 11 28 V 280.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 280.0 H 142.4"/>
+<path class="uml-edge" d="M 11 28 V 280.0 H 262.8"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,148 37,148 33,142"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="116" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">Enemy</text>
+<text class="uml-st" x="104" y="18" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box uml-abs" x="22" y="38" width="109" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">Boss</text>
+<text class="uml-st" x="119" y="56" text-anchor="end">&#171;abstract&#187;</text>
+<rect class="uml-box" x="44" y="76" width="82" height="28" rx="4"/>
+<text class="uml-name" x="56" y="94">BoomBoom</text>
+<rect class="uml-box" x="136" y="76" width="82" height="28" rx="4"/>
+<text class="uml-name" x="148" y="94">Bowser</text>
+<rect class="uml-box" x="22" y="114" width="103" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">KoopaTroopa</text>
+<rect class="uml-box" x="44" y="152" width="132" height="28" rx="4"/>
+<text class="uml-name" x="56" y="170">KoopaParatroopa</text>
+<rect class="uml-box" x="22" y="190" width="110" height="28" rx="4"/>
+<text class="uml-name" x="34" y="208">Boo</text>
+<rect class="uml-box" x="142" y="190" width="110" height="28" rx="4"/>
+<text class="uml-name" x="154" y="208">BulletBill</text>
+<rect class="uml-box" x="263" y="190" width="110" height="28" rx="4"/>
+<text class="uml-name" x="275" y="208">ChainChomp</text>
+<rect class="uml-box" x="22" y="228" width="110" height="28" rx="4"/>
+<text class="uml-name" x="34" y="246">Goomba</text>
+<rect class="uml-box" x="142" y="228" width="110" height="28" rx="4"/>
+<text class="uml-name" x="154" y="246">HammerBro</text>
+<rect class="uml-box" x="263" y="228" width="110" height="28" rx="4"/>
+<text class="uml-name" x="275" y="246">Lakitu</text>
+<rect class="uml-box" x="22" y="266" width="110" height="28" rx="4"/>
+<text class="uml-name" x="34" y="284">PiranhaPlant</text>
+<rect class="uml-box" x="142" y="266" width="110" height="28" rx="4"/>
+<text class="uml-name" x="154" y="284">Spiny</text>
+<rect class="uml-box" x="263" y="266" width="110" height="28" rx="4"/>
+<text class="uml-name" x="275" y="284">Thwomp</text>
+</svg></div><figcaption>Figure 8 (full) — The complete Enemy/Boss hierarchy.</figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 346 198" role="img" aria-label="IPlayerState inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 33 66 V 90.0 H 44.0"/>
+<path class="uml-edge" d="M 33 66 V 90.0 H 171.60000000000002"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 128.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 234.0"/>
+<path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 166.0 H 128.0"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="166" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">IPlayerState</text>
+<text class="uml-st" x="154" y="18" text-anchor="end">&#171;interface&#187;</text>
+<rect class="uml-box" x="22" y="38" width="168" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">PlayerStateDecorator</text>
+<rect class="uml-box" x="44" y="76" width="118" height="28" rx="4"/>
+<text class="uml-name" x="56" y="94">MegaDecorator</text>
+<rect class="uml-box" x="172" y="76" width="118" height="28" rx="4"/>
+<text class="uml-name" x="184" y="94">StarDecorator</text>
+<rect class="uml-box" x="22" y="114" width="96" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">CapeState</text>
+<rect class="uml-box" x="128" y="114" width="96" height="28" rx="4"/>
+<text class="uml-name" x="140" y="132">FireState</text>
+<rect class="uml-box" x="234" y="114" width="96" height="28" rx="4"/>
+<text class="uml-name" x="246" y="132">MiniState</text>
+<rect class="uml-box" x="22" y="152" width="96" height="28" rx="4"/>
+<text class="uml-name" x="34" y="170">SmallState</text>
+<rect class="uml-box" x="128" y="152" width="96" height="28" rx="4"/>
+<text class="uml-name" x="140" y="170">SuperState</text>
+</svg></div><figcaption>Figure 9 (full) — The complete player-form hierarchy.</figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 562 160" role="img" aria-label="IGameState inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 200.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 378.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 200.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 378.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 200.0"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="152" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">IGameState</text>
+<text class="uml-st" x="140" y="18" text-anchor="end">&#171;interface&#187;</text>
+<rect class="uml-box" x="22" y="38" width="168" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">CharacterSelectState</text>
+<rect class="uml-box" x="200" y="38" width="168" height="28" rx="4"/>
+<text class="uml-name" x="212" y="56">GameOverState</text>
+<rect class="uml-box" x="378" y="38" width="168" height="28" rx="4"/>
+<text class="uml-name" x="390" y="56">MenuState</text>
+<rect class="uml-box" x="22" y="76" width="168" height="28" rx="4"/>
+<text class="uml-name" x="34" y="94">OptionsState</text>
+<rect class="uml-box" x="200" y="76" width="168" height="28" rx="4"/>
+<text class="uml-name" x="212" y="94">PauseState</text>
+<rect class="uml-box" x="378" y="76" width="168" height="28" rx="4"/>
+<text class="uml-name" x="390" y="94">PlayingState</text>
+<rect class="uml-box" x="22" y="114" width="168" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">VictoryState</text>
+<rect class="uml-box" x="200" y="114" width="168" height="28" rx="4"/>
+<text class="uml-name" x="212" y="132">WorldMapState</text>
+</svg></div><figcaption>Figure 10 (full) — The complete screen/State hierarchy.</figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 519 160" role="img" aria-label="ICommand inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 185.6"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 349.2"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 185.6"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 349.2"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 185.6"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="138" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">ICommand</text>
+<text class="uml-st" x="126" y="18" text-anchor="end">&#171;interface&#187;</text>
+<rect class="uml-box" x="22" y="38" width="154" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">CrouchCommand</text>
+<rect class="uml-box" x="186" y="38" width="154" height="28" rx="4"/>
+<text class="uml-name" x="198" y="56">FireCommand</text>
+<rect class="uml-box" x="349" y="38" width="154" height="28" rx="4"/>
+<text class="uml-name" x="361" y="56">GroundPoundCommand</text>
+<rect class="uml-box" x="22" y="76" width="154" height="28" rx="4"/>
+<text class="uml-name" x="34" y="94">JumpCommand</text>
+<rect class="uml-box" x="186" y="76" width="154" height="28" rx="4"/>
+<text class="uml-name" x="198" y="94">MoveLeftCommand</text>
+<rect class="uml-box" x="349" y="76" width="154" height="28" rx="4"/>
+<text class="uml-name" x="361" y="94">MoveRightCommand</text>
+<rect class="uml-box" x="22" y="114" width="154" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">RunCommand</text>
+<rect class="uml-box" x="186" y="114" width="154" height="28" rx="4"/>
+<text class="uml-name" x="198" y="132">WallJumpCommand</text>
+</svg></div><figcaption>Figure 11 (full) — The complete Command hierarchy.</figcaption></figure>
+<figure class="uml"><div class="uml-scroll"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 648 160" role="img" aria-label="IMovementStrategy inheritance diagram" style="width:100%;height:auto;font-family:var(--ui,sans-serif)">
+<style>.uml-box{fill:var(--surface,#fff);stroke:var(--line,#ccc);stroke-width:1.2}.uml-abs{stroke-dasharray:5 3}.uml-name{font-size:12px;fill:var(--tx,#111);font-weight:600}.uml-st{font-size:9.5px;fill:var(--accent,#b5322a);font-style:italic}.uml-edge{stroke:var(--dim,#999);stroke-width:1.1;fill:none}.uml-tri{fill:var(--surface,#fff);stroke:var(--dim,#999);stroke-width:1.1}</style>
+<path class="uml-edge" d="M 11 28 V 52.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 228.8"/>
+<path class="uml-edge" d="M 11 28 V 52.0 H 435.6"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 228.8"/>
+<path class="uml-edge" d="M 11 28 V 90.0 H 435.6"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 22.0"/>
+<path class="uml-edge" d="M 11 28 V 128.0 H 228.8"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<rect class="uml-box uml-abs" x="0" y="0" width="202" height="28" rx="4"/>
+<text class="uml-name" x="12" y="18">IMovementStrategy</text>
+<text class="uml-st" x="190" y="18" text-anchor="end">&#171;interface&#187;</text>
+<rect class="uml-box" x="22" y="38" width="197" height="28" rx="4"/>
+<text class="uml-name" x="34" y="56">ChaseStrategy</text>
+<rect class="uml-box" x="229" y="38" width="197" height="28" rx="4"/>
+<text class="uml-name" x="241" y="56">FlyStrategy</text>
+<rect class="uml-box" x="436" y="38" width="197" height="28" rx="4"/>
+<text class="uml-name" x="448" y="56">HammerThrowStrategy</text>
+<rect class="uml-box" x="22" y="76" width="197" height="28" rx="4"/>
+<text class="uml-name" x="34" y="94">LinearStrategy</text>
+<rect class="uml-box" x="229" y="76" width="197" height="28" rx="4"/>
+<text class="uml-name" x="241" y="94">PatrolStrategy</text>
+<rect class="uml-box" x="436" y="76" width="197" height="28" rx="4"/>
+<text class="uml-name" x="448" y="94">ProximityTriggerStrategy</text>
+<rect class="uml-box" x="22" y="114" width="197" height="28" rx="4"/>
+<text class="uml-name" x="34" y="132">TetheredChaseStrategy</text>
+<rect class="uml-box" x="229" y="114" width="197" height="28" rx="4"/>
+<text class="uml-name" x="241" y="132">TimerEmergenceStrategy</text>
+</svg></div><figcaption>Figure 12 (full) — The complete Strategy hierarchy.</figcaption></figure>
+
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>
-Generated by <code>reports/build_report.py</code> from the repository at commit 4aad874.
+Generated by <code>reports/build_report.py</code> from the repository at commit 38bab75.
 Self-contained: opens from disk, no network, prints to PDF.</footer>
 
 </main>
