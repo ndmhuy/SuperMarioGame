@@ -37,6 +37,11 @@ public:
     // Whether the current track repeats. Exists so the regression suite can tell
     // a jingle from level music without opening an audio device to listen.
     bool isMusicLooping() const { return m_music.isLooping(); }
+
+    // Resolved path of the track last handed to playMusic(). Same rationale as
+    // isMusicLooping(): lets the regression suite assert which BGM a level
+    // index selects (audit D1) without an audio device.
+    const std::string& getCurrentMusicPath() const { return m_musicPath; }
     void playLevelBGM(int levelIndex);
     void playStarMusic();
     void restoreLevelBGM();

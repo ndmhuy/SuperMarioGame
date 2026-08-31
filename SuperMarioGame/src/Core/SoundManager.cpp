@@ -211,9 +211,13 @@ void SoundManager::playMusic(const std::string& path, bool loop) {
 }
 
 void SoundManager::playLevelBGM(int levelIndex) {
+    // levelIndex is the LevelCatalog index (see LevelCatalog::levels()), not a
+    // theme id: 0=1-1 Grassland, 1=1-2 Ice Cavern, 2=1-3 Bowser's Castle,
+    // 3=Bonus Stage. A generated/endless level has no catalog index and falls
+    // through to the overworld default, same as any unrecognised index.
     std::string bgmKey = "overworld";
     if (levelIndex == 1) bgmKey = "underworld";
-    else if (levelIndex == 2) bgmKey = "underwater";
+    else if (levelIndex == 2) bgmKey = "castle";
     else if (levelIndex == 3) bgmKey = "sub_space-bonus_room";
 
     m_savedLevelMusicPath = resolveBGMIdentifier(bgmKey);
