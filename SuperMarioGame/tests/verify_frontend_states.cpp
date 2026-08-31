@@ -25,7 +25,42 @@
 #include "Core/WorldMapState.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Core/SoundManager.hpp"
+#include "Core/EventBus.hpp"
 #include "Utils/Serializer.hpp"
+#include "Entities/Boss.hpp"
+#include "Graphics/Camera.hpp"
+
+// Declared in the global namespace to match PlayingState.hpp's
+// `friend class LevelCompletionCameraTestHooks;` — narrower than adding public
+// getters for m_activeBoss/m_camera/m_selectedLevelIndex that nothing else
+// would ever call. See that friend declaration's comment for why.
+class LevelCompletionCameraTestHooks {
+public:
+    static bool isLevelComplete(const PlayingState& state) { return state.m_levelComplete; }
+    static Boss* activeBoss(const PlayingState& state) { return state.m_activeBoss; }
+
+    // Stands in for "this instance just spent the last level locked onto a
+    // boss arena" without needing to actually fight one.
+    static void forceCameraStuckOnLastLevel(PlayingState& state, sf::Vector2f stuckAt) {
+        state.m_camera.setScrollMode(Camera::ScrollMode::Locked);
+        state.m_camera.setPosition(stuckAt);
+    }
+    static Camera::ScrollMode cameraScrollMode(const PlayingState& state) {
+        return state.m_camera.getScrollMode();
+    }
+    static sf::Vector2f cameraPosition(const PlayingState& state) {
+        return state.m_camera.getPosition();
+    }
+
+    // Reloads the SAME instance onto a different campaign level, the way
+    // advanceToNextLevel() does — as opposed to constructing a fresh
+    // PlayingState, which would never reproduce a bug that only exists because
+    // one instance's m_camera survives across the transition.
+    static void reloadLevel(PlayingState& state, int levelIndex) {
+        state.m_selectedLevelIndex = levelIndex;
+        state.setupTestScene();
+    }
+};
 
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/RenderTexture.hpp>
@@ -503,6 +538,118 @@ void testEditorIsNotStuckBehindTheEntryFade(sf::RenderTexture* target) {
     ImGui::DestroyContext(context);
 }
 
+// --- A boss-level flagpole must not clear the level while its boss is alive -
+//
+// level_2.json (World 1-2) once placed Boom Boom's arena wide enough to
+// overlap its own flagpole, so a player who simply ran right — inside the "no
+// escape until defeated" position clamp — still landed on a touchable
+// flagpole with Boom Boom alive, and the level ended without the fight. The
+// level data is fixed (tests/verify_regressions.cpp's
+// testLevelTwoContainsItsMidBoss guards the arena/flagpole geometry itself);
+// this checks the independent code-level backstop added to
+// PlayingState's LevelComplete subscriber, by publishing LevelComplete
+// directly rather than walking to a flagpole.
+void testLevelCompleteIsGatedByAnActiveBoss() {
+    section("6.4  a level cannot complete while its boss is still alive");
+
+    ImGuiContext* context = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(1280.0f, 720.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    unsigned char* fontPixels = nullptr;
+    int fontW = 0, fontH = 0;
+    io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontW, &fontH);
+    io.Fonts->SetTexID(static_cast<ImTextureID>(1));
+
+    {
+        // Level index 1 = level_2.json = World 1-2, per LevelCatalog — Boom Boom.
+        PlayingState state(false, false, MapGeneratorConfig(), 0, 1);
+        state.enter();
+        for (int i = 0; i < 10; ++i) { ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render(); }
+
+        Boss* boss = LevelCompletionCameraTestHooks::activeBoss(state);
+        check(boss != nullptr && boss->isActive(), "Boom Boom is alive in a freshly loaded 1-2");
+
+        EventBus::getInstance().publish({EventType::LevelComplete, 100});
+        check(!LevelCompletionCameraTestHooks::isLevelComplete(state),
+              "touching the flag while he is alive does not complete the level");
+
+        boss->destroy();
+        EventBus::getInstance().publish({EventType::LevelComplete, 100});
+        check(LevelCompletionCameraTestHooks::isLevelComplete(state),
+              "but it does once he is defeated — the gate tracks him, it does not just refuse forever");
+
+        state.exit();
+    }
+
+    {
+        // Control: a level with no boss at all must complete on the first
+        // touch, same as always — the gate must not hold up the ordinary case.
+        PlayingState state(false, false, MapGeneratorConfig(), 0, 0);   // level_1.json, 1-1
+        state.enter();
+        for (int i = 0; i < 10; ++i) { ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render(); }
+
+        check(LevelCompletionCameraTestHooks::activeBoss(state) == nullptr, "1-1 has no boss");
+        EventBus::getInstance().publish({EventType::LevelComplete, 100});
+        check(LevelCompletionCameraTestHooks::isLevelComplete(state),
+              "a boss-free level still completes on the first flag touch");
+
+        state.exit();
+    }
+
+    ImGui::DestroyContext(context);
+}
+
+// --- The camera must not carry a boss arena's Locked state into the next level
+//
+// A player who finished 1-2 while its arena was still Locked (the bug above)
+// left the camera Locked and parked near where the arena used to be. 1-3's
+// Bowser arena sits at almost the same world-x range, so the very next level
+// opened with the camera pointed at Bowser instead of the player's own spawn
+// — "the camera first focuses on Bowser until the player dies" — and the
+// player, whichever way they went, could not see themselves relative to
+// anything.  setupTestScene() now resets scroll mode and snaps to the new
+// level's spawn point unconditionally; this reproduces the stuck precondition
+// directly on one live instance and checks the reset actually happens.
+void testCameraResetsAcrossALevelTransition() {
+    section("4.3 + 10.7  the camera does not inherit the last level's Locked arena");
+
+    ImGuiContext* context = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(1280.0f, 720.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    unsigned char* fontPixels = nullptr;
+    int fontW = 0, fontH = 0;
+    io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontW, &fontH);
+    io.Fonts->SetTexID(static_cast<ImTextureID>(1));
+
+    PlayingState state(false, false, MapGeneratorConfig(), 0, 1);   // start in 1-2
+    state.enter();
+    for (int i = 0; i < 10; ++i) { ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render(); }
+
+    // Simulate "still Locked on the Boom Boom arena" without needing to fight
+    // him — an arbitrary point well inside where 1-3's own Bowser arena sits.
+    const sf::Vector2f stuckAt{6000.0f, 550.0f};
+    LevelCompletionCameraTestHooks::forceCameraStuckOnLastLevel(state, stuckAt);
+    check(LevelCompletionCameraTestHooks::cameraScrollMode(state) == Camera::ScrollMode::Locked,
+          "the precondition: camera is Locked, as it would be mid-boss-fight");
+
+    LevelCompletionCameraTestHooks::reloadLevel(state, 2);   // level_3.json, 1-3
+
+    check(LevelCompletionCameraTestHooks::cameraScrollMode(state) == Camera::ScrollMode::Free,
+          "loading the next level resets scroll mode to Free");
+
+    const sf::Vector2f afterLoad = LevelCompletionCameraTestHooks::cameraPosition(state);
+    const float distanceFromOldStuckSpot =
+        std::abs(afterLoad.x - stuckAt.x) + std::abs(afterLoad.y - stuckAt.y);
+    check(distanceFromOldStuckSpot > 1000.0f,
+          "and the camera moved off the old arena position rather than merely "
+          "unlocking in place — it snapped to 1-3's own spawn point");
+
+    state.exit();
+    ImGui::DestroyContext(context);
+}
+
 int main() {
     // Every save path in this process now points at a throwaway
     // directory, so nothing here can read or delete real save data
@@ -541,6 +688,8 @@ int main() {
     testWorldMapRefusesLockedLevels(target);
     testMenuNavigatesWithoutImGui(target);
     testEditorIsNotStuckBehindTheEntryFade(target);
+    testLevelCompleteIsGatedByAnActiveBoss();
+    testCameraResetsAcrossALevelTransition();
 
     // These screens play sounds and load atlases, so both the audio device and a
     // GL context are live. Both singletons hold SFML resources that must be

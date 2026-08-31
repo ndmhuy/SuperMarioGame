@@ -356,12 +356,27 @@ void PlayingState::enter() {
     // could be flagged but never actually finished (audit G-1). ---
     m_levelCompleteSubId = bus.subscribe(EventType::LevelComplete, [this](const GameEvent&) {
         if (m_levelComplete) return;   // flagpole can fire more than once
+        // "No escape until defeated" (SPEC 6.4) applies to finishing the level,
+        // not only to leaving the arena: a boss level's flagpole must not clear
+        // the level while its boss is still alive. The arena's position clamp
+        // (updateBossArena) is meant to make this unreachable in the first
+        // place, but a misplaced arena/flagpole in level data (as level_2's
+        // Boom Boom arena once was) must not be able to skip the fight.
+        if (m_activeBoss && m_activeBoss->isActive()) return;
         m_levelComplete = true;
         m_levelCompleteTimer = 0.0f;
+        m_hasLevelCompleteCastle = false;
         // The castle answers the flagpole: its own flag climbs the gatehouse as
-        // the level's does down the pole.
+        // the level's does down the pole. Its door is also where the player
+        // walks to next, instead of standing at the flagpole until the summary
+        // screen cuts in.
         for (const auto& entity : m_entities) {
-            if (auto* castle = dynamic_cast<Castle*>(entity.get())) castle->raiseFlag();
+            if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
+                castle->raiseFlag();
+                m_hasLevelCompleteCastle = true;
+                m_levelCompleteCastleTarget = castle->getPosition() +
+                    sf::Vector2f{Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f, 0.0f};
+            }
         }
         std::cout << "[PlayingState] Level complete!" << std::endl;
     });
@@ -804,11 +819,18 @@ void PlayingState::update(float dt) {
         }
     }
 
-    // 3f. Level complete: hold briefly on the flag, then show the summary.
+    // 3f. Level complete: walk to the castle door, then show the summary.
     // The victory screen is an overlay, so this level stays on screen behind it
-    // and the player sees the flag they just touched.
+    // and the player is seen arriving at the castle they just cleared, rather
+    // than standing frozen at the flagpole.
     if (m_levelComplete && !m_summaryShown) {
         m_levelCompleteTimer += dt;
+        if (m_player && m_hasLevelCompleteCastle) {
+            const float dx = m_levelCompleteCastleTarget.x - m_player->getPosition().x;
+            m_player->clearMovementRequests();
+            if (dx > 4.0f)       m_player->moveRight();
+            else if (dx < -4.0f) m_player->moveLeft();
+        }
         if (m_levelCompleteTimer >= 3.0f) {
             presentLevelSummary();
             return;
@@ -1414,12 +1436,19 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
-    // 2. Draw all active entities
+    // 2. Draw all active entities. Players are drawn last so a large entity
+    // they are walking toward (Bowser, Boom Boom) can never paint over them —
+    // adoptPlayer() inserts the player at the FRONT of m_entities, which used
+    // to mean the opposite: the player was drawn (and hidden) first.
     for (auto& entity : m_entities) {
-        if (entity && entity->isActive()) {
+        if (entity && entity->isActive() &&
+            entity.get() != static_cast<Entity*>(m_player) &&
+            entity.get() != static_cast<Entity*>(m_player2)) {
             entity->render(target);
         }
     }
+    if (m_player  && m_player->isActive())  m_player->render(target);
+    if (m_player2 && m_player2->isActive()) m_player2->render(target);
 
     // 3. Draw entity death effects (flying trajectories) and impact particles.
     // Both are world-space, so they must be drawn while the camera view is still active.
@@ -1572,6 +1601,12 @@ void PlayingState::setupTestScene() {
 
         // Set camera bounds matching the level size
         m_camera.setBounds(AABB{0.0f, 0.0f, levelData.width * Constants::TILE_SIZE, levelData.height * Constants::TILE_SIZE});
+        // A boss arena from the level just left behind can leave the camera
+        // Locked with a stale position; every new level starts Free and
+        // centred on its own spawn point, never carrying either over from
+        // whatever the previous level last did with the camera.
+        m_camera.setScrollMode(Camera::ScrollMode::Free);
+        m_camera.snapTo(levelData.spawnPoint);
         m_background.setTheme(levelData.theme);
         syncBackdropGround();
         syncVoidPlane();
@@ -1588,6 +1623,8 @@ void PlayingState::setupTestScene() {
         m_hasCheckpoint = false;
         spawnSelectedPlayer(m_levelSpawnPoint);
         m_camera.setBounds(AABB{0.0f, 0.0f, 40.0f * Constants::TILE_SIZE, 22.0f * Constants::TILE_SIZE});
+        m_camera.setScrollMode(Camera::ScrollMode::Free);
+        m_camera.snapTo(m_levelSpawnPoint);
     }
 
     spawnMatchParticipants();
