@@ -193,11 +193,6 @@
       "y": 20
     },
     {
-      "type": "koopa_troopa",
-      "x": 170,
-      "y": 20
-    },
-    {
       "arenaW": 16,
       "arenaX": 176,
       "type": "boom_boom",
@@ -213,6 +208,32 @@
       "type": "castle",
       "x": 196,
       "y": 15
+    },
+    {
+      "type": "boo",
+      "x": 72,
+      "y": 16
+    },
+    {
+      "type": "boo",
+      "x": 86,
+      "y": 15
+    },
+    {
+      "type": "hidden_block",
+      "x": 69,
+      "y": 17
+    },
+    {
+      "type": "hidden_block",
+      "x": 157,
+      "y": 17
+    },
+    {
+      "itemType": 7,
+      "type": "question_block",
+      "x": 130,
+      "y": 17
     }
   ],
   "flagpole": {
