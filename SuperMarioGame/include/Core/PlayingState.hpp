@@ -310,6 +310,11 @@ private:
     bool m_isProcedural = false;
     MapGeneratorConfig m_genConfig;
 
+    // Set when MapGenerator::generateSolvable() exhausted every reseed attempt
+    // and kept the last (unverified) layout anyway — surfaced in the dev
+    // panel rather than silently trusted (audit D3).
+    bool m_lastLevelUnverified = false;
+
     // --- Endless Mode ----------------------------------------------------
     //
     // Not just a very wide procedural level: the tilemap starts at one chunk
