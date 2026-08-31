@@ -20,7 +20,7 @@ public:
     int getHealth() const { return health; }
     float getSpeed() const { return speed; }
     float getJumpForce() const { return jumpForce; }
-    bool isOnGround() const { return onGround; }
+    bool isOnGround() const override { return onGround; }
     // Set the grounded flag outside the collision pass — used when teleporting or
     // respawning a character, and by the regression tests. Prefer this to reaching
     // in through friendship.

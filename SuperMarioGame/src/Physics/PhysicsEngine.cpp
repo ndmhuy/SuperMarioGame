@@ -21,16 +21,10 @@
 #include <utility>
 
 void PhysicsEngine::applyGravity(Entity& entity, float dt) {
-    if (auto character = dynamic_cast<Character*>(&entity)) {
-        if (character->onGround) {
-            return;
-        }
-    }
-    if (auto item = dynamic_cast<Item*>(&entity)) {
-        if (item->isOnGround()) {
-            return;
-        }
-    }
+    // Anything resting on something solid is not falling. Characters and Items
+    // both answer this through Entity::isOnGround(); everything else says no.
+    if (entity.isOnGround()) return;
+
     // Acceleration: 0.5 px/frame^2 at 60 FPS is 1800 px/s^2
     entity.velocity.y += Constants::GRAVITY * Constants::GRAVITY_SCALE * entity.getGravityMultiplier() * dt;
     if (entity.velocity.y > Constants::TERMINAL_VELOCITY) {
@@ -164,10 +158,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         // Zero-gravity entities (blocks, flying/scripted enemies) opt out entirely.
         if (entity->getGravityMultiplier() <= 0.0f) continue;
         // Dead or held enemies are driven by their own death/carry animation, not physics.
-        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
-            if (enemy->isDeadOrDying()) continue;
-        }
-
+        if (!entity->isPhysicsDriven()) continue;
 
         // Check if entity is in water (tile type 7)
         float cx = entity->position.x + entity->boundingBox.width / 2.0f;
@@ -187,9 +178,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 3. Integrate X and resolve X collisions with the tile map (only resolve max horizontal overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
-            if (enemy->isDeadOrDying()) continue;
-        }
+        if (!entity->isPhysicsDriven()) continue;
 
         entity->position.x += entity->velocity.x * dt;
         entity->boundingBox.x = entity->position.x;
@@ -220,9 +209,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 4. Integrate Y and resolve Y collisions with the tile map (only resolve max vertical overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
-            if (enemy->isDeadOrDying()) continue;
-        }
+        if (!entity->isPhysicsDriven()) continue;
 
         float preVelY = entity->velocity.y;
         entity->position.y += entity->velocity.y * dt;

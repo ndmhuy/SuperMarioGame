@@ -77,6 +77,9 @@ public:
     void triggerDownwardDeath(sf::Vector2f launchVel = {0.0f, 150.0f});
     bool isCollidable() const override;
     bool collidesWithTiles() const override { return !m_isFlipped && !m_isDyingDownward; }
+    // A dead or held enemy plays out its own death or carry animation; gravity
+    // and tile collision must not touch it in the meantime.
+    bool isPhysicsDriven() const override { return !isDeadOrDying(); }
 
 protected:
     // Despawn plane for a flipped/falling enemy: one tile below the current

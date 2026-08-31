@@ -50,6 +50,23 @@ public:
     void revive() { active = true; }
     virtual float getGravityMultiplier() const { return 1.0f; }
 
+    // Is this entity resting on something solid?
+    //
+    // Characters and Items each already answered this, with the same name and
+    // signature, but neither answer was reachable through an Entity& — so
+    // PhysicsEngine::applyGravity ran a dynamic_cast to Character and another to
+    // Item just to ask (audit A-10 / D8). Everything else (blocks, projectiles)
+    // never rests on anything, so the base answer is "no" and gravity applies.
+    virtual bool isOnGround() const { return false; }
+
+    // Does the physics engine own this entity's motion this frame?
+    //
+    // A dead or held enemy is driven by its own death or carry animation, so
+    // gravity and tile collision must leave it alone. PhysicsEngine asked this
+    // three times per frame — once in the gravity pass and once in each of the
+    // X and Y integration passes — with a dynamic_cast to Enemy each time.
+    virtual bool isPhysicsDriven() const { return true; }
+
     // What kind of thing this is, for collision dispatch. Overridden once per
     // base class (Player, Enemy, Item, Block, Fireball) — concrete subclasses
     // inherit it.

@@ -51,7 +51,7 @@ public:
 
     // Ground status & read-only getter
     bool isCollected() const { return collected; }
-    bool isOnGround() const { return m_onGround; }
+    bool isOnGround() const override { return m_onGround; }
     void setOnGround(bool grounded) { m_onGround = grounded; }
 
 protected:
