@@ -30,6 +30,7 @@ public:
     // be removed by the one-stomp path an ordinary Enemy uses.
     void onStomped() override;
     void onHitByFireball() override;
+    bool onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) override;
 
     int getHealth() const { return m_health; }
     int getMaxHealth() const { return m_maxHealth; }

@@ -6,6 +6,9 @@
 #include "Graphics/SpriteSheet.hpp"
 #include <memory>
 
+class Player;
+struct CollisionInfo;
+
 class Enemy : public Character {
 public:
     bool hasArtwork() const override { return m_animator && m_hasAnimation; }
@@ -30,6 +33,19 @@ public:
     // Virtual interaction handlers
     virtual void onStomped() = 0;
     virtual void onHitByFireball() = 0;
+
+    // Answer a player's touch on this enemy's own terms, before the generic
+    // rules run. Returns true if the enemy fully handled the contact; false
+    // leaves the player on the ordinary path — a stomp defeats the enemy and
+    // bounces the player, anything else hurts the player.
+    //
+    // `stomped` is the resolver's positional stomp test, computed once from
+    // both bounding boxes. An enemy needing a different test may ignore it: a
+    // boss wants a genuine descending impact, not a resting foot.
+    //
+    // KoopaTroopa (shells, kicks and carries) and Boss (i-frames, staggers)
+    // used to be named inside the resolver by dynamic_cast (audit A-10 / D8).
+    virtual bool onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped);
 
     EntityCategory getCategory() const override { return EntityCategory::Enemy; }
 

@@ -26,6 +26,7 @@ public:
 
     void onStomped() override;
     void onHitByFireball() override;
+    bool onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) override;
 
     void kick(sf::Vector2f velocity);
     void pickUp(Player* holder);

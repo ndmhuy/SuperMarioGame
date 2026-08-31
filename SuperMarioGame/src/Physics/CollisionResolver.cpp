@@ -7,9 +7,7 @@
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
 #include "Entities/KoopaTroopa.hpp"
-#include "Entities/Boss.hpp"
 #include "Core/SoundManager.hpp"
-#include "Core/InputManager.hpp"
 #include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
 #include <cmath>
@@ -194,132 +192,15 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
     bool isStomp = (player.getVelocity().y > -50.0f && playerFeetY <= enemyTopY) ||
                    (info.normal.y == -1.0f && player.getVelocity().y >= 0.0f);
 
-    // --- Koopa Troopas and their shells ------------------------------------
+    // The enemy answers first, on its own terms.
     //
-    // This branch used to pick up ANY unflipped Koopa on any non-stomp contact.
-    // Walking into a live, patrolling Koopa handed you the Koopa instead of
-    // hurting you, and running into a shell someone had just kicked did the
-    // same — so Koopas were the one enemy in the game that could not hurt you
-    // at all, and a kicked shell was harmless to its own kicker.
-    //
-    // The rules below are the ones the series has always used:
-    //   walking Koopa   stomp -> shell;      side/below -> damage
-    //   idle shell      stomp -> kick;       side  -> kick, or carry if running
-    //   sliding shell   stomp -> stop;       side  -> damage
-    if (auto koopa = dynamic_cast<KoopaTroopa*>(&enemy)) {
-        if (!koopa->isFlipped() && koopa->getState() != KoopaState::ShellHeld) {
-            const KoopaState koopaState = koopa->getState();
-
-            if (isStomp) {
-                // onStomped() already knows all three cases: shell a walker,
-                // kick an idle shell, stop a sliding one.
-                player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
-                koopa->onStomped();
-                if (koopaState == KoopaState::Walking) {
-                    player.incrementCombo();
-                    player.addScore(enemy.getScoreValue() * player.getComboCounter());
-                }
-                return;
-            }
-
-            // A shell you just launched slides out from under you. Without
-            // this, kicking or throwing one hurt you on the very next frame.
-            if (koopaState == KoopaState::ShellKicked && koopa->isHarmlessToKicker()) {
-                return;
-            }
-
-            if (koopaState == KoopaState::ShellIdle) {
-                // Side contact with a resting shell. Holding run picks it up to
-                // carry; otherwise it is kicked away, which is what happens if
-                // you simply walk into one.
-                const float dx = player.getBoundingBox().getCenter().x -
-                                 koopa->getBoundingBox().getCenter().x;
-                const float away = (dx >= 0.0f) ? -1.0f : 1.0f;
-
-                // Either "B button". The originals use one button for run and
-                // fire; this game splits them, and requiring specifically the
-                // run key made carrying a shell feel like it did not work.
-                InputManager& input = InputManager::getInstance();
-                const int pad = player.getPlayerIndex();
-                const bool grabHeld = player.isRunRequested() ||
-                                      input.isActionHeld("run", pad) ||
-                                      input.isActionHeld("fire", pad);
-                if (grabHeld && !player.getHeldEntity()) {
-                    koopa->pickUp(&player);
-                    player.holdEntity(koopa);
-                } else {
-                    koopa->kick({away * Constants::KOOPA_SHELL_KICK_SPEED,
-                                 koopa->getVelocity().y});
-                    SoundManager::getInstance().playSound("kick");
-                }
-                return;
-            }
-
-            // A walking Koopa or a shell already sliding: falls through to the
-            // ordinary side-contact damage path below, like every other enemy.
-        }
-    }
-
-    // --- Bosses ------------------------------------------------------------
-    //
-    // A boss cannot reuse the generic stomp path, which is written as if contact
-    // were transient. `isStomp` is a *positional* test, true on every frame the
-    // player's feet are near the enemy's top, and the branch never separates the
-    // two boxes — so standing on BoomBoom held it true indefinitely. That paid
-    // score and combo every frame, landed a real hit every time the boss's
-    // one-second i-frames lapsed, and never hurt the player, because takeDamage
-    // is only in the else branch. Three seconds of standing still won the fight.
-    if (auto* boss = dynamic_cast<Boss*>(&enemy)) {
-        const bool descending = player.getVelocity().y > Boss::STOMP_MIN_DESCENT_SPEED;
-
-        // A staggered boss has dropped its guard: contact does not hurt, and any
-        // contact at all lands a hit. This is the opening the fight is built
-        // around — requiring a fast descending stomp *and* a stagger would mean
-        // the player has to solve both problems in the same three seconds, which
-        // is the difficulty the stagger exists to remove.
-        if (boss->isStaggered()) {
-            const bool landed = boss->tryStomp();
-            player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
-            const AABB openBox = boss->getBoundingBox();
-            player.position.y = openBox.y - player.getBoundingBox().height - 1.0f;
-            player.boundingBox.y = player.position.y;
-            if (landed) {
-                player.incrementCombo();
-                player.addScore(boss->getScoreValue() * player.getComboCounter());
-            }
-            return;
-        }
-
-        // Resting on the boss is not an attack. While its i-frames run, or while
-        // the player is not actually falling onto it, contact is contact — it
-        // hurts, exactly as touching its side does.
-        if (!descending || boss->isInvulnerable()) {
-            const float dx = player.getBoundingBox().getCenter().x -
-                             boss->getBoundingBox().getCenter().x;
-            const float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
-            player.velocity.x = direction * Constants::KNOCKBACK_FORCE_X;
-            player.velocity.y = -Constants::KNOCKBACK_FORCE_Y;
-            player.takeDamage(1);
-            return;
-        }
-
-        // A genuine descending impact. Pay out only if the hit actually landed —
-        // takeHit() reports that, and it was being ignored.
-        const bool landed = boss->tryStomp();
-        player.velocity.y = -Constants::STOMP_BOUNCE_FORCE;
-        // Bounced clear of the boss's box either way, so the next frame is not
-        // another contact frame. Without this the player never leaves and the
-        // whole cycle repeats.
-        const AABB bossBox = boss->getBoundingBox();
-        player.position.y = bossBox.y - player.getBoundingBox().height - 1.0f;
-        player.boundingBox.y = player.position.y;
-
-        if (landed) {
-            player.incrementCombo();
-            player.addScore(boss->getScoreValue() * player.getComboCounter());
-        }
-        return;
-    }
+    // Koopa Troopas (shells you stomp, kick and carry) and bosses (i-frames,
+    // staggers, a real descent test rather than a resting foot) both need rules
+    // the generic path below cannot express. They used to be named here, one
+    // dynamic_cast and one long branch each (audit A-10 / D8); the rules now
+    // live with the enemies that own them, and a new enemy with its own contact
+    // behaviour overrides one method instead of growing this function.
+    if (enemy.onPlayerTouch(player, info, isStomp)) return;
 
     if (isStomp) {
         // Player stomped enemy from above
