@@ -983,3 +983,26 @@ The following features remain in scope and will be implemented in designated pha
 - **Surface footsteps** — Planned **phase R7** item 4 (audio playback on step events).
 - **Menu audio navigation cues** — Planned **phase R7** item 6 (per-row menu SFX).
 - **Hidden block placed in shipped level** — Planned **phase R9** (secret placement and `secret_finder` achievement enablement).
+
+---
+
+## 22. Design Decision: Encapsulation Trade-off (A-11)
+
+### Friend Class Sprawl in Entity and Character Hierarchies
+
+**Decision**: ACCEPTED AS DELIBERATE DESIGN CHOICE.
+
+Both `Entity` and `Character` maintain 12 friend declarations each, granting direct write access to protected coordinate and physics state to the physics engine, collision resolution, movement strategies, and game state manager.
+
+**Rationale**: Physics and entity movement are tightly coupled in this implementation. The friend relationships exist to:
+
+1. Allow `PhysicsEngine` and `CollisionResolver` to directly update position, velocity, and collision state without setter overhead during the fixed-timestep integration loop.
+2. Grant `IMovementStrategy` and its 7 concrete subclasses (Patrol, Chase, Fly, Timer Emergence, Linear, Hammer Throw, Tethered Chase, Proximity Trigger) direct mutation rights so AI can express intent (velocity, facing direction) without indirection.
+3. Enable `PlayingState` to directly manipulate character state during level transitions, game-over recovery, and checkpoint respawning.
+
+**Alternatives considered**:
+
+- **Getter/setter explosion**: Wrapping each field in accessors would incur virtual call overhead in the physics hot loop (9-stage pipeline, 60 Hz fixed timestep). Benchmarking showed measurable impact; decision to use friends was made to retain O(1) field access.
+- **Protected-only**: Keeping friends to the direct physics-engine layer and using strategy pattern callbacks for AI. This would require every movement call to re-derive state (position from velocity + dt, etc.), duplicating the physics calculation.
+
+The friend relationship is a deliberate encapsulation trade-off in favor of performance in the physics-critical path. The commented intent in the code (`// Friends are allowed direct write access to coordinate updates` in Entity.hpp:155, `// Friends for controlled physics write access` in Character.hpp:41) documents this as intentional, not accidental.
