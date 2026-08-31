@@ -15,6 +15,7 @@ public:
     std::string getTypeName() const override { return "hidden_block"; }
 
     void onHitFromBelow(Player& player) override;
+    BlockTouch onCharacterTouch(Character& character, const CollisionInfo& info) override;
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;

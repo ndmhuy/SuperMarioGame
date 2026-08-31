@@ -3,8 +3,6 @@
 #include "Entities/Enemy.hpp"
 #include "Entities/Item.hpp"
 #include "Entities/Block.hpp"
-#include "Entities/HiddenBlock.hpp"
-#include "Entities/Flagpole.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
@@ -437,21 +435,10 @@ void CollisionResolver::resolvePlayerVsPlayer(Player& p1, Player& p2, const Coll
 void CollisionResolver::resolveCharacterVsBlock(Character& character, Block& block, const CollisionInfo& info) {
     if (!info.collided || !block.isActive()) return;
 
-    // An unrevealed hidden block is solid only from underneath. Any other
-    // approach passes straight through, so the player never bumps into
-    // invisible geometry while running or falling past it.
-    if (auto hidden = dynamic_cast<HiddenBlock*>(&block)) {
-        if (!hidden->isRevealed() && info.normal.y != 1.0f) return;
-    }
-
-    // Handle flagpole trigger specifically (subclass of Block)
-    if (auto flagpole = dynamic_cast<Flagpole*>(&block)) {
-        if (character.getCategory() == EntityCategory::Player) {
-            Player* player = static_cast<Player*>(&character);
-            flagpole->onPlayerCollision(*player, character.position.y);
-        }
-        return; // Flagpole does not physically block the character
-    }
+    // The block says whether it blocks. HiddenBlock (solid only from
+    // underneath while unrevealed) and Flagpole (a trigger that blocks nobody)
+    // used to be named here by dynamic_cast, one branch each (audit A-10 / D8).
+    if (block.onCharacterTouch(character, info) == BlockTouch::Pass) return;
 
     // Push character out of the block
     character.position.x += info.normal.x * info.overlap.x;

@@ -1,5 +1,6 @@
 #include "Entities/Flagpole.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/EventBus.hpp"
 #include <algorithm>
@@ -31,6 +32,18 @@ void Flagpole::update(float dt) {
 
 void Flagpole::onHitFromBelow(Player& player) {
     // Flagpole is not hit from below
+}
+
+BlockTouch Flagpole::onCharacterTouch(Character& character, const CollisionInfo& info) {
+    (void)info;
+    // Only a player finishes a level. An enemy that wanders into the pole is
+    // simply ignored — the category test is exact, because Player overrides
+    // getCategory() once for its whole subtree.
+    if (character.getCategory() == EntityCategory::Player) {
+        onPlayerCollision(static_cast<Player&>(character), character.getPosition().y);
+    }
+    // A flagpole never physically blocks anyone; it is a trigger drawn as scenery.
+    return BlockTouch::Pass;
 }
 
 void Flagpole::onPlayerCollision(Player& player, float collisionY) {

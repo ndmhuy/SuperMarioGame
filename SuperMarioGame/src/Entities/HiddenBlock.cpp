@@ -1,5 +1,6 @@
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Core/SoundManager.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 
@@ -8,6 +9,15 @@ HiddenBlock::HiddenBlock(sf::Vector2f position, int itemType)
     // (-Wreorder-ctor).
     : Block(position), m_isRevealed(false), m_containedItemType(itemType) {
     m_breakable = false;
+}
+
+BlockTouch HiddenBlock::onCharacterTouch(Character& character, const CollisionInfo& info) {
+    // An unrevealed hidden block is solid only from underneath. Any other
+    // approach passes straight through, so nobody bumps into invisible geometry
+    // while running or falling past it.
+    (void)character;
+    if (!m_isRevealed && info.normal.y != 1.0f) return BlockTouch::Pass;
+    return BlockTouch::Solid;
 }
 
 void HiddenBlock::onHitFromBelow(Player& player) {

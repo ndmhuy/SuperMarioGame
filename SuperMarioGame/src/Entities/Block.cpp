@@ -8,6 +8,13 @@ Block::Block(sf::Vector2f position, sf::Vector2f targetSize) : Entity(position, 
     this->active = true;
 }
 
+BlockTouch Block::onCharacterTouch(Character& character, const CollisionInfo& info) {
+    // An ordinary block is solid from every direction.
+    (void)character;
+    (void)info;
+    return BlockTouch::Solid;
+}
+
 void Block::setupAnimations(const SpriteSheet* spriteSheet) {
     if (!spriteSheet) return;
     m_animator = std::make_unique<Animator>(spriteSheet);
