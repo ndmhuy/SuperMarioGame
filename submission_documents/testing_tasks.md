@@ -11,7 +11,7 @@
 
 ## Manual Testing Task Division
 
-Every one of the 95 features in [`features_list.md`](features_list.md) is
+Every one of the 97 features in [`features_list.md`](features_list.md) is
 assigned below to the member whose domain it falls into, grouped by that
 document's own 16 categories so a tester can work through it category by
 category with the feature numbers open side by side. This replaces the
@@ -25,7 +25,7 @@ the full list.
 | 1 | Core Engine & Architecture (**1–10**) | Play for 10+ minutes across at least two levels; confirm no frame-rate stutter, no dangling ImGui window, and that rebinding a key in Options survives a restart. Open the debug console (`` ` ``) and run every one of `help/give/lives/tp/god/spawn/difficulty/level/progress/replay/clear` at least once. |
 | 2 | Physics & Collision (**11–16**) | Deliberately test edge cases: jump into a wall corner, walk onto ice (1-2) and a conveyor (1-3) back to back, and stomp an enemy at the exact frame you also touch a block from below. Confirm no jitter or tunnelling. |
 | 3 | Advanced Movement (**17–22**) | Wall-jump off a shaft, ground-pound from a Mega state and a normal state, crouch-slide under a 1-tile gap, and chain 3+ stomps without touching ground to confirm the combo counter increments and resets correctly on landing-idle or damage. |
-| 4 | Levels & World (**60–64**) | Play all 3 main worlds + Bonus Stage to their flagpole, enter and exit all 3 sub-vaults through their pipes, confirm the World Map unlocks each node in order and shows the right star-coin pips, then open the Level Editor (F1), place an entity, save, and reload it. |
+| 4 | Levels & World (**60–64, 96–97**) | Play all 3 main worlds + Bonus Stage to their flagpole, enter and exit all 3 sub-vaults through their pipes, confirm the World Map unlocks each node in order and shows the right star-coin pips, then open the Level Editor (F1), place an entity, save, and reload it. From Main Menu → Procedural Level → Play Endless, run right for at least 2 minutes: confirm the distance counter climbs in the world-label HUD field, at least one chunk boundary is crossed with no visible break in the terrain, and dying shows "WORLD ENDLESS - Nm" with a recorded high score. Use "Generate & Play" 5+ times across different themes/difficulties and confirm every generated level is completable start to flagpole (the solvability check should mean you never see an impossible gap). |
 | 5 | Save/Load & Persistence (**75–78**) | Save to a slot mid-level, quit, and reload it — confirm position, lives, coins and score match. Record a run's high score and confirm it appears in Options → Records. |
 | 6 | Two-Player & AI Opponents (**79–82**) | Start a Versus Human match and a Versus CPU match (try both a Speedrunner and a Hunter profile) and a Shadow Chase match; confirm Player 2 controls respond independently and Shadow Mario visibly replays your own prior path. |
 | 7 | Advanced Systems (**89–95**) | Hold the rewind key mid-jump and confirm the game rewinds cleanly; save and play back a replay from the console; clear the campaign once and confirm New Game+ starts with faster enemies; run the Daily Challenge twice on the same day and confirm the level is identical both times; toggle Colorblind Mode and confirm the minimap recolors. |
