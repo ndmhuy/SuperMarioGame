@@ -1,8 +1,10 @@
 #include "Entities/KoopaTroopa.hpp"
 #include "Entities/PatrolStrategy.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Utils/Constants.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/InputManager.hpp"
 #include "Core/SoundManager.hpp"
 #include <algorithm>
 #include <cmath>
@@ -94,6 +96,73 @@ void KoopaTroopa::setupAnimations(const SpriteSheet* spriteSheet) {
 
 void KoopaTroopa::render(sf::RenderTarget& target) {
     Enemy::render(target);
+}
+
+bool KoopaTroopa::onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) {
+    (void)info;
+
+    // A flipped Koopa is already dying, and a held one is luggage: both fall
+    // through to the resolver's ordinary rules.
+    if (m_isFlipped || m_state == KoopaState::ShellHeld) return false;
+
+    // The rules the series has always used:
+    //   walking Koopa   stomp -> shell;      side/below -> damage
+    //   idle shell      stomp -> kick;       side  -> kick, or carry if running
+    //   sliding shell   stomp -> stop;       side  -> damage
+    //
+    // This used to live in CollisionResolver behind a dynamic_cast, and before
+    // that it picked up ANY unflipped Koopa on any non-stomp contact — so
+    // Koopas were the one enemy in the game that could not hurt you, and a
+    // kicked shell was harmless to its own kicker.
+    const KoopaState koopaState = m_state;
+
+    if (stomped) {
+        // onStomped() already knows all three cases: shell a walker, kick an
+        // idle shell, stop a sliding one.
+        player.setVelocity({player.getVelocity().x, -Constants::STOMP_BOUNCE_FORCE});
+        onStomped();
+        if (koopaState == KoopaState::Walking) {
+            player.incrementCombo();
+            player.addScore(getScoreValue() * player.getComboCounter());
+        }
+        return true;
+    }
+
+    // A shell you just launched slides out from under you. Without this,
+    // kicking or throwing one hurt you on the very next frame.
+    if (koopaState == KoopaState::ShellKicked && isHarmlessToKicker()) {
+        return true;
+    }
+
+    if (koopaState == KoopaState::ShellIdle) {
+        // Side contact with a resting shell. Holding run picks it up to carry;
+        // otherwise it is kicked away, which is what happens if you simply walk
+        // into one.
+        const float dx = player.getBoundingBox().getCenter().x -
+                         getBoundingBox().getCenter().x;
+        const float away = (dx >= 0.0f) ? -1.0f : 1.0f;
+
+        // Either "B button". The originals use one button for run and fire;
+        // this game splits them, and requiring specifically the run key made
+        // carrying a shell feel like it did not work.
+        InputManager& input = InputManager::getInstance();
+        const int pad = player.getPlayerIndex();
+        const bool grabHeld = player.isRunRequested() ||
+                              input.isActionHeld("run", pad) ||
+                              input.isActionHeld("fire", pad);
+        if (grabHeld && !player.getHeldEntity()) {
+            pickUp(&player);
+            player.holdEntity(this);
+        } else {
+            kick({away * Constants::KOOPA_SHELL_KICK_SPEED, velocity.y});
+            SoundManager::getInstance().playSound("kick");
+        }
+        return true;
+    }
+
+    // A walking Koopa or a shell already sliding: the ordinary side-contact
+    // damage path, like every other enemy.
+    return false;
 }
 
 void KoopaTroopa::onStomped() {

@@ -1,0 +1,72 @@
+# R5 (D8 / A-10) live run: the collision and physics dispatch refactor.
+#
+# Every dynamic_cast in CollisionResolver.cpp and PhysicsEngine.cpp was
+# replaced by a virtual hook on the entity (Item::onPlayerTouch,
+# Block::onCharacterTouch, Enemy::onPlayerTouch, Enemy::isHazardToEnemies,
+# Entity::isOnGround / isPhysicsDriven / reversesAtLevelEdge / onTileImpact /
+# ridesConveyors / applyHorizontalControl / beginPhysicsFrame, and
+# Player::getRunSpeed). Nothing here is new behaviour, so the point of the run
+# is that the *existing* behaviour still happens through the new dispatch.
+#
+# What this script is meant to exercise on World 1-1, in order:
+#   - Character::applyHorizontalControl: run right under LShift+D and actually
+#     accelerate (the whole locomotion body moved out of PhysicsEngine).
+#   - Enemy patrol + Entity::isPhysicsDriven: the Goomba at tile 12 walks left
+#     to meet the player.
+#   - Enemy::onPlayerTouch returning false -> the resolver's generic stomp:
+#     score goes up and the Goomba flips (a flipped enemy then reports
+#     isPhysicsDriven() == false and falls under its own animation).
+#   - resolveEntityVsTile through Entity::isOnGround: the staircase at tiles
+#     25-27 has to be climbable, which is the wall-slide/jump interaction the
+#     resolver's Character branch guards.
+#
+# HONESTY NOTE: --script replays fixed input with no positional feedback, so
+# whether a given jump lands on the Goomba drifts a little run to run. Read the
+# screenshots rather than assuming.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r5_collision_dispatch.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+shot r5_00_start
+hold LShift 7.0
+hold D 7.0
+press W
+wait 0.30
+shot r5_01_accelerating
+wait 0.30
+shot r5_02_airborne
+press W
+wait 0.30
+shot r5_03_landing
+wait 0.30
+press W
+wait 0.30
+shot r5_04_second_jump
+wait 0.30
+press W
+wait 0.35
+shot r5_05_after_second
+press W
+wait 0.6
+press W
+wait 0.6
+shot r5_06_stairs_approach
+press W
+wait 0.6
+press W
+wait 0.6
+shot r5_07_stairs_climb
+wait 1.0
+shot r5_08_past_stairs
+release D
+release LShift
+wait 0.6
+shot r5_09_stopped
+quit

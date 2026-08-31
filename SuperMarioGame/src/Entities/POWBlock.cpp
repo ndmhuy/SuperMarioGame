@@ -1,5 +1,6 @@
 #include "Entities/POWBlock.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Core/EventBus.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
@@ -54,4 +55,28 @@ void POWBlock::activate(Player& player) {
         collect();
         destroy();
     }
+}
+
+ItemTouch POWBlock::onPlayerTouch(Player& player, const CollisionInfo& info) {
+    // A strike is a hit from below (the arcade original) or a genuine descending
+    // stomp onto the top. Brushing past the side does nothing, and neither does
+    // resting on it — the descent-speed floor is what separates "landed on it"
+    // from "standing on it", the same distinction Boss::STOMP_MIN_DESCENT_SPEED
+    // draws.
+    //
+    // The approach speed is read here, before the resolver's push-out cancels
+    // it. activate() ignores the player entirely, so running it before the
+    // push-out rather than after is the same block being struck either way.
+    constexpr float MIN_STRIKE_DESCENT = 60.0f;
+    const float approachY = player.getVelocity().y;
+    const bool struckFromBelow = info.normal.y == 1.0f;
+    const bool stomped = info.normal.y == -1.0f && approachY >= MIN_STRIKE_DESCENT;
+    if (struckFromBelow || stomped) {
+        activate(player);
+    }
+
+    // Solid in every direction, exactly like a brick — the POW block is terrain
+    // you can stand on. It used to fall through Item's default pickup path, so
+    // walking sideways into it "collected" it.
+    return ItemTouch::Solid;
 }

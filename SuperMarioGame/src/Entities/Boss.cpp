@@ -3,6 +3,8 @@
 #include "Core/Game.hpp"
 #include "Core/SoundManager.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
+#include "Utils/Constants.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -73,6 +75,68 @@ void Boss::onHitByFireball() {
     // Fire does the same damage as a stomp. Overriding this is what makes a
     // boss immune to fire; Bowser and Boom Boom both take it.
     takeHit();
+}
+
+bool Boss::onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) {
+    (void)info;
+    // `stomped` is deliberately ignored. It is a *positional* test, true on
+    // every frame the player's feet are near the enemy's top, and the generic
+    // path it drives never separates the two boxes — so standing on BoomBoom
+    // held it true indefinitely. That paid score and combo every frame, landed
+    // a real hit every time the one-second i-frames lapsed, and never hurt the
+    // player, because takeDamage is only in the else branch. Three seconds of
+    // standing still won the fight. A boss asks for a real descent instead.
+    (void)stomped;
+
+    const bool descending = player.getVelocity().y > STOMP_MIN_DESCENT_SPEED;
+
+    // Bounce the player clear of the boss's box, so the next frame is not
+    // another contact frame. Without this the player never leaves and the whole
+    // cycle repeats.
+    auto bounceClear = [this, &player] {
+        player.setVelocity({player.getVelocity().x, -Constants::STOMP_BOUNCE_FORCE});
+        sf::Vector2f pos = player.getPosition();
+        pos.y = getBoundingBox().y - player.getBoundingBox().height - 1.0f;
+        player.setPosition(pos);
+    };
+
+    // A staggered boss has dropped its guard: contact does not hurt, and any
+    // contact at all lands a hit. This is the opening the fight is built around
+    // — requiring a fast descending stomp *and* a stagger would mean the player
+    // has to solve both problems in the same three seconds, which is the
+    // difficulty the stagger exists to remove.
+    if (isStaggered()) {
+        const bool landed = tryStomp();
+        bounceClear();
+        if (landed) {
+            player.incrementCombo();
+            player.addScore(getScoreValue() * player.getComboCounter());
+        }
+        return true;
+    }
+
+    // Resting on the boss is not an attack. While its i-frames run, or while the
+    // player is not actually falling onto it, contact is contact — it hurts,
+    // exactly as touching its side does.
+    if (!descending || isInvulnerable()) {
+        const float dx = player.getBoundingBox().getCenter().x -
+                         getBoundingBox().getCenter().x;
+        const float direction = (dx >= 0.0f) ? 1.0f : -1.0f;
+        player.setVelocity({direction * Constants::KNOCKBACK_FORCE_X,
+                            -Constants::KNOCKBACK_FORCE_Y});
+        player.takeDamage(1);
+        return true;
+    }
+
+    // A genuine descending impact. Pay out only if the hit actually landed —
+    // tryStomp() reports that, and it was once ignored.
+    const bool landed = tryStomp();
+    bounceClear();
+    if (landed) {
+        player.incrementCombo();
+        player.addScore(getScoreValue() * player.getComboCounter());
+    }
+    return true;
 }
 
 void Boss::stagger(float seconds) {

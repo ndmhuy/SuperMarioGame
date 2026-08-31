@@ -21,6 +21,7 @@ public:
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
+    ItemTouch onPlayerTouch(Player& player, const CollisionInfo& info) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
     // Strikes left before the block is spent. Three is the arcade figure, and it

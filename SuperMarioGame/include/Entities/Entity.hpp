@@ -10,6 +10,7 @@
 
 class PhysicsEngine;
 class CollisionResolver;
+struct CollisionInfo;
 
 // Broad kind of an entity, reported by the entity itself.
 //
@@ -50,6 +51,50 @@ public:
     void revive() { active = true; }
     virtual float getGravityMultiplier() const { return 1.0f; }
 
+    // Is this entity resting on something solid?
+    //
+    // Characters and Items each already answered this, with the same name and
+    // signature, but neither answer was reachable through an Entity& — so
+    // PhysicsEngine::applyGravity ran a dynamic_cast to Character and another to
+    // Item just to ask (audit A-10 / D8). Everything else (blocks, projectiles)
+    // never rests on anything, so the base answer is "no" and gravity applies.
+    virtual bool isOnGround() const { return false; }
+
+    // Is this entity carried along by a conveyor tile it stands on?
+    // Only characters ride conveyors; PhysicsEngine used to establish that with
+    // a dynamic_cast (audit A-10 / D8).
+    virtual bool ridesConveyors() const { return false; }
+
+    // Apply this entity's own horizontal acceleration, braking and friction for
+    // the frame.
+    //
+    // The engine owns the environment: it reads the surface under the entity's
+    // feet and passes in the resulting deceleration rate. The entity owns what
+    // it does with it. Only characters accelerate under intent — items and
+    // blocks keep the horizontal velocity they were given, which is what makes
+    // a walking mushroom walk.
+    virtual void applyHorizontalControl(float dt, float groundDecel) {
+        (void)dt;
+        (void)groundDecel;
+    }
+
+    // Clear the per-frame contact flags before this frame's collision passes.
+    // Called after applyHorizontalControl(), which still needs to read them.
+    virtual void beginPhysicsFrame() {}
+
+    // Clear this frame's movement intent. Called at the very end of the physics
+    // update, once acceleration and collision resolution have both had their
+    // look at it. Entities with no intent to express do nothing.
+    virtual void clearMovementRequests() {}
+
+    // Does the physics engine own this entity's motion this frame?
+    //
+    // A dead or held enemy is driven by its own death or carry animation, so
+    // gravity and tile collision must leave it alone. PhysicsEngine asked this
+    // three times per frame — once in the gravity pass and once in each of the
+    // X and Y integration passes — with a dynamic_cast to Enemy each time.
+    virtual bool isPhysicsDriven() const { return true; }
+
     // What kind of thing this is, for collision dispatch. Overridden once per
     // base class (Player, Enemy, Item, Block, Fireball) — concrete subclasses
     // inherit it.
@@ -62,6 +107,21 @@ public:
     // a plain "koopa_troopa".
     virtual std::string getTypeName() const { return "unknown"; }
     virtual bool collidesWithTiles() const { return true; }
+
+    // Answer a collision with the tile map on this entity's own terms.
+    //
+    // Returns true if the entity consumed the impact, in which case the
+    // resolver's push-out does not run. A fireball bursts against a wall and
+    // bounces off a floor; PhysicsEngine used to encode that itself, behind a
+    // dynamic_cast to Fireball in each of the X and Y passes (audit A-10 / D8).
+    virtual bool onTileImpact(const CollisionInfo& info) { (void)info; return false; }
+
+    // What this entity does when it reaches the edge of the level.
+    //
+    // A patrolling enemy turns around; a player or an item simply stops against
+    // the border. PhysicsEngine asked with a dynamic_cast to Enemy at each of
+    // the two borders (audit A-10 / D8).
+    virtual bool reversesAtLevelEdge() const { return false; }
 
     // Whether this entity takes part in entity-vs-entity collision right now.
     //

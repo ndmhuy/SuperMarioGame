@@ -6,6 +6,9 @@
 #include "Graphics/SpriteSheet.hpp"
 #include <memory>
 
+class Player;
+struct CollisionInfo;
+
 class Enemy : public Character {
 public:
     bool hasArtwork() const override { return m_animator && m_hasAnimation; }
@@ -31,6 +34,27 @@ public:
     virtual void onStomped() = 0;
     virtual void onHitByFireball() = 0;
 
+    // Answer a player's touch on this enemy's own terms, before the generic
+    // rules run. Returns true if the enemy fully handled the contact; false
+    // leaves the player on the ordinary path — a stomp defeats the enemy and
+    // bounces the player, anything else hurts the player.
+    //
+    // `stomped` is the resolver's positional stomp test, computed once from
+    // both bounding boxes. An enemy needing a different test may ignore it: a
+    // boss wants a genuine descending impact, not a resting foot.
+    //
+    // KoopaTroopa (shells, kicks and carries) and Boss (i-frames, staggers)
+    // used to be named inside the resolver by dynamic_cast (audit A-10 / D8).
+    virtual bool onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped);
+
+    // Is this enemy currently a moving hazard to *other* enemies?
+    //
+    // A shell sliding after a kick clears everything it touches; ordinary
+    // walkers ignore each other, as in the original games. The resolver used to
+    // answer this with a dynamic_cast to KoopaTroopa plus a shell-state test
+    // (audit A-10 / D8, and B-8 for the missing case itself).
+    virtual bool isHazardToEnemies() const { return false; }
+
     EntityCategory getCategory() const override { return EntityCategory::Enemy; }
 
     // Score properties
@@ -53,6 +77,12 @@ public:
     void triggerDownwardDeath(sf::Vector2f launchVel = {0.0f, 150.0f});
     bool isCollidable() const override;
     bool collidesWithTiles() const override { return !m_isFlipped && !m_isDyingDownward; }
+    // A dead or held enemy plays out its own death or carry animation; gravity
+    // and tile collision must not touch it in the meantime.
+    bool isPhysicsDriven() const override { return !isDeadOrDying(); }
+    // Patrol enemies turn around at the level border rather than piling up
+    // against it.
+    bool reversesAtLevelEdge() const override { return true; }
 
 protected:
     // Despawn plane for a flipped/falling enemy: one tile below the current

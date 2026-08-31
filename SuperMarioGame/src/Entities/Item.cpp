@@ -17,6 +17,13 @@ void Item::collect() {
     destroy();
 }
 
+ItemTouch Item::onPlayerTouch(Player& player, const CollisionInfo& info) {
+    // The ordinary powerup: walking into it picks it up, from any direction.
+    (void)player;
+    (void)info;
+    return ItemTouch::Collect;
+}
+
 void Item::setupAnimations(const SpriteSheet* spriteSheet) {
     if (!spriteSheet) return;
     m_spriteSheet = spriteSheet;

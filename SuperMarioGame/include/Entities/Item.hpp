@@ -6,6 +6,19 @@
 #include <memory>
 
 class Player;
+struct CollisionInfo;
+
+// What a player's touch does to an item.
+//
+// The resolver used to name Trampoline, POWBlock and PSwitch by hand, with one
+// dynamic_cast each, to find out which of these three answers applied (audit
+// A-10 / D8). The item now answers for itself, and the resolver still owns
+// every line that moves the player.
+enum class ItemTouch {
+    Collect,   // the ordinary powerup: activate() then collect()
+    Solid,     // terrain: push the player out and cancel velocity along the normal
+    Consumed   // the item has fully answered the contact; no physical response
+};
 
 class Item : public Entity {
 public:
@@ -22,6 +35,14 @@ public:
     // Collect/Apply powerup callbacks
     virtual void activate(Player& player);
     virtual void collect();
+
+    // Answer a player's touch on this item's own terms.
+    //
+    // Called by CollisionResolver once per contact, before any physical
+    // response. An override may act on the player (activate it, bounce it) and
+    // must then say what the resolver should do about the overlap. An item with
+    // new contact rules overrides this; the resolver never learns its name.
+    virtual ItemTouch onPlayerTouch(Player& player, const CollisionInfo& info);
     virtual void setupAnimations(const SpriteSheet* spriteSheet);
 
     void update(float dt) override;
@@ -30,8 +51,11 @@ public:
 
     // Ground status & read-only getter
     bool isCollected() const { return collected; }
-    bool isOnGround() const { return m_onGround; }
+    bool isOnGround() const override { return m_onGround; }
     void setOnGround(bool grounded) { m_onGround = grounded; }
+    // Items do not accelerate under intent, but their ground flag is recomputed
+    // every frame like a character's.
+    void beginPhysicsFrame() override { m_onGround = false; }
 
 protected:
     bool collected = false;

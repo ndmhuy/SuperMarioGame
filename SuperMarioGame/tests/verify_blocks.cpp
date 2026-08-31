@@ -7,6 +7,10 @@
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/HiddenBlock.hpp"
+#include "Entities/POWBlock.hpp"
+#include "Entities/PSwitch.hpp"
+#include "Entities/Mushroom.hpp"
 #include "Entities/Player.hpp"
 #include "Entities/IPlayerState.hpp"
 #include "Core/EventBus.hpp"
@@ -199,6 +203,119 @@ int main() {
         assert(player2.getScore() == 100);
 
         std::cout << "[TEST] Flagpole tests PASSED!" << std::endl;
+    }
+
+    // -------------------------------------------------------------
+    // Test 5: R5 (D8) — the contact rules that moved out of the resolver
+    // -------------------------------------------------------------
+    //
+    // CollisionResolver used to name HiddenBlock, Flagpole, POWBlock and PSwitch
+    // by dynamic_cast, one branch each. Those four branches are now
+    // Block::onCharacterTouch and Item::onPlayerTouch overrides, and nothing in
+    // the suite pinned any of them — so a wrong return value would have been
+    // invisible. These checks go through the same resolver entry points the
+    // engine uses, not through the overrides directly.
+    //
+    // They deliberately do NOT use assert(). This target is built with
+    // -DNDEBUG (the shared Release configuration), which compiles every
+    // assert() in this file away to nothing — so the sections above pass
+    // vacuously. r5check() reports and fails the process for real.
+    {
+        std::cout << "[TEST] Running R5 dispatch-hook tests..." << std::endl;
+
+        int r5Failures = 0;
+        auto r5check = [&r5Failures](bool condition, const char* what) {
+            std::cout << (condition ? "  [ ok ] " : "  [FAIL] ") << what << std::endl;
+            if (!condition) ++r5Failures;
+        };
+
+        CollisionInfo fromBelow;   // player's head hits the underside
+        fromBelow.collided = true;
+        fromBelow.normal = { 0.f, 1.f };
+        fromBelow.overlap = { 0.f, 4.f };
+
+        CollisionInfo fromSide;    // player walks into the left face
+        fromSide.collided = true;
+        fromSide.normal = { -1.f, 0.f };
+        fromSide.overlap = { 4.f, 0.f };
+
+        // 5.1: an unrevealed HiddenBlock is solid only from underneath.
+        {
+            HiddenBlock hidden({ 200.f, 200.f });
+            TestPlayer sideRunner;
+            sideRunner.setPosition({ 172.f, 200.f });
+            const sf::Vector2f before = sideRunner.getPosition();
+            resolver.resolveCharacterVsBlock(sideRunner, hidden, fromSide);
+            r5check(!hidden.isRevealed(),
+                    "an unrevealed hidden block is not revealed by side contact");
+            r5check(std::abs(sideRunner.getPosition().x - before.x) < 0.001f,
+                    "and does not displace the runner: invisible geometry is not solid");
+
+            TestPlayer headButter;
+            headButter.setPosition({ 200.f, 232.f });
+            resolver.resolveCharacterVsBlock(headButter, hidden, fromBelow);
+            r5check(hidden.isRevealed(), "but a hit from below reveals it");
+        }
+
+        // 5.2: a Flagpole triggers on contact and never blocks the player.
+        {
+            Flagpole pole({ 400.f, 100.f }, 300.f);
+            TestPlayer runner;
+            runner.setPosition({ 396.f, 300.f });
+            const sf::Vector2f before = runner.getPosition();
+            resolver.resolveCharacterVsBlock(runner, pole, fromSide);
+            r5check(pole.isTriggered(), "running into a flagpole triggers it");
+            r5check(runner.getScore() > 0, "and pays the catch-height score");
+            r5check(std::abs(runner.getPosition().x - before.x) < 0.001f,
+                    "without physically blocking the player");
+        }
+
+        // 5.3: a POW block is terrain, struck only from below or by a real stomp.
+        {
+            POWBlock pow({ 500.f, 200.f });
+            TestPlayer brusher;
+            brusher.setPosition({ 468.f, 200.f });
+            const sf::Vector2f before = brusher.getPosition();
+            resolver.resolvePlayerVsItem(brusher, pow, fromSide);
+            r5check(pow.getChargesLeft() == 3, "brushing a POW block's side is not a strike");
+            r5check(!pow.isCollected(), "nor is it a pickup");
+            r5check(std::abs(brusher.getPosition().x - before.x) > 0.001f,
+                    "but it is solid, so the player is pushed back out");
+
+            TestPlayer striker;
+            striker.setPosition({ 500.f, 232.f });
+            resolver.resolvePlayerVsItem(striker, pow, fromBelow);
+            r5check(pow.getChargesLeft() == 2, "a hit from below spends one charge");
+        }
+
+        // 5.4: a P-Switch is pressed by any contact and stays solid underfoot.
+        {
+            PSwitch pswitch({ 600.f, 200.f });
+            TestPlayer presser;
+            presser.setPosition({ 568.f, 200.f });
+            const sf::Vector2f before = presser.getPosition();
+            resolver.resolvePlayerVsItem(presser, pswitch, fromSide);
+            r5check(pswitch.isCollected(), "touching a P-Switch presses it");
+            r5check(std::abs(presser.getPosition().x - before.x) > 0.001f,
+                    "and the squished switch is still solid to stand on");
+        }
+
+        // 5.5: an ordinary powerup still falls through to the default collect.
+        {
+            Mushroom shroom({ 700.f, 200.f });
+            TestPlayer collector;
+            collector.setPosition({ 668.f, 200.f });
+            resolver.resolvePlayerVsItem(collector, shroom, fromSide);
+            r5check(shroom.isCollected(),
+                    "an ordinary powerup is still collected from any direction");
+        }
+
+        if (r5Failures > 0) {
+            std::cout << "[TEST] R5 dispatch-hook tests FAILED (" << r5Failures
+                      << " checks)" << std::endl;
+            return 1;
+        }
+        std::cout << "[TEST] R5 dispatch-hook tests PASSED!" << std::endl;
     }
 
     std::cout << "[TEST] All Block Verification Tests PASSED successfully!" << std::endl;

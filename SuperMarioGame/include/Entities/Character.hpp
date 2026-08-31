@@ -20,7 +20,7 @@ public:
     int getHealth() const { return health; }
     float getSpeed() const { return speed; }
     float getJumpForce() const { return jumpForce; }
-    bool isOnGround() const { return onGround; }
+    bool isOnGround() const override { return onGround; }
     // Set the grounded flag outside the collision pass — used when teleporting or
     // respawning a character, and by the regression tests. Prefer this to reaching
     // in through friendship.
@@ -35,7 +35,23 @@ public:
     // Intent request flags for physics loop
     bool isMoveLeftRequested() const { return m_moveLeftRequested; }
     bool isMoveRightRequested() const { return m_moveRightRequested; }
-    virtual void clearMovementRequests();
+    void clearMovementRequests() override;
+
+    // Characters are the things that walk, so they are the things a conveyor
+    // carries.
+    bool ridesConveyors() const override { return true; }
+
+    // The locomotion the physics engine used to run on a dynamic_cast<Character*>.
+    void applyHorizontalControl(float dt, float groundDecel) override;
+    void beginPhysicsFrame() override;
+
+    // The horizontal speed cap for this frame. An enemy uses its tuned walk
+    // speed; a Player raises it while the run button is held.
+    virtual float getCurrentMaxSpeed() const { return speed; }
+
+    // Is this character managing its own horizontal velocity right now, so that
+    // passive friction must keep out of it? True for a crouch slide.
+    virtual bool suppressesGroundFriction() const { return false; }
 
 protected:
     // Friends for controlled physics write access

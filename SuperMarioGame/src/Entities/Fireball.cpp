@@ -1,5 +1,6 @@
 #include "Entities/Fireball.hpp"
 #include "Entities/Enemy.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Graphics/ParticleSystem.hpp"
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/CircleShape.hpp>
@@ -95,6 +96,19 @@ void Fireball::bounce() {
     if (m_bouncesLeft <= 0) {
         beginImpact();
     }
+}
+
+bool Fireball::onTileImpact(const CollisionInfo& info) {
+    // Landing on a floor bounces the shot along; a wall or a ceiling ends it.
+    // Tile normals are single-axis, so a wall contact arrives with normal.y == 0
+    // and correctly falls into the destroy case.
+    if (info.normal.y == -1.0f) {
+        bounce();
+    } else {
+        destroy();
+    }
+    // Consumed either way: a fireball is never pushed back out of a tile.
+    return true;
 }
 
 void Fireball::update(float dt) {

@@ -46,6 +46,11 @@ void Toad::render(sf::RenderTarget& target) {
     }
 }
 
+float Toad::getRunSpeed() const {
+    // Toad's whole identity is speed: 30% faster than anyone else at a sprint.
+    return Constants::RUN_SPEED * 1.3f;
+}
+
 std::string Toad::getCharacterName() const {
     return "toad";
 }

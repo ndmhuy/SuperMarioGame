@@ -17,6 +17,7 @@ public:
 
     void floatHover();
     float getGravityMultiplier() const override;
+    float getRunSpeed() const override;
     std::string getCharacterName() const override;
 
 private:

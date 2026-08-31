@@ -1,5 +1,6 @@
 #include "Entities/Trampoline.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Core/SoundManager.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/CircleShape.hpp>
@@ -77,6 +78,17 @@ void Trampoline::activate(Player& player) {
     player.setVelocity(vel);
 
     SoundManager::getInstance().playSound("boing");
+}
+
+ItemTouch Trampoline::onPlayerTouch(Player& player, const CollisionInfo& info) {
+    // A trampoline only launches a player who comes down onto it. Reached from
+    // the side or from underneath it is just a solid box, which is what stops
+    // it from flinging anyone who brushes past it while rising.
+    if (info.normal.y == -1.0f || player.getVelocity().y >= 0.0f) {
+        activate(player);
+        return ItemTouch::Consumed;   // activate() already set the launch velocity
+    }
+    return ItemTouch::Solid;
 }
 
 void Trampoline::collect() {

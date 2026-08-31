@@ -29,6 +29,7 @@ public:
 
     bool damagesEnemies() const override { return true; }
     void onHitEnemy(Enemy& enemy) override;
+    bool onTileImpact(const CollisionInfo& info) override;
 
     float getLifetime() const { return m_lifetime; }
     int getBouncesLeft() const { return m_bouncesLeft; }

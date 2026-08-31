@@ -1,19 +1,11 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Entities/Entity.hpp"
-#include "Entities/Character.hpp"
 #include "Entities/Player.hpp"
-#include "Entities/Enemy.hpp"
-#include "Entities/Luigi.hpp"
-#include "Entities/Toad.hpp"
-#include "Entities/Peach.hpp"
-#include "Entities/Fireball.hpp"
-#include "Entities/Item.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/EventBus.hpp"
 #include "Graphics/ParticleEmitter.hpp"
-#include "Utils/MathUtils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <unordered_set>
@@ -21,16 +13,10 @@
 #include <utility>
 
 void PhysicsEngine::applyGravity(Entity& entity, float dt) {
-    if (auto character = dynamic_cast<Character*>(&entity)) {
-        if (character->onGround) {
-            return;
-        }
-    }
-    if (auto item = dynamic_cast<Item*>(&entity)) {
-        if (item->isOnGround()) {
-            return;
-        }
-    }
+    // Anything resting on something solid is not falling. Characters and Items
+    // both answer this through Entity::isOnGround(); everything else says no.
+    if (entity.isOnGround()) return;
+
     // Acceleration: 0.5 px/frame^2 at 60 FPS is 1800 px/s^2
     entity.velocity.y += Constants::GRAVITY * Constants::GRAVITY_SCALE * entity.getGravityMultiplier() * dt;
     if (entity.velocity.y > Constants::TERMINAL_VELOCITY) {
@@ -49,22 +35,24 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 1. Apply previous frame's conveyor push using the ground status from the previous frame
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto character = dynamic_cast<Character*>(entity.get())) {
-            if (character->onGround) {
-                float cx = character->position.x + character->boundingBox.width / 2.0f;
-                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
-                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
-                    character->position.x += Constants::CONVEYOR_SPEED * dt;
-                    character->boundingBox.x = character->position.x;
-                }
-            }
+        if (!entity->ridesConveyors() || !entity->isOnGround()) continue;
+
+        float cx = entity->position.x + entity->boundingBox.width / 2.0f;
+        float feetY = entity->position.y + entity->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
+        if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
+            entity->position.x += Constants::CONVEYOR_SPEED * dt;
+            entity->boundingBox.x = entity->position.x;
         }
     }
 
     // 1.1. Check non-solid interactive tile pickups (Coin tile collection)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto player = dynamic_cast<Player*>(entity.get())) {
+        // Only a player collects coins. The category is the exact answer — it is
+        // overridden once, by Player, for its whole subtree — and it costs a
+        // virtual call rather than a walk of the RTTI hierarchy (audit A-10 / D8).
+        if (entity->getCategory() == EntityCategory::Player) {
+            Player* player = static_cast<Player*>(entity.get());
             AABB pBox = player->getBoundingBox();
             int startX = static_cast<int>(std::floor(pBox.x / Constants::TILE_SIZE));
             int endX = static_cast<int>(std::floor((pBox.x + pBox.width) / Constants::TILE_SIZE));
@@ -84,79 +72,43 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         }
     }
 
-    // 1.5. Apply character-specific horizontal acceleration, deceleration, and friction
+
+
+    // 1.5. Let each entity apply its own horizontal acceleration, braking and
+    // friction, then clear its per-frame contact flags.
+    //
+    // This loop used to be a dynamic_cast<Character*> wrapping fifty lines of
+    // locomotion, with three more casts inside it to find out which player
+    // character was running and whether it was mid-crouch-slide (audit A-10 /
+    // D8). The engine now owns only the part that is genuinely the
+    // environment's — how hard the surface underfoot brakes — and hands that
+    // number to the entity.
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto character = dynamic_cast<Character*>(entity.get())) {
-            float maxSpeed = character->getSpeed();
-            
-            // Check if player is running to scale their max horizontal speed
-            if (auto player = dynamic_cast<Player*>(character)) {
-                if (player->isRunRequested()) {
-                    maxSpeed = Constants::RUN_SPEED;
-                    if (dynamic_cast<Luigi*>(player)) maxSpeed *= Constants::LUIGI_SPEED_MULT;
-                    else if (dynamic_cast<Toad*>(player)) maxSpeed = Constants::RUN_SPEED * 1.3f;
-                    else if (dynamic_cast<Peach*>(player)) maxSpeed *= 0.9f;
-                }
-            }
 
-            float accelRate = 1000.0f; // px/s^2 (0 -> 150 px/s in 0.15s)
-            float decelRate = character->onGround ? 1000.0f : 300.0f;
-
-            // Ice platform check: reduced friction
-            if (character->onGround) {
-                float cx = character->position.x + character->boundingBox.width / 2.0f;
-                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
-                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
-                    decelRate = 250.0f; // Slide further on ice!
-                }
+        // Airborne control is weaker than ground friction, and ice is slippery.
+        float groundDecel = entity->isOnGround() ? 1000.0f : 300.0f;
+        if (entity->isOnGround()) {
+            float cx = entity->position.x + entity->boundingBox.width / 2.0f;
+            float feetY = entity->position.y + entity->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
+            if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
+                groundDecel = 250.0f; // Slide further on ice!
             }
-
-            // Check if player is currently in a crouch slide (handled internally by Player::update)
-            bool isPlayerCrouchingOrSliding = false;
-            if (auto player = dynamic_cast<Player*>(character)) {
-                isPlayerCrouchingOrSliding = player->isCrouched() || player->isSliding();
-            }
-
-            // Process movement requests
-            if (character->isMoveLeftRequested()) {
-                character->velocity.x -= accelRate * dt;
-                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
-            }
-            else if (character->isMoveRightRequested()) {
-                character->velocity.x += accelRate * dt;
-                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
-            }
-            else if (!isPlayerCrouchingOrSliding) {
-                // Apply passive friction decay towards 0
-                if (character->velocity.x > 0.0f) {
-                    character->velocity.x -= decelRate * dt;
-                    if (character->velocity.x < 0.0f) character->velocity.x = 0.0f;
-                } else if (character->velocity.x < 0.0f) {
-                    character->velocity.x += decelRate * dt;
-                    if (character->velocity.x > 0.0f) character->velocity.x = 0.0f;
-                }
-            }
-
-            // Intent flags are NOT cleared here. They describe what the player
-            // asked for this frame, and collision resolution at the end of this
-            // same update() reads them: "hold run to carry a shell instead of
-            // kicking it" could never fire, because run had already been wiped
-            // by the time the resolver looked. Cleared at the end of update()
-            // instead, once everything that consumes them has run.
-
-            // Reset ground/wall flags for the new collision detection pass.
-            // Preserve the incoming value first: the X pass runs before the Y
-            // pass that recomputes onGround, so it would otherwise see false for
-            // every character, grounded or not.
-            character->wasOnGround = character->onGround;
-            character->onGround = false;
-            character->onWall = false;
-        } else if (auto item = dynamic_cast<Item*>(entity.get())) {
-            item->setOnGround(false);
         }
-    }
 
+        entity->applyHorizontalControl(dt, groundDecel);
+
+        // Intent flags are NOT cleared here. They describe what the player
+        // asked for this frame, and collision resolution at the end of this
+        // same update() reads them: "hold run to carry a shell instead of
+        // kicking it" could never fire, because run had already been wiped
+        // by the time the resolver looked. Cleared at the end of update()
+        // instead, once everything that consumes them has run.
+        //
+        // The *contact* flags do get reset here, ready for this frame's
+        // collision passes — after applyHorizontalControl(), which reads them.
+        entity->beginPhysicsFrame();
+    }
 
     // 2. Apply gravity and environmental forces
     for (const auto& entity : entities) {
@@ -164,10 +116,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         // Zero-gravity entities (blocks, flying/scripted enemies) opt out entirely.
         if (entity->getGravityMultiplier() <= 0.0f) continue;
         // Dead or held enemies are driven by their own death/carry animation, not physics.
-        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
-            if (enemy->isDeadOrDying()) continue;
-        }
-
+        if (!entity->isPhysicsDriven()) continue;
 
         // Check if entity is in water (tile type 7)
         float cx = entity->position.x + entity->boundingBox.width / 2.0f;
@@ -187,9 +136,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 3. Integrate X and resolve X collisions with the tile map (only resolve max horizontal overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
-            if (enemy->isDeadOrDying()) continue;
-        }
+        if (!entity->isPhysicsDriven()) continue;
 
         entity->position.x += entity->velocity.x * dt;
         entity->boundingBox.x = entity->position.x;
@@ -208,21 +155,15 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
             }
         }
 
-        if (maxCollision.collided) {
-            if (auto fireball = dynamic_cast<Fireball*>(entity.get())) {
-                fireball->destroy();
-            } else {
-                m_resolver.resolveEntityVsTile(*entity, maxCollision);
-            }
+        if (maxCollision.collided && !entity->onTileImpact(maxCollision)) {
+            m_resolver.resolveEntityVsTile(*entity, maxCollision);
         }
     }
 
     // 4. Integrate Y and resolve Y collisions with the tile map (only resolve max vertical overlap)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto enemy = dynamic_cast<Enemy*>(entity.get())) {
-            if (enemy->isDeadOrDying()) continue;
-        }
+        if (!entity->isPhysicsDriven()) continue;
 
         float preVelY = entity->velocity.y;
         entity->position.y += entity->velocity.y * dt;
@@ -243,21 +184,18 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         }
 
         if (maxCollision.collided) {
-            if (auto fireball = dynamic_cast<Fireball*>(entity.get())) {
-                if (maxCollision.normal.y == -1.0f) {
-                    fireball->bounce();
-                } else {
-                    fireball->destroy();
-                }
-            } else {
+            // The entity gets first refusal on the impact: a fireball bursts or
+            // bounces instead of being pushed out of the tile.
+            if (!entity->onTileImpact(maxCollision)) {
                 m_resolver.resolveEntityVsTile(*entity, maxCollision);
 
                 // Head-butt logic for Player hitting ceiling tiles from below.
                 // Shadow Mario is excluded: it replays the player's path, so it
                 // would punch out every question block and brick the player had
                 // already jumped under, three seconds behind them.
-                if (auto player = dynamic_cast<Player*>(entity.get());
-                    player && !player->isContactHazard()) {
+                if (entity->getCategory() == EntityCategory::Player &&
+                    !entity->isContactHazard()) {
+                    Player* player = static_cast<Player*>(entity.get());
                     for (const auto& col : collisions) {
                         // Only a ceiling contact counts as a head-butt. The old
                         // condition also accepted `preVelY < 0.0f`, which is true for
@@ -312,11 +250,8 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         if (pos.x < 0.0f) {
             pos.x = 0.0f;
             if (vel.x < 0.0f) {
-                if (dynamic_cast<Enemy*>(entity.get())) {
-                    vel.x = -vel.x; // Patrol enemy turns around at left map border
-                } else {
-                    vel.x = 0.0f;   // Player/Item stops at left map border
-                }
+                // Patrol enemies turn around; players and items stop dead.
+                vel.x = entity->reversesAtLevelEdge() ? -vel.x : 0.0f;
             }
             entity->setPosition(pos);
             entity->setVelocity(vel);
@@ -325,11 +260,7 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         else if (pos.x + width > maxMapX && maxMapX > 0.0f) {
             pos.x = maxMapX - width;
             if (vel.x > 0.0f) {
-                if (dynamic_cast<Enemy*>(entity.get())) {
-                    vel.x = -vel.x; // Patrol enemy turns around at right map border
-                } else {
-                    vel.x = 0.0f;   // Player/Item stops at right map border
-                }
+                vel.x = entity->reversesAtLevelEdge() ? -vel.x : 0.0f;
             }
             entity->setPosition(pos);
             entity->setVelocity(vel);
@@ -380,8 +311,6 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // both had their look at them.
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto character = dynamic_cast<Character*>(entity.get())) {
-            character->clearMovementRequests();
-        }
+        entity->clearMovementRequests();
     }
 }

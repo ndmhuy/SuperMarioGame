@@ -6,6 +6,10 @@
 #include "Entities/KoopaTroopa.hpp"
 #include "Entities/KoopaParatroopa.hpp"
 #include "Entities/Boo.hpp"
+#include "Entities/BoomBoom.hpp"
+#include "Entities/Mario.hpp"
+#include "Physics/CollisionResolver.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Core/EventBus.hpp"
 #include "Utils/Constants.hpp"
 
@@ -231,6 +235,109 @@ int main() {
         assert(!boo.collidesWithTiles());
 
         std::cout << "[TEST] Boo tests PASSED!" << std::endl;
+    }
+
+    // -------------------------------------------------------------
+    // Test 5: R5 (D8) — the enemy contact rules that moved out of the resolver
+    // -------------------------------------------------------------
+    //
+    // resolvePlayerVsEnemy used to find KoopaTroopa and Boss with a
+    // dynamic_cast each; resolveEnemyVsEnemy used two more to spot a sliding
+    // shell. Those are now Enemy::onPlayerTouch and Enemy::isHazardToEnemies
+    // overrides. The Koopa rules are pinned by verify_regressions; the boss
+    // rules and the shell-vs-enemy case were pinned by nothing at all.
+    //
+    // No assert() here on purpose: this target is built with -DNDEBUG (the
+    // shared Release configuration), which compiles every assert() in the
+    // sections above away to nothing, so they pass vacuously.
+    {
+        std::cout << "[TEST] Running R5 enemy-dispatch tests..." << std::endl;
+
+        int r5Failures = 0;
+        auto r5check = [&r5Failures](bool condition, const char* what) {
+            std::cout << (condition ? "  [ ok ] " : "  [FAIL] ") << what << std::endl;
+            if (!condition) ++r5Failures;
+        };
+
+        CollisionResolver resolver;
+        CollisionInfo fromAbove;
+        fromAbove.collided = true;
+        fromAbove.normal = { 0.0f, -1.0f };
+        fromAbove.overlap = { 0.0f, 4.0f };
+
+        // Standing on a boss is not an attack: it hurts, and pays nothing. This
+        // is the bug the boss branch exists for — a positional stomp test held
+        // true every frame the player rested on BoomBoom, so three seconds of
+        // standing still used to win the fight.
+        {
+            BoomBoom boss({ 400.0f, 400.0f });
+            Mario player({ 400.0f, 368.0f });
+            player.setVelocity({ 0.0f, 0.0f });    // resting, not descending
+            const int healthBefore = boss.getHealth();
+            const int scoreBefore = player.getScore();
+            resolver.resolvePlayerVsEnemy(player, boss, fromAbove);
+            r5check(boss.getHealth() == healthBefore,
+                    "resting on a boss does not damage it");
+            r5check(player.getScore() == scoreBefore,
+                    "and pays no score");
+            r5check(player.getInvincibilityTimer() > 0.0f,
+                    "it damages the player instead");
+        }
+
+        // A genuine descending impact does land, and pays out.
+        {
+            BoomBoom boss({ 400.0f, 400.0f });
+            Mario player({ 400.0f, 368.0f });
+            player.setVelocity({ 0.0f, 200.0f });  // falling fast onto it
+            const int healthBefore = boss.getHealth();
+            resolver.resolvePlayerVsEnemy(player, boss, fromAbove);
+            r5check(boss.getHealth() == healthBefore - 1,
+                    "a fast descending stomp costs a boss one health");
+            r5check(player.getScore() > 0, "and pays the score for it");
+            r5check(player.getVelocity().y < 0.0f, "and bounces the player up");
+            r5check(player.getPosition().y + player.getBoundingBox().height <=
+                        boss.getBoundingBox().y,
+                    "clear of the boss's box, so the next frame is not another hit");
+
+            // Its i-frames now run, so an immediate second contact is contact,
+            // not a hit — which is what stops one stomp draining the whole bar.
+            Mario second({ 400.0f, 368.0f });
+            second.setVelocity({ 0.0f, 200.0f });
+            const int healthAfterFirst = boss.getHealth();
+            resolver.resolvePlayerVsEnemy(second, boss, fromAbove);
+            r5check(boss.getHealth() == healthAfterFirst,
+                    "a second stomp inside the i-frames costs it nothing");
+            r5check(second.getInvincibilityTimer() > 0.0f,
+                    "and hurts whoever tried");
+        }
+
+        // A kicked shell clears other enemies; two walkers ignore each other.
+        {
+            KoopaTroopa shell({ 200.0f, 200.0f });
+            shell.onStomped();                      // Walking -> ShellIdle
+            shell.kick({ 300.0f, 0.0f });           // ShellIdle -> ShellKicked
+            r5check(shell.isHazardToEnemies(),
+                    "a kicked shell reports itself a hazard to other enemies");
+
+            Goomba victim({ 220.0f, 200.0f });
+            resolver.resolveEnemyVsEnemy(shell, victim);
+            r5check(victim.isDeadOrDying(), "and clears a Goomba it slides into");
+
+            Goomba walkerA({ 300.0f, 200.0f });
+            Goomba walkerB({ 320.0f, 200.0f });
+            r5check(!walkerA.isHazardToEnemies(),
+                    "an ordinary walker is not a hazard to other enemies");
+            resolver.resolveEnemyVsEnemy(walkerA, walkerB);
+            r5check(!walkerA.isDeadOrDying() && !walkerB.isDeadOrDying(),
+                    "so two walkers meeting ignore each other");
+        }
+
+        if (r5Failures > 0) {
+            std::cout << "[TEST] R5 enemy-dispatch tests FAILED (" << r5Failures
+                      << " checks)" << std::endl;
+            return 1;
+        }
+        std::cout << "[TEST] R5 enemy-dispatch tests PASSED!" << std::endl;
     }
 
     std::cout << "[TEST] All Enemy Verification Tests PASSED successfully!" << std::endl;
