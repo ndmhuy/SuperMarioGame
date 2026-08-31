@@ -117,12 +117,25 @@ descope addendum (task R6) — not for silent omission.
 | D13 | `main` is 9 merge-commits ahead of `dev`, breaking the fast-forward-delivery invariant the 2026-08-20 entry established | git | Low, process |
 | D14 | Windows crash fix: two log entries (unconfirmed vs. MSVC-verified) never reconciled; no Windows CI | log :4210 vs :4303 | Low, evidence |
 | D15 | A-11 friend sprawl: 12 friends each in `Entity.hpp`/`Character.hpp` — now commented as deliberate; either get user sign-off as descoped or fix | `Entity.hpp:156`, `Character.hpp:42` | Low |
+| D16 | Star power-up does not switch Mario's sprite to an invincible-state visual (no flicker/rainbow cycling on the player sprite itself) | player render path, star state | Medium, player-visible |
+| D17 | Piranha Plant not centered in its pipe housing, and floats above the pipe at maximum extension height instead of stopping flush | Piranha Plant entity/animation offsets | Medium, player-visible |
+| D18 | Enemy killed by fireball flips horizontally about the **bottom edge** of its AABB, not the AABB's center line, so the flipped sprite appears to sink/shift | fireball-kill flip logic | Low-Medium, cosmetic |
+| D19 | Boom Boom arena is too small, and the level-end flag is reachable (and can be touched) while the Boom Boom fight is still in progress, letting players skip the fight | Boom Boom arena/level data, flag trigger gating | Medium, exploit/design |
+| D20 | Bowser does not spawn at all in his designated arena — boss is entirely absent from the reachable campaign, contradicts F8 playtest assumption that Bowser can be fought | Bowser spawn/placement, castle level data | **High**, blocks campaign completion |
+| D21 | Pressing the P-Switch inside a sub-level can soft-lock the level: it turns ground tiles into coins, removing standable ground | P-Switch tile-swap logic, sub-level tile tables | **High**, game-breaking |
+| D22 | A half-rendered pipe exists in a sub-level near the entrance to the warp-pipe exit | sub-level tilemap/pipe asset placement | Low-Medium, visual |
+| D23 | Sub-level pipes are built from the long "L" pipe piece instead of a full pipe (single asset or a properly constructed full assembly) | sub-level pipe tile placement | Low, visual/consistency |
+| D24 | Question blocks are inconsistent: a hit block does not turn solid afterward in the overworld, but does in sub-levels — pick one behavior and apply it everywhere | question-block hit/solidify logic (overworld vs sub-level code paths) | Medium, consistency bug |
+| D25 | Mario's sprite stretches unpleasantly during the mushroom transform animation; needs a design proposal to change the sprite/AABB and hitbox so the transform doesn't distort the sprite | Mario transform sprite + AABB/hitbox sizing | Medium, visual, design-sensitive |
+| D26 | End-of-level flow plays two music cues (touch-flag jingle, then end-level-menu track), but the second cuts off/replaces the first before it finishes | end-level music sequencing (SoundManager / end-state transition) | Medium, player-visible |
+| D27 | Death SFX does not finish playing before the player respawns — cut off by the respawn transition | death SFX / respawn timing | Low-Medium, player-visible |
+| D28 | Colorblind setting toggle has no visible effect on rendering | colorblind option wiring (OptionsState / render filter) | Medium, accessibility, dead feature |
 
 ## 5. Remaining feature work (from the checkbox triage)
 
 | ID | Feature gap | Size |
 | :-- | :--- | :-- |
-| F1 | **Campaign population & balance**: 6 implemented enemy types (Paratroopa, Boo, Bullet Bill, Thwomp, Chain Chomp, Lakitu) in zero shipped levels; no hidden block placed (secret_finder unreachable); per-level enemy counts never balanced against difficulty modifiers | Large, highest player-visible value |
+| F1 | **Campaign population & balance**: 6 implemented enemy types (Paratroopa, Boo, Bullet Bill, Thwomp, Chain Chomp, Lakitu) in zero shipped levels; no hidden block placed (secret_finder unreachable); per-level enemy counts never balanced against difficulty modifiers. User's 2026-08-31 playtest confirms too few enemies to exercise `verify_enemies_behavior`'s scenarios live — that harness names the specific behaviors (per-enemy AI, stomp/fireball reactions, despawn) that currently have no in-level target to test against; population work must place enough of each type for that harness's cases to be observed in a real run, not just constructed by the harness itself | Large, highest player-visible value |
 | F2 | **Dead-wiring batch**: `StarKillSpin`/`PlayerDeathHop` death effects never spawned; `SpriteColorFilter::getRainbowColor()` never called (star power shows no rainbow); `WaterBubble`/`LavaEmber`/`Combo`/`WallDust` particles never emitted; 3 footstep WAVs never played; no combo SFX escalation; no per-row menu cue | Medium, many small wins |
 | F3 | **Load Game UI**: `loadFromSlot` reachable only from the dev panel; `Serializer::getSlotPreview` unused; no main-menu row | Medium |
 | F4 | **Camera/view clamp**: player can walk out of the left view edge (only boss arenas clamp) | Small |
@@ -389,6 +402,94 @@ user action after the next batch of task branches lands; noted here so it is
 not forgotten. Alternatively adopt "merge to main only via dev" strictly and
 let the wrinkle age out — but pick one and record it.
 
+### R15 — Boss encounters: Bowser spawn + Boom Boom arena/flag gating (D19, D20) — **Sonnet 5, effort: high** — branch `A/fix/boss-encounter-batch`
+
+> Read AGENTS.md. Two boss-level defects reported from live play 2026-08-31:
+> 1. Bowser never spawns in his designated castle arena — trace the spawn
+>    trigger/entity-placement path for the Bowser fight (level data +
+>    whichever system instantiates bosses on trigger) and find why the
+>    placement is inert; this blocks F8's playtest assumption that Bowser can
+>    be fought at all.
+> 2. The Boom Boom arena is too small for the fight to read well, and the
+>    level-end flag is reachable (and touchable) while the fight is still in
+>    progress, letting players skip the boss. Enlarge the arena per level
+>    data/tilemap, and gate the flag trigger so it's inert (or physically
+>    blocked) until Boom Boom is defeated.
+> Acceptance: build, ctest green, then play both fights live via a
+> tests/scripts/ script or by hand — confirm Bowser spawns and can be fought
+> to a resolution, and confirm the flag cannot be reached mid-Boom-Boom-fight.
+> Log `Verified By: ran the game`. Commit per fix. No merge, no push.
+
+### R16 — Sub-level tile/pipe/block batch (D21, D22, D23, D24) — **Sonnet 5, effort: medium** — branch `A/fix/sublevel-tile-batch`
+
+> Read AGENTS.md. Four sub-level tile defects from live play 2026-08-31:
+> 1. **P-Switch soft-lock (highest priority — game-breaking)**: pressing the
+>    P-Switch in a sub-level turns ground tiles into coins, removing standable
+>    ground and stranding the player. Find the P-Switch tile-swap logic and
+>    scope it to only the tile types the mechanic is meant to affect (blocks
+>    ↔ coins), never load-bearing ground.
+> 2. A half-rendered pipe exists in a sub-level near the warp-pipe exit —
+>    locate and fix the tile/asset placement.
+> 3. Sub-level pipes use the long "L" pipe piece instead of a full pipe;
+>    replace with the correct full-pipe asset or properly constructed
+>    multi-tile pipe, consistent with overworld pipes.
+> 4. Question blocks turn solid after being hit in sub-levels but not in the
+>    overworld — find the two code paths (likely diverged overworld vs.
+>    sub-level tile logic) and unify on one behavior; ask the user which
+>    behavior to keep if not obvious from SPEC.
+> Acceptance: build, ctest green; play through the affected sub-level(s) live,
+> confirming the P-Switch no longer soft-locks, the pipe renders fully, and
+> question-block solidify behavior is consistent. Commit per item. No merge,
+> no push.
+
+### R17 — Player/enemy visual-state batch (D16, D17, D18) — **Sonnet 5, effort: medium** — branch `A/fix/player-enemy-visual-batch`
+
+> Read AGENTS.md. Three visual-state defects from live play 2026-08-31:
+> 1. Star power-up doesn't switch Mario's sprite to an invincible-state visual
+>    — find where star state is tracked (likely the same StarDecorator used
+>    by R7 item 2's rainbow-filter work) and wire the sprite/animation swap;
+>    coordinate with R7 if that task hasn't landed yet, since both touch
+>    star-state rendering.
+> 2. Piranha Plant isn't centered in its pipe and floats above the pipe at
+>    maximum extension — fix its rest position and travel offset.
+> 3. An enemy killed by fireball flips about the bottom edge of its AABB
+>    instead of the AABB's center line — fix the flip pivot in the
+>    fireball-kill code path.
+> Acceptance: build, ctest green; observe each fix live (star pickup, a
+> Piranha Plant pipe, a fireball kill). Commit per item. No merge, no push.
+
+### R18 — Mario transform sprite/hitbox redesign (D25) — **Opus 5, effort: high** — branch `A/design/mario-transform-sprite`
+
+> Read AGENTS.md. Mario's sprite stretches unpleasantly during the mushroom
+> transform animation. This is design-sensitive, not a mechanical fix: propose
+> a change to the transform sprite sheet/animation and the AABB/hitbox sizing
+> used during the transform so the sprite scales cleanly instead of
+> stretching (e.g. crossfade between small/big frames instead of scaling one
+> frame; decouple the visual transform from the collision AABB so the hitbox
+> doesn't need to stretch to match). Present the proposal to the user before
+> committing to an asset change if it requires new sprite frames. Verify live:
+> trigger a mushroom pickup and observe the transform at normal speed and
+> frame-stepped. Commit. No merge, no push.
+
+### R19 — End-game audio batch (D26, D27, D28) — **Sonnet 5, effort: medium** — branch `A/fix/endgame-audio-batch`
+
+> Read AGENTS.md. Three audio defects from live play 2026-08-31:
+> 1. End-of-level flow plays the touch-flag jingle then the end-level-menu
+>    track, but the second cuts off the first before it finishes — sequence
+>    them (wait for the first to finish, or crossfade deliberately) instead of
+>    the second replacing the first mid-playback.
+> 2. Death SFX is cut off by the respawn transition — either delay respawn
+>    until the SFX finishes or let it play out over the respawn (don't extend
+>    invulnerability/lock input to stall it, just don't stop the sound).
+> 3. The colorblind option toggle has no visible effect — trace whether it's
+>    wired to any render filter at all; if it was never implemented, treat as
+>    a real accessibility gap, not cosmetic, and implement an actual filter
+>    (e.g. a documented colorblind-friendly palette swap) rather than closing
+>    it as a no-op.
+> Acceptance: build, ctest green; observe each fix live (finish a level,
+> die and respawn, toggle colorblind mode and confirm a visible change).
+> Commit per item. No merge, no push.
+
 ### Explicitly descoped (record, don't build)
 
 F7 dynamic music layers (large, low grading value — one `sf::Music` swap
@@ -401,11 +502,40 @@ pathfinding and split-screen speedrun stay descoped per TASKS.md's own text.
 
 ### Suggested order
 
-R1 → R6 (cheap, unblock honesty) → R7 → R9 (the visible win) → R8 → R11 → R12
-(evidence last, after the gameplay changes settle) → R4 → R2 → R3 → R5 → R10 →
-R13/R14 whenever the user is at the keyboard. After each merged batch:
-regenerate the report (`Report/SuperMarioGame/build.sh`), features_list.pdf,
-and re-run this audit's §2 checklist against the new claims.
+R1 → R16 (P-Switch soft-lock is game-breaking, fix before anything else
+touches sub-levels) → R15 (Bowser must spawn before R9/R12 can rely on him) →
+R6 (cheap, unblock honesty) → R17 → R19 → R7 → R9 (the visible win, now that
+enemies have a stable target level set and bosses work) → R18 (design-review
+gated, can run in parallel once proposed) → R8 → R11 → R12 (evidence last,
+after the gameplay changes settle) → R4 → R2 → R3 → R5 → R10 → R13/R14
+whenever the user is at the keyboard. After each merged batch: regenerate the
+report (`Report/SuperMarioGame/build.sh`), features_list.pdf, and re-run this
+audit's §2 checklist against the new claims.
+
+---
+
+## 7. Playtest sweep, 2026-08-31 — merge note
+
+The user's 2026-08-31 hands-on playtest surfaced 13 issues; all have been
+folded into this document as first-class findings rather than kept as a
+separate untriaged list:
+
+- **Defects** D16-D28 (§4): star sprite not switching to invincible state,
+  Piranha Plant pipe centering/height, fireball-kill flip pivot, Boom Boom
+  arena/flag gating, Bowser not spawning, P-Switch sub-level soft-lock,
+  half-rendered sub-level pipe, long-L sub-level pipe, question-block
+  overworld/sub-level inconsistency, mushroom-transform sprite stretch,
+  end-game double-music cutoff, death SFX cutoff, dead colorblind toggle.
+- **Feature note** F1 (§5) updated: the "not enough enemies to test" report
+  is folded into the existing campaign-population gap, with the
+  `verify_enemies_behavior` harness named as the acceptance reference.
+- **New phases** R15-R19 (§6) plan the fixes: R15 boss encounters (Bowser
+  spawn + Boom Boom gating), R16 sub-level tiles (P-Switch soft-lock first —
+  game-breaking), R17 player/enemy visual state, R18 the design-sensitive
+  Mario-transform sprite proposal, R19 end-game audio. The suggested order
+  in §6 places R16 and R15 ahead of the earlier-planned batches since a
+  soft-lock and a missing final boss block downstream verification work
+  (R9, R12).
 
 ---
 
