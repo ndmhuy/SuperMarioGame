@@ -1,0 +1,56 @@
+# R8 live verification (D-load-game-menu): drives Game::run()'s real loop
+# through Start Game -> a level -> Pause -> Save Game -> Quit To Menu -> the
+# new LOAD GAME row -> confirming a slot -> back into a live, loaded level.
+#
+# Caveat, stated up front rather than glossed over: the pause menu's SAVE GAME
+# row (PlayingState.cpp's PauseState callback) has always saved to whatever
+# Game::getInstance().getActiveSlot() currently is, and nothing reachable by
+# keyboard alone changes that away from its default of 1 — only DevPanel's
+# per-slot Save button (ImGui, mouse-driven) can target slot 2/3 directly, and
+# this input-script harness only synthesises keyboard events (see
+# InputScript.hpp's grammar). So this run saves to and loads from SLOT 1, not
+# slot 2 — same generic loadFromSlot() path, a different slot number. Slot 2
+# specifically is covered by tests/verify_frontend_states.cpp's
+# testLoadGameRestoresPlayerFromSlot(), which saves and loads slot 2
+# programmatically through the identical PlayingState(...,/*pendingLoadSlot=*/2)
+# constructor path MenuState's LOAD GAME confirm uses.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r8_load_game_menu.txt
+#
+# Screenshots land in saves/shots/.
+wait 1.5
+press Enter
+wait 0.8
+press Enter
+wait 0.8
+press Enter
+wait 2.5
+shot r8_00_ingame_before_save
+press Escape
+wait 0.5
+shot r8_01_pause_menu
+press Down
+wait 0.3
+press Enter
+wait 0.6
+shot r8_02_save_notice
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 1.0
+shot r8_03_back_at_main_menu
+press Down
+wait 0.3
+press Enter
+wait 0.6
+shot r8_04_load_game_picker
+press Enter
+wait 2.5
+shot r8_05_loaded_ingame
+press Escape
+wait 0.5
+shot r8_06_paused_after_load
+wait 0.3
+quit
