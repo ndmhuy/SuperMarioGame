@@ -1,19 +1,11 @@
 #include "Physics/PhysicsEngine.hpp"
 #include "Entities/Entity.hpp"
-#include "Entities/Character.hpp"
 #include "Entities/Player.hpp"
-#include "Entities/Enemy.hpp"
-#include "Entities/Luigi.hpp"
-#include "Entities/Toad.hpp"
-#include "Entities/Peach.hpp"
-#include "Entities/Fireball.hpp"
-#include "Entities/Item.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 #include "Core/SoundManager.hpp"
 #include "Core/EventBus.hpp"
 #include "Graphics/ParticleEmitter.hpp"
-#include "Utils/MathUtils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <unordered_set>
@@ -56,7 +48,11 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 1.1. Check non-solid interactive tile pickups (Coin tile collection)
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto player = dynamic_cast<Player*>(entity.get())) {
+        // Only a player collects coins. The category is the exact answer — it is
+        // overridden once, by Player, for its whole subtree — and it costs a
+        // virtual call rather than a walk of the RTTI hierarchy (audit A-10 / D8).
+        if (entity->getCategory() == EntityCategory::Player) {
+            Player* player = static_cast<Player*>(entity.get());
             AABB pBox = player->getBoundingBox();
             int startX = static_cast<int>(std::floor(pBox.x / Constants::TILE_SIZE));
             int endX = static_cast<int>(std::floor((pBox.x + pBox.width) / Constants::TILE_SIZE));
@@ -197,8 +193,9 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
                 // Shadow Mario is excluded: it replays the player's path, so it
                 // would punch out every question block and brick the player had
                 // already jumped under, three seconds behind them.
-                if (auto player = dynamic_cast<Player*>(entity.get());
-                    player && !player->isContactHazard()) {
+                if (entity->getCategory() == EntityCategory::Player &&
+                    !entity->isContactHazard()) {
+                    Player* player = static_cast<Player*>(entity.get());
                     for (const auto& col : collisions) {
                         // Only a ceiling contact counts as a head-butt. The old
                         // condition also accepted `preVelY < 0.0f`, which is true for
