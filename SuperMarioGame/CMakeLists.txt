@@ -83,24 +83,34 @@ add_custom_target(ctest_binaries)
 
 function(add_verify_test name source)
     cmake_parse_arguments(AVT "NO_CTEST" "" "" ${ARGN})
-    add_executable(${name} "${source}" ${APP_SOURCES})
+    # Each verify_* target used to compile APP_SOURCES (~133 files) itself, so
+    # 22+ targets meant 22+ independent compiles of the whole app — ~2,900
+    # object files and multiple GB per build tree (log :4122; R11). All of
+    # that now lives in the AppObjectsTest OBJECT library (declared once,
+    # below, from the same APP_SOURCES), compiled ONCE with -UNDEBUG. Linking
+    # against it here pulls in its object files, its PUBLIC include dirs
+    # (include/ and tests/, for the shared TestSaveSandbox helper) and its
+    # PUBLIC SFML/ImGui-SFML/json link libraries — this target only needs to
+    # additionally compile ${source} itself.
+    #
     # Release (see shared-build.cmake) compiles with the stock -O3 -DNDEBUG,
     # which compiles every assert() in these harnesses to nothing: the process
     # runs, prints PASSED, and exits 0 without evaluating a single assertion.
     # Proven in phase R5 — forcing HiddenBlock::onCharacterTouch to always
     # return BlockTouch::Solid still left verify_blocks exiting 0.
     #
-    # Undefining NDEBUG here, for test targets only, fixes the root cause at
-    # the one chokepoint every verify_* target already flows through, so any
-    # harness using assert() — today's or tomorrow's — works correctly forever.
-    # The alternative, converting ~230 assert() call sites across 10 files to
-    # a counting check() helper, only fixes today's instances: a harness
-    # written tomorrow with a bare assert() would be silently vacuous again,
-    # and the rewrite itself is high-churn mechanical editing across 10 files
-    # with real transcription-error risk in exactly the code meant to catch
-    # errors. This keeps the correct asymmetry too: the shipped game target
-    # keeps NDEBUG (asserts compiled out, as a release build should), while
-    # only test targets get live assertions.
+    # Undefining NDEBUG for AppObjectsTest, for test targets only, fixes the
+    # root cause at the one chokepoint every verify_* target already flows
+    # through, so any harness using assert() — today's or tomorrow's — works
+    # correctly forever. The alternative, converting ~230 assert() call sites
+    # across 10 files to a counting check() helper, only fixes today's
+    # instances: a harness written tomorrow with a bare assert() would be
+    # silently vacuous again, and the rewrite itself is high-churn mechanical
+    # editing across 10 files with real transcription-error risk in exactly
+    # the code meant to catch errors. This keeps the correct asymmetry too:
+    # the shipped game target links AppObjectsRelease (built WITH NDEBUG —
+    # asserts compiled out, as a release build should), while only test
+    # targets link AppObjectsTest (built WITHOUT it).
     #
     # Real cost, stated honestly: assert() aborts on first failure, so a
     # failing harness reports one failure rather than a full list. The newest
@@ -109,16 +119,17 @@ function(add_verify_test name source)
     # helper instead and report every failure; converting the older
     # bare-assert harnesses to that pattern remains a worthwhile follow-up for
     # report quality, but it is not what fixes this defect.
+    add_executable(${name} "${source}")
+    # ${source} (e.g. tests/verify_blocks.cpp) is compiled directly into this
+    # target, NOT into AppObjectsTest — it still needs -UNDEBUG applied here
+    # too, or the harness's OWN top-level assert() calls (as opposed to the
+    # ones inside the APP_SOURCES classes they exercise) compile away under
+    # Release same as before. Caught by the R11 mutation test: without this
+    # line, disabling QuestionBlock::onHitFromBelow's m_isEmpty assignment
+    # left verify_blocks exiting 0, because assert(qBlock.isEmpty()) at
+    # tests/verify_blocks.cpp:147 is itself a bare assert() in this file.
     target_compile_options(${name} PRIVATE -UNDEBUG)
-    # tests/ too, so a harness can include the shared TestSaveSandbox helper that
-    # seals it off from the real saves/ directory.
-    target_include_directories(${name} PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests)
-    target_link_libraries(${name} PRIVATE
-        SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
-        ImGui-SFML::ImGui-SFML
-        nlohmann_json::nlohmann_json)
+    target_link_libraries(${name} PRIVATE AppObjectsTest)
     if (NOT AVT_NO_CTEST)
         add_test(NAME ${name} COMMAND ${name})
         # Assets resolve relative to the source tree, not the build directory.
@@ -141,6 +152,42 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 set(APP_SOURCES ${SOURCES})
 list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 
+# ---------------------------------------------------------
+# 2b. APP_SOURCES OBJECT libraries (R11 — compile once, link everywhere)
+# ---------------------------------------------------------
+# Before this, every verify_* target (and generate_game_levels) named
+# ${APP_SOURCES} directly in its own add_executable(), so each of the 22+
+# targets independently compiled all ~133 app sources — ~2,900 object files
+# and several GB per build tree (log :4122). Two OBJECT libraries compile
+# APP_SOURCES exactly twice instead:
+#   - AppObjectsRelease: stock Release flags (-O3 -DNDEBUG per shared-build.cmake)
+#     — linked by the shipped ${PROJECT_NAME} game target.
+#   - AppObjectsTest: the same sources with -UNDEBUG added back — linked by
+#     every verify_* target via add_verify_test(). This is the asymmetry
+#     documented in that function: the game ships with asserts compiled out,
+#     the tests need them live. A single shared OBJECT library cannot serve
+#     both, since it compiles each source once with one set of flags — hence
+#     two libraries, not one.
+add_library(AppObjectsRelease OBJECT ${APP_SOURCES})
+target_include_directories(AppObjectsRelease PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(AppObjectsRelease PUBLIC
+    SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json)
+
+add_library(AppObjectsTest OBJECT ${APP_SOURCES})
+target_include_directories(AppObjectsTest PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+target_link_libraries(AppObjectsTest PUBLIC
+    SFML::Graphics SFML::Window SFML::System SFML::Audio SFML::Network
+    ImGui-SFML::ImGui-SFML
+    nlohmann_json::nlohmann_json)
+# See add_verify_test()'s comment for why this exists: Release's stock
+# -DNDEBUG compiles every assert() in the test harnesses to nothing.
+target_compile_options(AppObjectsTest PRIVATE -UNDEBUG)
+
 # ${SOURCES} already globs every src/*.cpp, so nothing below needs to be named
 # here — the .cpp entries are duplicates CMake de-duplicates and the .hpp entries
 # do not compile at all. They are kept only so the headers show up as target
@@ -150,35 +197,27 @@ list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 # for months while the file is `Hud.cpp`: macOS resolves that, Linux does not, so
 # every CI run failed at the generate step with "Cannot find source file" while
 # the local build was fine. If you must add a path, copy it from `git ls-files`.
-add_executable(${PROJECT_NAME} ${SOURCES}
-    src/Entities/EntityFactory.cpp
+#
+# Only main.cpp is compiled directly here — every other app source comes from
+# AppObjectsRelease (built WITH NDEBUG, above). The header-only entries below
+# are kept only so they show up as target sources in IDEs; they still don't
+# compile.
+add_executable(${PROJECT_NAME} src/main.cpp
     include/Graphics/SpriteSheet.hpp
     include/Graphics/Animator.hpp
-    src/Graphics/Animator.cpp
-    src/Graphics/Hud.cpp
     include/Graphics/Minimap.hpp
     include/Graphics/ParticleSystem.hpp
-    src/Graphics/ParticleSystem.cpp
     include/Graphics/ParticleEmitter.hpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC 
+target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE AppObjectsRelease)
 
 # ---------------------------------------------------------
 # 3. Verification Test Targets
 # ---------------------------------------------------------
-list(FILTER SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 
 add_verify_test(verify_all "tests/verify_all.cpp")
 
@@ -231,9 +270,6 @@ add_verify_test(verify_flagpole_trampoline "tests/verify_flagpole_trampoline.cpp
 # ---------------------------------------------------------
 # 10. Verification Test Target (verify_minimap_visual)
 # ---------------------------------------------------------
-set(APP_SOURCES ${SOURCES})
-list(REMOVE_ITEM APP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp" "src/main.cpp")
-
 add_verify_test(verify_minimap_visual "tests/verify_minimap_visual.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
@@ -274,24 +310,19 @@ add_verify_test(verify_sound_visual "tests/verify_sound_visual.cpp" NO_CTEST)
 # ---------------------------------------------------------
 # 17. Level Generation Utility Target (generate_game_levels)
 # ---------------------------------------------------------
+# Links AppObjectsRelease (see section 2b) instead of naming APP_SOURCES
+# directly, so this tool no longer adds a third independent compile of the
+# whole app — it's a release-flags tool, not a test, so it shares the game's
+# object library rather than the test one.
 add_executable(generate_game_levels
     "tools/generate_game_levels.cpp"
-    ${APP_SOURCES}
 )
 
-target_include_directories(generate_game_levels PUBLIC 
+target_include_directories(generate_game_levels PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(generate_game_levels PRIVATE 
-    SFML::Graphics 
-    SFML::Window 
-    SFML::System 
-    SFML::Audio 
-    SFML::Network
-    ImGui-SFML::ImGui-SFML
-    nlohmann_json::nlohmann_json
-)
+target_link_libraries(generate_game_levels PRIVATE AppObjectsRelease)
 
 
 
