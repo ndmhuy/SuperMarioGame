@@ -1,5 +1,6 @@
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/Player.hpp"
+#include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 
@@ -25,6 +26,13 @@ void HiddenBlock::onHitFromBelow(Player& player) {
             SoundManager::getInstance().playSound("powerup_appears");
             player.addScore(1000);
         }
+
+        // Announce the find. Nothing did this before, so the one achievement
+        // whose description is "Find all hidden blocks" could not be earned by
+        // finding a hidden block — AchievementManager was counting BlockBroken
+        // instead. Published once, guarded by m_isRevealed, so a player standing
+        // under a revealed block cannot farm it.
+        EventBus::getInstance().publish({EventType::HiddenBlockFound, 0});
     }
 }
 

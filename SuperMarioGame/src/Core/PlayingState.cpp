@@ -516,8 +516,10 @@ void PlayingState::handleInput(const sf::Event& event) {
                 case sf::Keyboard::Key::Num8: // Star Coin Collected
                     bus.publish({EventType::StarCoinCollected, 0});
                     break;
-                case sf::Keyboard::Key::Num9: // Hidden Block Broken
-                    bus.publish({EventType::BlockBroken, 0});
+                case sf::Keyboard::Key::Num9: // Hidden Block Found
+                    // Was BlockBroken, which is a brick shattering, not a secret
+                    // being found; the two are separate events now.
+                    bus.publish({EventType::HiddenBlockFound, 0});
                     break;
                 default:
                     break;

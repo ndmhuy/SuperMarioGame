@@ -25,7 +25,7 @@ void AchievementManager::init() {
     m_subscriptions.push_back(sub(EventType::ComboHit));
     m_subscriptions.push_back(sub(EventType::StarCoinCollected));
     m_subscriptions.push_back(sub(EventType::BossDefeated));
-    m_subscriptions.push_back(sub(EventType::BlockBroken));
+    m_subscriptions.push_back(sub(EventType::HiddenBlockFound));
     m_subscriptions.push_back(sub(EventType::PlayerDamaged));
 
     m_initialized = true;
@@ -190,8 +190,13 @@ void AchievementManager::handleEvent(const GameEvent& event) {
                 unlockAchievement("beat_bowser");
                 break;
             }
-            case EventType::BlockBroken: {
-                // If it's a hidden block break (we detect via custom flag in entities, here mocked)
+            case EventType::HiddenBlockFound: {
+                // The real signal, published by HiddenBlock::onHitFromBelow.
+                // This case used to be EventType::BlockBroken with the comment
+                // "here mocked": every brick a Super player smashed counted as a
+                // secret, and revealing an actual hidden block counted for
+                // nothing, so "Find all hidden blocks" measured the opposite of
+                // what it claims.
                 registerBlockFound();
                 break;
             }

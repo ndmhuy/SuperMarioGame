@@ -22,6 +22,13 @@ enum class EventType {
   PlayerWarped,
   PlayerDamaged,
   BlockBroken,
+  // A hidden block was just revealed. Distinct from BlockBroken: a hidden block
+  // is not destroyed and must not sound or spark like a shattering brick, but it
+  // is the only thing the "Secret Finder" achievement is supposed to count.
+  // AchievementManager used to infer this from BlockBroken ("here mocked"), so
+  // every brick a Super player smashed counted as a secret and no hidden block
+  // ever did.
+  HiddenBlockFound,
   TimeWarning,
   GameOver,
   GameStart,
