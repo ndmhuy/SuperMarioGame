@@ -290,6 +290,12 @@ private:
     float m_ambientParticleTimer = 0.0f;
     float m_wallDustTimer = 0.0f;
 
+    // Footstep cadence (SPEC 11.4). Two timers because two players can be on
+    // different surfaces at different speeds at once.
+    float m_footstepTimer = 0.0f;
+    float m_footstepTimer2 = 0.0f;
+    void updateFootstep(Player* who, float& timer, float dt);
+
     // --- Boss fights ---------------------------------------------------
     // The boss in this level, or null. Found once when the level loads rather
     // than searched for every frame; cleared when it is removed.

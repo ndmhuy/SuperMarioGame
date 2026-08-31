@@ -763,6 +763,12 @@ void PlayingState::update(float dt) {
     } else {
         m_wallDustTimer = 0.0f;
     }
+
+    // 3b1c. Surface-dependent footsteps (SPEC 11.4). Three WAVs were loaded in
+    // SoundManager::loadAllSounds() and never once played (R7 audit).
+    updateFootstep(m_player, m_footstepTimer, dt);
+    updateFootstep(m_player2, m_footstepTimer2, dt);
+
     // 3b2. Lava burns. A Lava tile is not solid — you fall into it, you do not
     // stand on it — so nothing in the physics engine would ever have noticed it.
     // Checked against the player's feet, which is the part that touches first.
@@ -2336,6 +2342,39 @@ void PlayingState::findActiveBoss() {
         std::cout << "[PlayingState] Boss in this level: "
                   << m_activeBoss->getDisplayName() << std::endl;
     }
+}
+
+void PlayingState::updateFootstep(Player* who, float& timer, float dt) {
+    if (!who || !who->isActive() || who->isDying()) { timer = 0.0f; return; }
+    if (timer > 0.0f) timer -= dt;
+
+    // Grounded and actually moving. Airborne, standing still or wall-sliding
+    // (which has its own dust cue, above) all skip this — a footstep on the way
+    // up or while parked mid-air reads as a bug, not a cadence.
+    if (!who->isOnGround() || std::abs(who->getVelocity().x) < 20.0f) return;
+    if (timer > 0.0f) return;
+
+    const bool running = std::abs(who->getVelocity().x) > Constants::WALK_SPEED + 10.0f;
+    timer = running ? 0.18f : 0.30f;
+
+    const AABB box = who->getBoundingBox();
+    const TileType underfoot = m_tileMap.getTileSurfaceType(
+        box.x + box.width * 0.5f, box.y + box.height + Constants::GROUND_CHECK_OFFSET);
+
+    // Only three footstep WAVs are loaded (SoundManager::loadAllSounds()); SPEC
+    // 11.4 lists four surfaces (grass/ground, stone/brick, ice, metal). Ice and
+    // every other solid, non-ground tile share footstep_floor rather than
+    // inventing a fourth asset that was never delivered. Bowser's Castle
+    // (levelIndex 2, see SoundManager::playLevelBGM's comment for the mapping)
+    // is the one case with a real "Metal" identity in the SPEC, so it overrides
+    // by level rather than by tile.
+    std::string sfx = "footstep_grass";
+    if (m_selectedLevelIndex == 2) {
+        sfx = "footstep_metalcap";
+    } else if (underfoot != TileType::Ground) {
+        sfx = "footstep_floor";
+    }
+    SoundManager::getInstance().playSound(sfx);
 }
 
 void PlayingState::updateBossArena() {
