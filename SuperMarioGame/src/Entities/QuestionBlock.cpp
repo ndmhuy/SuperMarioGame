@@ -47,6 +47,7 @@ void QuestionBlock::onHitFromBelow(Player& player) {
 
 void QuestionBlock::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
+    m_spriteSheet = spriteSheet;
     m_animation = Animation("question_block");
     m_animation.frameList = {
         {"question_block_0", 0.15f},
@@ -60,5 +61,20 @@ void QuestionBlock::setupAnimations(const SpriteSheet* spriteSheet) {
 }
 
 void QuestionBlock::render(sf::RenderTarget& target) {
+    // Spent blocks stop looping the blinking "?" animation and draw as a
+    // plain solid block instead — the overworld half of D24. Hit blocks used
+    // to keep blinking forever, as if still live, even after m_isEmpty made
+    // a second hit dispense nothing; the sub-level's tile equivalent
+    // (TileType::Question -> TileType::Used in PhysicsEngine.cpp) already
+    // changes its tile type on the same hit, so only this entity was out of
+    // step. One frame, not themed to the level's background like the tile
+    // path is — QuestionBlock has no reference to PlayingState's theme, and
+    // this is deliberately the smallest fix that gets the state and the
+    // sprite back in agreement (SPEC.md: "Becomes empty block").
+    if (m_isEmpty && m_spriteSheet) {
+        sf::Sprite sprite = m_spriteSheet->getSprite("solid_block_brown");
+        drawSprite(target, sprite, SpriteAnchor::TopLeft);
+        return;
+    }
     Block::render(target);
 }

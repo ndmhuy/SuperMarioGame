@@ -39,4 +39,11 @@ public:
 private:
     int m_containedItemType = 0;
     bool m_isEmpty = false;
+
+    // Needed to draw the spent look directly (D24): once m_isEmpty, this stops
+    // playing the blinking "?" animation and instead shows a plain solid block
+    // — same idea as the sub-level's TileType::Question -> TileType::Used tile
+    // swap in PhysicsEngine.cpp, and what SPEC.md's Blocks table means by
+    // "Becomes empty block".
+    const SpriteSheet* m_spriteSheet = nullptr;
 };
