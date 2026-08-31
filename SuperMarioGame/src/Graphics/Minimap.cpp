@@ -9,18 +9,14 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
 
-Minimap::Minimap(sf::Vector2f position, sf::Vector2f size) 
+Minimap::Minimap(sf::Vector2f position, sf::Vector2f size)
     : m_pos(position), m_size(size), m_visible(false) {
-        m_toggleId = EventBus::getInstance().subscribe(
-            EventType::MinimapToggled, 
+        m_toggleSub = EventBus::ScopedSubscription(
+            EventType::MinimapToggled,
             [this](const GameEvent& event) {
                 m_visible = !m_visible;
             }
-        );   
-}
-
-Minimap::~Minimap() {
-    EventBus::getInstance().unsubscribe(m_toggleId);
+        );
 }
 
 void Minimap::draw(sf::RenderTarget& target, sf::RenderStates states) const {

@@ -13,7 +13,6 @@ class Player;
 class Minimap final : public sf::Drawable {
 public:
     Minimap(sf::Vector2f position, sf::Vector2f size);
-    ~Minimap();
 
     void update(float dt, const Player* player, const std::vector<std::unique_ptr<Entity>>& entityList);
 
@@ -33,6 +32,6 @@ private:
     sf::Vector2f m_pos, m_size;
     sf::Texture m_mapTexture;
     bool m_visible;
-    EventBus::SubscriptionId m_toggleId;
+    EventBus::ScopedSubscription m_toggleSub;
     std::vector<std::pair<sf::Vector2f,EntityType>> m_entityList;
 };
