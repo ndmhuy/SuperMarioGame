@@ -1,0 +1,21 @@
+# R12 (d) — Easy difficulty, same level (1-1), no level/spawn edits at all.
+# EasyDifficulty (DifficultyStrategy.hpp): startingLives=5, levelTimeScale=1.30
+# (390s off Constants::LEVEL_TIME=300), enemySpeedScale=0.80, bossHealthScale=
+# 0.70. saves/config.json's "difficulty" was set to "easy" immediately before
+# this run (restored to its original value afterward).
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_difficulty_easy.txt
+#
+# The HUD's lives counter and TIME field at level start are the evidence —
+# both are computed from IDifficultyStrategy, not hardcoded, so a screenshot
+# taken the instant 1-1 loads is a direct read of which strategy is active.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.0
+press Enter
+wait 2.0
+shot r12_diff_easy_00_start
+wait 1.5
+quit

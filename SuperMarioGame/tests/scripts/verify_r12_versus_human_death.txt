@@ -1,0 +1,52 @@
+# R12 (c) — a 2-player VERSUS HUMAN round ending in a death.
+#
+# Main menu rows (current dev HEAD, after R8 inserted LOAD GAME): START=0,
+# LOAD=1, VERSUS=2, DAILY=3, EDITOR=4, GENERATOR=5, RECORDS=6, OPTIONS=7,
+# QUIT=8. Two Down presses from START reaches VERSUS/MULTIPLAYER (NOT one —
+# see the note filed against tests/scripts/versus_cpu.txt, which still assumes
+# the pre-R8 layout and lands on LOAD GAME instead).
+#
+# MatchConfig defaults to GameMode::VersusHuman (MenuState.hpp:89) with a HUMAN
+# opponent (m_match.isCpuOpponent() false), so opening the Multiplayer page and
+# going straight to START — without touching MODE or OPPONENT — starts a real
+# two-human match on World 1-1 (levelIndex 0), both players controlled by this
+# process's own two key sets (config.json: P1 left/right/jump/fire = A/D/W/F;
+# P2 has no keyBindings2 override, so InputManager's built-in P2 defaults apply
+# — Left/Right/Up/M, confirmed in InputManager.cpp's resetBindingsToDefaults).
+#
+# The death: Player 2 is walked straight into the Goomba at level_1.json's
+# (x:12, y:20) — 9 tiles from the (x:3, y:19) spawn — WITHOUT ever jumping. A
+# side touch on a Goomba is not a stomp, and Player::powerDown() (Player.cpp)
+# publishes PlayerDied the instant a Small player is hit with no power to lose.
+# No positional feedback is needed for this: it is a straight line, a known
+# distance, and a script that never presses jump for P2 cannot land on the
+# Goomba's head by accident. Player 1 is left standing at spawn throughout.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_versus_human_death.txt
+#
+# Screenshots land in saves/shots/. The death itself is also confirmed on
+# stdout: PlayingState prints "[PlayingState] Respawned. Lives remaining: N"
+# (or "Game Over" if the last life) from Player::powerDown()'s PlayerDied,
+# which only P2's own hit can have triggered here.
+wait 2.0
+press Down
+wait 0.2
+press Down
+wait 0.4
+shot r12_versus_00_multiplayer_row_selected
+press Enter
+wait 0.5
+shot r12_versus_00b_multiplayer_page_open
+press Down
+wait 0.2
+press Down
+wait 0.4
+shot r12_versus_01_on_start_row
+press Enter
+wait 2.0
+shot r12_versus_02_match_start_both_players
+hold Right 3.0
+wait 3.5
+shot r12_versus_03_after_walk
+wait 1.0
+quit

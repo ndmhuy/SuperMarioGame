@@ -117,7 +117,7 @@ descope addendum (task R6) — not for silent omission.
 | D11 | ~~`docs/Group52_08/` has `52.md` but no `52.pdf` (every other week has both)~~ | ~~docs/Group52_08~~ | **RESOLVED (R6):** Generated `52.pdf` from `52.md` using `scripts/generate_pdf.py`. |
 | D12 | GitHub issues stale: #9 fully implemented, #2 a June status note, #11 33/37 resolved | github.com/ndmhuy/SuperMarioGame | Low, hygiene |
 | D13 | `main` is 9 merge-commits ahead of `dev`, breaking the fast-forward-delivery invariant the 2026-08-20 entry established | git | Low, process |
-| D14 | Windows crash fix: two log entries (unconfirmed vs. MSVC-verified) never reconciled; no Windows CI | log :4210 vs :4303 | Low, evidence |
+| D14 | Windows crash fix: two log entries (unconfirmed vs. MSVC-verified) never reconciled; no Windows CI | log :4210 vs :4303 | **RECONCILED (R12, 2026-08-31), NOT CLOSED — status remains unconfirmed on Windows.** `:4210` (2026-08-22 16:05, `A/fix/windows-crash-and-playtest`) states plainly: "NOT CONFIRMED ON WINDOWS. The crash was only ever observable on Windows, and both verification runs were on macOS." `:4303` (2026-08-22 21:47, same branch, ~5.5h later) claims "Rebuilt SuperMarioGame.exe cleanly with MSVC C++17 (0 errors, 0 link issues)" and "Verified By: ran the game (SuperMarioGame.exe --script...)", with `Files Modified: logs/agent_history.log` only — no source or build-config change accompanies the claim. Three things make `:4303`'s claim unsubstantiated rather than merely undocumented: (1) `.github/workflows/ci.yml` runs on `ubuntu-latest` only — there has never been Windows CI to have produced this build; (2) this and every other session in this project's history that could check has run on macOS/Linux, so no environment in this project's own toolchain can build or run a `.exe`; (3) the log itself carries a second, older instance of the same pattern — an entry at `:604` claims "100% success on MSVC" and one at `:2569` adds an MSVC-only `/FS` compile flag, both from sessions with the same macOS/Linux constraint. Absent an actual Windows/MSVC environment or a CI run to point to, `:4303`'s claim cannot be treated as verification; `:4210`'s honest "not confirmed" is this project's true status. Nothing here is fixed or retracted from the code side — the crash's root-cause fix (deferred entity spawning, `:4132` onward) is independently verified on macOS by the UB analysis in `docs/learning/mid-frame-entity-spawn-crash.html` and by two scripted runs holding 1-3 through Bowser's fireballs without a crash. What remains unconfirmed is specifically the Windows/MSVC platform claim, not the fix's logic. | Low, evidence |
 | D15 | ~~A-11 friend sprawl: 12 friends each in `Entity.hpp`/`Character.hpp` — now commented as deliberate; either get user sign-off as descoped or fix~~ | ~~`Entity.hpp:156`, `Character.hpp:42`~~ | **RESOLVED (R6):** Recorded in SPEC.md §21 Descope Addendum as descoped-by-choice per user decision. |
 | D16 | ~~Star power-up does not switch Mario's sprite to an invincible-state visual (no flicker/rainbow cycling on the player sprite itself)~~ | ~~player render path, star state~~ | **RESOLVED (R17):** Wired `SpriteColorFilter::getRainbowColor()` to `Player::render()` while `StarDecorator` is active. |
 | D17 | ~~Piranha Plant not centered in its pipe housing, and floats above the pipe at maximum extension height instead of stopping flush~~ | ~~Piranha Plant entity/animation offsets~~ | **RESOLVED (R17):** Two root causes fixed: entity x-placement in hand-authored level JSON (`LevelLoader.cpp`), and hardcoded 64.0f emerge height vs. plant's 48.0f height (`TimerEmergenceStrategy.cpp`). |
@@ -132,6 +132,8 @@ descope addendum (task R6) — not for silent omission.
 | D26 | ~~End-of-level flow plays two music cues (touch-flag jingle, then end-level-menu track), but the second cuts off/replaces the first before it finishes~~ | ~~end-level music sequencing (SoundManager / end-state transition)~~ | **RESOLVED (R19):** Plan's described cues were incorrect. Reproducible case: `castle_complete` (fired by BossDefeated) cut off by `level_complete` (fired by LevelComplete) on boss levels. Fixed with deferred swap that only defers when both outgoing and incoming tracks are one-shot. |
 | D27 | ~~Death SFX does not finish playing before the player respawns — cut off by the respawn transition~~ | ~~death SFX / respawn timing~~ | **NOT DEMONSTRABLE AS WORDED:** `lost_life.wav` is 3.267s (longer than 1.6s max fall+respawn window). No code stops it; pool only reuses Stopped channels. SFX plays on over resumed BGM. Observation real, stated mechanism absent — needs someone with audio to characterise what was actually heard. NOT fixed, NOT invalid. |
 | D28 | ~~Colorblind setting toggle has no visible effect on rendering~~ | ~~colorblind option wiring (OptionsState / render filter)~~ | **STRUCK — NEVER OPEN:** Already fixed by commit 2e7f5bb (2026-08-19, 12 days before audit). `ColorPalette::get()` reads `Game::getColorblindMode()` and is wired into Minimap, PlayingState HUD/debug colours, and OptionsState. |
+| D29 | Dying near an active boss and respawning can silently delete the boss entity itself, ending the fight without defeating it — found live in R12's Boom Boom attempt (2 of 3 hits landed, then a death+respawn removed him: stdout printed `Boss arena released` / `Cleared 1 enemy(ies) from the respawn point`, and he never appeared in any screenshot afterward) | `PlayingState.cpp:2701-2718` (the respawn-safety "clear anything within 2.5 tiles of the checkpoint" loop, added to fix a real spawn-killing bug) only checks `entity->getCategory() == EntityCategory::Enemy` before calling `destroy()` — bosses (`Boss`/`BoomBoom`/`Bowser`) are Enemies too, and the loop has no exemption for one that is `m_activeBoss`. If the respawn point lands within 2.5 tiles of the boss (very plausible inside a boss arena, which is often smaller than 5 tiles), the boss is deleted outright rather than merely being kept clear of the player for a moment. | Medium — a boss fight can be trivially and silently ended (not won) by one convenient death, and nothing in the log or HUD calls this out as different from a normal defeat |
+| D30 | `LOAD GAME` always resumes into World 1-1 regardless of which level a save slot recorded — found live in R12 while investigating a route to inject Fire Mario into World 1-3 for the Bowser fireball-stagger check | `MenuState.cpp` (Load page confirm) constructs `PlayingState(false, false, MapGeneratorConfig(), 0, 0, MatchConfig{}, false, pendingLoadSlot)` — levelIndex is hardcoded `0`; the constructor's own comment says this "fresh Level-1 PlayingState exists only to give `loadFromSlot` somewhere to run." `Serializer::saveGame`/`loadGame` read and write `level.id` faithfully, but `PlayingState::loadFromSlot` (`PlayingState.cpp:2100-2117`) only calls `adoptPlayer()` — it restores the player's position/state/coins/lives but never reads `lvlId` to pick which level file backs the running `PlayingState`. A slot saved deep in 1-2 or 1-3 loads the player at that saved (x,y) inside **1-1's own tilemap**, which is not the level that position was ever validated against. | Medium — save/load already shipped (R8, F3) and is reachable from `main()`, but is silently wrong for any slot not saved in World 1-1; a player who saves mid-1-3 and reloads will not be back in 1-3 |
 
 ## 5. Remaining feature work (from the checkbox triage)
 
@@ -369,7 +371,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > reports/report_content.py §13 and rebuild the report per its build.sh. No
 > merge, no push.
 
-### R12 — Full playtest & evidence pass (F8, D14 closure) — **Sonnet 5, effort: high** — branch `A/verify/full-playtest-pass` — **OPEN**
+### R12 — Full playtest & evidence pass (F8, D14 closure) — **Sonnet 5, effort: high** — branch `A/verify/full-playtest-pass` — **PARTIAL, evidence captured**
 
 > Read AGENTS.md rules 9-10 and docs/verification/README.md (its stated limits
 > are your checklist). Nobody has: fought Bowser on screen, pressed a P-Switch
@@ -389,6 +391,20 @@ and level design; effort = the reasoning-effort setting to run it at.
 > two Windows-crash log entries (:4210 vs :4303) with one dated note stating
 > the MSVC verification status. Fix nothing beyond one-line tuning constants;
 > file defects found as new issue entries in docs/issues/. No merge, no push.
+
+**Result, 2026-08-31 (see docs/verification/README.md's R12 section for full
+detail with screenshots):** (b), (c), (d), (e), (f) OBSERVED live; (a) PARTIAL
+— Bowser cleared via the axe's alternate-victory mechanic (`defeatNow()`,
+not the fireball/stagger loop, which was attempted once and failed before
+Fire Mario was obtained), Boom Boom 2 of 3 hits landed then the boss was
+deleted by a respawn-safety bug (new D29); 100-coin 1-UP not attempted. No
+full blind 1-1→1-3 walkthrough was attempted — each boss arena was reached
+directly via a temporary `spawnPoint`/`progress.json`, disclosed per item.
+D14 reconciled (see its row above): status remains unconfirmed on Windows.
+Two new defects filed: D29 (boss deletable via respawn-clear radius), D30
+(LOAD GAME ignores the saved level index, always resumes World 1-1). No
+source file was changed beyond test scripts and level `spawnPoint` values
+(all reverted, `git diff` clean on tracked level JSON).
 
 ### R13 — GitHub issue hygiene (D12) — **Haiku 4.5, effort: low** — needs user approval to post
 

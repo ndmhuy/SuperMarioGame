@@ -1,0 +1,99 @@
+# R12 (a) — a single, bounded, good-faith attempt at Bowser's actual
+# 4-fireball/3-second-stagger mechanic (Bowser.cpp: FIRE_HITS_PER_STAGGER=4,
+# STAGGER_SECONDS=3.0f), as distinct from the axe shortcut already exercised
+# in verify_r12_bridge_axe.txt (which calls Boss::defeatNow() unconditionally
+# and proves nothing about the fireball loop's tuning).
+#
+# Reaching this mechanic needs Fire Mario, which needs a Mushroom (level_3.json
+# question_block itemType 1 @ tile 36,17) and then a Fire Flower (itemType 2 @
+# tile 66,17) — both BEFORE the ~114-tile run to Bowser's arena at tile 180.
+# TEMPORARY spawnPoint override: level_3.json (36,19), directly under the
+# Mushroom block, to skip the (otherwise blind, hazard-filled per R9's fortress
+# population — Thwomps, Bullet Bills, a Chain Chomp) run from the level's own
+# (3,19) spawn to here.
+#
+# HONESTY NOTE, going in: this is explicitly a coin-flip long blind run, the
+# same class of check that failed 9/9 and 12/13 times in prior phases (R9,
+# R16) for shorter distances. One attempt only, bounded effort — the point is
+# an honest data point on whether the stagger window is reachable/tunable at
+# all when Fire Mario is present, not a guaranteed clear. If it fails, that is
+# reported as NOT ACHIEVED with this attempt's outcome, not silently retried
+# until it works.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_bowser_fireball_attempt.txt
+#
+# Screenshots land in saves/shots/; the dev panel's Player Position readout
+# and stdout (Bowser has no per-fireball log line, but the arena-lock/defeat
+# lines do print) are the evidence.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.0
+press Enter
+wait 2.0
+shot r12_bfb_00_under_mushroom_block
+press W
+wait 1.0
+shot r12_bfb_01_after_mushroom_jump
+hold LShift 5.4
+hold D 5.4
+wait 5.6
+shot r12_bfb_02_at_flower_block
+press W
+wait 1.0
+shot r12_bfb_03_after_flower_jump
+hold LShift 15.0
+hold D 15.0
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 1.0
+press W
+wait 2.5
+shot r12_bfb_04_near_arena
+press F
+wait 0.3
+press F
+wait 0.3
+press F
+wait 0.3
+press F
+wait 0.3
+press W
+wait 1.5
+shot r12_bfb_05_fireball_attempt_1
+press F
+wait 0.3
+press F
+wait 0.3
+press F
+wait 0.3
+press F
+wait 0.3
+press W
+wait 1.5
+shot r12_bfb_06_fireball_attempt_2
+wait 2.0
+shot r12_bfb_07_final_state
+wait 1.0
+quit

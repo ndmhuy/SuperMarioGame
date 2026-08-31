@@ -1,0 +1,50 @@
+# R12 (b), part 2 — the bridge axe in World 1-3, reached via a TEMPORARY
+# saves/progress.json (levels 0 and 1 marked completed, so CampaignProgress::
+# isUnlocked lets the world map open on 1-3) plus a TEMPORARY spawnPoint
+# override in level_3.json ((187,19), three tiles from the real bridge_axe at
+# (190,20) inside Bowser's own arena (arenaX 180, width 13)). Both are
+# sanctioned, reverted after this script runs, confirmed with `git diff` (the
+# level file) and by restoring the pre-R12 saves/ backup (progress.json).
+#
+# PlayingState::chopBridge() (PlayingState.cpp:1310) calls
+# m_activeBoss->defeatNow() unconditionally on contact with the axe, win or
+# lose against Bowser first — SPEC's alternate victory condition, "outrun the
+# boss and drop the bridge". Reaching the axe at all requires walking through
+# the boss's own locked arena (PlayingState.cpp:2502-2530 clamps the player
+# inside it, but does not block movement within it), so Bowser is alive and
+# active when the axe is touched here — this is NOT the 4-fireball/3s stagger
+# fireball-then-stomp cycle SPEC also describes; it is the *other* mechanic,
+# and is reported as such.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_bridge_axe.txt
+#
+# Screenshots land in saves/shots/.
+# IMPORTANT — do NOT press A here. This script's first draft copied the
+# menu-navigation prefix other R12 scripts use verbatim, which includes two
+# "press A" taps meant to sit on CharacterSelectState. They actually land on
+# WorldMapState instead (CharacterSelectState's own Enter already transitions
+# there), and WorldMapState maps Key::A to moveSelection(-1) — so those two
+# taps walked the cursor from CampaignProgress::highestUnlockedIndex() (2,
+# World 1-3, per the temporary saves/progress.json below) back down to 0
+# (World 1-1), and this script spent an attempt loading the wrong level
+# before that was diagnosed. Fixed here by leaving A out entirely: WorldMap
+# opens on the furthest unlocked node by design, so the very next Enter
+# confirms 1-3 directly.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.0
+press Enter
+wait 2.0
+shot r12_axe_00_arrival
+hold D 2.5
+wait 3.0
+shot r12_axe_01_near_axe
+hold D 1.0
+wait 1.5
+shot r12_axe_02_at_or_past_axe
+wait 2.0
+shot r12_axe_03_after
+wait 1.5
+quit

@@ -1,0 +1,72 @@
+# R12 (b), part 1 — P-Switch and POW block, reached via a TEMPORARY spawnPoint
+# override in assets/levels/level_1.json: (99,18), directly above the real warp
+# pipe at (98,19)/(3136,608)px that leads to level_1_sub.json (a 2-tile-wide,
+# 2-tile-tall solid box per Pipe.cpp, so its footprint is x:[3136,3200],
+# y-top:608). This is the sanctioned technique for reaching a target without a
+# long blind traversal: R16 recorded a 1-in-13 success rate driving the
+# ~95-tile blind run from the level's own (3,19) spawn to this same pipe.
+#
+# An earlier attempt in this same R12 session tried spawning a few tiles to the
+# pipe's LEFT and walking/jumping onto it, and got stuck: the small brick
+# staircase just before the pipe overhangs the approach at ground level (the
+# dev panel's live Player Position/Velocity readout showed him wedged at
+# (3112, 642) with velocity pinned at (0,0) even after "press W" — a ceiling
+# tile directly overhead, not a defect, just bad luck of exactly which ground
+# tile a temporary spawn override landed on). Spawning directly above the pipe
+# and letting gravity drop the player onto its flat top removes that whole
+# approach problem. The override is reverted after this script is run — see
+# the R12 log entry and `git diff` on this file.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r12_pswitch_pow_via_spawn_override.txt
+#
+# The "Gameplay Controls & Navigation" dev panel (pre-seeded expanded via
+# imgui_layout_v2.ini, gitignored) prints the live Player Position each shot,
+# which is how the earlier stuck spot was diagnosed and how landing on the
+# pipe / the sub-level transition is confirmed here. Screenshots land in
+# saves/shots/. A successful warp also prints "[LevelLoader] Successfully
+# loaded ... level_1_sub.json" on stdout.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.5
+press A
+wait 0.4
+press A
+wait 0.6
+press Enter
+wait 2.0
+shot r12_pow_00_falling_onto_pipe
+wait 1.0
+shot r12_pow_01_landed_on_pipe
+hold S 1.5
+wait 1.8
+shot r12_pow_02_after_crouch_at_pipe
+wait 1.5
+shot r12_pow_03_sub_level_if_warped
+hold LShift 20.0
+hold D 20.0
+wait 0.6
+press W
+wait 0.6
+press W
+wait 0.6
+shot r12_pow_04_toward_pow_block
+wait 2.0
+shot r12_pow_05_at_pow_block
+press W
+wait 0.4
+press W
+wait 0.4
+press W
+wait 0.4
+shot r12_pow_06_after_pow_strikes
+wait 2.0
+shot r12_pow_07_toward_pswitch
+press W
+wait 0.4
+shot r12_pow_08_at_pswitch
+wait 2.0
+shot r12_pow_09_after_pswitch
+wait 1.0
+quit

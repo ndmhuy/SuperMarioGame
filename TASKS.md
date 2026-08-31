@@ -669,7 +669,9 @@
 ### 11.2 Edge Cases & Bug Fixes
 - [x] Respawn at checkpoint with death animation
 - [x] Flashing invincibility frames
-- [ ] Clamp player inside camera
+- [ ] Clamp player inside camera — not observed this session (R12); R7 item 7
+      implemented this for single-player and it is in this branch's base, but
+      no R12 run specifically drove the player to a view edge to watch it hold
 - [x] Shell collision chains, time-out death, 100 coin 1-UP, pipe transitions
 - [ ] Commit: `feat: fix edge cases and polish`
 
@@ -692,11 +694,31 @@
 - [x] Commit: `feat: implement accessibility features`
 
 ### 11.5 Final Testing
-- [ ] Complete full walkthrough of all 3 levels + bonus rooms
-- [ ] Test all power-up states, enemy types, block types
-- [ ] Test save/load, statistics, achievements
-- [ ] Test 2P mode, difficulty modes, key rebinding
-- [ ] Verify steady 60fps
+- [ ] Complete full walkthrough of all 3 levels + bonus rooms — NOT attempted as
+      a continuous blind run (R12): R9/R16 already spent 9 and 13 attempts
+      establishing that on shorter levels. Each boss arena was instead reached
+      directly (temporary spawnPoint/progress.json, reverted) — see
+      docs/verification/README.md's R12 section.
+- [ ] Test all power-up states, enemy types, block types — PARTIAL (R12): POW,
+      P-Switch, warp pipe, Goomba stomp/side-hit, Boom Boom and Bowser all
+      observed live; Fire Mario/power-up state chain was not reached this
+      session (one bounded attempt died before the first Mushroom block).
+- [ ] Test save/load, statistics, achievements — PARTIAL (R12): achievement
+      unlocks observed live (First Stomp, Speed Demon, Toad Unlocked); the
+      save-slot UI itself was not driven this session, and doing so surfaced a
+      new defect instead — LOAD GAME always resumes World 1-1 regardless of
+      the saved level (D30, docs/issues/spec_feature_audit_2026-08-31.md).
+- [x] Test 2P mode, difficulty modes, key rebinding — OBSERVED live (R12): a
+      2-human versus round ending in Player 2's death (HUD lives 3→2, stdout
+      `Player 2 respawned ... Lives remaining: 2`); Easy (5 lives, TIME 387)
+      vs Hard (2 lives, TIME 222) on the same level (1-1); Player 1's JUMP
+      rebound W→K live through Options→Controls, then K (not W) drove an
+      actual jump in play. See docs/verification/README.md.
+- [x] Verify steady 60fps — OBSERVED (R12): a 60s trace of World 1-1, sampled
+      every 10s via the Game.cpp:176 dev-panel readout, held steady at
+      54.1-57.3 FPS (17.4-19.0 ms/frame) across a death and a Game Over screen.
+      Steady, but consistently a little under the 60fps cap, not exactly 60 —
+      reported as observed, not tuned (see docs/verification/README.md).
 - [ ] Commit: `feat: final playtest and performance verification`
 - [ ] **Merge**: `git checkout dev && git merge feature/polish`
 
