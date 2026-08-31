@@ -1,0 +1,40 @@
+# Verifies R17 item 1 (D16): Star power should tint Mario's sprite while a
+# StarDecorator is active (Player::render previously never read Star state at
+# all — only the hit-invincibility alpha flicker existed).
+#
+# Uses a level_1.json TEMPORARILY edited (spawnPoint moved next to the star
+# question block at tile (162,17), and the two patrol enemies nearby shoved
+# far off so they cannot interrupt the jump) — reverted before commit.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r17_star_visual.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+shot r17_star_00_start
+wait 1.0
+shot r17_star_01_landed
+press W
+wait 0.5
+press W
+wait 0.8
+hold D 3.0
+wait 0.3
+shot r17_star_02_chase_a
+wait 0.5
+shot r17_star_03_chase_b
+wait 0.5
+shot r17_star_04_chase_c
+wait 0.7
+shot r17_star_05_chase_d
+wait 1.0
+shot r17_star_06_chase_e
+release D
+wait 0.5
+shot r17_star_07_final
+quit
