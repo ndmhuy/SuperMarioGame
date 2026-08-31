@@ -76,7 +76,7 @@ footer{max-width:74ch;margin:56px auto 0;padding-top:18px;border-top:1px solid v
 TITLE = "CS202 Super Mario Report"
 
 
-def render(F, img, uml):
+def render(F, img, uml, arch):
     """The page CONTENT: title, styles and body.
 
     Deliberately not a whole HTML document. build_report.py wraps this in a
@@ -248,35 +248,12 @@ run and the behaviour seen; "test" means a CTest case exercises it.</p>
 <p>The engine is layered, and the dependency arrows point one way only. Nothing in
 <code>Entities</code> includes anything from <code>Core</code> except the singletons and the event bus;
 nothing in <code>Physics</code> knows what a Goomba is.</p>
-<pre><code>            +-----------------------------------------------+
-            |  Core        Game loop, states, input, audio,  |
-            |              events, commands, rewind          |
-            +-----------------------------------------------+
-               |  owns states           ^  publish/subscribe
-               v                        |
-            +-----------------------------------------------+
-            |  Entities    Entity -> Character -> Player     |
-            |              / Enemy; Item; Block; strategies  |
-            +-----------------------------------------------+
-               |  vector&lt;unique_ptr&lt;Entity&gt;&gt;   ^ AABB, resolve
-               v                                |
-            +-----------------------------------------------+
-            |  Physics     SpatialHash, CollisionDetector,   |
-            |              CollisionResolver, PhysicsEngine  |
-            +-----------------------------------------------+
-               |  reads positions               ^ tile queries
-               v                                |
-            +-----------------------------------------------+
-            |  Graphics    Camera, SpriteSheet, Animator,    |
-            |              HUD, particles, parallax, minimap |
-            +-----------------------------------------------+
-                                |
-                                v
-            +-----------------------------------------------+
-            |  Utils       TileMap, LevelLoader, Serializer, |
-            |              MapEditor, MapGenerator, catalogue|
-            +-----------------------------------------------+
-</code></pre>
+<figure class="uml"><div class="uml-scroll">{arch()}</div>
+<figcaption>Figure 5 &mdash; The five-layer architecture.<br><span class="note">Solid arrows are the
+ownership/data direction (Core owns the states that hold entities; entities are read as a flat list by
+physics; physics writes positions graphics then draws). Dashed arrows are the narrower channel each
+layer answers back through &mdash; an event, a resolved collision, a tile lookup &mdash; never a
+direct call in the other direction.</span></figcaption></figure>
 <p>The frame is a fixed-timestep loop: input is drained from the OS event queue, the accumulator runs
 <code>update(1/60)</code> as many times as it owes, and rendering interpolates between the last two
 states. Physics is therefore deterministic and independent of frame rate, which is what makes the
@@ -1056,10 +1033,12 @@ ctest --output-on-failure # 13 verification targets
 </tbody></table></div>
 
 <h3>16.4 UML diagrams, collected</h3>
-<p>Every class diagram in this report in one place, for a reader who wants the structure without
-re-finding it inside &sect;6's prose. Each is generated from the headers at build time by
-<code>gen_class_diagram.py</code> (&sect;6's opening note), so this index cannot drift from the figures
-themselves the way a hand-kept one would.</p>
+<p>Every class diagram in this report, in one place, at full size &mdash; not a redrawn summary, the
+same figures &sect;6 discusses in context, collected here for a reader who wants the whole structure in
+one pass rather than hunting back through the prose. Each is regenerated from the current headers at
+build time by the same <code>gen_class_diagram.py</code> pass that draws the inline copies
+(&sect;6's opening note), so this appendix cannot go stale relative to them the way a hand-drawn
+"master diagram" done once and forgotten would.</p>
 <div class="tbl"><table>
 <thead><tr><th>Figure</th><th>Root class</th><th>Discussed in</th><th>What it shows</th></tr></thead>
 <tbody>
@@ -1073,6 +1052,18 @@ themselves the way a hand-kept one would.</p>
 <tr><td>11</td><td><code>ICommand</code></td><td>&sect;6.5</td><td>Input as objects — the Command pattern's own hierarchy.</td></tr>
 <tr><td>12</td><td><code>IMovementStrategy</code></td><td>&sect;6.5</td><td>Eight interchangeable enemy movements — the Strategy pattern's own hierarchy.</td></tr>
 </tbody></table></div>
+
+{uml('Entity', None, 'Figure 6 (full) — The complete Entity hierarchy.',
+     'Every concrete Entity subclass the game has, four branches deep from one abstract root.')}
+{uml('Item', None, 'Figure 6a (full) — The complete Item hierarchy.', None)}
+{uml('Block', None, 'Figure 6b (full) — The complete Block hierarchy.', None)}
+{uml('Character', None, 'Figure 7 (full) — The complete Character hierarchy.',
+     'Every playable character and every enemy, including the Boss sub-branch, in one tree.')}
+{uml('Enemy', None, 'Figure 8 (full) — The complete Enemy/Boss hierarchy.', None)}
+{uml('IPlayerState', None, 'Figure 9 (full) — The complete player-form hierarchy.', None)}
+{uml('IGameState', None, 'Figure 10 (full) — The complete screen/State hierarchy.', None)}
+{uml('ICommand', None, 'Figure 11 (full) — The complete Command hierarchy.', None)}
+{uml('IMovementStrategy', None, 'Figure 12 (full) — The complete Strategy hierarchy.', None)}
 
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>
 Generated by <code>reports/build_report.py</code> from the repository at commit {F['head']}.
