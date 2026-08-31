@@ -279,6 +279,22 @@ private:
     EventBus::ScopedSubscription m_blockBrokenSub;
     EventBus::ScopedSubscription m_coinParticleSub;
     EventBus::ScopedSubscription m_playerDamagedSub;
+    // Combo milestone burst (ParticleType::Combo) — the fourth of
+    // ParticleEmitter's declared-but-unused types (R7 audit); the other three
+    // below are timer-gated per-frame checks rather than events.
+    EventBus::ScopedSubscription m_comboParticleSub;
+    // Ambient zone particles (water/lava) and wall-slide dust: ParticleEmitter
+    // has burst types for all three but nothing called burst() with them.
+    // Timer-gated so standing in water for ten seconds does not queue ten
+    // seconds of bubbles in one frame's worth of draw calls.
+    float m_ambientParticleTimer = 0.0f;
+    float m_wallDustTimer = 0.0f;
+
+    // Footstep cadence (SPEC 11.4). Two timers because two players can be on
+    // different surfaces at different speeds at once.
+    float m_footstepTimer = 0.0f;
+    float m_footstepTimer2 = 0.0f;
+    void updateFootstep(Player* who, float& timer, float dt);
 
     // --- Boss fights ---------------------------------------------------
     // The boss in this level, or null. Found once when the level loads rather

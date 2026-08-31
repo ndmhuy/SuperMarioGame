@@ -2,6 +2,7 @@
 #include "Core/ResourceManager.hpp"
 #include "Core/EventBus.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <cmath>
 #include <vector>
@@ -149,9 +150,22 @@ void SoundManager::setupEventSubscriptions() {
     // An achievement unlocking was completely silent; the only feedback was an
     // ImGui window that normal play never shows.
     bus.subscribe(EventType::AchievementUnlocked, [this](const GameEvent&) { playSound("one_up"); });
+
+    // SPEC 11.1 names dedicated combo_1..combo_4 SFX files, but only the 29
+    // names in loadAllSounds() above actually ship in assets/sfx — there is no
+    // combo_*.wav to load. A rising pitch on an existing sound stands in
+    // instead (R7 audit): each chained kill (Player::incrementCombo(),
+    // Player.cpp) escalates the pitch a step further, capped so a long combo
+    // does not end up an inaudible chipmunk squeak.
+    m_comboHitSub = EventBus::ScopedSubscription(EventType::ComboHit, [this](const GameEvent& ev) {
+        int combo = 1;
+        if (const int* asInt = std::any_cast<int>(&ev.data)) combo = *asInt;
+        const float pitch = 1.0f + 0.12f * static_cast<float>(std::min(combo - 1, 6));
+        playSound("coin", pitch);
+    });
 }
 
-void SoundManager::playSound(const std::string& id) {
+void SoundManager::playSound(const std::string& id, float pitch) {
     if (!m_audioAvailable) return;
 
     if (!m_soundsLoaded) {
@@ -159,7 +173,7 @@ void SoundManager::playSound(const std::string& id) {
     }
 
     sf::SoundBuffer& sfxBuffer = ResourceManager::getInstance().getSoundBuffer(id);
-    
+
     const sf::SoundBuffer* bufferToPlay = &sfxBuffer;
     if (sfxBuffer.getSampleCount() == 0) {
         bufferToPlay = &m_fallbackBuffer;
@@ -170,6 +184,10 @@ void SoundManager::playSound(const std::string& id) {
         if (poolSFX.getStatus() == sf::SoundSource::Status::Stopped) {
             poolSFX.setBuffer(*bufferToPlay);
             poolSFX.setVolume(m_SFXVolume);
+            // Always assigned, even at the default 1.0 — a pooled sf::Sound is
+            // reused across calls, and a stale pitch from a previous combo hit
+            // must not bleed into the next, unrelated sound this slot plays.
+            poolSFX.setPitch(pitch);
             poolSFX.play();
             break;
         }

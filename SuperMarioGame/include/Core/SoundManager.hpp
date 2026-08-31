@@ -5,6 +5,7 @@
 #include <SFML/Audio/Sound.hpp>
 #include <SFML/Audio/Music.hpp>
 #include <SFML/Audio/SoundBuffer.hpp>
+#include "Core/EventBus.hpp"
 
 
 class SoundManager {
@@ -24,8 +25,10 @@ public:
     // EventBus listener wiring
     void setupEventSubscriptions();
 
-    // Play a sound effect from the pool
-    void playSound(const std::string& id);
+    // Play a sound effect from the pool. `pitch` defaults to unmodified for
+    // every existing caller; the combo escalation below is the one caller that
+    // passes something else.
+    void playSound(const std::string& id, float pitch = 1.0f);
 
     // Music methods
     // `loop` false for one-shot jingles — level complete, castle complete, game
@@ -82,6 +85,12 @@ private:
     std::string m_savedLevelMusicPath;
     bool m_soundsLoaded = false;
     bool m_eventsSubscribed = false;
+
+    // ComboHit escalation (SPEC 11.1's combo_1..combo_4 SFX). Kept as a
+    // ScopedSubscription (audit X-7 / R4) rather than the raw ids the dozen
+    // subscriptions in setupEventSubscriptions() still use, since this one is
+    // set up separately from that block.
+    EventBus::ScopedSubscription m_comboHitSub;
 
     // A playMusic() request deferred because it arrived while the currently
     // playing track was a still-running one-shot jingle (see update()). Only

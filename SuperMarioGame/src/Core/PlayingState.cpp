@@ -299,8 +299,20 @@ void PlayingState::enter() {
 
             const sf::Vector2f pos = enemy->getPosition();
             m_particleEmitter.burst(pos + sf::Vector2f(16.0f, 16.0f), ParticleType::Stomp);
+            // A star-power kill gets the spin launch (SPEC 15.2's "All enemies
+            // (Star kill)" row) instead of the ordinary flip — checked against
+            // whichever player is currently starred, since CollisionResolver
+            // does not thread the kill method through this event (it only ever
+            // carried a score value; widening it would touch every enemy class
+            // that publishes EnemyDefeated). This event fires synchronously
+            // from within the same collision-resolution call that granted the
+            // kill, so the player's star state has not had a chance to expire
+            // between the two.
+            const bool starKill = (m_player && m_player->hasStarPower()) ||
+                                  (m_player2 && m_player2->hasStarPower());
             EntityDeathEffect::getInstance().spawnDeathEffect(
-                pos, m_enemySheet->getSprite("goomba_brown_move_0"), DeathEffectType::EnemyFlip);
+                pos, m_enemySheet->getSprite("goomba_brown_move_0"),
+                starKill ? DeathEffectType::StarKillSpin : DeathEffectType::EnemyFlip);
             break;
         }
     });
@@ -316,6 +328,15 @@ void PlayingState::enter() {
 
     m_playerDamagedSub = EventBus::ScopedSubscription(EventType::PlayerDamaged, [this](const GameEvent&) {
         if (m_player) m_particleEmitter.burst(m_player->getBoundingBox().getCenter(), ParticleType::DeathPoof);
+    });
+
+    // ParticleType::Combo: the fourth declared-but-unused particle type
+    // (R7 audit). Same event SoundManager's combo pitch escalation listens for
+    // (Player.cpp publishes ComboHit once per chained kill); kept as a
+    // separate subscriber here rather than widening either existing one.
+    m_comboParticleSub = EventBus::ScopedSubscription(EventType::ComboHit, [this](const GameEvent&) {
+        if (m_player) m_particleEmitter.burst(
+            m_player->getBoundingBox().getCenter() + sf::Vector2f(0.0f, -32.0f), ParticleType::Combo);
     });
 
     // --- Question blocks: actually produce the item they announce ---
@@ -702,6 +723,52 @@ void PlayingState::update(float dt) {
         return;
     }
 
+    // 3b1a. Ambient zone particles (ParticleEmitter had WaterBubble and LavaEmber
+    // settings defined but nothing ever called burst() with them — R7 audit).
+    // Timer-gated per player so standing in a zone queues an occasional puff
+    // rather than one every single frame.
+    for (Player* who : {m_player, m_player2}) {
+        if (!who || !who->isActive() || who->isDying()) continue;
+        const AABB box = who->getBoundingBox();
+        const sf::Vector2f center = box.getCenter();
+        const TileType occupied = m_tileMap.getTileSurfaceType(center.x, center.y);
+        if (occupied != TileType::Water && occupied != TileType::Lava) continue;
+
+        m_ambientParticleTimer -= dt;
+        if (m_ambientParticleTimer <= 0.0f) {
+            m_ambientParticleTimer = 0.4f;
+            m_particleEmitter.burst(center, occupied == TileType::Water
+                                             ? ParticleType::WaterBubble
+                                             : ParticleType::LavaEmber);
+        }
+        break; // one zone check is enough to keep the timer meaningful
+    }
+
+    // 3b1b. Wall-slide dust. isOnWall() while airborne is exactly the condition
+    // CollisionResolver uses to cap the fall speed into a slide (see the wall
+    // slide comment in resolveEntityVsTile) — the same state, just read here
+    // instead of re-derived.
+    const bool sliding = (m_player && m_player->isOnWall() && !m_player->isOnGround()) ||
+                         (m_player2 && m_player2->isOnWall() && !m_player2->isOnGround());
+    if (sliding) {
+        m_wallDustTimer -= dt;
+        if (m_wallDustTimer <= 0.0f) {
+            m_wallDustTimer = 0.1f;
+            Player* slidingPlayer = (m_player && m_player->isOnWall() && !m_player->isOnGround())
+                                    ? m_player : m_player2;
+            if (slidingPlayer) {
+                m_particleEmitter.burst(slidingPlayer->getBoundingBox().getCenter(), ParticleType::WallDust);
+            }
+        }
+    } else {
+        m_wallDustTimer = 0.0f;
+    }
+
+    // 3b1c. Surface-dependent footsteps (SPEC 11.4). Three WAVs were loaded in
+    // SoundManager::loadAllSounds() and never once played (R7 audit).
+    updateFootstep(m_player, m_footstepTimer, dt);
+    updateFootstep(m_player2, m_footstepTimer2, dt);
+
     // 3b2. Lava burns. A Lava tile is not solid — you fall into it, you do not
     // stand on it — so nothing in the physics engine would ever have noticed it.
     // Checked against the player's feet, which is the part that touches first.
@@ -862,6 +929,35 @@ void PlayingState::update(float dt) {
         m_camera.follow(m_player->getPosition(), m_player->getVelocity(), dt);
     }
     m_camera.update(dt);
+
+    // 4a. Keep a lone player inside the camera's view. updateVersusCamera()
+    // above already tethers both players to the view when there are two
+    // (that "hard bounds" loop at its end) — a single player had no equivalent,
+    // so outrunning the camera's lag/lookahead simply carried them past the
+    // edge of what was on screen with nothing to stop them (only a boss arena,
+    // via updateBossArena(), clamped position at all before this — R7 audit).
+    // X only, and the bottom edge is deliberately left unclamped: the void-kill
+    // plane (3c, above) is a world-space plane well below the level, and a
+    // falling player must keep dropping below the visible view until that
+    // check catches them rather than being arrested at the screen's bottom.
+    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying()) {
+        const AABB view = m_camera.getVisibleBounds();
+        const AABB box = m_player->getBoundingBox();
+        sf::Vector2f position = m_player->getPosition();
+        bool moved = false;
+        if (position.x < view.x) {
+            position.x = view.x;
+            moved = true;
+        } else if (position.x + box.width > view.x + view.width) {
+            position.x = view.x + view.width - box.width;
+            moved = true;
+        }
+        if (moved) {
+            m_player->setPosition(position);
+            m_player->setVelocity({0.0f, m_player->getVelocity().y});
+        }
+    }
+
     m_background.update(dt);
     ScreenTransitionManager::getInstance().update(dt);
 
@@ -2248,6 +2344,39 @@ void PlayingState::findActiveBoss() {
     }
 }
 
+void PlayingState::updateFootstep(Player* who, float& timer, float dt) {
+    if (!who || !who->isActive() || who->isDying()) { timer = 0.0f; return; }
+    if (timer > 0.0f) timer -= dt;
+
+    // Grounded and actually moving. Airborne, standing still or wall-sliding
+    // (which has its own dust cue, above) all skip this — a footstep on the way
+    // up or while parked mid-air reads as a bug, not a cadence.
+    if (!who->isOnGround() || std::abs(who->getVelocity().x) < 20.0f) return;
+    if (timer > 0.0f) return;
+
+    const bool running = std::abs(who->getVelocity().x) > Constants::WALK_SPEED + 10.0f;
+    timer = running ? 0.18f : 0.30f;
+
+    const AABB box = who->getBoundingBox();
+    const TileType underfoot = m_tileMap.getTileSurfaceType(
+        box.x + box.width * 0.5f, box.y + box.height + Constants::GROUND_CHECK_OFFSET);
+
+    // Only three footstep WAVs are loaded (SoundManager::loadAllSounds()); SPEC
+    // 11.4 lists four surfaces (grass/ground, stone/brick, ice, metal). Ice and
+    // every other solid, non-ground tile share footstep_floor rather than
+    // inventing a fourth asset that was never delivered. Bowser's Castle
+    // (levelIndex 2, see SoundManager::playLevelBGM's comment for the mapping)
+    // is the one case with a real "Metal" identity in the SPEC, so it overrides
+    // by level rather than by tile.
+    std::string sfx = "footstep_grass";
+    if (m_selectedLevelIndex == 2) {
+        sfx = "footstep_metalcap";
+    } else if (underfoot != TileType::Ground) {
+        sfx = "footstep_floor";
+    }
+    SoundManager::getInstance().playSound(sfx);
+}
+
 void PlayingState::updateBossArena() {
     // The boss entity is owned by m_entities and pruned when it deactivates, so
     // the pointer has to be dropped in the same frame it stops being active.
@@ -2368,6 +2497,15 @@ void PlayingState::killPlayer(Player* who, const char* reason) {
     // Pop up, then fall through the level. The respawn happens when the fall is
     // over, not on the frame of the hit.
     who->beginDeathFall();
+
+    // SPEC 15.2's player death animation, layered over the real fall the same
+    // way the enemy-defeat handler above layers EnemyFlip/StarKillSpin over the
+    // squish/flip the enemy itself is already doing — DeathEffectType::
+    // PlayerDeathHop existed but nothing ever spawned it (R7 audit).
+    if (who->hasArtwork()) {
+        EntityDeathEffect::getInstance().spawnDeathEffect(
+            who->getPosition(), who->getCurrentSprite(), DeathEffectType::PlayerDeathHop);
+    }
 
     // Deliberately does NOT re-publish PlayerDied. Player::powerDown() already
     // published it for a damage death, and re-publishing meant StatisticsTracker

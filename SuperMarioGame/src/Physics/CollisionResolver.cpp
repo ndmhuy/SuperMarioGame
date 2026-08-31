@@ -184,6 +184,22 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
         return;
     }
 
+    // Star power destroys on contact, from any direction — same rule as the
+    // cape swing above, and checked the same way for the same reason. Before
+    // this, Star only ever protected the player: a non-stomp touch fell through
+    // to the knockback branch below, which calls player.takeDamage(), and
+    // Player::powerDown() already refuses to downgrade a starred player — so
+    // the enemy walked away untouched and the only visible effect was that the
+    // player didn't flinch. Bosses are not trivialised by this: onHitByFireball()
+    // routes through Boss::takeHit(), which still enforces its own health and
+    // invulnerability-window rules, same as a fireball or cape hit would.
+    if (player.hasStarPower()) {
+        enemy.onHitByFireball();
+        player.incrementCombo();
+        player.addScore(enemy.getScoreValue() * player.getComboCounter());
+        return;
+    }
+
     // A stomp is any contact where the player is descending onto the enemy's upper band.
     // The feet-vs-top test is more forgiving than the raw collision normal at high speed.
     float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;

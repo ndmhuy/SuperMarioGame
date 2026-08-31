@@ -264,6 +264,13 @@ void OptionsState::handleInput(const sf::Event& event) {
         case Key::Up:
         case Key::W:
             if (isRowPage() && !m_rows.empty()) {
+                // SPEC 17.3's per-row navigation cue (R7 audit — see MenuState's
+                // moveSelection for the same fix; this state has no equivalent
+                // "already has one" caller to reuse either). Only on the actual
+                // key press, not moveRow(1)'s other caller in buildRows(), which
+                // steps off an unselectable caption after a rebuild rather than
+                // in response to input.
+                SoundManager::getInstance().playSound("bump");
                 moveRow(-1);
             } else if (m_page == Page::Achievements) {
                 m_achievementScroll = std::max(0, m_achievementScroll - 1);
@@ -272,6 +279,7 @@ void OptionsState::handleInput(const sf::Event& event) {
         case Key::Down:
         case Key::S:
             if (isRowPage() && !m_rows.empty()) {
+                SoundManager::getInstance().playSound("bump");
                 moveRow(1);
             } else if (m_page == Page::Achievements) {
                 const int total = static_cast<int>(

@@ -235,6 +235,15 @@ void Player::powerUp(int itemType) {
     EventBus::getInstance().publish({EventType::PowerUpCollected, itemType});
 }
 
+bool Player::hasStarPower() const {
+    IPlayerState* state = m_currentState.get();
+    while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(state)) {
+        if (dynamic_cast<StarDecorator*>(decorator)) return true;
+        state = decorator->getWrappedState();
+    }
+    return false;
+}
+
 void Player::takeDamage(int amount) {
     if (m_dying) return;
     if (invincibilityTimer > 0.0f) return;
