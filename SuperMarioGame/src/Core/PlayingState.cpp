@@ -87,12 +87,13 @@ BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
 } // namespace
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
-                           int characterIndex, int levelIndex, MatchConfig match, bool isEndless)
+                           int characterIndex, int levelIndex, MatchConfig match, bool isEndless,
+                           int pendingLoadSlot)
     : m_match(match),
       m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
       m_startInEditor(startInEditor), m_isProcedural(isProcedural),
-      m_genConfig(genConfig), m_isEndless(isEndless) {
+      m_genConfig(genConfig), m_isEndless(isEndless), m_pendingLoadSlot(pendingLoadSlot) {
     // Published now rather than in enter(), because the collision resolver can
     // be reached by a harness that never enters a state, and a stale co-op flag
     // there would silently turn a versus stomp into a friendly boost.
@@ -425,6 +426,18 @@ void PlayingState::enter() {
     // --- Checkpoint: remember where to respawn, then auto-save ---
     m_checkpointPosition = m_player ? m_player->getPosition() : sf::Vector2f(96.0f, 64.0f);
     m_hasCheckpoint = false;
+
+    // --- Menu-driven Load Game: this instance exists purely to give
+    // loadFromSlot somewhere to run. DevPanel's Save/Load Slots panel is the
+    // only other caller, and it always has a PlayingState already running to
+    // call into; MenuState does not, so it asks for one built specifically to
+    // load into, via this constructor argument. Reuses the exact same private
+    // method (and the adoptPlayer use-after-free fix it depends on) rather
+    // than forking any of it. ---
+    if (m_pendingLoadSlot > 0) {
+        loadFromSlot(m_pendingLoadSlot);
+        m_pendingLoadSlot = 0;
+    }
 
     // --- Screen transition: fade the level in on entry ---
     ScreenTransitionManager::getInstance().reset();

@@ -49,10 +49,17 @@ public:
     // extendEndlessLevelIfNeeded() appends another chunk of rising difficulty
     // each time the player nears the current far edge, forever (or until they
     // die) — no flagpole, no fixed width, distance travelled is the score.
+    // `pendingLoadSlot` is how MenuState's LOAD GAME picker reaches
+    // loadFromSlot(): that method is private, called until now only by
+    // DevPanel on a PlayingState that is already running. The menu has no such
+    // instance, so it builds one specifically to load into, and enter() calls
+    // loadFromSlot(pendingLoadSlot) on itself once the level is otherwise set
+    // up. 0 (the default) means "no pending load, play normally".
     explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
                           const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
                           int characterIndex = 0, int levelIndex = 0,
-                          MatchConfig match = MatchConfig{}, bool isEndless = false);
+                          MatchConfig match = MatchConfig{}, bool isEndless = false,
+                          int pendingLoadSlot = 0);
     ~PlayingState() override;
 
     void enter() override;
@@ -331,6 +338,11 @@ private:
     bool m_startInEditor = false;
     bool m_isProcedural = false;
     MapGeneratorConfig m_genConfig;
+
+    // Slot to call loadFromSlot() with at the end of this run's first enter(),
+    // or 0 for none. Consumed (reset to 0) once acted on, so a later level
+    // transition that reuses this same instance never re-triggers it.
+    int m_pendingLoadSlot = 0;
 
     // Set when MapGenerator::generateSolvable() exhausted every reseed attempt
     // and kept the last (unverified) layout anyway — surfaced in the dev
