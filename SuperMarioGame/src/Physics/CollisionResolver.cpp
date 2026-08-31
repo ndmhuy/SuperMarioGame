@@ -5,9 +5,6 @@
 #include "Entities/Block.hpp"
 #include "Entities/HiddenBlock.hpp"
 #include "Entities/Flagpole.hpp"
-#include "Entities/Trampoline.hpp"
-#include "Entities/PSwitch.hpp"
-#include "Entities/POWBlock.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Projectile.hpp"
 #include "Entities/Hammer.hpp"
@@ -349,65 +346,29 @@ void CollisionResolver::resolvePlayerVsEnemy(Player& player, Enemy& enemy, const
 void CollisionResolver::resolvePlayerVsItem(Player& player, Item& item, const CollisionInfo& info) {
     if (player.getInvincibilityTimer() > 0.0f) return; // Ignore item collisions / collection while hurt invincible
 
-    if (!item.isCollected()) {
-        if (auto trampoline = dynamic_cast<Trampoline*>(&item)) {
-            // Trampoline only bounces player when landed on from above
-            if (info.normal.y == -1.0f || player.getVelocity().y >= 0.0f) {
-                trampoline->activate(player);
-            } else {
-                // Side / bottom collision acts as solid box displacement
-                player.position.x += info.normal.x * (info.overlap.x + 0.01f);
-                player.position.y += info.normal.y * (info.overlap.y + 0.01f);
-                if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
-                if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
-            }
+    if (item.isCollected()) return;
+
+    // The item says what its touch means; the resolver still owns every line
+    // that moves the player. Trampoline, POWBlock and PSwitch used to be named
+    // here by dynamic_cast, one branch each (audit A-10 / D8).
+    switch (item.onPlayerTouch(player, info)) {
+        case ItemTouch::Consumed:
+            // The item has already done whatever it does. No push-out.
             return;
-        }
 
-        if (auto pow = dynamic_cast<POWBlock*>(&item)) {
-            // Read the approach BEFORE the displacement below zeroes it: whether
-            // this contact is a strike depends on how fast the player was
-            // travelling into the block, and by the end of this branch that
-            // information is gone.
-            const float approachY = player.getVelocity().y;
-
-            // Solid in every direction, exactly like a brick — the POW block is
-            // terrain you can stand on. It used to fall through to the generic
-            // pickup path below, so walking sideways into it "collected" it.
-            player.position.x += info.normal.x * (info.overlap.x + 0.01f);
-            player.position.y += info.normal.y * (info.overlap.y + 0.01f);
-            if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
-            if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
-            if (info.normal.y == -1.0f) player.onGround = true;
-
-            // A strike is a hit from below (the arcade original) or a genuine
-            // descending stomp onto the top. Brushing past the side does
-            // nothing, and neither does resting on it — the descent-speed floor
-            // is what separates "landed on it" from "standing on it", the same
-            // distinction Boss::STOMP_MIN_DESCENT_SPEED draws.
-            constexpr float MIN_STRIKE_DESCENT = 60.0f;
-            const bool struckFromBelow = info.normal.y == 1.0f;
-            const bool stomped = info.normal.y == -1.0f && approachY >= MIN_STRIKE_DESCENT;
-            if (struckFromBelow || stomped) {
-                pow->activate(player);
-            }
-            return;
-        }
-
-        if (auto pswitch = dynamic_cast<PSwitch*>(&item)) {
-            pswitch->activate(player);
-            pswitch->collect();
-            // Solid collision response so player lands on top of squished P-Switch
+        case ItemTouch::Solid:
+            // Terrain-like item: the same displacement a block gets.
             player.position.x += info.normal.x * (info.overlap.x + 0.01f);
             player.position.y += info.normal.y * (info.overlap.y + 0.01f);
             if (info.normal.x != 0.0f) player.velocity.x = 0.0f;
             if (info.normal.y != 0.0f) player.velocity.y = 0.0f;
             if (info.normal.y == -1.0f) player.onGround = true;
             return;
-        }
 
-        item.activate(player);
-        item.collect();
+        case ItemTouch::Collect:
+            item.activate(player);
+            item.collect();
+            return;
     }
 }
 

@@ -1,5 +1,6 @@
 #include "Entities/PSwitch.hpp"
 #include "Entities/Player.hpp"
+#include "Physics/CollisionDetector.hpp"
 #include "Core/EventBus.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <algorithm>
@@ -64,4 +65,14 @@ void PSwitch::activate(Player& player) {
     }
     // Bricks <-> Coins swap for 15 seconds. Trigger via EventBus.
     EventBus::getInstance().publish({EventType::PSwitchActivated, 15.0f});
+}
+
+ItemTouch PSwitch::onPlayerTouch(Player& player, const CollisionInfo& info) {
+    // Touching a P-Switch from any direction presses it.
+    (void)info;
+    activate(player);
+    collect();
+    // Still solid afterwards, so the player lands on top of the squished switch
+    // rather than dropping through where it used to be.
+    return ItemTouch::Solid;
 }

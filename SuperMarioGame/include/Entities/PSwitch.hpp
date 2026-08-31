@@ -15,6 +15,7 @@ public:
     void render(sf::RenderTarget& target) override;
     void activate(Player& player) override;
     void collect() override;
+    ItemTouch onPlayerTouch(Player& player, const CollisionInfo& info) override;
     void setupAnimations(const SpriteSheet* spriteSheet) override;
 
 private:
