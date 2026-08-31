@@ -270,6 +270,51 @@ public:
     }
 };
 
+// Tab-completion for the input box (task 10.4 / R7 audit — the command parser
+// and commandNames() already existed; nothing in draw() ever called Tab a
+// completion request). ImGui's InputText callback wants a plain function
+// pointer, so this lives outside the class rather than as a member; it only
+// needs commandNames() and the printNote() passthrough, both public.
+//
+// Only the command name (the first word) is completed. Once a space appears
+// the rest is argument text with no fixed vocabulary — "give star", "tp 100
+// 200" — so completing past the first word would have to guess.
+int DebugConsoleCompletionCallback(ImGuiInputTextCallbackData* data) {
+    if (data->EventFlag != ImGuiInputTextFlags_CallbackCompletion) return 0;
+
+    const std::string current(data->Buf, static_cast<std::size_t>(data->BufTextLen));
+    if (current.empty() || current.find(' ') != std::string::npos) return 0;
+
+    std::vector<std::string> matches;
+    for (const std::string& name : DebugConsole::getInstance().commandNames()) {
+        if (name.compare(0, current.size(), current) == 0) matches.push_back(name);
+    }
+    if (matches.empty()) return 0;
+
+    std::string completion = matches.front();
+    if (matches.size() > 1) {
+        // Multiple candidates ("s" -> "spawn", "stage"...): complete only as
+        // far as every match agrees (the longest common prefix), and list the
+        // rest rather than silently guessing between them.
+        for (const std::string& match : matches) {
+            std::size_t i = 0;
+            while (i < completion.size() && i < match.size() && completion[i] == match[i]) ++i;
+            completion.resize(i);
+        }
+        std::string listing = "matches:";
+        for (const std::string& match : matches) listing += " " + match;
+        DebugConsole::getInstance().printNote(listing);
+    } else {
+        completion += ' '; // A single match completes straight to its arguments.
+    }
+
+    if (completion.size() > current.size()) {
+        data->DeleteChars(0, data->BufTextLen);
+        data->InsertChars(0, completion.c_str());
+    }
+    return 0;
+}
+
 } // namespace
 
 DebugConsole& DebugConsole::getInstance() {
@@ -364,7 +409,8 @@ void DebugConsole::draw() {
     static char input[256] = {0};
     ImGui::PushItemWidth(-1.0f);
     if (ImGui::InputText("##console_input", input, sizeof(input),
-                         ImGuiInputTextFlags_EnterReturnsTrue)) {
+                         ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCompletion,
+                         &DebugConsoleCompletionCallback)) {
         submit(input);
         input[0] = '\0';
         ImGui::SetKeyboardFocusHere(-1);

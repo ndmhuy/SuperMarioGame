@@ -38,6 +38,11 @@ public:
     // Registered commands, for `help` and for the tests.
     std::vector<std::string> commandNames() const;
 
+    // Appends a line to the output pane without treating it as a submitted
+    // command. Used by draw()'s Tab-completion callback (a plain C function
+    // pointer, so it cannot be a member) to report ambiguous matches.
+    void printNote(const std::string& line) { print(line); }
+
 private:
     DebugConsole() = default;
     ~DebugConsole() = default;
