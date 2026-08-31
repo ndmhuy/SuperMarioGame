@@ -133,9 +133,17 @@ function(add_verify_test name source)
     if (NOT AVT_NO_CTEST)
         add_test(NAME ${name} COMMAND ${name})
         # Assets resolve relative to the source tree, not the build directory.
+        # FIXTURES_REQUIRED wires this case into the saves_hermeticity guard
+        # (R11, see guard_saves_hermeticity below): CTest runs the fixture's
+        # SETUP test before, and its CLEANUP test after, every test that
+        # requires it -- so a snapshot of the real saves/ is taken before this
+        # case can touch it and compared again once every such case has run.
+        # Every ctest-registered verify_* case gets this automatically and for
+        # free; a harness would have to opt OUT (NO_CTEST) to escape the guard.
         set_tests_properties(${name} PROPERTIES
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-            TIMEOUT 120)
+            TIMEOUT 120
+            FIXTURES_REQUIRED saves_hermeticity)
         add_dependencies(ctest_binaries ${name})
     endif()
 endfunction()
@@ -218,6 +226,41 @@ target_link_libraries(${PROJECT_NAME} PRIVATE AppObjectsRelease)
 # ---------------------------------------------------------
 # 3. Verification Test Targets
 # ---------------------------------------------------------
+
+# R11 hermeticity guard (docs/issues/spec_feature_audit_2026-08-31.md,
+# g-rule-13). TestSaveSandbox.hpp gives every harness its OWN scratch save
+# directory, but that only proves a harness that uses it behaves -- it does
+# not prove every harness uses it, or that some path through the app code a
+# harness exercises does not reach the real SuperMarioGame/saves/ some other
+# way. This is the check that would actually have caught the original
+# incident: a ctest run deleted saves/highscores.json.
+#
+# guard_saves_hermeticity (tests/guard_saves_hermeticity.cpp) snapshots the
+# real saves/ directory content (or its absence) and can also re-snapshot and
+# diff against a prior snapshot. Two ctest cases wrap the whole rest of the
+# suite in a CTest fixture named "saves_hermeticity":
+#   - the SETUP case snapshots saves/ before anything else in the fixture runs
+#   - the CLEANUP case re-snapshots and compares after everything that
+#     requires the fixture has finished, and FAILS the run if they differ.
+# add_verify_test() above attaches FIXTURES_REQUIRED saves_hermeticity to
+# every ctest-registered case automatically, so this needs no per-test
+# opt-in and cannot be forgotten by a future test the way a convention could.
+add_executable(guard_saves_hermeticity "tests/guard_saves_hermeticity.cpp")
+target_compile_definitions(guard_saves_hermeticity PRIVATE
+    SAVES_HERMETICITY_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+add_dependencies(ctest_binaries guard_saves_hermeticity)
+
+add_test(NAME guard_saves_hermeticity_setup
+         COMMAND guard_saves_hermeticity snapshot)
+set_tests_properties(guard_saves_hermeticity_setup PROPERTIES
+    FIXTURES_SETUP saves_hermeticity
+    TIMEOUT 30)
+
+add_test(NAME guard_saves_hermeticity_check
+         COMMAND guard_saves_hermeticity verify)
+set_tests_properties(guard_saves_hermeticity_check PROPERTIES
+    FIXTURES_CLEANUP saves_hermeticity
+    TIMEOUT 30)
 
 add_verify_test(verify_all "tests/verify_all.cpp")
 

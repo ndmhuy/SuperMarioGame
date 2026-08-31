@@ -964,6 +964,18 @@ integration branches &mdash; the difference is the harnesses that open a window 
 headless runner, which are compiled but not executed there. The registered suite is currently
 {F['ctests']}/{F['ctests']} green, with 504 individual checks in the regression binary alone at the last logged run. Cases are added whenever a defect escapes to the audit stage, so the suite is a
 record of every bug the project has shipped.</p>
+<p>The suite is hermetic (R11, docs/issues/spec_feature_audit_2026-08-31.md): every harness's
+<code>main()</code> opens a <code>TestSaveSandbox</code> (<code>tests/TestSaveSandbox.hpp</code>) that
+points <code>Serializer::setSaveDirectory()</code> at a throwaway per-process temp directory before any
+other code runs, so nothing under test can reach the developer's real <code>saves/</code>. That the seam
+exists is not proof every harness uses it correctly, so <code>guard_saves_hermeticity</code>
+(<code>tests/guard_saves_hermeticity.cpp</code>) checks it empirically: a CTest fixture named
+<code>saves_hermeticity</code> snapshots the content of the real <code>saves/</code> directory before any
+verify_* case runs and re-snapshots it after every one has finished, failing the run if a single byte
+differs or a file was added or removed. Verified by mutation, not merely by a green run: disabling one
+harness's sandbox line reproduced the original incident &mdash; the guard caught both a rewritten
+<code>config.json</code> and a newly created <code>profile.json</code> &mdash; and re-enabling it turned
+the guard green again on the next run.</p>
 <h3>What is not done</h3>
 <ul>
 <li><strong>No 3D renderer.</strong> The 5-point rubric line is forfeited, deliberately (&sect;4).</li>
@@ -972,9 +984,6 @@ macOS, where the bug was already invisible. They show the fix breaks nothing; th
 the crash is the analysis in &sect;10.1. A Windows playtest of 1-3 is the outstanding confirmation.</li>
 <li><strong>The rebalanced Bowser fight is unplaytested.</strong> The stagger cost (four fireballs) and
 its duration (three seconds) are reasoned, not measured against a player.</li>
-<li><strong>The test suite is not hermetic.</strong> It reads and writes the real <code>saves/</code>
-directory; one run was observed deleting campaign progress, and one high-score assertion passes or fails
-depending on what is already on disk. This violates the project's own CI rule and is open work.</li>
 <li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against {F['harnesses']} test
 harnesses in the tree (86 written over the project's history) is the project's standing imbalance, and
 the reason several of the defects in &sect;10 survived as long as they did.</li>
@@ -1005,8 +1014,8 @@ reminder that "it works on my machine" is exactly the evidence undefined behavio
 manufacturing.</p>
 <h3>Future work</h3>
 <ul>
-<li>Make the test suite hermetic, then add an AddressSanitizer job to CI &mdash; the tool that would have
-found &sect;10.1 on its first run.</li>
+<li>Add an AddressSanitizer job to CI now that the suite is hermetic (&sect;13) &mdash; the tool that would
+have found &sect;10.1 on its first run.</li>
 <li>Wrap the entity list in a type whose <code>push_back</code> only the flush step can reach, so the
 &sect;10.1 invariant is impossible to break rather than merely easy to keep.</li>
 <li>Playtest and tune the Bowser fight, and record enough playtests to correct the harness-to-playtest
