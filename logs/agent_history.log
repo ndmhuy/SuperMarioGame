@@ -4392,3 +4392,14 @@ Summary of Changes:
 - Pushed dev (0258f1f..9d1bb1f) and main (bac6c49..40e3911) to origin.
 - A pre-existing, already-committed conflict-marker artifact from an unrelated August 13 session (a stray ">>>>>>> Stashed changes" and a garbled "---code 0)." line, around what is now line ~2404 of logs/agent_history.log) was found while resolving the current conflicts but deliberately NOT touched — it predates this session, is unrelated to what was being merged, and rewriting already-published history as a drive-by side effect is not what this operation was for. Flagged to the user instead.
 ---
+[2026-08-31 10:00:00] Branch: main (user-directed correction + merge)
+Git Fingerprint: dev e3ef0fe (before) → df05e63 (after, pushed); main 3f4ce5e (before) → 66cafa5 (after, pushed)
+Fetched Remotes: yes (dev/main both at origin at merge time)
+Prompt: "About AI Tools, mostly is Antigravity, not Claude Code (on introduce later)" — correcting the AI_Usage_Declaration.md tool attribution.
+Files Modified: submission_documents/AI_Usage_Declaration.md, submission_documents/AI_Usage_Declaration.pdf
+Reachable From Main: n/a — documentation
+Verified By: build only (regenerated the PDF via scripts/generate_pdf.py; grepped the rest of submission_documents/reports/Report/docs for the same "Claude Code" over-attribution and found no other occurrences)
+Summary of Changes:
+- Corrected the AI Usage Declaration's "Tools Used" section: Antigravity (Google, Gemini-based) is now named as the primary tool across most of the project's history, with Claude Code correctly scoped to the later work it actually did (the three defect fixes, Endless Mode, the solvability oracle, and this submission package) rather than claimed as "the primary tool used throughout the project."
+- Branched A/docs/fix-ai-tools-declaration off dev, merged to dev then to main, pushed both (dev df05e63, main 66cafa5) — same task-branch -> dev -> main workflow as the prior merges this session.
+---
