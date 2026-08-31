@@ -122,6 +122,17 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
             float ty = entityJson.value("y", 0.0f);
             
             sf::Vector2f position(tx * Constants::TILE_SIZE, ty * Constants::TILE_SIZE);
+
+            // Hand-authored levels place a piranha_plant at the same tile-x as
+            // its pipe's LEFT column (a 2-wide, 64px pipe), but the plant
+            // entity itself is only 32px wide. Left-aligning it to the pipe's
+            // left edge sat it 16px off-centre. MapGenerator's procedural
+            // "Pipe Alley" avoids this by spawning at (x + 0.5) tiles instead
+            // of x; mirror that here for the JSON-authored path too.
+            if (typeStr == "piranha_plant") {
+                position.x += Constants::TILE_SIZE * 0.5f;
+            }
+
             std::unique_ptr<Entity> entity = nullptr;
 
             if (typeStr == "question_block") {

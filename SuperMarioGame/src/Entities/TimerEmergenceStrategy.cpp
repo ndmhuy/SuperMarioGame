@@ -44,7 +44,12 @@ void TimerEmergenceStrategy::calculateTarget(Enemy& enemy, float dt) {
 }
 
 void TimerEmergenceStrategy::applyMovement(Enemy& enemy, float dt) {
-    const float emergeHeight = 64.0f; // 2 tiles
+    // Travel exactly the emerger's own height, not a hardcoded 2 tiles. A
+    // PiranhaPlant is 48px tall (its target size), so a hardcoded 64px used to
+    // push it 16px above the anchor (the pipe mouth) at full extension —
+    // moving/reading this from the entity keeps the anchor-to-emerged offset
+    // consistent with whatever occupies this strategy.
+    const float emergeHeight = enemy.getTargetSize().y;
 
     switch (m_state) {
         case EmergenceState::Retracted:
@@ -52,14 +57,14 @@ void TimerEmergenceStrategy::applyMovement(Enemy& enemy, float dt) {
             enemy.velocity = sf::Vector2f(0.0f, 0.0f);
             break;
         case EmergenceState::Emerging:
-            enemy.velocity = sf::Vector2f(0.0f, -emergeHeight); // moves up at 64 px/s
+            enemy.velocity = sf::Vector2f(0.0f, -emergeHeight); // moves up over the 1s emerging window
             break;
         case EmergenceState::Emerged:
             enemy.position = m_anchorPos - sf::Vector2f(0.0f, emergeHeight);
             enemy.velocity = sf::Vector2f(0.0f, 0.0f);
             break;
         case EmergenceState::Retreating:
-            enemy.velocity = sf::Vector2f(0.0f, emergeHeight); // moves down at 64 px/s
+            enemy.velocity = sf::Vector2f(0.0f, emergeHeight); // moves down over the 1s retreating window
             break;
     }
 }
