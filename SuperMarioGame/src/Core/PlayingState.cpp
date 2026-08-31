@@ -874,6 +874,35 @@ void PlayingState::update(float dt) {
         m_camera.follow(m_player->getPosition(), m_player->getVelocity(), dt);
     }
     m_camera.update(dt);
+
+    // 4a. Keep a lone player inside the camera's view. updateVersusCamera()
+    // above already tethers both players to the view when there are two
+    // (that "hard bounds" loop at its end) — a single player had no equivalent,
+    // so outrunning the camera's lag/lookahead simply carried them past the
+    // edge of what was on screen with nothing to stop them (only a boss arena,
+    // via updateBossArena(), clamped position at all before this — R7 audit).
+    // X only, and the bottom edge is deliberately left unclamped: the void-kill
+    // plane (3c, above) is a world-space plane well below the level, and a
+    // falling player must keep dropping below the visible view until that
+    // check catches them rather than being arrested at the screen's bottom.
+    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying()) {
+        const AABB view = m_camera.getVisibleBounds();
+        const AABB box = m_player->getBoundingBox();
+        sf::Vector2f position = m_player->getPosition();
+        bool moved = false;
+        if (position.x < view.x) {
+            position.x = view.x;
+            moved = true;
+        } else if (position.x + box.width > view.x + view.width) {
+            position.x = view.x + view.width - box.width;
+            moved = true;
+        }
+        if (moved) {
+            m_player->setPosition(position);
+            m_player->setVelocity({0.0f, m_player->getVelocity().y});
+        }
+    }
+
     m_background.update(dt);
     ScreenTransitionManager::getInstance().update(dt);
 
