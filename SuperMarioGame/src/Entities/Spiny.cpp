@@ -32,7 +32,7 @@ void Spiny::update(float dt) {
         // Fall off screen: gravity in px/s^2 (GRAVITY = 0.5 px/frame^2 = 1800 px/s^2)
         velocity.y += 1800.0f * dt;
         position += velocity * dt;
-        if (position.y > Constants::WINDOW_HEIGHT + 100.0f) {
+        if (position.y > fallDespawnPlaneY()) {
             destroy();
         }
     } else {

@@ -242,6 +242,11 @@ add_verify_test(verify_map_generator "tests/verify_map_generator.cpp")
 add_verify_test(verify_enemies_behavior "tests/verify_enemies_behavior.cpp" NO_CTEST)
 
 # ---------------------------------------------------------
+# 16.1 Verification Test Target (verify_sound_visual)
+# ---------------------------------------------------------
+add_verify_test(verify_sound_visual "tests/verify_sound_visual.cpp" NO_CTEST)
+
+# ---------------------------------------------------------
 # 17. Level Generation Utility Target (generate_game_levels)
 # ---------------------------------------------------------
 add_executable(generate_game_levels

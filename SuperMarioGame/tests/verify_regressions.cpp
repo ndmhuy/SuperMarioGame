@@ -2302,6 +2302,45 @@ void testGroundPatrolsTurnAtLedgesAndHazards() {
     Game::getInstance().setTileMap(nullptr);
 }
 
+// A flipped/falling enemy used to despawn against Constants::WINDOW_HEIGHT (a
+// screen constant, 720px), so a level taller than the window despawned enemies
+// in mid-air, still well above the level's own floor (audit D2).
+void testFlippedEnemiesDespawnAgainstLevelHeightNotScreenHeight() {
+    section("playtest  a flipped enemy falls past the level's own floor, not the screen edge");
+
+    // 40 tiles tall (1280px) — well past the 720px window.
+    TileMap tallMap;
+    tallMap.initialize(10, 40);
+    Game::getInstance().setTileMap(&tallMap);
+
+    Goomba goomba(sf::Vector2f{32.0f, 900.0f});
+    goomba.triggerFlipDeath({0.0f, 400.0f});
+    // Past WINDOW_HEIGHT+100 (820) but nowhere near the tall map's own floor:
+    // must NOT have despawned yet.
+    for (int frame = 0; frame < 10; ++frame) {
+        goomba.update(1.0f / 60.0f);
+    }
+    check(goomba.isActive(),
+          "a flipped enemy above the tall level's floor stays alive past the 720px window line");
+
+    // Now let it actually fall through the level's own floor.
+    for (int frame = 0; frame < 300 && goomba.isActive(); ++frame) {
+        goomba.update(1.0f / 60.0f);
+    }
+    check(!goomba.isActive(), "the same enemy despawns once it clears the tall level's floor");
+
+    Game::getInstance().setTileMap(nullptr);
+
+    // With no tilemap set (e.g. a harness constructing an enemy in isolation),
+    // fall back to the screen height so behaviour is unchanged from before.
+    Spiny spinyNoMap(sf::Vector2f{32.0f, 900.0f});
+    spinyNoMap.onHitByFireball();
+    for (int frame = 0; frame < 300 && spinyNoMap.isActive(); ++frame) {
+        spinyNoMap.update(1.0f / 60.0f);
+    }
+    check(!spinyNoMap.isActive(), "with no tilemap set, despawn still falls back to the screen height");
+}
+
 // The boss was authored inside a solid 5x5 pillar with a one-tile slot in it.
 void testBossesStandOnOpenArenaFloor() {
     section("playtest  each boss stands on its arena floor, not inside a block");
@@ -2881,6 +2920,35 @@ void testJinglesDoNotLoop() {
     check(sound.isMusicLooping(), "level music still does");
 }
 
+void testLevelBGMMapping() {
+    section("reported  each LevelCatalog index plays its own BGM (audit D1)");
+
+    // playLevelBGM(levelIndex) takes a LevelCatalog index, not a theme id (see
+    // LevelCatalog::levels()): 0=1-1 Grassland, 1=1-2 Ice Cavern, 2=1-3
+    // Bowser's Castle, 3=Bonus Stage. Index 2 used to resolve to "underwater",
+    // so the castle level played the wrong track and the registered "castle"
+    // key was never reached from this path.
+    SoundManager& sound = SoundManager::getInstance();
+
+    sound.playLevelBGM(0);
+    check(sound.getCurrentMusicPath().find("overworld") != std::string::npos,
+          "level 0 (1-1) plays overworld");
+
+    sound.playLevelBGM(1);
+    check(sound.getCurrentMusicPath().find("underworld") != std::string::npos,
+          "level 1 (1-2) plays underworld");
+
+    sound.playLevelBGM(2);
+    check(sound.getCurrentMusicPath().find("castle") != std::string::npos,
+          "level 2 (1-3, Bowser's Castle) plays castle, not underwater");
+    check(sound.getCurrentMusicPath().find("underwater") == std::string::npos,
+          "level 2 no longer resolves to underwater");
+
+    sound.playLevelBGM(3);
+    check(sound.getCurrentMusicPath().find("sub_space-bonus_room") != std::string::npos,
+          "level 3 (Bonus Stage) plays the bonus-room track");
+}
+
 void testPlayerTwoHasEveryControl() {
     section("reported  Player 2's controls are complete and reachable");
 
@@ -3406,6 +3474,7 @@ int main() {
     testFireballKillsThroughTheRealPipeline();
     testKoopaContactFollowsTheSeriesRules();
     testGroundPatrolsTurnAtLedgesAndHazards();
+    testFlippedEnemiesDespawnAgainstLevelHeightNotScreenHeight();
     testBossesStandOnOpenArenaFloor();
     testWarpPipesLandInsideTheirDestination();
     testCampaignPathContainsOnlyCompletableLevels();
@@ -3424,6 +3493,7 @@ int main() {
     testBossCannotBeCheesedByStandingOnIt();
     testDeathReportsWhichPlayerDied();
     testJinglesDoNotLoop();
+    testLevelBGMMapping();
     testPlayerTwoHasEveryControl();
 
     // Reported from the Windows playtest, August 2026.

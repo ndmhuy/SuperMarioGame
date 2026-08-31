@@ -3,6 +3,14 @@
 #include <algorithm>
 
 #include "Utils/Constants.hpp"
+#include "Core/Game.hpp"
+#include "Utils/TileMap.hpp"
+
+float Enemy::fallDespawnPlaneY() {
+    TileMap* tileMap = Game::getInstance().getTileMap();
+    if (!tileMap) return Constants::WINDOW_HEIGHT + 100.0f;
+    return (tileMap->getHeight() * Constants::TILE_SIZE) + 100.0f;
+}
 
 Enemy::Enemy(sf::Vector2f position, int scoreValue, sf::Vector2f targetSize)
     : Character(position, targetSize), m_scoreValue(scoreValue) {
@@ -29,7 +37,7 @@ void Enemy::update(float dt) {
     if (m_isFlipped || m_isDyingDownward) {
         velocity.y += 3500.0f * dt; // Plunge down out of the world relatively fast
         position += velocity * dt;
-        if (position.y > Constants::WINDOW_HEIGHT + 100.0f) {
+        if (position.y > fallDespawnPlaneY()) {
             destroy();
         }
     } else {

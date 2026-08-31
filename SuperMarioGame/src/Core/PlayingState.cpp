@@ -134,7 +134,11 @@ void PlayingState::enter() {
 
     if (m_isProcedural) {
         cleanupTestScene();
-        MapGenerator::generateSolvable(m_tileMap, m_entities, m_genConfig);
+        m_lastLevelUnverified = !MapGenerator::generateSolvable(m_tileMap, m_entities, m_genConfig);
+        if (m_lastLevelUnverified) {
+            std::cerr << "[PlayingState] WARNING: procedural level shipped unverified — "
+                         "every solvability reseed attempt failed" << std::endl;
+        }
         m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
         syncBackdropGround();
         syncVoidPlane();
@@ -1788,7 +1792,11 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
 
 void PlayingState::regenerateProceduralLevel() {
-    MapGenerator::generateSolvable(m_tileMap, m_entities, m_genConfig);
+    m_lastLevelUnverified = !MapGenerator::generateSolvable(m_tileMap, m_entities, m_genConfig);
+    if (m_lastLevelUnverified) {
+        std::cerr << "[PlayingState] WARNING: regenerated level shipped unverified — "
+                     "every solvability reseed attempt failed" << std::endl;
+    }
     m_background.setTheme(backdropForGeneratedTheme(m_genConfig.theme));
     syncBackdropGround();
     syncVoidPlane();
@@ -1846,7 +1854,11 @@ void PlayingState::extendEndlessLevelIfNeeded() {
 
     TileMap chunkMap;
     std::vector<std::unique_ptr<Entity>> chunkEntities;
-    MapGenerator::generateSolvable(chunkMap, chunkEntities, chunkConfig);
+    if (!MapGenerator::generateSolvable(chunkMap, chunkEntities, chunkConfig)) {
+        m_lastLevelUnverified = true;
+        std::cerr << "[PlayingState] WARNING: Endless Mode chunk " << m_endlessChunkIndex
+                  << " shipped unverified — every solvability reseed attempt failed" << std::endl;
+    }
 
     const int offsetTiles = m_tileMap.getWidth();
     const float offsetPx = static_cast<float>(offsetTiles) * Constants::TILE_SIZE;

@@ -353,6 +353,10 @@ void DevPanel::drawGeneratorPanel(PlayingState& state) {
     ImGui::SetNextWindowSize(ImVec2(360.0f, 300.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Procedural Level Generator Tuning");
+    if (state.m_lastLevelUnverified) {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.2f, 1.0f),
+                            "Layout unverified: every solvability reseed failed.");
+    }
     ImGui::Text("Live tuning parameters:");
 
     // The config is plain data with no side effects, so sliders may edit it in
