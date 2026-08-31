@@ -16,6 +16,12 @@ public:
         const auto b = m_animator->getSprite().getLocalBounds();
         return {b.size.x, b.size.y};
     }
+    // The current animation frame. Callers must check hasArtwork() first — same
+    // requirement as artworkSize() above, just returning the sprite itself
+    // instead of its size. Used to hand EntityDeathEffect a real frame for the
+    // death-fall overlay (SPEC 15.2), the same way the enemy-defeat handler
+    // already borrows a sprite for its own overlay.
+    sf::Sprite getCurrentSprite() const { return m_animator->getSprite(); }
 
     explicit Player(sf::Vector2f pos = {0.0f, 0.0f}, sf::Vector2f targetSize = {32.0f, 32.0f}) : Character(pos, targetSize) {}
     ~Player() override = default;
@@ -41,6 +47,13 @@ public:
     // Powerup state transitions
     void powerUp(int itemType);
     void powerDown();
+
+    // True while a StarDecorator wraps the current state, through any other
+    // decorator (Mega included). Same decorator walk as powerDown()'s isInvincible
+    // check, exposed so the collision resolver can tell "star power active" from
+    // "hurt i-frames active" (getInvincibilityTimer()) — the two are unrelated:
+    // Star wraps the state and leaves invincibilityTimer at 0.
+    bool hasStarPower() const;
 
     // Active state methods
     IPlayerState* getCurrentState() const;

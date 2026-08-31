@@ -299,8 +299,20 @@ void PlayingState::enter() {
 
             const sf::Vector2f pos = enemy->getPosition();
             m_particleEmitter.burst(pos + sf::Vector2f(16.0f, 16.0f), ParticleType::Stomp);
+            // A star-power kill gets the spin launch (SPEC 15.2's "All enemies
+            // (Star kill)" row) instead of the ordinary flip — checked against
+            // whichever player is currently starred, since CollisionResolver
+            // does not thread the kill method through this event (it only ever
+            // carried a score value; widening it would touch every enemy class
+            // that publishes EnemyDefeated). This event fires synchronously
+            // from within the same collision-resolution call that granted the
+            // kill, so the player's star state has not had a chance to expire
+            // between the two.
+            const bool starKill = (m_player && m_player->hasStarPower()) ||
+                                  (m_player2 && m_player2->hasStarPower());
             EntityDeathEffect::getInstance().spawnDeathEffect(
-                pos, m_enemySheet->getSprite("goomba_brown_move_0"), DeathEffectType::EnemyFlip);
+                pos, m_enemySheet->getSprite("goomba_brown_move_0"),
+                starKill ? DeathEffectType::StarKillSpin : DeathEffectType::EnemyFlip);
             break;
         }
     });
@@ -2368,6 +2380,15 @@ void PlayingState::killPlayer(Player* who, const char* reason) {
     // Pop up, then fall through the level. The respawn happens when the fall is
     // over, not on the frame of the hit.
     who->beginDeathFall();
+
+    // SPEC 15.2's player death animation, layered over the real fall the same
+    // way the enemy-defeat handler above layers EnemyFlip/StarKillSpin over the
+    // squish/flip the enemy itself is already doing — DeathEffectType::
+    // PlayerDeathHop existed but nothing ever spawned it (R7 audit).
+    if (who->hasArtwork()) {
+        EntityDeathEffect::getInstance().spawnDeathEffect(
+            who->getPosition(), who->getCurrentSprite(), DeathEffectType::PlayerDeathHop);
+    }
 
     // Deliberately does NOT re-publish PlayerDied. Player::powerDown() already
     // published it for a damage death, and re-publishing meant StatisticsTracker
