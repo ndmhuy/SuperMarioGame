@@ -2389,19 +2389,7 @@ Summary of Changes:
   - `EventType::BossDefeated`: Plays `castle_complete.mp3`.
   - `EventType::GameOver`: Plays `game_over.mp3`.
 - Build Verification: Successfully rebuilt `verify_all_entities_visual.exe` and `SuperMarioGame.exe` with CMake (exit code 0).
----code 0).
 ---
-
-
-
-
-
-
-
-
-
-
->>>>>>> Stashed changes
 [2026-08-13 12:27:00] Branch: B/feature/sfx-music
 Git Fingerprint: c383c19 (before) → c383c19 (after, no new commits per user directive)
 Prompt: Wire boing.wav sound effect trigger to Trampoline::activate.
