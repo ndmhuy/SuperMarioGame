@@ -73,6 +73,11 @@ float Peach::getGravityMultiplier() const {
     return 1.0f;
 }
 
+float Peach::getRunSpeed() const {
+    // Peach trades a little ground speed for the float.
+    return Constants::RUN_SPEED * 0.9f;
+}
+
 std::string Peach::getCharacterName() const {
     return "peach";
 }

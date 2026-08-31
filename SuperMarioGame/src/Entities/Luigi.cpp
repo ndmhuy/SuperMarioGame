@@ -67,6 +67,11 @@ float Luigi::getGravityMultiplier() const {
     return Constants::LUIGI_GRAVITY_MULT;
 }
 
+float Luigi::getRunSpeed() const {
+    // Luigi is the slower of the two brothers, in a sprint as well as a walk.
+    return Constants::RUN_SPEED * Constants::LUIGI_SPEED_MULT;
+}
+
 std::string Luigi::getCharacterName() const {
     return "luigi";
 }

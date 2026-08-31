@@ -60,6 +60,33 @@ public:
     // never rests on anything, so the base answer is "no" and gravity applies.
     virtual bool isOnGround() const { return false; }
 
+    // Is this entity carried along by a conveyor tile it stands on?
+    // Only characters ride conveyors; PhysicsEngine used to establish that with
+    // a dynamic_cast (audit A-10 / D8).
+    virtual bool ridesConveyors() const { return false; }
+
+    // Apply this entity's own horizontal acceleration, braking and friction for
+    // the frame.
+    //
+    // The engine owns the environment: it reads the surface under the entity's
+    // feet and passes in the resulting deceleration rate. The entity owns what
+    // it does with it. Only characters accelerate under intent — items and
+    // blocks keep the horizontal velocity they were given, which is what makes
+    // a walking mushroom walk.
+    virtual void applyHorizontalControl(float dt, float groundDecel) {
+        (void)dt;
+        (void)groundDecel;
+    }
+
+    // Clear the per-frame contact flags before this frame's collision passes.
+    // Called after applyHorizontalControl(), which still needs to read them.
+    virtual void beginPhysicsFrame() {}
+
+    // Clear this frame's movement intent. Called at the very end of the physics
+    // update, once acceleration and collision resolution have both had their
+    // look at it. Entities with no intent to express do nothing.
+    virtual void clearMovementRequests() {}
+
     // Does the physics engine own this entity's motion this frame?
     //
     // A dead or held enemy is driven by its own death or carry animation, so

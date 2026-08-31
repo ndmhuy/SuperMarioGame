@@ -43,15 +43,13 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // 1. Apply previous frame's conveyor push using the ground status from the previous frame
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto character = dynamic_cast<Character*>(entity.get())) {
-            if (character->onGround) {
-                float cx = character->position.x + character->boundingBox.width / 2.0f;
-                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
-                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
-                    character->position.x += Constants::CONVEYOR_SPEED * dt;
-                    character->boundingBox.x = character->position.x;
-                }
-            }
+        if (!entity->ridesConveyors() || !entity->isOnGround()) continue;
+
+        float cx = entity->position.x + entity->boundingBox.width / 2.0f;
+        float feetY = entity->position.y + entity->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
+        if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Conveyor) {
+            entity->position.x += Constants::CONVEYOR_SPEED * dt;
+            entity->boundingBox.x = entity->position.x;
         }
     }
 
@@ -78,79 +76,43 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
         }
     }
 
-    // 1.5. Apply character-specific horizontal acceleration, deceleration, and friction
+
+
+    // 1.5. Let each entity apply its own horizontal acceleration, braking and
+    // friction, then clear its per-frame contact flags.
+    //
+    // This loop used to be a dynamic_cast<Character*> wrapping fifty lines of
+    // locomotion, with three more casts inside it to find out which player
+    // character was running and whether it was mid-crouch-slide (audit A-10 /
+    // D8). The engine now owns only the part that is genuinely the
+    // environment's — how hard the surface underfoot brakes — and hands that
+    // number to the entity.
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto character = dynamic_cast<Character*>(entity.get())) {
-            float maxSpeed = character->getSpeed();
-            
-            // Check if player is running to scale their max horizontal speed
-            if (auto player = dynamic_cast<Player*>(character)) {
-                if (player->isRunRequested()) {
-                    maxSpeed = Constants::RUN_SPEED;
-                    if (dynamic_cast<Luigi*>(player)) maxSpeed *= Constants::LUIGI_SPEED_MULT;
-                    else if (dynamic_cast<Toad*>(player)) maxSpeed = Constants::RUN_SPEED * 1.3f;
-                    else if (dynamic_cast<Peach*>(player)) maxSpeed *= 0.9f;
-                }
-            }
 
-            float accelRate = 1000.0f; // px/s^2 (0 -> 150 px/s in 0.15s)
-            float decelRate = character->onGround ? 1000.0f : 300.0f;
-
-            // Ice platform check: reduced friction
-            if (character->onGround) {
-                float cx = character->position.x + character->boundingBox.width / 2.0f;
-                float feetY = character->position.y + character->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
-                if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
-                    decelRate = 250.0f; // Slide further on ice!
-                }
+        // Airborne control is weaker than ground friction, and ice is slippery.
+        float groundDecel = entity->isOnGround() ? 1000.0f : 300.0f;
+        if (entity->isOnGround()) {
+            float cx = entity->position.x + entity->boundingBox.width / 2.0f;
+            float feetY = entity->position.y + entity->boundingBox.height + Constants::GROUND_CHECK_OFFSET;
+            if (tileMap.getTileSurfaceType(cx, feetY) == TileType::Ice) {
+                groundDecel = 250.0f; // Slide further on ice!
             }
-
-            // Check if player is currently in a crouch slide (handled internally by Player::update)
-            bool isPlayerCrouchingOrSliding = false;
-            if (auto player = dynamic_cast<Player*>(character)) {
-                isPlayerCrouchingOrSliding = player->isCrouched() || player->isSliding();
-            }
-
-            // Process movement requests
-            if (character->isMoveLeftRequested()) {
-                character->velocity.x -= accelRate * dt;
-                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
-            }
-            else if (character->isMoveRightRequested()) {
-                character->velocity.x += accelRate * dt;
-                character->velocity.x = MathUtils::clamp(character->velocity.x, -maxSpeed, maxSpeed);
-            }
-            else if (!isPlayerCrouchingOrSliding) {
-                // Apply passive friction decay towards 0
-                if (character->velocity.x > 0.0f) {
-                    character->velocity.x -= decelRate * dt;
-                    if (character->velocity.x < 0.0f) character->velocity.x = 0.0f;
-                } else if (character->velocity.x < 0.0f) {
-                    character->velocity.x += decelRate * dt;
-                    if (character->velocity.x > 0.0f) character->velocity.x = 0.0f;
-                }
-            }
-
-            // Intent flags are NOT cleared here. They describe what the player
-            // asked for this frame, and collision resolution at the end of this
-            // same update() reads them: "hold run to carry a shell instead of
-            // kicking it" could never fire, because run had already been wiped
-            // by the time the resolver looked. Cleared at the end of update()
-            // instead, once everything that consumes them has run.
-
-            // Reset ground/wall flags for the new collision detection pass.
-            // Preserve the incoming value first: the X pass runs before the Y
-            // pass that recomputes onGround, so it would otherwise see false for
-            // every character, grounded or not.
-            character->wasOnGround = character->onGround;
-            character->onGround = false;
-            character->onWall = false;
-        } else if (auto item = dynamic_cast<Item*>(entity.get())) {
-            item->setOnGround(false);
         }
-    }
 
+        entity->applyHorizontalControl(dt, groundDecel);
+
+        // Intent flags are NOT cleared here. They describe what the player
+        // asked for this frame, and collision resolution at the end of this
+        // same update() reads them: "hold run to carry a shell instead of
+        // kicking it" could never fire, because run had already been wiped
+        // by the time the resolver looked. Cleared at the end of update()
+        // instead, once everything that consumes them has run.
+        //
+        // The *contact* flags do get reset here, ready for this frame's
+        // collision passes — after applyHorizontalControl(), which reads them.
+        entity->beginPhysicsFrame();
+    }
 
     // 2. Apply gravity and environmental forces
     for (const auto& entity : entities) {
@@ -352,8 +314,6 @@ void PhysicsEngine::update(const std::vector<std::unique_ptr<Entity>>& entities,
     // both had their look at them.
     for (const auto& entity : entities) {
         if (!entity || !entity->isActive()) continue;
-        if (auto character = dynamic_cast<Character*>(entity.get())) {
-            character->clearMovementRequests();
-        }
+        entity->clearMovementRequests();
     }
 }

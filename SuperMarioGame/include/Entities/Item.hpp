@@ -53,6 +53,9 @@ public:
     bool isCollected() const { return collected; }
     bool isOnGround() const override { return m_onGround; }
     void setOnGround(bool grounded) { m_onGround = grounded; }
+    // Items do not accelerate under intent, but their ground flag is recomputed
+    // every frame like a character's.
+    void beginPhysicsFrame() override { m_onGround = false; }
 
 protected:
     bool collected = false;

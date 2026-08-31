@@ -94,6 +94,17 @@ public:
     bool isRunRequested() const { return m_runRequested; }
     void clearMovementRequests() override;
 
+    // Holding run raises the speed cap to this character's own run speed.
+    float getCurrentMaxSpeed() const override;
+
+    // How fast this character runs. Luigi, Toad and Peach each differ, and
+    // PhysicsEngine used to discover which of them it held with a chain of
+    // three dynamic_casts (audit A-10 / D8).
+    virtual float getRunSpeed() const;
+
+    // A crouch slide steers itself; passive friction must not fight it.
+    bool suppressesGroundFriction() const override { return isCrouched() || isSliding(); }
+
     // Held entity mechanics (e.g. carrying Koopa Shells)
     Entity* getHeldEntity() const { return m_heldEntity; }
     void holdEntity(Entity* entity) { m_heldEntity = entity; }

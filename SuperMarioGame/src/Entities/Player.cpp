@@ -712,6 +712,14 @@ void Player::clearMovementRequests() {
     m_runRequested = false;
 }
 
+float Player::getRunSpeed() const {
+    return Constants::RUN_SPEED;
+}
+
+float Player::getCurrentMaxSpeed() const {
+    return m_runRequested ? getRunSpeed() : speed;
+}
+
 PlayerSnapshot Player::createSnapshot() const {
     PlayerSnapshot snap;
     snap.position = getPosition();
