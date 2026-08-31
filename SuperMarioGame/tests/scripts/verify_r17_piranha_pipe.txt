@@ -1,0 +1,41 @@
+# Verifies R17 item 2 (D17): a piranha_plant loaded from hand-authored JSON
+# should sit centred in its 2-wide pipe (not 16px left of centre) and should
+# not float above the pipe mouth at full extension (was 16px too high because
+# TimerEmergenceStrategy used a hardcoded 64px travel distance against a
+# 48px-tall plant).
+#
+# Uses bonus_1.json TEMPORARILY edited (spawnPoint moved to stand a few tiles
+# from the pipe at tile (70,18)/(70,19)/(70,20), clear of the koopa at x=58 and
+# goomba at x=75) — reverted before commit.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r17_piranha_pipe.txt
+#
+# Screenshots land in saves/shots/. The plant's cycle is 7s: 0-2s retracted,
+# 2-3s emerging, 3-6s emerged (full extension by ~3s in), 6-7s retreating —
+# repeating. Several shots are spread across ~10s to catch a clean "emerged"
+# frame regardless of exactly when the level-load wait lines up with the cycle.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+shot r17_pp_00_start
+wait 1.0
+shot r17_pp_01_landed
+wait 1.0
+shot r17_pp_02_a
+wait 1.0
+shot r17_pp_03_b
+wait 1.0
+shot r17_pp_04_c
+wait 1.0
+shot r17_pp_05_d
+wait 1.0
+shot r17_pp_06_e
+wait 1.0
+shot r17_pp_07_f
+wait 1.0
+shot r17_pp_08_g
+quit

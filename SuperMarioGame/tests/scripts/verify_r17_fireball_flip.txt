@@ -1,0 +1,85 @@
+# Verifies R17 item 3 (D18): an enemy killed by a fireball should flip about
+# the AABB's vertical centre line, not its bottom edge.
+#
+# Uses level_1.json TEMPORARILY edited: spawnPoint at (118,19), directly under
+# the FireFlower question block at (118,17) (QuestionBlock::Content::FireFlower
+# = itemType 2, confirmed in QuestionBlock.hpp); the goomba at (112,20) shoved
+# to (195,20) so only the one at (115,20) is in play as the fireball target;
+# and the tiles at (115,17) and (117,17) changed from brick to coin_tile (both
+# are TileType per TileMap.cpp — Coin is non-solid, Brick is solid) to widen
+# the one-tile passable gap already at (116,17) into a three-tile one. All
+# reverted before commit.
+#
+# Why the tile edit: this block is flanked by solid brick at y=17, and a jump
+# straight up under it only bumps it from below — the block is solid on top
+# too, so the ejected FireFlower item (which sits statically on top, one tile
+# up, per FireFlower.cpp's permanent zero velocity — unlike the Star test's
+# item, which bounces down to the player) can't be reached that way. Clearing
+# the block's top requires rising through the passable gap and drifting
+# sideways into the item while still airborne. A one-tile gap, and then a
+# two-tile gap, both left too little margin against ordinary frame-timing
+# jitter between runs (confirmed empirically across repeated attempts: the
+# same scripted inputs landed Mario short of the flower in some runs and
+# touching it in others). Widening to three tiles — purely to make an
+# unrelated, pre-existing platforming reach feasible for a scripted replay,
+# not a change to anything the fix touches — gives enough margin to land the
+# crossing reliably.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r17_fireball_flip.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+shot r17_fire_00_start
+wait 1.0
+shot r17_fire_01_landed
+press W
+wait 0.8
+shot r17_fire_02_bumped
+hold A 0.3
+wait 0.4
+shot r17_fire_03_stepped_left
+hold D 0.55
+wait 0.05
+press W
+wait 0.15
+shot r17_fire_04a_arc_early
+wait 0.15
+shot r17_fire_04b_arc_mid
+wait 0.2
+shot r17_fire_04c_arc_late
+release D
+wait 0.6
+shot r17_fire_05_settled
+hold A 0.08
+wait 0.1
+release A
+wait 0.05
+shot r17_fire_06_approach
+press F
+wait 0.1
+shot r17_fire_07a_t100ms
+wait 0.1
+shot r17_fire_07b_t200ms
+wait 0.1
+shot r17_fire_07c_t300ms
+wait 0.1
+shot r17_fire_07d_t400ms
+wait 0.1
+shot r17_fire_07e_t500ms
+wait 0.1
+shot r17_fire_07f_t600ms
+wait 0.1
+shot r17_fire_07g_t700ms
+wait 0.3
+shot r17_fire_09_flip_fall
+wait 0.5
+shot r17_fire_10_flip_fall2
+wait 1.0
+shot r17_fire_11_after
+quit

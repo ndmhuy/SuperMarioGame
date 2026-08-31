@@ -7,6 +7,7 @@
 #include "Core/Game.hpp"
 #include "Utils/TileMap.hpp"
 #include "Utils/Constants.hpp"
+#include "Graphics/SpriteColorFilter.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -630,6 +631,21 @@ void Player::render(sf::RenderTarget& target) {
         if (invincibilityTimer > 0.0f && invincibilityTimer < 9000.0f) {
             const bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
             sprite.setColor(sf::Color(255, 255, 255, dim ? 100 : 255));
+        } else {
+            // Star power cycles the sprite through a rainbow tint for as long
+            // as a StarDecorator wraps the current state — same decorator walk
+            // Player::powerDown() uses to detect Star/Mega. Previously nothing
+            // in render() ever read Star state at all (audit D16): the
+            // decorator only drove the BGM swap, never a visual.
+            IPlayerState* state = m_currentState.get();
+            while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(state)) {
+                if (auto* star = dynamic_cast<StarDecorator*>(decorator)) {
+                    const float elapsed = Constants::STAR_DURATION - star->getTimeLeft();
+                    sprite.setColor(SpriteColorFilter::getRainbowColor(elapsed));
+                    break;
+                }
+                state = decorator->getWrappedState();
+            }
         }
 
         // Sprites face left in the atlas, so facingRight is the flip case.
