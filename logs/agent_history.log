@@ -4326,6 +4326,23 @@ Summary of Changes:
 - Verified gameplay and Bowser fire breath attacks in Level 1-3 via automated script simulation with 0 crashes.
 ---
 
+[2026-08-30 15:42:00] Branch: main
+Git Fingerprint: 0258f1f (before) → 0258f1f (after)
+Fetched Remotes: yes, 15:35
+Prompt: Merge all current work (except for the AI side project), audit defects, prepare submission docs
+Files Modified: n/a
+Reachable From Main: n/a — not runtime code
+Verified By: ctest verify_all running in background
+Summary of Changes:
+- Bypassed sandbox to perform Git merges
+- Updated local main to match origin/dev (which safely omits the AI side project branches)
+- Generated AI Usage Declaration (MD/PDF)
+- Generated features list and task division (MD/PDF)
+- Generated Demo Videos placeholder (MD/PDF)
+- Extracted member contributions and Final Report (MD/PDF)
+- Kicked off automated test suite build and run for defect auditing
+---
+
 [2026-08-31 08:45:00] Branch: A/fix/level-completion-and-camera-defects
 Git Fingerprint: 0258f1f (before, branched off dev) → eb7affe (after)
 Fetched Remotes: yes, 07:19
@@ -4342,6 +4359,22 @@ Summary of Changes:
 - setupTestScene() now unconditionally resets the camera to Free scroll mode and snaps it to the new level's spawn point (both the success path and the fallback path), so a Locked/stale camera can never survive a level transition.
 - render() now draws m_player/m_player2 after the general entity loop instead of relying on m_entities' insertion order, so a large foreground entity (Bowser, Boom Boom) can never paint over the player.
 - Added tests/scripts/verify_1_3_camera_and_visibility.txt (committed, following the playtest_fixes_1_3.txt convention) and two new docs/verification/ screenshots with an honest caption on what was and was not observed live.
+---
+
+[2026-08-31 08:50:00] Branch: A/docs/submission-package-update
+Git Fingerprint: bac6c49 (before, branched off main) → c02c638 (after)
+Fetched Remotes: yes, 07:19 (same session as the fix/endless branches above)
+Prompt: Complete the submission package (AI Usage Declaration, demo video links, report, features list, source code, member contributions) using SPEC.md, git history and agent_history.log as ground truth rather than guessing, given the project's "doubled scope" (2-member) framing; then deepen the report's OOP/UML/design-pattern sections with the "why", per the user's explicit ask that it be "very clear like in the UML" and that diagrams belong in an appendix.
+Files Modified: reports/report_content.py, reports/Group52_SuperMarioGame_FinalReport.html, reports/artifact_final_report.html, Report/SuperMarioGame/content/report_body.tex, Report/SuperMarioGame/Group52_SuperMarioGame_Report.pdf, submission_documents/Group52_SuperMarioGame_Report.md, submission_documents/Group52_SuperMarioGame_Report.pdf, submission_documents/features_list.md, submission_documents/features_list.pdf, submission_documents/testing_tasks.md, submission_documents/testing_tasks.pdf, submission_documents/Member_Contributions.md, submission_documents/Member_Contributions.pdf, submission_documents/Member_Contributions.xlsx (new), submission_documents/AI_Usage_Declaration.md, submission_documents/AI_Usage_Declaration.pdf, docs/verification/README.md
+Reachable From Main: n/a — documentation and submission artifacts, not runtime code
+Verified By: build only for the report toolchain (ran reports/build_report.py and Report/SuperMarioGame/build.sh, then read the rendered PDF pages back — pdftotext/page-image extraction — to confirm the new sections and both new UML diagrams actually appear, rather than trusting the build logs alone, after catching that a first attempt had rebuilt the LaTeX PDF from stale content because report_content.py was edited after the first build). Feature list and member-contribution figures were cross-checked against a six-agent source-code audit (one pass per SPEC.md category) and all 7 weekly reports + git log respectively, not written from memory.
+Summary of Changes:
+- features_list.md/.pdf: replaced the 40-item generic list with 97 features (later 95, then +2 for Endless Mode/solvability once those shipped) individually checked against the running source, each marked reachable-from-gameplay or explicitly editor-authored; several SPEC.md claims the audit could not confirm (exact combo curve, three-mode colourblind, per-level death counter, mirrored New Game+) were deliberately left off rather than claimed.
+- testing_tasks.md/.pdf: rebuilt as a per-member manual test checklist mapping every feature number to a concrete test action, replacing the previous six-bullet sketch.
+- Member_Contributions.md/.pdf/.xlsx (new .xlsx): a 118-task (later 120), 214.5-hour (later 223.5) breakdown reconstructed from all 7 weekly reports and git log, in the same Summary+Tasks spreadsheet format as the sibling DesignPatternsGroup52 project's reference file — reports the raw Tasks/Hours/Git percentage split rather than only the flattering one (Git commits split 82/18, task count and hours split closer to 62/38).
+- AI_Usage_Declaration.md/.pdf: corrected member names/student IDs and named Claude Code as the tool actually used this session, alongside the prior AgentHub-era tooling already declared.
+- reports/report_content.py: added a new OOP subsection (6.2, Item and Block hierarchies, with the argument for keeping them as separate branches rather than merging into one "InteractableEntity"), a new Design Patterns subsection (7.1, "the naive alternative" walked through for Factory/Observer/State+Decorator/Template Method against the code they actually replaced), two new generated UML diagrams (Item, Block), and a new appendix subsection (16.4, an index table of all 9 UML diagrams by figure/root class/section). Regenerated both editions (HTML/artifact + the HCMUS LaTeX PDF) and re-copied/re-converted them into submission_documents/.
+- demo_video_links.md/.pdf: left as the existing placeholder per the user's explicit choice ("I'll record and send links later") — not fabricated.
 ---
 
 [2026-08-31 09:10:00] Branch: A/feature/endless-mode-and-solvability
