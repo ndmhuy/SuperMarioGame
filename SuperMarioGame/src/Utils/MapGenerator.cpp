@@ -356,9 +356,15 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     auto player = std::make_unique<Mario>(sf::Vector2f(96.0f, (floorY - 2) * Constants::TILE_SIZE));
     entities.push_back(std::move(player));
 
-    // Entrance Pipe (non-functional return point visual)
+    // Entrance Pipe (non-functional return point visual). Two columns wide,
+    // matching every other pipe in the game (the head/body sprite pair needs
+    // both a left and a right column to compose a full pipe) — one column
+    // used to render as a half pipe, using only the head_left/body_left
+    // quarter sprites (D22/D23).
     tileMap.setTile(3, floorY - 1, TileType::Pipe);
     tileMap.setTile(3, floorY - 2, TileType::Pipe);
+    tileMap.setTile(4, floorY - 1, TileType::Pipe);
+    tileMap.setTile(4, floorY - 2, TileType::Pipe);
 
     // Fill coin canopy & item blocks inside sub level
     for (int x = 10; x < subWidth - 12; x += 4) {
