@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <SFML/Audio/Sound.hpp>
+#include <SFML/Audio/PlaybackDevice.hpp>
 
 SoundManager& SoundManager::getInstance() {
     static SoundManager instance;
@@ -15,9 +16,22 @@ SoundManager& SoundManager::getInstance() {
 }
 
 SoundManager::SoundManager() {
+    // Probed once, here, rather than scattered null-checks at every call site
+    // (audit D6): a machine with no audio device used to abort at startup
+    // instead of degrading to silent play. Buffer decoding below needs no
+    // device — only the pool of live sf::Sound objects and m_music's actual
+    // playback do, so those are what the guard skips.
+    m_audioAvailable = sf::PlaybackDevice::getDefaultDevice().has_value();
+    if (!m_audioAvailable) {
+        std::cerr << "[SoundManager] No audio playback device detected — "
+                     "running silent." << std::endl;
+    }
+
     static sf::SoundBuffer dummyBuffer;
-    m_soundPool.assign(SFX_POOL_SIZE, sf::Sound(dummyBuffer));
-    
+    if (m_audioAvailable) {
+        m_soundPool.assign(SFX_POOL_SIZE, sf::Sound(dummyBuffer));
+    }
+
     // Generate fallback synth beep
     std::vector<std::int16_t> samples;
     unsigned int sampleRate = 44100;
@@ -138,6 +152,8 @@ void SoundManager::setupEventSubscriptions() {
 }
 
 void SoundManager::playSound(const std::string& id) {
+    if (!m_audioAvailable) return;
+
     if (!m_soundsLoaded) {
         loadAllSounds();
     }
@@ -192,6 +208,8 @@ static std::string resolveBGMIdentifier(const std::string& input) {
 }
 
 void SoundManager::playMusic(const std::string& path, bool loop) {
+    if (!m_audioAvailable) return;
+
     std::string bgmPath = resolveBGMIdentifier(path);
     std::string resolved = ResourceManager::resolvePath(bgmPath);
     if (resolved != m_musicPath) {
