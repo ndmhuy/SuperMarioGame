@@ -333,7 +333,14 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     if (seed == 0) seed = 424242;
     std::mt19937 rng(seed);
 
-    TileType groundTile = (theme == MapTheme::Castle) ? TileType::Ground : TileType::Brick;
+    // Always Ground, never Brick: this is the level's floor/ceiling boundary,
+    // and the P-Switch swaps every Brick tile in the level to a Coin (see
+    // PlayingState::beginPSwitch). Theming it as Brick for every non-Castle
+    // sub-level used to mean pressing the switch turned the entire floor and
+    // ceiling into coins, stranding the player with no ground to stand on
+    // (D21) — Ground renders with the same themed sprites (PlayingState::
+    // render) but is immune to the swap.
+    TileType groundTile = TileType::Ground;
 
     // Ceilings and floors
     for (int x = 0; x < subWidth; ++x) {
