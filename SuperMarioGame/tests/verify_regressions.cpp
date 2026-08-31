@@ -12,6 +12,8 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/SerializationUtils.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/MapGenerator.hpp"
+#include "Utils/LevelSolvability.hpp"
 #include "Entities/Mario.hpp"
 #include "Entities/Luigi.hpp"
 #include "Entities/IPlayerState.hpp"
@@ -53,6 +55,7 @@
 #include "Entities/Hammer.hpp"
 #include "Entities/Fireball.hpp"
 #include "Entities/Flagpole.hpp"
+#include "Entities/Castle.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/Spiny.hpp"
 #include "Entities/PatrolStrategy.hpp"
@@ -980,6 +983,90 @@ void testLevelTwoContainsItsMidBoss() {
     }
     check(flagpoleX > boss->getArena().x,
           "and the flagpole is past it — SPEC 6.4's 'opens path to the flagpole'");
+
+    // The check above only asked whether the flagpole is past the arena's LEFT
+    // edge, which was already true even when the arena was wide enough to
+    // swallow the flagpole whole: a player who simply ran right, inside the
+    // "no escape until defeated" clamp (PlayingState::updateBossArena), still
+    // landed on a touchable flagpole with Boom Boom alive — the level ended
+    // without the fight ever happening. The real invariant is that the arena's
+    // RIGHT edge must clear the flagpole, the way Bowser's does in level_3.json.
+    const AABB& arena = boss->getArena();
+    check(flagpoleX >= arena.x + arena.width,
+          "and specifically past the arena's far edge, not just its near one — "
+          "the arena cannot overlap the flagpole it is supposed to gate");
+}
+
+void testEndOfLevelCastleHasBuffer() {
+    section("9.2  the end-of-level castle leaves room past its own back wall");
+
+    // MapGenerator::MapGenerator.cpp enforces castleStartX + Castle::WIDTH_TILES
+    // + 1 < config.width for procedurally-generated levels, but the hand-authored
+    // campaign files went through no such check — level_2.json and level_3.json
+    // once placed the castle with its back wall 16px (half a tile) from the
+    // level boundary, a fifth of the buffer level_1.json and bonus_1.json leave,
+    // which is what read as an unfinished-looking ending on those two stages.
+    for (const std::string& file : {"level_2.json", "level_3.json"}) {
+        TileMap map;
+        LevelData data;
+        LevelLoader loader;
+        if (!loader.loadLevel(levelPath(file), map, data)) {
+            check(false, file + " loads");
+            continue;
+        }
+
+        float castleX = -1.0f;
+        for (const auto& entity : data.entities) {
+            if (entity && entity->getTypeName() == "castle") castleX = entity->getPosition().x;
+        }
+        check(castleX >= 0.0f, file + " has a castle");
+        if (castleX < 0.0f) continue;
+
+        const float castleRight = castleX + Castle::WIDTH_TILES * Constants::TILE_SIZE;
+        const float levelRight  = data.width * Constants::TILE_SIZE;
+        check(levelRight - castleRight >= Constants::TILE_SIZE,
+              file + "'s castle leaves at least one tile of buffer to the level edge");
+    }
+}
+
+void testGeneratedLevelsAreVerifiedSolvable() {
+    section("16.2  MapGenerator::generateSolvable actually verifies what it claims");
+
+    // The pit/platform placement heuristics in MapGenerator.cpp are trusted on
+    // faith today — "Generated winnable procedural level" is printed
+    // unconditionally, whether or not the level actually is. generateSolvable()
+    // adds an independent BFS reachability check (Utils/LevelSolvability) and
+    // retries with a new seed if it fails. This is a stress pass across every
+    // theme/difficulty combination the menu's generator page can produce.
+    int verifiedCount = 0;
+    int total = 0;
+    for (int themeIdx = 0; themeIdx < 4; ++themeIdx) {
+        for (int diffIdx = 0; diffIdx < 3; ++diffIdx) {
+            MapGeneratorConfig config;
+            config.theme = static_cast<MapTheme>(themeIdx);
+            config.difficulty = static_cast<MapDifficulty>(diffIdx);
+            config.width = 200;
+            config.seed = static_cast<unsigned int>(1000 + themeIdx * 10 + diffIdx);
+
+            TileMap map;
+            std::vector<std::unique_ptr<Entity>> entities;
+            const bool verified = MapGenerator::generateSolvable(map, entities, config);
+            ++total;
+            if (verified) ++verifiedCount;
+
+            // Whatever generateSolvable returned, re-check independently — the
+            // function must not claim success on a level LevelSolvability
+            // itself would reject.
+            const bool actuallyReachable =
+                LevelSolvability::isPathReachable(map, entities, 3, config.width - 15);
+            check(!verified || actuallyReachable,
+                  "theme " + std::to_string(themeIdx) + "/difficulty " + std::to_string(diffIdx) +
+                  ": a level generateSolvable verified is independently reachable");
+        }
+    }
+    check(verifiedCount == total,
+          "every theme/difficulty combination generated a verifiably solvable level ("
+          + std::to_string(verifiedCount) + "/" + std::to_string(total) + ")");
 }
 
 void testEveryBossTypeIsBuildable() {
@@ -3284,7 +3371,9 @@ int main() {
     testBoomBoomEscalatesOncePerHit();
     testBoomBoomStaysInsideItsArena();
     testLevelTwoContainsItsMidBoss();
+    testEndOfLevelCastleHasBuffer();
     testEveryBossTypeIsBuildable();
+    testGeneratedLevelsAreVerifiedSolvable();
     testDifficultyStrategyActuallyChangesTheGame();
     testDifficultyScalesEnemiesAndBosses();
     testThwompRunsItsStateMachine();

@@ -304,7 +304,33 @@ exist without deciding what it does. The three second-level abstracts each add e
 <code>Item::activate(Player&amp;)</code>, <code>Block::onHitFromBelow(Player&amp;)</code>, and
 <code>Character</code>'s velocity and grounded state.</p>
 
-<h3>6.2 Characters, enemies and bosses</h3>
+<h3>6.2 The other two branches: Item and Block</h3>
+{uml('Item', 2, 'Figure 6a &mdash; Twelve items behind one activate() call.',
+     'A Mushroom, a Star and a 1-Up all answer the same question &mdash; what happens to the player who '
+     'touches me &mdash; with a different body. QuestionBlock never asks which one it is holding.')}
+{uml('Block', 2, 'Figure 6b &mdash; Ten blocks, three of them stateful.',
+     'FallingPlatform and Thwomp are State machines in their own right (Idle/Shaking/Falling/Respawning; '
+     'wind-up/slam/rest/climb); Pipe and Flagpole are not &mdash; they fire once. Block does not know '
+     'the difference, which is the point of putting it here rather than in each concrete class.')}
+<p><code>Item</code> and <code>Block</code> look similar &mdash; both are collidable, both are mostly
+inert until the player reaches them &mdash; and the project's own history has a concrete argument for
+keeping them as separate branches rather than merging them into one "InteractableEntity". A block's
+defining question is <em>what is on the other side of this collision, structurally</em>
+(<code>collidesWithTiles()</code>, <code>onHitFromBelow</code>) &mdash; the physics engine needs to know
+before it resolves a frame. An item's defining question is <em>what happens to the player who reaches
+it</em> (<code>activate(Player&amp;)</code>) &mdash; physics does not need to know in advance, because
+touching a Star does not change how the world resolves collisions this frame. Collapsing the two would
+have handed the physics engine's collision-resolution code a branch on "is this actually solid" for
+every entity that is nominally a block, which is exactly the kind of type-testing OOP's dispatch is
+supposed to replace. <code>PSwitch</code> is the edge case that proves the split is real work and not
+just naming: it is a <code>Block</code> (grounded, collidable) whose <code>onHitFromBelow</code> triggers
+a level-wide event rather than reacting locally &mdash; still a block, because the physics engine still
+needs to resolve a jump-bump against it, but the one that most resembles an item.</p>
+<p>Ten concrete blocks and twelve concrete items ship in this project, twice what the rubric's five-item
+minimum would need per SPEC's rubric-alignment reasoning (&sect;2) &mdash; the same doubled-scope
+argument the feature list makes, made visible in a diagram instead of a count.</p>
+
+<h3>6.3 Characters, enemies and bosses</h3>
 {uml('Character', 2, 'Figure 7 &mdash; Character splits into Player and Enemy.',
      'Five playable characters including ShadowMario, the delayed replay of the human player used by '
      'Shadow Chase mode. Enemy is where the movement strategy is held.')}
@@ -318,7 +344,7 @@ phase transitions and defeat sequence in the correct order and a new one writes 
 pattern. Bowser adds fire breath, a phase-2 leap and the fireball-stagger window; BoomBoom adds a
 charge. Neither can forget the rest, because neither is given the chance.</p>
 
-<h3>6.3 Player form: State plus Decorator</h3>
+<h3>6.4 Player form: State plus Decorator</h3>
 {uml('IPlayerState', 2, 'Figure 9 &mdash; Five forms and two decorators.',
      'PlayerStateDecorator wraps whatever base state is active, which is what lets a Star be '
      'temporary and orthogonal: Fire Mario with a Star is still Fire Mario underneath.')}
@@ -327,7 +353,7 @@ transition table, that lives in one place; as booleans it was a growing pile of 
 decorators are the part worth noticing &mdash; a sixth "Star state" would have to remember which form
 to exit back into, whereas wrapping preserves it for free.</p>
 
-<h3>6.4 The pattern interfaces</h3>
+<h3>6.5 The pattern interfaces</h3>
 {uml('IGameState', 1, 'Figure 10 &mdash; Eight screens behind one interface (State).',
      'GameStateManager holds a stack, so PauseState can overlay PlayingState rather than replace it.')}
 {uml('ICommand', 1, 'Figure 11 &mdash; Input as objects (Command).',
@@ -337,7 +363,7 @@ to exit back into, whereas wrapping preserves it for free.</p>
      'A Koopa and a Paratroopa differ only in which of these they hold, so "the same enemy but '
      'flying" is a constructor argument rather than a subclass.')}
 
-<h3>6.5 Polymorphism where it earns its keep</h3>
+<h3>6.6 Polymorphism where it earns its keep</h3>
 <p>The engine never asks what an entity is. <code>PhysicsEngine::update</code> takes
 <code>vector&lt;unique_ptr&lt;Entity&gt;&gt;</code> and calls virtual methods:
 <code>getGravityMultiplier()</code> returns 0 for a block and 1 for a Goomba, so one integrator handles
@@ -348,7 +374,7 @@ an entity into its serialised name &mdash; was replaced by a virtual <code>getTy
 change also fixed a live defect: the chain tested base classes before derived ones, so several types
 were shadowed by their parent and saved to disk under the wrong name.</p>
 
-<h3>6.6 Encapsulation</h3>
+<h3>6.7 Encapsulation</h3>
 <p>State is private or protected and reached through action-oriented methods:
 <code>player.takeDamage(1)</code> rather than a settable health field; <code>boss.tryStomp()</code>,
 which returns whether the hit actually landed, rather than a public health counter the resolver would
@@ -411,6 +437,45 @@ the path it lives at.</p>
  <td>Every boss needs i-frames, phase transitions and a defeat sequence in the right order. Sealing the
  skeleton means a new boss writes only its attack pattern and <em>cannot</em> forget the rest.</td></tr>
 </tbody></table></div>
+
+<h3>7.1 The naive alternative, for four of them</h3>
+<p>"The rubric asks for five" is not a reason to use a pattern; the table above names the actual problem
+each one solved. Four are worth walking through the alternative that was rejected, because the
+alternative is not a straw man &mdash; it is what an early, smaller version of this codebase actually
+looked like before the pattern replaced it.</p>
+<p><strong>Factory.</strong> The naive alternative is a level loader that <code>#include</code>s every
+concrete entity header and switches on the type string:
+<code>if (name == "goomba") return new Goomba(pos); else if (name == "koopa_troopa") ...</code>. It works
+for the first ten types. By {F['enemies']+F['items']+F['blocks']+F['players']} types it is a
+{F['enemies']+F['items']+F['blocks']+F['players']}-branch function that every new entity must be added
+to, in a file (the level loader) that has no other reason to know a Spiny exists. <code>EntityFactory</code>
+moves that one decision into one file whose entire job is making that decision, and the loader asks a
+question ("build me a Spiny") instead of making one.</p>
+<p><strong>Observer.</strong> The naive alternative is <code>Coin::activate(Player&amp; p)</code> calling
+<code>p.addCoins(1); hud.refresh(); soundManager.play("coin"); stats.recordCoin();
+achievements.checkCoinMilestones();</code> directly &mdash; and then <code>Star::activate</code>,
+<code>OneUpMushroom::activate</code> and every other item repeating some subset of the same list, because
+each item's designer has to remember which systems care this time. <code>EventBus::publish</code> lets
+<code>Coin::activate</code> know only that something happened, not who is listening &mdash; and a fifth
+system (say, a future daily-challenge coin counter) subscribes without <code>Coin.cpp</code> changing at
+all.</p>
+<p><strong>State + Decorator, together.</strong> The naive alternative is not a competing pattern but the
+thing both of these replaced: a pile of booleans on <code>Player</code> &mdash;
+<code>isSuper, isFire, isCape, isMini, isStarred, isMega</code> &mdash; and an
+<code>if/else</code> chain in every place form matters (hitbox, jump height, death behaviour, rendering).
+The moment a Star is picked up as Fire Mario, that boolean pile has to encode "currently Fire, but also
+temporarily starred" as a combination no single flag names, and every one of those <code>if</code> chains
+has to be taught the combination separately. Five state objects handle the base forms; two decorators
+wrap whichever one is active without either of them needing to know what they are wrapping. The
+combination was never a special case to design for &mdash; it falls out of the two patterns being
+orthogonal to begin with.</p>
+<p><strong>Template Method.</strong> The naive alternative is copying <code>Bowser</code>'s
+<code>update()</code> into <code>BoomBoom</code> and editing the attack pattern in place &mdash; which is
+exactly how the second boss <em>would</em> have been built without this pattern, and is the standard way
+an i-frame check or a phase-transition line quietly diverges between two copies over several edits.
+Sealing <code>Boss::update()</code> as <code>final</code> is a compiler-enforced version of "do not copy
+this function": a third boss can only be added by writing <code>updateBehaviour()</code>, which is not
+capable of skipping the sequencing the base class already owns.</p>
 
 <h2 id="impl">8 &middot; Implementation details</h2>
 
@@ -988,6 +1053,25 @@ ctest --output-on-failure # 13 verification targets
 <tr><td>Commits on the integration branch</td><td>{F['commits']}</td></tr>
 <tr><td>Sound effects / music tracks</td><td>29 / 12</td></tr>
 <tr><td>Achievements</td><td>12</td></tr>
+</tbody></table></div>
+
+<h3>16.4 UML diagrams, collected</h3>
+<p>Every class diagram in this report in one place, for a reader who wants the structure without
+re-finding it inside &sect;6's prose. Each is generated from the headers at build time by
+<code>gen_class_diagram.py</code> (&sect;6's opening note), so this index cannot drift from the figures
+themselves the way a hand-kept one would.</p>
+<div class="tbl"><table>
+<thead><tr><th>Figure</th><th>Root class</th><th>Discussed in</th><th>What it shows</th></tr></thead>
+<tbody>
+<tr><td>6</td><td><code>Entity</code></td><td>&sect;6.1</td><td>The four branches under the abstract root: Character, Item, Block, Projectile.</td></tr>
+<tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>Twelve concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
+<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right.</td></tr>
+<tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
+<tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>
+<tr><td>9</td><td><code>IPlayerState</code></td><td>&sect;6.4</td><td>Five player forms plus the two Decorators that wrap them.</td></tr>
+<tr><td>10</td><td><code>IGameState</code></td><td>&sect;6.5</td><td>Eight screens behind one State interface.</td></tr>
+<tr><td>11</td><td><code>ICommand</code></td><td>&sect;6.5</td><td>Input as objects — the Command pattern's own hierarchy.</td></tr>
+<tr><td>12</td><td><code>IMovementStrategy</code></td><td>&sect;6.5</td><td>Eight interchangeable enemy movements — the Strategy pattern's own hierarchy.</td></tr>
 </tbody></table></div>
 
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>

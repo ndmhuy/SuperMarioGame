@@ -44,10 +44,15 @@ public:
     // could say "there are two bodies on screen" but not which of versus,
     // co-op, a CPU opponent or a Shadow Mario put them there — and those four
     // want different cameras, different collision rules and a different HUD.
+    // `isEndless` builds on the procedural generator rather than replacing it:
+    // the first chunk is generated exactly like "Generate & Play", then
+    // extendEndlessLevelIfNeeded() appends another chunk of rising difficulty
+    // each time the player nears the current far edge, forever (or until they
+    // die) — no flagpole, no fixed width, distance travelled is the score.
     explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
                           const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
                           int characterIndex = 0, int levelIndex = 0,
-                          MatchConfig match = MatchConfig{});
+                          MatchConfig match = MatchConfig{}, bool isEndless = false);
     ~PlayingState() override;
 
     void enter() override;
@@ -69,6 +74,14 @@ private:
     // mutations back. Friendship here is narrower than exposing setters for the
     // entity list, tilemap and generator config to everyone.
     friend class DevPanel;
+
+    // tests/verify_frontend_states.cpp's LevelCompletionCameraTestHooks reaches
+    // m_activeBoss, m_camera and m_selectedLevelIndex to regression-test two
+    // defects that only show up across a level transition on a live instance
+    // (the boss-alive completion gate and the camera carrying stale arena state
+    // into the next level) — narrower than adding getters nothing else would
+    // ever call, the same tradeoff DevPanel's friendship above already makes.
+    friend class LevelCompletionCameraTestHooks;
 
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
@@ -218,9 +231,14 @@ private:
     float m_levelTimer = Constants::LEVEL_TIME;
     bool  m_timeWarningFired = false;
 
-    // Level completion (flagpole -> short celebration -> advance)
+    // Level completion (flagpole -> walk to the castle door -> short celebration -> advance)
     bool  m_levelComplete = false;
     float m_levelCompleteTimer = 0.0f;
+    // Where the castle door is, so the player visibly walks up to it instead of
+    // just standing at the flagpole until the summary screen cuts in. Captured
+    // once, from the Castle entity found when LevelComplete fires.
+    bool  m_hasLevelCompleteCastle = false;
+    sf::Vector2f m_levelCompleteCastleTarget{0.0f, 0.0f};
 
     // Where this level says the player starts — the respawn fallback before any
     // checkpoint is reached.
@@ -291,6 +309,20 @@ private:
     bool m_startInEditor = false;
     bool m_isProcedural = false;
     MapGeneratorConfig m_genConfig;
+
+    // --- Endless Mode ----------------------------------------------------
+    //
+    // Not just a very wide procedural level: the tilemap starts at one chunk
+    // and grows for as long as the player keeps walking, so there is no width
+    // to size up front and no flagpole to reach. See
+    // extendEndlessLevelIfNeeded() in the .cpp for why a chunk is generated in
+    // an isolated TileMap/entity list rather than directly into the live one.
+    bool m_isEndless = false;
+    int m_endlessChunkIndex = 0;          // chunks appended so far; drives difficulty
+    float m_endlessBestDistanceTiles = 0.0f;
+    static constexpr int ENDLESS_CHUNK_TILES = 100;
+    static constexpr int ENDLESS_LOOKAHEAD_TILES = 40;
+    void extendEndlessLevelIfNeeded();
 
     // Sprite Sheet Atlases (owned by PlayingState)
     std::unique_ptr<SpriteSheet> m_playerSheet;
