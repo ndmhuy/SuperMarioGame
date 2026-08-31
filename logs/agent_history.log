@@ -4610,3 +4610,31 @@ Summary of Changes:
 - Three commits, one per item, in dependency order (D16, D17, D18): f5dead9, b1fa5b4, 4550bfe. No merge, no push, per standing directive.
 - Acceptance checklist, explicit PASS/FAIL: build PASS; ctest 13/13 green PASS; D16 star visual observed running PASS; D17 Piranha Plant pipe fit observed running PASS; D18 fireball-kill flip observed running PASS; level_1.json and bonus_1.json both confirmed clean (`git diff` empty) before every commit and at session end PASS; out-of-scope tile (102,19-20) single-column pipe in level_1.json left untouched, as instructed, PASS.
 ---
+
+[2026-08-31 17:00:00] Branch: A/docs/audit-status-reconciliation (off dev @ 6f28868)
+Git Fingerprint: 6f28868 (before) → cc08fc3 (after, not pushed per plan directive)
+Fetched Remotes: yes, 17:00 UTC (git fetch --all completed cleanly; dev 0 commits ahead/behind origin/dev at session start per ENV snapshot, consistent with no-push policy)
+Prompt: Reconcile docs/issues/spec_feature_audit_2026-08-31.md defect statuses with shipped code. Task: mark defects RESOLVED by phases R1-R19, mark four defects STRUCK (D20/D25/D27/D28 already fixed or not demonstrable), cancel R18, strike R7 item 2 (now done by R17), add re-verification caution to R7, add methodological note about audit's four mis-recorded defects, and append full log entry per AGENTS.md §3.
+Files Modified: docs/issues/spec_feature_audit_2026-08-31.md, logs/agent_history.log
+Reachable From Main: n/a — documentation only; no runtime code changed
+Verified By: docs only; every status recorded here was verified against code by the orchestrator or a read-only triage pass, not re-derived in this session
+Summary of Changes:
+- Added methodological correction note (after "Repo state when audited") recording that four playtest-derived defects (D20, D25, D27, D28) were already fixed or not demonstrable when recorded, folded into this document without re-verification against the audited commit. Recommends future audit passes re-verify observations before recording.
+- Marked D1-D4 RESOLVED (R1): fixed SoundManager level-BGM index mapping, Spiny despawn check, solvability result surfacing, verify_sound_visual.cpp CMake registration.
+- Marked D6 RESOLVED (R3): SoundManager now degrades gracefully when no audio device available.
+- Marked D9, D11, D15 RESOLVED (R6): `.member_profile.json` untracked, `52.pdf` generated, A-11 friend-sprawl recorded in SPEC descope addendum.
+- Marked D16-D18 RESOLVED (R17): Star sprite wired to rainbow filter, Piranha Plant centered (two root causes: LevelLoader entity x-placement and 64.0f emerge height vs 48.0f), fireball-kill flip pivot corrected.
+- Marked D19 PARTIALLY RESOLVED (R15): Arena size fixed (7→16 tiles); flag reachable half never reproduced, already fixed by eb7affe (08:04 same day, ancestor of audit base).
+- Marked D20 STRUCK — NEVER OPEN: Refuted by R15 evidence (level_3.json contains "type": "bowser", logs show boss detection, jump-stomp scores 5000 with Bowser active). Likely already fixed by eb7affe.
+- Marked D21-D24 RESOLVED (R16): P-Switch soft-lock fixed (MapGenerator theming issue, not PlayingState), half-rendered pipe located and fixed, long-L pipe replaced, question-block solidify unified.
+- Marked D25 STRUCK — NEVER OPEN: No transform animation exists in codebase; all power-ups are instant state swaps; uniform scaling only (no non-uniform stretch possible).
+- Marked D26 RESOLVED (R19): End-game audio cues sequenced (plan's described cues were incorrect; actual issue was castle_complete cut off by level_complete on boss levels, fixed with deferred swap).
+- Marked D27 NOT DEMONSTRABLE AS WORDED: lost_life.wav is 3.267s (longer than 1.6s respawn window); no code stops it; plays over resumed BGM; observation real, stated mechanism absent.
+- Marked D28 STRUCK — NEVER OPEN: Already fixed by commit 2e7f5bb (2026-08-19, 12 days before audit); ColorPalette::get() reads colorblind mode and is wired into Minimap, HUD, OptionsState.
+- Marked R1, R2, R3, R4, R6, R15, R16, R17, R19 as COMPLETE / merged to dev.
+- Marked R5, R7, R8, R9, R10, R11, R12 as OPEN.
+- Marked R18 as CANCELLED (D25 struck, no work required).
+- Struck R7 item 2 as DONE (delivered by R17's D16 fix).
+- Added caution to R7 noting the "verified dormant 2026-08-31" inventory was compiled by the same audit pass that mis-recorded D20/D25/D27/D28, recommending re-verification against dev before implementation.
+- All changes committed in single logical commit (one file, one conceptual unit: full audit status reconciliation).
+---

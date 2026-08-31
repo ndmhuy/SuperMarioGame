@@ -17,6 +17,8 @@ parallel read-only audit passes (SPEC↔report reconciliation; per-checkbox tria
 of both task files against code reachable from `main()`; defect/issue sweep over
 `docs/issues/*`, the agent log, GitHub issues and CMake).
 
+**Methodological correction (2026-08-31 reconciliation session)**: Of the 13 playtest-derived defects (D16–D28) folded into this document on 2026-08-31, four (D20, D25, D27, D28) were already fixed or are not demonstrable when recorded. These observations were folded into this document without re-verification against the code being audited at the time: D20 (Bowser never spawns) was refuted by live evidence in the same session it was recorded; D25 (sprite stretch during transform) was struck when it was discovered no transform animation exists in the codebase at all; D27 (death SFX cut off by respawn) is not demonstrable as worded — the SFX is longer than any respawn window and is not stopped in code; D28 (colorblind setting has no effect) was already fixed by commit 2e7f5bb on 2026-08-19, twelve days before this audit flagged it. The remaining nine defects (D16–D19, D21–D24, D26) were genuine. **Future audit passes should re-verify each observation against the audited commit before recording it** to avoid repeating this fold-in-and-discover pattern.
+
 ---
 
 ## 1. Verdict in three lines
@@ -102,34 +104,34 @@ descope addendum (task R6) — not for silent omission.
 
 | ID | Defect | Where | Severity |
 | :-- | :--- | :--- | :-- |
-| D1 | World 1-3 plays "underwater" as level BGM; the registered `castle` track is never used | `SoundManager::playLevelBGM` maps index 2 → underwater; index 2 in `LevelCatalog` is Bowser's Castle | Medium, player-visible |
-| D2 | Flipped Spiny despawn compares world `position.y` to `Constants::WINDOW_HEIGHT` (screen constant); correct only while levels are exactly 720 px tall | `src/Entities/Spiny.cpp:35` | Low, latent |
-| D3 | Solvability result discarded: both `PlayingState` call sites ignore `generateSolvable`'s return; an unverified layout ships silently | `PlayingState.cpp:137, 1791, 1849`; `MapGenerator.cpp:411-414` | Low-Medium |
-| D4 | `tests/verify_sound_visual.cpp` exists but is registered in no CMake target — dead test that can never run | `SuperMarioGame/CMakeLists.txt` | Low |
+| D1 | ~~World 1-3 plays "underwater" as level BGM; the registered `castle` track is never used~~ | ~~`SoundManager::playLevelBGM` maps index 2 → underwater; index 2 in `LevelCatalog` is Bowser's Castle~~ | **RESOLVED (R1):** Fixed in `SoundManager::playLevelBGM` to map 0→overworld, 1→underworld, 2→castle, 3→sub_space. |
+| D2 | ~~Flipped Spiny despawn compares world `position.y` to `Constants::WINDOW_HEIGHT` (screen constant); correct only while levels are exactly 720 px tall~~ | ~~`src/Entities/Spiny.cpp:35`~~ | **RESOLVED (R1):** Despawn now checks against the tilemap's pixel height instead of screen constant. |
+| D3 | ~~Solvability result discarded: both `PlayingState` call sites ignore `generateSolvable`'s return; an unverified layout ships silently~~ | ~~`PlayingState.cpp:137, 1791, 1849`; `MapGenerator.cpp:411-414`~~ | **RESOLVED (R1):** Solvability result now surfaced with HUD note ("layout unverified") or warn-level logging. |
+| D4 | ~~`tests/verify_sound_visual.cpp` exists but is registered in no CMake target — dead test that can never run~~ | ~~`SuperMarioGame/CMakeLists.txt`~~ | **RESOLVED (R1):** Test registered via `add_verify_test()` in CMakeLists.txt. |
 | D5 | ~~`AnimationManager` compiles, passes its harness, is constructed by nothing reachable from `main()` — last survivor of the B-9 inert-subsystem finding~~ — **resolved 2026-08-31 (R2): deleted.** No caller ever read it back (not even its own harness's `registerAnimations()`); real per-entity setup already lives in `setupAnimations()`/`Animator`. | `src/Graphics/AnimationManager.cpp` (removed) | Medium — closed |
-| D6 | Game aborts on machines with no audio device instead of degrading to silent | logged 2026-08-20+ (`agent_history.log` ~:4118); CI was given a device instead | Medium |
+| D6 | ~~Game aborts on machines with no audio device instead of degrading to silent~~ | ~~logged 2026-08-20+ (`agent_history.log` ~:4118); CI was given a device instead~~ | **RESOLVED (R3):** `SoundManager` now probes device availability at init and degrades to silent no-op when unavailable. |
 | D7 | ~~`EventBus::ScopedSubscription` has zero adopters; `PlayingState.hpp` holds 14 raw `SubscriptionId`s with manual unsubscribes (X-7)~~ — **resolved 2026-08-31 (R4).** All raw `SubscriptionId`s outside `EventBus` migrated (`PlayingState` ×14, `AchievementManager`, `StatisticsTracker`, `Camera`); `Hud`/`ParticleSystem`'s were dead and deleted instead. Migration surfaced and fixed a real static-destruction-order bug (see completion_plan.md item 25). | `include/Core/EventBus.hpp:72-89`, `PlayingState.hpp` | Medium — closed |
 | D8 | A-10 acceptance unmet: `CollisionResolver.cpp` has 9 `dynamic_cast`s (bar was <4), `PhysicsEngine.cpp` has 20 | both files | Medium, quality |
-| D9 | `.member_profile.json` still git-tracked — the file AGENTS.md defines as private/gitignored (X-8 residual; leaks member notes) | repo root | Medium, privacy |
+| D9 | ~~`.member_profile.json` still git-tracked — the file AGENTS.md defines as private/gitignored (X-8 residual; leaks member notes)~~ | ~~repo root~~ | **RESOLVED (R6):** `git rm --cached .member_profile.json`, added to `.gitignore`; historical copies remain in git history (history not rewritten). |
 | D10 | Test suite is not hermetic: reads/writes the real `saves/`; one run destroyed `saves/highscores.json` | report §13 admits it; standing CI rule violated | Medium |
-| D11 | `docs/Group52_08/` has `52.md` but no `52.pdf` (every other week has both) | docs/Group52_08 | Low |
+| D11 | ~~`docs/Group52_08/` has `52.md` but no `52.pdf` (every other week has both)~~ | ~~docs/Group52_08~~ | **RESOLVED (R6):** Generated `52.pdf` from `52.md` using `scripts/generate_pdf.py`. |
 | D12 | GitHub issues stale: #9 fully implemented, #2 a June status note, #11 33/37 resolved | github.com/ndmhuy/SuperMarioGame | Low, hygiene |
 | D13 | `main` is 9 merge-commits ahead of `dev`, breaking the fast-forward-delivery invariant the 2026-08-20 entry established | git | Low, process |
 | D14 | Windows crash fix: two log entries (unconfirmed vs. MSVC-verified) never reconciled; no Windows CI | log :4210 vs :4303 | Low, evidence |
-| D15 | A-11 friend sprawl: 12 friends each in `Entity.hpp`/`Character.hpp` — now commented as deliberate; either get user sign-off as descoped or fix | `Entity.hpp:156`, `Character.hpp:42` | Low |
-| D16 | Star power-up does not switch Mario's sprite to an invincible-state visual (no flicker/rainbow cycling on the player sprite itself) | player render path, star state | Medium, player-visible |
-| D17 | Piranha Plant not centered in its pipe housing, and floats above the pipe at maximum extension height instead of stopping flush | Piranha Plant entity/animation offsets | Medium, player-visible |
-| D18 | Enemy killed by fireball flips horizontally about the **bottom edge** of its AABB, not the AABB's center line, so the flipped sprite appears to sink/shift | fireball-kill flip logic | Low-Medium, cosmetic |
-| D19 | Boom Boom arena is too small, and the level-end flag is reachable (and can be touched) while the Boom Boom fight is still in progress, letting players skip the fight | Boom Boom arena/level data, flag trigger gating | Medium, exploit/design |
-| D20 | Bowser does not spawn at all in his designated arena — boss is entirely absent from the reachable campaign, contradicts F8 playtest assumption that Bowser can be fought | Bowser spawn/placement, castle level data | **High**, blocks campaign completion |
-| D21 | Pressing the P-Switch inside a sub-level can soft-lock the level: it turns ground tiles into coins, removing standable ground | P-Switch tile-swap logic, sub-level tile tables | **High**, game-breaking |
-| D22 | A half-rendered pipe exists in a sub-level near the entrance to the warp-pipe exit | sub-level tilemap/pipe asset placement | Low-Medium, visual |
-| D23 | Sub-level pipes are built from the long "L" pipe piece instead of a full pipe (single asset or a properly constructed full assembly) | sub-level pipe tile placement | Low, visual/consistency |
-| D24 | Question blocks are inconsistent: a hit block does not turn solid afterward in the overworld, but does in sub-levels — pick one behavior and apply it everywhere | question-block hit/solidify logic (overworld vs sub-level code paths) | Medium, consistency bug |
-| D25 | Mario's sprite stretches unpleasantly during the mushroom transform animation; needs a design proposal to change the sprite/AABB and hitbox so the transform doesn't distort the sprite | Mario transform sprite + AABB/hitbox sizing | Medium, visual, design-sensitive |
-| D26 | End-of-level flow plays two music cues (touch-flag jingle, then end-level-menu track), but the second cuts off/replaces the first before it finishes | end-level music sequencing (SoundManager / end-state transition) | Medium, player-visible |
-| D27 | Death SFX does not finish playing before the player respawns — cut off by the respawn transition | death SFX / respawn timing | Low-Medium, player-visible |
-| D28 | Colorblind setting toggle has no visible effect on rendering | colorblind option wiring (OptionsState / render filter) | Medium, accessibility, dead feature |
+| D15 | ~~A-11 friend sprawl: 12 friends each in `Entity.hpp`/`Character.hpp` — now commented as deliberate; either get user sign-off as descoped or fix~~ | ~~`Entity.hpp:156`, `Character.hpp:42`~~ | **RESOLVED (R6):** Recorded in SPEC.md §21 Descope Addendum as descoped-by-choice per user decision. |
+| D16 | ~~Star power-up does not switch Mario's sprite to an invincible-state visual (no flicker/rainbow cycling on the player sprite itself)~~ | ~~player render path, star state~~ | **RESOLVED (R17):** Wired `SpriteColorFilter::getRainbowColor()` to `Player::render()` while `StarDecorator` is active. |
+| D17 | ~~Piranha Plant not centered in its pipe housing, and floats above the pipe at maximum extension height instead of stopping flush~~ | ~~Piranha Plant entity/animation offsets~~ | **RESOLVED (R17):** Two root causes fixed: entity x-placement in hand-authored level JSON (`LevelLoader.cpp`), and hardcoded 64.0f emerge height vs. plant's 48.0f height (`TimerEmergenceStrategy.cpp`). |
+| D18 | ~~Enemy killed by fireball flips horizontally about the **bottom edge** of its AABB, not the AABB's center line, so the flipped sprite appears to sink/shift~~ | ~~fireball-kill flip logic~~ | **RESOLVED (R17):** Flip pivot moved from bottom edge to AABB center line. |
+| D19 | ~~Boom Boom arena is too small, and the level-end flag is reachable (and can be touched) while the Boom Boom fight is still in progress, letting players skip the fight~~ | ~~Boom Boom arena/level data, flag trigger gating~~ | **PARTIALLY RESOLVED (R15):** Arena too small — fixed by R15 (arenaW 7→16, arenaX 185→176, five obstructing ice tiles removed). Level-end flag reachable mid-fight — NEVER REPRODUCED; already fixed by commit eb7affe (2026-08-31 08:04), ancestor of audit base commit. |
+| D20 | ~~Bowser does not spawn at all in his designated arena — boss is entirely absent from the reachable campaign, contradicts F8 playtest assumption that Bowser can be fought~~ | ~~Bowser spawn/placement, castle level data~~ | **STRUCK — NEVER OPEN:** Refuted by R15 live evidence — `level_3.json` contains `"type": "bowser"`, loading World 1-3 logs boss detection, jump-stomp scores 5000 (Bowser's value) with Bowser active. Likely already fixed by eb7affe (08:04, same morning). |
+| D21 | ~~Pressing the P-Switch inside a sub-level can soft-lock the level: it turns ground tiles into coins, removing standable ground~~ | ~~P-Switch tile-swap logic, sub-level tile tables~~ | **RESOLVED (R16):** Root cause differed from plan's guess — `PlayingState::beginPSwitch` already correctly scoped to Brick↔Coin; actual bug was `MapGenerator::generateSubLevel` theming every non-Castle sub-level floor/ceiling as Brick instead of Ground. |
+| D22 | ~~A half-rendered pipe exists in a sub-level near the entrance to the warp-pipe exit~~ | ~~sub-level tilemap/pipe asset placement~~ | **RESOLVED (R16):** Located and fixed tile/asset placement. |
+| D23 | ~~Sub-level pipes are built from the long "L" pipe piece instead of a full pipe (single asset or a properly constructed full assembly)~~ | ~~sub-level pipe tile placement~~ | **RESOLVED (R16):** Replaced with correct full-pipe asset or properly constructed multi-tile pipe. |
+| D24 | ~~Question blocks are inconsistent: a hit block does not turn solid afterward in the overworld, but does in sub-levels — pick one behavior and apply it everywhere~~ | ~~question-block hit/solidify logic (overworld vs sub-level code paths)~~ | **RESOLVED (R16):** Unified code paths; one consistent behavior now applied everywhere. |
+| D25 | ~~Mario's sprite stretches unpleasantly during the mushroom transform animation; needs a design proposal to change the sprite/AABB and hitbox so the transform doesn't distort the sprite~~ | ~~Mario transform sprite + AABB/hitbox sizing~~ | **STRUCK — NEVER OPEN:** No transform animation exists in the codebase. Every power-up is instant state swap (`Player::powerUp` → `changeState/setBaseState + applyStateSize + refreshStateAnimations`, same frame). `Entity::drawSprite` applies uniform scale to both axes (no non-uniform stretch possible). Small/Super/Fire/Cape all report width 24, so no Mushroom→Super aspect mismatch. Only place this class of bug existed was `MegaDecorator::getSize()` (commit c75d9a8), an ancestor of dev. |
+| D26 | ~~End-of-level flow plays two music cues (touch-flag jingle, then end-level-menu track), but the second cuts off/replaces the first before it finishes~~ | ~~end-level music sequencing (SoundManager / end-state transition)~~ | **RESOLVED (R19):** Plan's described cues were incorrect. Reproducible case: `castle_complete` (fired by BossDefeated) cut off by `level_complete` (fired by LevelComplete) on boss levels. Fixed with deferred swap that only defers when both outgoing and incoming tracks are one-shot. |
+| D27 | ~~Death SFX does not finish playing before the player respawns — cut off by the respawn transition~~ | ~~death SFX / respawn timing~~ | **NOT DEMONSTRABLE AS WORDED:** `lost_life.wav` is 3.267s (longer than 1.6s max fall+respawn window). No code stops it; pool only reuses Stopped channels. SFX plays on over resumed BGM. Observation real, stated mechanism absent — needs someone with audio to characterise what was actually heard. NOT fixed, NOT invalid. |
+| D28 | ~~Colorblind setting toggle has no visible effect on rendering~~ | ~~colorblind option wiring (OptionsState / render filter)~~ | **STRUCK — NEVER OPEN:** Already fixed by commit 2e7f5bb (2026-08-19, 12 days before audit). `ColorPalette::get()` reads `Game::getColorblindMode()` and is wired into Minimap, PlayingState HUD/debug colours, and OptionsState. |
 
 ## 5. Remaining feature work (from the checkbox triage)
 
@@ -155,7 +157,7 @@ log entry (`Git Fingerprint`, `Fetched Remotes`, `Reachable From Main`,
 work, Sonnet 5 for scoped implementation, Opus 5 for design-sensitive refactors
 and level design; effort = the reasoning-effort setting to run it at.
 
-### R1 — Small-defect batch (D1 + D2 + D3 + D4) — **Sonnet 5, effort: medium** — branch `A/fix/audit-31-08-defect-batch`
+### R1 — Small-defect batch (D1 + D2 + D3 + D4) — **Sonnet 5, effort: medium** — branch `A/fix/audit-31-08-defect-batch` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md, then fix four audited defects in SuperMarioGame/ (all
 > file:line refs verified 2026-08-31, main @ ab16759):
@@ -188,7 +190,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > castle track plays (log `Verified By: ran the game`). Commit per fix with
 > conventional messages. Do not merge or push.
 
-### R2 — AnimationManager: wire it or delete it (D5) — **Sonnet 5, effort: medium** — branch `A/fix/animation-manager-disposition`
+### R2 — AnimationManager: wire it or delete it (D5) — **Sonnet 5, effort: medium** — branch `A/fix/animation-manager-disposition` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. `src/Graphics/AnimationManager.{cpp,hpp}` compiles and passes
 > `tests/verify_all_entities_visual.cpp` but is constructed by nothing
@@ -202,7 +204,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > animated entity of each family (player, enemy, item) render correctly, and
 > write `Reachable From Main` honestly. Commit; no merge, no push.
 
-### R3 — Audio-device-less startup (D6) — **Sonnet 5, effort: medium** — branch `A/fix/no-audio-device-degrade`
+### R3 — Audio-device-less startup (D6) — **Sonnet 5, effort: medium** — branch `A/fix/no-audio-device-degrade` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. On a machine with no audio device the game aborts at startup
 > (logged 2026-08-20 in logs/agent_history.log, ~line 4118 — CI was given a
@@ -216,7 +218,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > removing the CI dummy-device workaround in `.github/workflows/ci.yml` if the
 > fix makes it unnecessary — separate commit. No merge, no push.
 
-### R4 — Adopt ScopedSubscription (D7 / X-7) — **Sonnet 5, effort: medium** — branch `A/fix/scoped-subscription-adoption`
+### R4 — Adopt ScopedSubscription (D7 / X-7) — **Sonnet 5, effort: medium** — branch `A/fix/scoped-subscription-adoption` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. `EventBus::ScopedSubscription`
 > (`include/Core/EventBus.hpp:72-89`) is an RAII unsubscribe token with zero
@@ -233,7 +235,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > tests/scripts/ script. Then correct docs/issues/completion_plan.md item 25
 > status. No merge, no push.
 
-### R5 — dynamic_cast reduction (D8 / A-10) — **Opus 5, effort: high** — branch `A/refactor/collision-dispatch`
+### R5 — dynamic_cast reduction (D8 / A-10) — **Opus 5, effort: high** — branch `A/refactor/collision-dispatch` — **OPEN**
 
 > Read AGENTS.md and SPEC.md §2.2. Acceptance bar from
 > docs/issues/member_a_fix_plan.md WP12: fewer than 4 dynamic_casts in
@@ -250,7 +252,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > versus match via tests/scripts/. Commit in reviewable steps (one dispatch
 > family per commit). No merge, no push.
 
-### R6 — Repo hygiene + SPEC descope addendum (D9, D11, D15, F9) — **Haiku 4.5, effort: low** — branch `A/docs/hygiene-and-descope-addendum`
+### R6 — Repo hygiene + SPEC descope addendum (D9, D11, D15, F9) — **Haiku 4.5, effort: low** — branch `A/docs/hygiene-and-descope-addendum` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. Four bounded chores:
 > 1. `.member_profile.json` is git-tracked but AGENTS.md defines it as private
@@ -269,17 +271,21 @@ and level design; effort = the reasoning-effort setting to run it at.
 >    their decision in the addendum — descoped-by-choice or queued.
 > No code changes. Commit each chore separately. No merge, no push.
 
-### R7 — Dead-wiring batch (F2 + F4 + F6) — **Sonnet 5, effort: medium** — branch `A/feature/wire-dormant-vfx-sfx`
+### R7 — Dead-wiring batch (F2 + F4 + F6) — **Sonnet 5, effort: medium** — branch `A/feature/wire-dormant-vfx-sfx` — **OPEN** (item 2 DONE by R17)
 
 > Read AGENTS.md and SPEC.md §11/§15/§17.3. Wire the implemented-but-dormant
-> pieces (all verified dormant 2026-08-31):
+> pieces. **Caution**: the "verified dormant 2026-08-31" inventory was compiled by
+> the same audit pass that mis-recorded D20/D25/D27/D28, so each remaining item
+> should be re-verified against dev before implementation. Item 2 has been
+> independently confirmed (getRainbowColor genuinely has no non-test caller), so
+> this is a caution, not a dismissal. Remaining items: 1, 3, 4, 5, 6, 7.
 > 1. Spawn `DeathEffectType::StarKillSpin` on star-power kills and
 >    `PlayerDeathHop` on player death (`include/Graphics/EntityDeathEffect.hpp:10-11`
 >    has the types; only `EnemyFlip` is ever spawned — find the kill sites in
 >    `CollisionResolver`/`PlayingState`).
-> 2. Call `SpriteColorFilter::getRainbowColor()`
+> ~~2. Call `SpriteColorFilter::getRainbowColor()`
 >    (`src/Graphics/SpriteColorFilter.cpp:37`) from `Player::render`
->    (`Player.cpp:626-636`) while a StarDecorator is active.
+>    (`Player.cpp:626-636`) while a StarDecorator is active.~~ — **DONE (R17): wired in D16 fix.**
 > 3. Emit the four declared-but-never-emitted particle types
 >    (`ParticleEmitter.hpp:5-14`): WaterBubble in water zones, LavaEmber over
 >    lava, Combo on combo milestones, WallDust while wall-sliding.
@@ -297,7 +303,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > kill, death, water/lava level via editor, wall slide, combo, menu, view
 > edge). Log honestly per item. Commit per item. No merge, no push.
 
-### R8 — Load Game UI (F3) — **Sonnet 5, effort: medium** — branch `A/feature/load-game-menu`
+### R8 — Load Game UI (F3) — **Sonnet 5, effort: medium** — branch `A/feature/load-game-menu` — **OPEN**
 
 > Read AGENTS.md, SPEC.md §10.2/§12.3. Make saved games loadable without the
 > dev panel: add a LOAD GAME row to `MenuState` (rows at
@@ -313,7 +319,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > 13/13. Update features_list.md #75-78 wording if slot preview ships. No
 > merge, no push.
 
-### R9 — Campaign population & balance (F1) — **Opus 5, effort: high** — branch `A/feature/campaign-population-pass`
+### R9 — Campaign population & balance (F1) — **Opus 5, effort: high** — branch `A/feature/campaign-population-pass` — **OPEN**
 
 > Read AGENTS.md, SPEC.md §6/§9, and docs/issues/spec_feature_audit_2026-08-31.md
 > §5-F1. Six implemented enemies (KoopaParatroopa, Boo, BulletBill, Thwomp,
@@ -334,7 +340,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > actually fires on the new hidden block. Log `Verified By: ran the game` with
 > what was observed. Commit per level. No merge, no push.
 
-### R10 — Attract mode (F5) — **Sonnet 5, effort: medium** — branch `A/feature/attract-mode`
+### R10 — Attract mode (F5) — **Sonnet 5, effort: medium** — branch `A/feature/attract-mode` — **OPEN**
 
 > Read AGENTS.md, SPEC.md §10.2. After 30 s idle on the main menu, play a
 > recorded demo (ReplayRecorder playback already exists —
@@ -346,7 +352,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > replay system — that dependency is met. Verify live: wait 30 s, watch the
 > demo, press a key, get the menu back; ctest 13/13. No merge, no push.
 
-### R11 — Hermetic test suite (D10) — **Sonnet 5, effort: high** — branch `A/fix/hermetic-tests`
+### R11 — Hermetic test suite (D10) — **Sonnet 5, effort: high** — branch `A/fix/hermetic-tests` — **OPEN**
 
 > Read AGENTS.md (g-rule-13: CI must be hermetic) and report §13's admission:
 > the suite reads/writes the real `saves/`, one run destroyed
@@ -363,7 +369,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > reports/report_content.py §13 and rebuild the report per its build.sh. No
 > merge, no push.
 
-### R12 — Full playtest & evidence pass (F8, D14 closure) — **Sonnet 5, effort: high** — branch `A/verify/full-playtest-pass`
+### R12 — Full playtest & evidence pass (F8, D14 closure) — **Sonnet 5, effort: high** — branch `A/verify/full-playtest-pass` — **OPEN**
 
 > Read AGENTS.md rules 9-10 and docs/verification/README.md (its stated limits
 > are your checklist). Nobody has: fought Bowser on screen, pressed a P-Switch
@@ -402,7 +408,7 @@ user action after the next batch of task branches lands; noted here so it is
 not forgotten. Alternatively adopt "merge to main only via dev" strictly and
 let the wrinkle age out — but pick one and record it.
 
-### R15 — Boss encounters: Bowser spawn + Boom Boom arena/flag gating (D19, D20) — **Sonnet 5, effort: high** — branch `A/fix/boss-encounter-batch`
+### R15 — Boss encounters: Bowser spawn + Boom Boom arena/flag gating (D19, D20) — **Sonnet 5, effort: high** — branch `A/fix/boss-encounter-batch` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. Two boss-level defects reported from live play 2026-08-31:
 > 1. Bowser never spawns in his designated castle arena — trace the spawn
@@ -420,7 +426,7 @@ let the wrinkle age out — but pick one and record it.
 > to a resolution, and confirm the flag cannot be reached mid-Boom-Boom-fight.
 > Log `Verified By: ran the game`. Commit per fix. No merge, no push.
 
-### R16 — Sub-level tile/pipe/block batch (D21, D22, D23, D24) — **Sonnet 5, effort: medium** — branch `A/fix/sublevel-tile-batch`
+### R16 — Sub-level tile/pipe/block batch (D21, D22, D23, D24) — **Sonnet 5, effort: medium** — branch `A/fix/sublevel-tile-batch` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. Four sub-level tile defects from live play 2026-08-31:
 > 1. **P-Switch soft-lock (highest priority — game-breaking)**: pressing the
@@ -442,7 +448,7 @@ let the wrinkle age out — but pick one and record it.
 > question-block solidify behavior is consistent. Commit per item. No merge,
 > no push.
 
-### R17 — Player/enemy visual-state batch (D16, D17, D18) — **Sonnet 5, effort: medium** — branch `A/fix/player-enemy-visual-batch`
+### R17 — Player/enemy visual-state batch (D16, D17, D18) — **Sonnet 5, effort: medium** — branch `A/fix/player-enemy-visual-batch` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. Three visual-state defects from live play 2026-08-31:
 > 1. Star power-up doesn't switch Mario's sprite to an invincible-state visual
@@ -458,20 +464,11 @@ let the wrinkle age out — but pick one and record it.
 > Acceptance: build, ctest green; observe each fix live (star pickup, a
 > Piranha Plant pipe, a fireball kill). Commit per item. No merge, no push.
 
-### R18 — Mario transform sprite/hitbox redesign (D25) — **Opus 5, effort: high** — branch `A/design/mario-transform-sprite`
+### R18 — Mario transform sprite/hitbox redesign (D25) — **Opus 5, effort: high** — branch `A/design/mario-transform-sprite` — **CANCELLED**
 
-> Read AGENTS.md. Mario's sprite stretches unpleasantly during the mushroom
-> transform animation. This is design-sensitive, not a mechanical fix: propose
-> a change to the transform sprite sheet/animation and the AABB/hitbox sizing
-> used during the transform so the sprite scales cleanly instead of
-> stretching (e.g. crossfade between small/big frames instead of scaling one
-> frame; decouple the visual transform from the collision AABB so the hitbox
-> doesn't need to stretch to match). Present the proposal to the user before
-> committing to an asset change if it requires new sprite frames. Verify live:
-> trigger a mushroom pickup and observe the transform at normal speed and
-> frame-stepped. Commit. No merge, no push.
+> D25 is struck as never-open (see §4 defect row). No work required. Rationale: no transform animation exists in the codebase. Power-ups are instant state swaps; the only stretch bug existed in `MegaDecorator::getSize()` (commit c75d9a8), an ancestor of dev.
 
-### R19 — End-game audio batch (D26, D27, D28) — **Sonnet 5, effort: medium** — branch `A/fix/endgame-audio-batch`
+### R19 — End-game audio batch (D26, D27, D28) — **Sonnet 5, effort: medium** — branch `A/fix/endgame-audio-batch` — **COMPLETE / merged to dev**
 
 > Read AGENTS.md. Three audio defects from live play 2026-08-31:
 > 1. End-of-level flow plays the touch-flag jingle then the end-level-menu
