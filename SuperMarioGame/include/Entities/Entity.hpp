@@ -44,6 +44,15 @@ public:
     virtual bool isActive() const;
     virtual void destroy();
 
+    // Called once when this entity has left the playable area — below the void
+    // plane, or past either side. Return true to be despawned.
+    //
+    // The default is true: an ordinary entity that leaves the level is gone.
+    // It exists as a hook rather than a category check because leaving has to
+    // mean something different for a boss, which puts itself back instead of
+    // vanishing — silently removing one ends a fight nobody won.
+    virtual bool onLeftLevel() { return true; }
+
     // Brings a destroyed entity back. The object pool needs this (a recycled
     // object is reactivated rather than reconstructed) and so do the harnesses
     // that respawn a test player, both of which used to assign to the protected

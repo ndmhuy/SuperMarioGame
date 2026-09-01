@@ -936,6 +936,25 @@ void PlayingState::update(float dt) {
             killPlayer(who, "fell into the void");
         }
     }
+    // The loop above checks players and only players, so anything else that
+    // left the level fell forever: still active, still updated, still tracked,
+    // just permanently out of sight. For an ordinary enemy that is an invisible
+    // leak. For a boss it is a softlock — syncBossHud() keeps drawing a
+    // full-health bar for a boss who is no longer anywhere, and updateBossArena()
+    // keeps the player clamped inside an arena whose fight can neither be won
+    // nor left. Reported live as "BOWSER, full health, nothing on the bridge".
+    //
+    // What leaving means is the entity's own business (Entity::onLeftLevel):
+    // ordinary entities are despawned, a boss puts itself back in its arena.
+    for (auto& entity : m_entities) {
+        if (!entity || !entity->isActive()) continue;
+        Entity* raw = entity.get();
+        if (raw == m_player || raw == m_player2) continue;   // handled above
+        const sf::Vector2f at = raw->getPosition();
+        if (at.y <= bottomVoidY && at.x >= -64.0f && at.x <= rightVoidX) continue;
+        if (raw->onLeftLevel()) raw->destroy();
+    }
+
     if (anyDeathInProgress()) return;
 
     // 3d. Warp Pipe check for sub-level transitions or teleportation.

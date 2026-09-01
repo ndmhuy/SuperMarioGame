@@ -95,6 +95,17 @@ public:
     // animation all happen exactly as they would after a fifth stomp.
     void defeatNow();
 
+    // A boss that leaves the level is put back here at full health rather than
+    // left falling forever. Bowser stands on brick directly above lava in 1-3;
+    // lava is not solid and burns only the player, so losing that floor by any
+    // route other than the axe (chopBridge(), which calls defeatNow() first)
+    // dropped him clean out of the world. He stayed active, so nothing cleared
+    // PlayingState's m_activeBoss: the HUD went on drawing a full-health bar
+    // for a boss who was no longer anywhere, and the arena stayed locked around
+    // a fight that could no longer be won or left.
+    void returnToArenaSpawn();
+    bool onLeftLevel() override;
+
 protected:
     // The subclass's own fight logic, called once per frame while the boss is
     // alive. Gravity and collision are still the physics engine's job.
@@ -134,6 +145,10 @@ protected:
     bool isDying() const { return isDefeated() && active; }
 
 private:
+    // Where the fight started. Captured at construction, so it is the level's
+    // own placement and not wherever the boss has since walked to.
+    sf::Vector2f m_arenaSpawn;
+
     std::string m_displayName;
     int m_maxHealth;
     int m_health;

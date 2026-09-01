@@ -31,10 +31,34 @@ int scaledHealth(int maxHealth) {
 Boss::Boss(sf::Vector2f position, std::string displayName, int maxHealth,
            int scoreValue, sf::Vector2f size)
     : Enemy(position, scoreValue, size),
+      m_arenaSpawn(position),
       m_displayName(std::move(displayName)),
       m_maxHealth(scaledHealth(std::max(1, maxHealth))),
       m_health(m_maxHealth) {
     m_phase = phaseForHealth(m_health);
+}
+
+void Boss::returnToArenaSpawn() {
+    setPosition(m_arenaSpawn);
+    setVelocity({0.0f, 0.0f});
+    m_health = m_maxHealth;
+    m_phase = phaseForHealth(m_health);
+    // Neither timer should survive the trip: i-frames earned before the fall
+    // would otherwise make the returning boss briefly unhittable, and a stagger
+    // would hand the player a free opening they did not earn.
+    m_invulnerableTimer = 0.0f;
+    m_staggerTimer = 0.0f;
+}
+
+bool Boss::onLeftLevel() {
+    // Already dying: let the ordinary prune take it, so the defeat sequence
+    // that is mid-flight is not undone by a respawn.
+    if (isDefeated()) return true;
+    returnToArenaSpawn();
+    std::cout << "[PlayingState] " << m_displayName
+              << " left the level; returned to the arena spawn at full health."
+              << std::endl;
+    return false;
 }
 
 int Boss::phaseForHealth(int health) const {

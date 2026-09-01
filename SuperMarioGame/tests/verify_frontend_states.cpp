@@ -105,6 +105,25 @@ public:
     // does exactly that: constructs on the stack, may call .exit() itself,
     // and lets the destructor run at scope end).
     static bool hasExited(const PlayingState& state) { return state.m_hasExited; }
+
+    // Reads the arena-lock flag and the boss pointer together so a test can
+    // assert a fight survived something, rather than only that an object did.
+    static bool arenaLockedFor(const PlayingState& state, const Boss* boss) {
+        return state.m_arenaLocked && state.m_activeBoss == boss;
+    }
+
+    // Counted, never held: an entity despawned for leaving the level is pruned
+    // out of m_entities, so a raw pointer kept across update() dangles.
+    static int activeEnemiesBelow(const PlayingState& state, float y) {
+        int n = 0;
+        for (const auto& e : state.m_entities) {
+            if (!e || !e->isActive()) continue;
+            if (e->getCategory() != EntityCategory::Enemy) continue;
+            if (e->getPosition().y > y) ++n;
+        }
+        return n;
+    }
+
 };
 
 #include <SFML/Graphics/Image.hpp>
@@ -946,6 +965,99 @@ void testPlayingStateExitIsIdempotent() {
           "time and repeated every cleanup step behind it");
 }
 
+// A boss that leaves the level used to fall forever. PlayingState's void-plane
+// check iterated {m_player, m_player2} and nothing else, so no enemy was ever
+// removed for leaving the map. Bowser stands on brick directly above lava in
+// 1-3; lava is not solid and burns only the player (killPlayer, "fell into the
+// lava"), so losing that floor by any route other than the axe — chopBridge()
+// calls defeatNow() first, which is why the axe never showed this — dropped him
+// clean out of the world. He stayed active, so nothing cleared m_activeBoss:
+// syncBossHud() went on drawing BOWSER at full health over an empty bridge and
+// updateBossArena() kept the player clamped inside a fight that could neither
+// be won nor left. Observed live; reproduced here by putting the boss below the
+// void plane directly, which is the state that fall ends in.
+//
+// The control matters as much as the assertion: an ordinary enemy dropped to
+// the very same place must still be despawned, or the "fix" is just the void
+// check switched off.
+void testBossReturnsAfterLeavingTheLevel() {
+    section("boss  leaving the level returns him to the arena instead of falling forever");
+
+    ImGuiContext* context = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(1280.0f, 720.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    unsigned char* fontPixels = nullptr;
+    int fontW = 0, fontH = 0;
+    io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontW, &fontH);
+    io.Fonts->SetTexID(static_cast<ImTextureID>(1));
+
+    // Level index 2 = level_3.json = World 1-3, per LevelCatalog — Bowser.
+    PlayingState state(false, false, MapGeneratorConfig(), 0, 2);
+    state.enter();
+    for (int i = 0; i < 5; ++i) { ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render(); }
+
+    Boss* boss = LevelCompletionCameraTestHooks::activeBoss(state);
+    Player* player = LevelCompletionCameraTestHooks::activePlayer(state);
+    check(boss != nullptr && boss->isActive(), "Bowser is alive in a freshly loaded 1-3");
+    check(player != nullptr, "1-3 has an active player");
+
+    if (boss && player && boss->hasArena()) {
+        const sf::Vector2f spawn = boss->getPosition();
+        const AABB arena = boss->getArena();
+
+        // Lock the arena first: the softlock is what makes this more than a
+        // cosmetic bug, so the test has to be in that state to prove it lifts.
+        player->setPosition({arena.x + Constants::TILE_SIZE * 2.0f, spawn.y});
+        ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render();
+        check(LevelCompletionCameraTestHooks::arenaLockedFor(state, boss),
+              "walking into the arena locks it — the softlock's precondition");
+
+        // Control, sent to the very same place.
+        LevelCompletionCameraTestHooks::addTestGoomba(state, spawn)
+            ->setPosition({spawn.x, 4000.0f});
+        boss->setPosition({spawn.x, 4000.0f});
+        check(LevelCompletionCameraTestHooks::activeEnemiesBelow(state, 3000.0f) == 2,
+              "both the boss and the control enemy are below the level to begin with");
+
+        for (int i = 0; i < 30; ++i) { ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render(); }
+
+        // Re-read the pointer instead of dereferencing the old one. If the boss
+        // were despawned like an ordinary enemy, forgetEntity() would have
+        // nulled m_activeBoss and freed him — so the old pointer is exactly the
+        // use-after-free this check exists to detect, and reading it to detect
+        // it would be a segfault instead of a diagnosis.
+        Boss* still = LevelCompletionCameraTestHooks::activeBoss(state);
+        check(still == boss,
+              "the boss is still tracked and not destroyed for leaving the level");
+        if (!still) {
+            state.exit();
+            ImGui::DestroyContext(context);
+            return;
+        }
+        boss = still;
+        // Back inside the arena, not pinned to the spawn pixel: he resumes
+        // patrolling and chasing the moment he returns, so an exact-position
+        // assertion would only be testing that the fight is frozen.
+        const sf::Vector2f back = boss->getPosition();
+        check(back.y < arena.y + arena.height && back.y > spawn.y - 64.0f,
+              "he is back inside the level's vertical band, not still falling");
+        check(back.x >= arena.x && back.x <= arena.x + arena.width,
+              "and back inside his own arena");
+        check(boss->getHealth() == boss->getMaxHealth(),
+              "and back at full health, so the fight restarts rather than resuming mid-way");
+        check(LevelCompletionCameraTestHooks::arenaLockedFor(state, boss),
+              "the arena is still locked around a boss who is actually in it");
+        check(LevelCompletionCameraTestHooks::activeEnemiesBelow(state, 3000.0f) == 0,
+              "nothing is left falling below the level — the boss came back and "
+              "the ordinary enemy was despawned, so the void check is narrowed, "
+              "not disabled");
+    }
+
+    state.exit();
+    ImGui::DestroyContext(context);
+}
+
 int main() {
     // Every save path in this process now points at a throwaway
     // directory, so nothing here can read or delete real save data
@@ -991,6 +1103,7 @@ int main() {
     testBossSurvivesDeathRespawnNearCheckpoint();
     testLoadGameRestoresLevelFromSlot();
     testPlayingStateExitIsIdempotent();
+    testBossReturnsAfterLeavingTheLevel();
 
     // These screens play sounds and load atlases, so both the audio device and a
     // GL context are live. Both singletons hold SFML resources that must be
