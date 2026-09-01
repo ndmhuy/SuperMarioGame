@@ -456,6 +456,22 @@ void PlayingState::enter() {
 }
 
 void PlayingState::exit() {
+    // GameStateManager calls exit() explicitly (applyPendingOps()'s
+    // PendingKind::Change case, and clearStates()) before pop_back() destroys
+    // the outgoing state — but ~PlayingState() also calls exit() unconditionally
+    // as a safety net, so pop_back()'s destructor call ran the full teardown a
+    // second time on every single state transition: cleanupTestScene(), every
+    // EventBus unsubscribe, InputManager::registerPlayer(nullptr, ...),
+    // Game::setPlayer(nullptr)/setSecondPlayer(nullptr)/setTileMap(nullptr)/
+    // setMatchConfig({}), m_minimap.reset(), EntityDeathEffect::clear() — all of
+    // it. Harmless by luck (every one of those happens to be idempotent), but a
+    // real double-execution, not merely the duplicate "Exiting PlayingState"
+    // line a live pause -> quit-to-menu script surfaced. Re-implements the same
+    // guard as A/fix/duplicate-playingstate-exit (f169a6c, off a much older
+    // dev) on current PlayingState.
+    if (m_hasExited) return;
+    m_hasExited = true;
+
     std::cout << "Exiting PlayingState" << std::endl;
     cleanupTestScene();
 

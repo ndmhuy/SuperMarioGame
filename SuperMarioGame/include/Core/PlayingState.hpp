@@ -345,6 +345,11 @@ private:
     bool m_isProcedural = false;
     MapGeneratorConfig m_genConfig;
 
+    // Guards exit() against running twice per transition: GameStateManager
+    // calls it explicitly before pop_back() destroys this object, and
+    // ~PlayingState() also calls it as a safety net. See exit()'s own comment.
+    bool m_hasExited = false;
+
     // Slot to call loadFromSlot() with at the end of this run's first enter(),
     // or 0 for none. Consumed (reset to 0) once acted on, so a later level
     // transition that reuses this same instance never re-triggers it.
