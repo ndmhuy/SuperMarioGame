@@ -76,8 +76,8 @@
       "y": 17
     },
     {
-      "exitX": 101,
-      "exitY": 19,
+      "exitX": 104,
+      "exitY": 18,
       "isEntrance": true,
       "pipeId": 2,
       "targetLevel": "assets/levels/level_2.json",

@@ -29,8 +29,8 @@ void Camera::follow(const sf::Vector2f& target, float dt) {
 
 void Camera::follow(const sf::Vector2f& target, const sf::Vector2f& targetVelocity, float dt) {
     if (m_scrollMode == ScrollMode::Locked) {
-        // The bounds are doing the work — a boss arena narrower than the view
-        // centres itself through clampToBounds — so the camera must not chase.
+        // In locked mode, keep m_position updated to prevent stale camera jumps upon release
+        m_position = clampToBounds(target);
         return;
     }
 

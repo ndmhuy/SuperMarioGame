@@ -17,4 +17,5 @@ public:
     void setupAnimations(const SpriteSheet* spriteSheet) override;
     void onStomped() override;
     void onHitByFireball() override;
+    bool onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) override;
 };

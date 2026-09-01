@@ -70,7 +70,7 @@ void InputManager::loadDefaultBindings() {
     m_pressMappings[0][sf::Keyboard::Key::W] = compositeJumpCmd;
     m_pressMappings[0][sf::Keyboard::Key::Space] = compositeJumpCmd;
     m_pressMappings[0][sf::Keyboard::Key::F] = fireCmd;
-    m_pressMappings[0][sf::Keyboard::Key::S] = gpCmd; // Press S to ground pound
+    m_pressMappings[0][sf::Keyboard::Key::Q] = gpCmd; // Press Q to ground pound (S is crouch)
 
     // Hold mappings (continuous actions)
     m_holdMappings[0][sf::Keyboard::Key::A] = leftCmd;
@@ -86,7 +86,7 @@ void InputManager::loadDefaultBindings() {
     // Player 2's controls being incomplete — the arrow cluster has no thumb key.
     m_pressMappings[1][sf::Keyboard::Key::RShift] = compositeJumpCmd;
     m_pressMappings[1][sf::Keyboard::Key::M] = fireCmd;
-    m_pressMappings[1][sf::Keyboard::Key::Down] = gpCmd; // Press Down arrow to ground pound
+    m_pressMappings[1][sf::Keyboard::Key::Slash] = gpCmd; // Press Slash to ground pound (Down is crouch)
 
     // Hold mappings (continuous actions)
     m_holdMappings[1][sf::Keyboard::Key::Left] = leftCmd;
@@ -96,11 +96,11 @@ void InputManager::loadDefaultBindings() {
 
     // Remember which key each action landed on, per player.
     m_boundKey[0] = {{"jump", sf::Keyboard::Key::W}, {"fire", sf::Keyboard::Key::F},
-                     {"groundpound", sf::Keyboard::Key::S}, {"left", sf::Keyboard::Key::A},
+                     {"groundpound", sf::Keyboard::Key::Q}, {"left", sf::Keyboard::Key::A},
                      {"right", sf::Keyboard::Key::D}, {"crouch", sf::Keyboard::Key::S},
                      {"run", sf::Keyboard::Key::LShift}};
     m_boundKey[1] = {{"jump", sf::Keyboard::Key::Up}, {"fire", sf::Keyboard::Key::M},
-                     {"groundpound", sf::Keyboard::Key::Down}, {"left", sf::Keyboard::Key::Left},
+                     {"groundpound", sf::Keyboard::Key::Slash}, {"left", sf::Keyboard::Key::Left},
                      {"right", sf::Keyboard::Key::Right}, {"crouch", sf::Keyboard::Key::Down},
                      {"run", sf::Keyboard::Key::N}};
 }
@@ -192,8 +192,15 @@ bool InputManager::isActionHeld(const std::string& action, int playerIndex) cons
     if (playerIndex < 0 || playerIndex > 1) return false;
     const auto& table = m_boundKey[playerIndex];
     auto it = table.find(action);
-    if (it == table.end()) return false;
-    return isHeld(it->second);
+    if (it != table.end() && isHeld(it->second)) return true;
+
+    // Check secondary keys (e.g. Space for Player 1 jump, RShift for Player 2 jump)
+    if (action == "jump") {
+        if (playerIndex == 0 && isHeld(sf::Keyboard::Key::Space)) return true;
+        if (playerIndex == 1 && isHeld(sf::Keyboard::Key::RShift)) return true;
+    }
+
+    return false;
 }
 
 std::string InputManager::getBoundKeyName(const std::string& action, int playerIndex) const {
@@ -295,10 +302,10 @@ std::unordered_map<std::string, std::string> InputManager::resetBindingsToDefaul
     // user rebind takes, so defaults cannot drift from what applyBindings does.
     if (playerIndex == 0) {
         defaults = {{"left", "A"}, {"right", "D"}, {"jump", "W"}, {"run", "LShift"},
-                    {"crouch", "S"}, {"fire", "F"}, {"groundpound", "S"}};
+                    {"crouch", "S"}, {"fire", "F"}, {"groundpound", "Q"}};
     } else {
         defaults = {{"left", "Left"}, {"right", "Right"}, {"jump", "Up"}, {"run", "N"},
-                    {"crouch", "Down"}, {"fire", "M"}, {"groundpound", "Down"}};
+                    {"crouch", "Down"}, {"fire", "M"}, {"groundpound", "Slash"}};
     }
 
     applyBindings(defaults, playerIndex);

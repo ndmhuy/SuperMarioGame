@@ -6,10 +6,9 @@
 #include <cmath>
 
 namespace {
-// castle_end is 112x176 in the atlas and is drawn at 1:1 tile scale, so the
-// target size is the frame size. Anything else and the brickwork stops lining
-// up with the 32px grid the rest of the level is built on.
-constexpr float CASTLE_W = Castle::WIDTH_TILES  * Constants::TILE_SIZE;   // 112
+// castle_0 is 148x176 in the atlas and is drawn at 1:1 tile scale, so the
+// target size is the frame size.
+constexpr float CASTLE_W = Castle::WIDTH_TILES  * Constants::TILE_SIZE;   // 148
 constexpr float CASTLE_H = Castle::HEIGHT_TILES * Constants::TILE_SIZE;   // 176
 
 // Seconds for the flag to climb once the level is complete.
@@ -30,10 +29,10 @@ void Castle::setupAnimations(const SpriteSheet* spriteSheet) {
     // through the Animator anyway so it is wired the same way every other block
     // is and Block::render can draw it without a special case.
     m_animation = Animation("castle");
-    m_animation.frameList = {{"castle_end", 1.0f}};
+    m_animation.frameList = {{"castle_0", 1.0f}};
     m_animation.isLooping = false;
 
-    if (m_animator && spriteSheet && spriteSheet->hasFrame("castle_end")) {
+    if (m_animator && spriteSheet && spriteSheet->hasFrame("castle_0")) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;
     }

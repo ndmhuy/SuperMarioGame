@@ -16,6 +16,9 @@ public:
     float getTetherRadius() const;
     void setTetherRadius(float radius);
 
+    // Triggered when hitting the player or chain limit to knock back and reset
+    void triggerRecoil(sf::Vector2f recoilDir);
+
 protected:
     void calculateTarget(Enemy& enemy, float dt) override;
     void applyMovement(Enemy& enemy, float dt) override;
@@ -28,4 +31,7 @@ private:
     bool m_anchorInitialized;
     bool m_isLunging;
     sf::Vector2f m_lungeDir;
+    float m_lungeTimer;     // Duration of active lunge forward
+    float m_cooldownTimer;  // Rest/cooldown period between lunges to avoid camping
+    float m_recoilTimer;    // Knockback recoil timer
 };

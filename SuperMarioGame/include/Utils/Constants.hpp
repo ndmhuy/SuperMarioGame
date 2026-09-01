@@ -83,8 +83,8 @@ namespace Constants {
     constexpr float ENEMY_PIRANHA_SPEED    = 40.0f;   // emergence rate, px/s
     constexpr float ENEMY_BULLET_BILL_SPEED = 200.0f;
     constexpr float ENEMY_HAMMER_BRO_SPEED = 30.0f;
-    constexpr float ENEMY_THWOMP_SLAM_SPEED = 600.0f; // SPEC: instant slam
-    constexpr float ENEMY_CHAIN_CHOMP_SPEED = 250.0f; // lunge speed
+    constexpr float ENEMY_THWOMP_SLAM_SPEED = 150.0f; // Slam speed halved again (was 300, originally 600)
+    constexpr float ENEMY_CHAIN_CHOMP_SPEED = 90.0f;  // Slower lunge speed (was 250)
     constexpr float ENEMY_LAKITU_SPEED     = 100.0f;  // tracking speed
     constexpr float BOSS_BOWSER_SPEED      = 55.0f;
     constexpr float BOSS_BOOM_BOOM_SPEED   = 120.0f;

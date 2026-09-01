@@ -47,11 +47,14 @@ void ProximityTriggerStrategy::calculateTarget(Enemy& enemy, float dt) {
     if (m_state == ProximityState::Idle) {
         Player* player = Game::getInstance().getNearestPlayer(enemy.getPosition());
         if (player) {
-            float hDist = std::abs(player->position.x - enemy.position.x);
-            bool playerBelow = (player->position.y > enemy.position.y);
-            
-            // Slam down if player walks beneath (horizontal distance <= 3 tiles / 96px)
-            if (hDist <= 96.0f && playerBelow) {
+            const AABB& eBox = enemy.getBoundingBox();
+            const AABB& pBox = player->getBoundingBox();
+
+            // Slam down only when player is directly below the Thwomp (overlapping column)
+            bool hOverlap = (pBox.x + pBox.width >= eBox.x - 4.0f) && (pBox.x <= eBox.x + eBox.width + 4.0f);
+            bool playerBelow = (pBox.y + 4.0f >= eBox.y);
+
+            if (hOverlap && playerBelow) {
                 m_state = ProximityState::Slamming;
                 m_timer = 0.0f;
             }
@@ -90,8 +93,8 @@ void ProximityTriggerStrategy::applyMovement(Enemy& enemy, float dt) {
             enemy.velocity = sf::Vector2f(0.0f, 0.0f);
             break;
         case ProximityState::Slamming:
-            // SPEC: 600 px/s instant slam, carried by the Thwomp itself.
-            enemy.velocity = sf::Vector2f(0.0f, enemy.speed > 0.0f ? enemy.speed : 600.0f);
+            // 150 px/s slam, carried by the Thwomp itself (halved from 300).
+            enemy.velocity = sf::Vector2f(0.0f, enemy.speed > 0.0f ? enemy.speed : 150.0f);
             break;
         case ProximityState::Rising:
             enemy.velocity = sf::Vector2f(0.0f, -50.0f); // slow climb back home

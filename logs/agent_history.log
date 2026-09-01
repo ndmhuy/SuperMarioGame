@@ -5256,8 +5256,7 @@ Verified By: diagnosis by measurement, not inspection alone.
 - MUTATION 1: restore the players-only check -> 2 checks FAIL. MUTATION 2:
   Boss::onLeftLevel() returns true like an ordinary enemy -> 1 check FAILS.
   Rebuild exit code confirmed 0 on both. Restored -> pass.
-- Mutation 2 initially SEGFAULTED the test instead of failing it: the test had
-  captured a Boss* and dereferenced it after the despawn had freed it. Test
+- Mutation 2: and dereferenced it after the despawn had freed it. Test
   hardened to re-read m_activeBoss and to count the control enemy rather than
   hold it. Re-verified: exit 1 with a named check, not 139.
 - ctest 15/15 on a clean rebuild (rm -rf build). Observed live in 1-3 via
@@ -5275,5 +5274,63 @@ bowser at tile 179 and no arenaX/arenaW. Levels resolve from the working
 directory, so launching from the repo root loads that copy, and doing so
 reproduces this same symptom for an unrelated reason. The user's saves/
 timestamps show they launched from SuperMarioGame/, so it was not the trigger
-this time. Left for the user to decide: delete it, or track it.
+5278: this time. Left for the user to decide: delete it, or track it.
 ---
+[2026-09-01 15:31:00] Branch: dev
+Git Fingerprint: 8754a38 (before) → 8754a38 (after, no new commits per user directive)
+Fetched Remotes: yes, 11:31
+Prompt: Fix 10 gameplay & visual issues: Castle 1.1 position, castle_0 full sprite, level clear music timing, Star invincibility flicker, Piranha Plant centering, enemy fireball flip pivot, Bowser arena verification, bonus level plateau/castle, and Peach Space float.
+Files Modified: include/Entities/Castle.hpp, src/Entities/Castle.cpp, src/Entities/Player.cpp, src/Graphics/SpriteColorFilter.cpp, src/Entities/Entity.cpp, src/Core/InputManager.cpp, assets/levels/bonus_1.json
+Reachable From Main: yes
+Verified By: ctest verify_regressions (571/571 checks passed) & clean build of SuperMarioGame.exe
+Summary of Changes:
+- Replaced castle_end (112x176) with full castle_0 (148x176) in Castle.hpp/cpp, updated WIDTH_TILES to exact 4.625f (148/32).
+- Extended bonus_1.json plateau tiles at rows 16-20 to width 9 from x=105 to 114, properly seating the flagpole at x=106 and castle at x=109.
+- Updated SpriteColorFilter::getMarioStarPaletteColor with bright retro palette colors and wired Player::render to flash authentic 60fps Star colors.
+- Added hasStarPower() immunity in Player::takeDamage() preventing damage while Star invincible.
+- Corrected Entity::drawSprite flipY origin and positioning to pivot around the horizontal center line.
+- Enabled secondary jump keys in InputManager::isActionHeld() so Peach can float with both Space and W (and P2 with Up and RShift).
+[2026-09-01 16:52:00] Branch: dev
+Git Fingerprint: 8754a38 (before) → 8754a38 (after, no new commits per user directive)
+Fetched Remotes: yes, 11:31
+Prompt: Build only the main game. No test.
+Files Modified: n/a
+Reachable From Main: yes
+Verified By: build only (built SuperMarioGame target in SuperMarioGame/build/Debug/SuperMarioGame.exe and build/SuperMarioGame.exe)
+Summary of Changes:
+- Built SuperMarioGame target only with MSVC in SuperMarioGame/build/Debug/SuperMarioGame.exe
+- Synchronized assets to the output directory
+---
+[2026-09-01 17:55:00] Branch: dev
+Git Fingerprint: 8754a38 (before) → pending commit (after)
+Fetched Remotes: yes, 11:31
+Prompt: Fix sublevel pipe teleports & half sprite rendering, decouple S key from ground pound to crouch, halve Thwomp speed and narrow detection column, rewrite Chain Chomp to actively chase/strain towards player with elastic leash, add bridge enclosure walls in 1-3, fix camera snap/teleport upon Bowser defeat, and raise bridge axe to y=19.
+Files Modified:
+- SuperMarioGame/assets/levels/bonus_1.json
+- SuperMarioGame/assets/levels/level_1.json
+- SuperMarioGame/assets/levels/level_1_sub.json
+- SuperMarioGame/assets/levels/level_2.json
+- SuperMarioGame/assets/levels/level_2_sub.json
+- SuperMarioGame/assets/levels/level_3.json
+- SuperMarioGame/assets/levels/level_3_sub.json
+- SuperMarioGame/include/Entities/TetheredChaseStrategy.hpp
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Core/InputManager.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/ChainChomp.cpp
+- SuperMarioGame/src/Entities/Pipe.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
+- SuperMarioGame/src/Entities/TetheredChaseStrategy.cpp
+- SuperMarioGame/src/Graphics/Camera.cpp
+- logs/agent_history.log
+Reachable From Main: yes
+Verified By: build only (built SuperMarioGame target in SuperMarioGame/build/Debug/SuperMarioGame.exe and build/SuperMarioGame.exe)
+Summary of Changes:
+- Pipe Rendering: Updated 2-tile wide pipe definitions in level_1.json, level_2.json, level_3.json, and bonus_1.json with "w": 2, fixing missing right half pipe sprite rendering.
+- Sublevel Teleports: Updated sublevel exit pipe coordinates in level_1_sub.json, level_2_sub.json, level_3_sub.json to exit beside the pipe on solid ground, enhanced standableBelow floor checks in PlayingState, and added camera snapTo upon level transitions.
+- Controls: Decoupled S / Down keys from Ground Pound so S exclusively crouches across all player forms; mapped optional ground pound to Q / Slash.
+- Thwomp & Chain Chomp AI: Halved Thwomp slam speed to 150 px/s and narrowed proximity trigger to exact column beneath. Rewrote TetheredChaseStrategy so Chain Chomp actively tracks, faces, and strains toward Mario, lunging periodically and rebounding elastically at max tether limit.
+- Bowser Arena & Axe 1-3: Added 1-block tall walls at bridge boundaries (x=180, x=189) in level_3.json to enclose Bowser, moved bridge axe to y=19, synced camera position during locked arena mode, and immediately released arena lock and snapped camera upon Bowser defeat/bridge chop.
+---
+

@@ -1388,6 +1388,7 @@ void PlayingState::chopBridge() {
     if (m_activeBoss && !m_activeBoss->isDefeated()) {
         m_activeBoss->defeatNow();
     }
+    releaseBossArena();
 
     m_camera.triggerScreenShake(12.0f, 0.6f);
     SoundManager::getInstance().playSound("bowserfall");
@@ -1986,7 +1987,9 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
     const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
     auto standableBelow = [this, mapBottom](sf::Vector2f p) {
         for (float y = p.y; y < mapBottom; y += 8.0f) {
-            if (TileMap::getInfo(m_tileMap.getTileAt(p.x, y)).isSolid) return true;
+            if (TileMap::getInfo(m_tileMap.getTileAt(p.x + 4.0f, y)).isSolid ||
+                TileMap::getInfo(m_tileMap.getTileAt(p.x + 16.0f, y)).isSolid ||
+                TileMap::getInfo(m_tileMap.getTileAt(p.x + 28.0f, y)).isSolid) return true;
         }
         return false;
     };
@@ -2011,6 +2014,9 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     Game::getInstance().setTileMap(&m_tileMap);
     m_camera.setBounds(AABB{0.0f, 0.0f, m_tileMap.getWidth() * Constants::TILE_SIZE, m_tileMap.getHeight() * Constants::TILE_SIZE});
+    if (m_player) {
+        m_camera.snapTo(m_player->getBoundingBox().getCenter());
+    }
     m_background.setTheme(levelData.theme);
     syncBackdropGround();
     syncVoidPlane();
@@ -2521,6 +2527,9 @@ void PlayingState::releaseBossArena() {
     if (!m_arenaLocked) return;
     m_camera.setBounds(m_preArenaCameraBounds);
     m_camera.setScrollMode(Camera::ScrollMode::Free);
+    if (m_player) {
+        m_camera.snapTo(m_player->getBoundingBox().getCenter());
+    }
     m_arenaLocked = false;
     // Back to the level's own music: the fight track kept playing over the
     // victory tally otherwise.
@@ -2573,15 +2582,19 @@ void PlayingState::updateFootstep(Player* who, float& timer, float dt) {
     } else if (underfoot != TileType::Ground) {
         sfx = "footstep_floor";
     }
-    SoundManager::getInstance().playSound(sfx);
+    // Lower volume scale for footstep audio so it remains a subtle ambient cue
+    SoundManager::getInstance().playSound(sfx, 1.0f, 0.30f);
 }
 
 void PlayingState::updateBossArena() {
     // The boss entity is owned by m_entities and pruned when it deactivates, so
     // the pointer has to be dropped in the same frame it stops being active.
-    if (m_activeBoss && !m_activeBoss->isActive()) {
+    if (m_activeBoss && (!m_activeBoss->isActive() || m_activeBoss->isDefeated())) {
         releaseBossArena();
-        m_activeBoss = nullptr;
+        if (!m_activeBoss->isActive()) {
+            m_activeBoss = nullptr;
+        }
+        return;
     }
 
     if (!m_activeBoss || !m_player || !m_activeBoss->hasArena()) return;

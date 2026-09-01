@@ -46,8 +46,8 @@ public:
     bool isFlagRaised() const { return m_flagRaised; }
 
     // The castle's footprint, in tiles. Levels and the generator both need this
-    // to leave room for it, and a magic 3.5 in two places is one place too many.
-    static constexpr float WIDTH_TILES  = 3.5f;   // 112px
+    // to leave room for it. castle_0 is 148x176 px (4.625 x 5.5 tiles).
+    static constexpr float WIDTH_TILES  = 4.625f; // 148px
     static constexpr float HEIGHT_TILES = 5.5f;   // 176px
 
 private:

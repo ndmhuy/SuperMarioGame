@@ -30,17 +30,17 @@ bool Pipe::checkWarp(const Player& player) const {
     // Standing on top of the pipe, horizontally over it...
     const float playerCenterX = player.getBoundingBox().x + player.getBoundingBox().width / 2.0f;
     const bool withinHorizontalBounds =
-        (playerCenterX >= position.x && playerCenterX <= position.x + boundingBox.width);
+        (playerCenterX >= position.x - 4.0f && playerCenterX <= position.x + boundingBox.width + 4.0f);
 
-    // ...and with their feet on its rim.
+    // ...and with their feet on or near its rim.
     const float playerFeetY = player.getBoundingBox().y + player.getBoundingBox().height;
-    const bool onTop = (std::abs(playerFeetY - position.y) <= 4.0f);
+    const bool onTop = (playerFeetY >= position.y - 6.0f && playerFeetY <= position.y + 10.0f);
     if (!withinHorizontalBounds || !onTop) return false;
 
-    // Asks for the bound crouch key rather than naming S and Down.
+    // Asks for the bound crouch key or player crouched state
     InputManager& input = InputManager::getInstance();
     const int pad = player.getPlayerIndex();
-    return input.isActionHeld("crouch", pad) || input.isActionHeld("groundpound", pad);
+    return player.isCrouched() || input.isActionHeld("crouch", pad) || input.isActionHeld("groundpound", pad);
 }
 
 void Pipe::setupAnimations(const SpriteSheet* spriteSheet) {

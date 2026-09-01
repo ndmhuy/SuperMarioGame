@@ -42,11 +42,11 @@ sf::Color SpriteColorFilter::getRainbowColor(float elapsedTime, float cycleSpeed
 sf::Color SpriteColorFilter::getMarioStarPaletteColor(float elapsedTime, float stepInterval) {
     static const sf::Color palette[] = {
         sf::Color(255, 255, 255), // White / Original
-        sf::Color(255, 215, 0),   // Yellow / Gold
-        sf::Color(255, 50, 50),   // Red
-        sf::Color(50, 220, 50),   // Green
-        sf::Color(50, 180, 255),  // Cyan / Blue
-        sf::Color(240, 100, 240)  // Magenta / Purple
+        sf::Color(255, 225, 60),  // Bright Yellow / Gold
+        sf::Color(255, 120, 120), // Bright Red / Coral
+        sf::Color(120, 255, 120), // Bright Green / Lime
+        sf::Color(100, 210, 255), // Bright Cyan / Sky Blue
+        sf::Color(255, 150, 255)  // Bright Magenta / Lavender
     };
 
     int index = static_cast<int>(elapsedTime / stepInterval) % 6;

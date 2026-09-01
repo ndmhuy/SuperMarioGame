@@ -246,7 +246,7 @@ bool Player::hasStarPower() const {
 
 void Player::takeDamage(int amount) {
     if (m_dying) return;
-    if (invincibilityTimer > 0.0f) return;
+    if (invincibilityTimer > 0.0f || hasStarPower()) return;
     // Taking a hit breaks the chain — that is what makes a long combo a risk
     // worth taking rather than a number that only grows.
     resetCombo();
@@ -544,60 +544,66 @@ void Player::update(float dt) {
 
     // 3. Handle Crouching transitions
     if (m_crouchRequestedThisFrame) {
-        // Only allow crouching if standing height is greater than 32px (Super/Fire/Cape states)
-        if (!crouched && m_currentState && m_currentState->getSize().y > 32.0f) {
+        if (!crouched) {
             crouched = true;
-            float crouchedHeight = boundingBox.height * 0.5f;
-            position.y += crouchedHeight; // Grow downward from top (feet stay grounded)
-            setTargetSize({boundingBox.width, crouchedHeight});
-            boundingBox.y = position.y;
+            // Shrink hitbox height only if standing height is greater than 32px (Super/Fire/Cape states)
+            if (m_currentState && m_currentState->getSize().y > 32.0f) {
+                float crouchedHeight = boundingBox.height * 0.5f;
+                position.y += crouchedHeight; // Grow downward from top (feet stay grounded)
+                setTargetSize({boundingBox.width, crouchedHeight});
+                boundingBox.y = position.y;
+            }
         }
     } else {
         // Stand up if crouch key was released
-        if (crouched && m_currentState) {
-            float standingHeight = m_currentState->getSize().y;
-            float heightDiff = standingHeight - boundingBox.height;
+        if (crouched) {
+            if (m_currentState && m_currentState->getSize().y > 32.0f) {
+                float standingHeight = m_currentState->getSize().y;
+                float heightDiff = standingHeight - boundingBox.height;
 
-            bool canStand = true;
-            TileMap* tileMap = Game::getInstance().getTileMap();
-            if (tileMap) {
-                AABB targetBox {
-                    boundingBox.x,
-                    boundingBox.y - heightDiff,
-                    boundingBox.width,
-                    standingHeight
-                };
+                bool canStand = true;
+                TileMap* tileMap = Game::getInstance().getTileMap();
+                if (tileMap) {
+                    AABB targetBox {
+                        boundingBox.x,
+                        boundingBox.y - heightDiff,
+                        boundingBox.width,
+                        standingHeight
+                    };
 
-                int startX = static_cast<int>(std::floor(targetBox.x / Constants::TILE_SIZE));
-                int endX = static_cast<int>(std::floor((targetBox.x + targetBox.width) / Constants::TILE_SIZE));
-                int startY = static_cast<int>(std::floor(targetBox.y / Constants::TILE_SIZE));
-                int endY = static_cast<int>(std::floor((targetBox.y + targetBox.height) / Constants::TILE_SIZE));
+                    int startX = static_cast<int>(std::floor(targetBox.x / Constants::TILE_SIZE));
+                    int endX = static_cast<int>(std::floor((targetBox.x + targetBox.width) / Constants::TILE_SIZE));
+                    int startY = static_cast<int>(std::floor(targetBox.y / Constants::TILE_SIZE));
+                    int endY = static_cast<int>(std::floor((targetBox.y + targetBox.height) / Constants::TILE_SIZE));
 
-                for (int y = startY; y <= endY; ++y) {
-                    for (int x = startX; x <= endX; ++x) {
-                        TileType tile = tileMap->getTileType(x, y);
-                        if (TileMap::getInfo(tile).isSolid) {
-                            AABB tileBox {
-                                x * Constants::TILE_SIZE,
-                                y * Constants::TILE_SIZE,
-                                Constants::TILE_SIZE,
-                                Constants::TILE_SIZE
-                            };
-                            if (targetBox.intersects(tileBox)) {
-                                canStand = false;
-                                break;
+                    for (int y = startY; y <= endY; ++y) {
+                        for (int x = startX; x <= endX; ++x) {
+                            TileType tile = tileMap->getTileType(x, y);
+                            if (TileMap::getInfo(tile).isSolid) {
+                                AABB tileBox {
+                                    x * Constants::TILE_SIZE,
+                                    y * Constants::TILE_SIZE,
+                                    Constants::TILE_SIZE,
+                                    Constants::TILE_SIZE
+                                };
+                                if (targetBox.intersects(tileBox)) {
+                                    canStand = false;
+                                    break;
+                                }
                             }
                         }
+                        if (!canStand) break;
                     }
-                    if (!canStand) break;
                 }
-            }
 
-            if (canStand) {
+                if (canStand) {
+                    crouched = false;
+                    position.y -= heightDiff; // Stand upward
+                    setTargetSize({m_currentState->getSize().x, standingHeight});
+                    boundingBox.y = position.y;
+                }
+            } else {
                 crouched = false;
-                position.y -= heightDiff; // Stand upward
-                setTargetSize({m_currentState->getSize().x, standingHeight});
-                boundingBox.y = position.y;
             }
         }
     }
@@ -641,16 +647,14 @@ void Player::render(sf::RenderTarget& target) {
             const bool dim = (static_cast<int>(invincibilityTimer * 30.0f) % 2 == 0);
             sprite.setColor(sf::Color(255, 255, 255, dim ? 100 : 255));
         } else {
-            // Star power cycles the sprite through a rainbow tint for as long
-            // as a StarDecorator wraps the current state — same decorator walk
-            // Player::powerDown() uses to detect Star/Mega. Previously nothing
-            // in render() ever read Star state at all (audit D16): the
-            // decorator only drove the BGM swap, never a visual.
+            // Star power cycles the sprite through the authentic multi-color
+            // invincibility palette for as long as a StarDecorator wraps the
+            // current state.
             IPlayerState* state = m_currentState.get();
             while (auto* decorator = dynamic_cast<PlayerStateDecorator*>(state)) {
                 if (auto* star = dynamic_cast<StarDecorator*>(decorator)) {
                     const float elapsed = Constants::STAR_DURATION - star->getTimeLeft();
-                    sprite.setColor(SpriteColorFilter::getRainbowColor(elapsed));
+                    sprite.setColor(SpriteColorFilter::getMarioStarPaletteColor(elapsed, 0.06f));
                     break;
                 }
                 state = decorator->getWrappedState();

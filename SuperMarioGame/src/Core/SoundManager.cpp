@@ -165,7 +165,7 @@ void SoundManager::setupEventSubscriptions() {
     });
 }
 
-void SoundManager::playSound(const std::string& id, float pitch) {
+void SoundManager::playSound(const std::string& id, float pitch, float volumeScale) {
     if (!m_audioAvailable) return;
 
     if (!m_soundsLoaded) {
@@ -183,7 +183,7 @@ void SoundManager::playSound(const std::string& id, float pitch) {
     for (sf::Sound& poolSFX : m_soundPool) {
         if (poolSFX.getStatus() == sf::SoundSource::Status::Stopped) {
             poolSFX.setBuffer(*bufferToPlay);
-            poolSFX.setVolume(m_SFXVolume);
+            poolSFX.setVolume(m_SFXVolume * std::clamp(volumeScale, 0.0f, 1.0f));
             // Always assigned, even at the default 1.0 — a pooled sf::Sound is
             // reused across calls, and a stale pitch from a previous combo hit
             // must not bleed into the next, unrelated sound this slot plays.

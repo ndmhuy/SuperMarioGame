@@ -28,7 +28,7 @@ public:
     // Play a sound effect from the pool. `pitch` defaults to unmodified for
     // every existing caller; the combo escalation below is the one caller that
     // passes something else.
-    void playSound(const std::string& id, float pitch = 1.0f);
+    void playSound(const std::string& id, float pitch = 1.0f, float volumeScale = 1.0f);
 
     // Music methods
     // `loop` false for one-shot jingles — level complete, castle complete, game

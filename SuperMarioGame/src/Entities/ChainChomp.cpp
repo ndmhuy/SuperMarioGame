@@ -3,6 +3,7 @@
 #include "Entities/TetheredChaseStrategy.hpp"
 #include "Entities/Player.hpp"
 #include "Core/Game.hpp"
+#include <cmath>
 
 ChainChomp::ChainChomp(sf::Vector2f position)
     : Enemy(position, 0) {
@@ -35,4 +36,36 @@ void ChainChomp::onStomped() {
 
 void ChainChomp::onHitByFireball() {
     // Immune to fireball
+}
+
+bool ChainChomp::onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) {
+    (void)info;
+    (void)stomped;
+    // Chain Chomp is an iron ball with sharp teeth: cannot be stomped, inflicts damage
+    if (player.getInvincibilityTimer() > 0.0f) return true;
+
+    // 1. Inflict damage on player
+    player.takeDamage(1);
+
+    // 2. Knockback player away from Chain Chomp
+    float dx = player.getBoundingBox().getCenter().x - getBoundingBox().getCenter().x;
+    float dir = (dx >= 0.0f) ? 1.0f : -1.0f;
+    player.setVelocity(sf::Vector2f(dir * Constants::KNOCKBACK_FORCE_X, -Constants::KNOCKBACK_FORCE_Y));
+
+    // 3. Knockback Chain Chomp away from player / towards anchor
+    sf::Vector2f recoilDir = getBoundingBox().getCenter() - player.getBoundingBox().getCenter();
+    float len = std::sqrt(recoilDir.x * recoilDir.x + recoilDir.y * recoilDir.y);
+    if (len > 0.01f) {
+        recoilDir /= len;
+    } else {
+        recoilDir = sf::Vector2f(-dir, -0.5f);
+    }
+
+    if (auto* tether = dynamic_cast<TetheredChaseStrategy*>(getStrategy())) {
+        tether->triggerRecoil(recoilDir);
+    } else {
+        velocity = recoilDir * 160.0f;
+    }
+
+    return true; // Handled
 }
