@@ -5159,3 +5159,58 @@ Summary of Changes:
   before proceeding). build/ removed at session end. Did not merge, did not
   push, per instruction.
 ---
+[2026-09-01 09:30:00] Branch: dev (merge of A/fix/remaining-defects-d29-d30-exit)
+Git Fingerprint: 7bc1dd9 (dev before, == origin/dev) -> 6e4868d (dev after merge + one review commit), pushed to origin/dev
+Fetched Remotes: yes (git fetch --all; git rev-list --left-right --count dev...origin/dev -> 0 0 before the merge)
+Prompt: Orchestrator review pass: verify R20's three fixes against their
+acceptance criteria, then merge to dev and push (user instruction: "fix all
+defects appear then merge and push").
+Files Modified: SuperMarioGame/tests/verify_frontend_states.cpp (review commit
+6e4868d only); everything else came in unmodified via the R20 merge.
+Reachable From Main: yes — R20's three fixes are on live runtime paths
+(respawnPlayer -> makeSpawnSafe; MenuState LOAD GAME confirm and DevPanel Load
+-> loadFromSlot; GameStateManager Change/clearStates -> exit()). Not on main:
+main is still 111 commits behind dev; the dev -> main PR is the user's call
+(D13).
+Verified By: independent re-verification of R20's claims in a throwaway
+worktree off dev, not acceptance of the agent's report.
+- Merge was conflict-free (no logs/agent_history.log union conflict this time;
+  no other branch had landed since 7bc1dd9).
+- Clean build (rm -rf build, then configure + cmake --build -j 4) exit 0; all
+  23 verify_* binaries plus the game binary timestamped from that build, so no
+  stale-binary false negative. ctest 15/15. assert() confirmed live in
+  verify_frontend_states (__assert_rtn present in the linked binary), i.e. the
+  -UNDEBUG stripping in CMakeLists' add_verify_test()/AppObjectsTest is still
+  in force on these targets.
+- MUTATION, D29: deleted the dynamic_cast<Boss*> skip in makeSpawnSafe().
+  Rebuild exit 0 (checked explicitly), verify_frontend_states exit 1 with the
+  three expected checks failing. Also proves the D29 test's
+  if (boss && player && boss->hasArena()) block is actually entered rather
+  than silently skipped.
+- MUTATION, D30: disabled loadFromSlot()'s level switch. Rebuild exit 0, test
+  exit 1 on "loading slot 3 switched into World 1-2". Honest note: only the
+  level-index check fails, not the position check — the saved coordinates
+  happen to be valid in 1-1's tilemap too, so the position assertion is weaker
+  than it reads.
+- MUTATION, double-exit guard: FOUND A REAL WEAKNESS IN R20'S TEST. Deleting
+  only exit()'s early "return" while leaving "m_hasExited = true" makes the
+  full teardown run twice again (stdout printed "Exiting PlayingState" 27
+  times) and the test STILL exited 0 — it observed the bookkeeping flag, not
+  the teardown. Fixed test-side in commit 6e4868d: redirect std::cout around
+  the second exit() and require it to emit nothing. Re-ran the same mutation
+  against the strengthened test -> exit 1, restored -> exit 0.
+- Not verified by me, taken from R20's report: the two live --script runs
+  (verify_d29_boss_survives_respawn.txt, verify_d30_load_game_level.txt) and
+  their screenshots. I confirmed the scripts and the reverted state are in the
+  commits and that saves/config.json is byte-identical to dev after the
+  clobber incident R20 self-reported, but I did not re-run the live sessions.
+- One design note, not a defect: the D29 fix adds a dynamic_cast<Boss*>, taking
+  PlayingState.cpp from 28 to 29 casts. R5's Open/Closed cast-removal work was
+  scoped to the physics layer, which is still at 0 real casts (the single
+  textual match in PhysicsEngine.cpp is a comment) — so this does not regress
+  R5, but a virtual hook (e.g. Entity::isClearableAtRespawn()) would be the
+  cleaner long-term shape if PlayingState ever gets the same treatment.
+Still open after this merge: D13 (dev -> main PR, user's call — main 111
+behind, cleanly fast-forwardable), D14 (Windows crash status reconciled but
+uncloseable without Windows CI), GitHub issue #11 (closes once main lands).
+---
