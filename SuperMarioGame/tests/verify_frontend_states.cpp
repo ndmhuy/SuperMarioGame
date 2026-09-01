@@ -117,6 +117,7 @@ public:
 #include <filesystem>
 #include <map>
 #include <iostream>
+#include <sstream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -926,13 +927,23 @@ void testPlayingStateExitIsIdempotent() {
           "exit() marks itself as having run");
 
     // Simulates ~PlayingState() calling exit() again right after
-    // GameStateManager already called it explicitly — must not crash and must
-    // not re-run cleanup (there is nothing further to observe from outside the
-    // class beyond "this does not crash and the guard stays set", which is
-    // exactly the contract exit() now provides).
+    // GameStateManager already called it explicitly. Asserting only that the
+    // guard flag stays set would be vacuous: deleting exit()'s early `return`
+    // while keeping `m_hasExited = true` makes the teardown run twice again
+    // and a flag-only test still exits 0 (measured). So capture what the live
+    // playtest script actually measured — teardown's own stdout — and require
+    // the second call to emit nothing at all.
+    std::ostringstream secondCall;
+    std::streambuf* previous = std::cout.rdbuf(secondCall.rdbuf());
     state.exit();
+    std::cout.rdbuf(previous);
+
     check(LevelCompletionCameraTestHooks::hasExited(state),
           "a second exit() call is a safe no-op, not a second teardown");
+    check(secondCall.str().find("Exiting PlayingState") == std::string::npos,
+          "the second exit() re-runs no teardown at all — it prints nothing, "
+          "where the unguarded version logged 'Exiting PlayingState' a second "
+          "time and repeated every cleanup step behind it");
 }
 
 int main() {
