@@ -29,6 +29,7 @@
 #include "Utils/Serializer.hpp"
 #include "Utils/Constants.hpp"
 #include "Entities/Boss.hpp"
+#include "Entities/Goomba.hpp"
 #include "Entities/Player.hpp"
 #include "Graphics/Camera.hpp"
 
@@ -65,6 +66,45 @@ public:
         state.m_selectedLevelIndex = levelIndex;
         state.setupTestScene();
     }
+
+    // Which campaign level this instance is actually running, so a load-slot
+    // test can confirm LOAD GAME switched off the throwaway World 1-1 the
+    // menu constructs its PlayingState with (D30) instead of only checking
+    // that *some* player got restored.
+    static int selectedLevelIndex(const PlayingState& state) { return state.m_selectedLevelIndex; }
+
+    // Whether a boss arena is currently holding the camera (D29's "does the
+    // arena lock/release logic need the same treatment" question) — read,
+    // never forced, so a test can assert the lock survives a death+respawn
+    // near the boss rather than being spuriously released.
+    static bool arenaLocked(const PlayingState& state) { return state.m_arenaLocked; }
+
+    // Drives the exact private method the respawn path calls to clear
+    // whatever is standing on the checkpoint (D29's makeSpawnSafe), without
+    // needing a full death animation to reach it.
+    static void makeSpawnSafe(PlayingState& state, Player* who, sf::Vector2f respawn) {
+        state.makeSpawnSafe(who, respawn);
+    }
+
+    // Drops a throwaway Goomba into the running level so a test can confirm
+    // the ordinary "clear enemies off the respawn point" behaviour the D29
+    // fix must not break still works, right alongside asserting a boss is
+    // now spared from the very same loop.
+    static Entity* addTestGoomba(PlayingState& state, sf::Vector2f position) {
+        auto enemy = std::make_unique<Goomba>(position);
+        Entity* raw = enemy.get();
+        state.admitEntity(raw);
+        state.m_entities.push_back(std::move(enemy));
+        return raw;
+    }
+
+    // exit()'s own idempotency guard (D-double-exit) — GameStateManager calls
+    // exit() explicitly before pop_back() destroys the state, and
+    // ~PlayingState() calls exit() again as a safety net for a PlayingState
+    // destroyed without going through the manager (every test in this file
+    // does exactly that: constructs on the stack, may call .exit() itself,
+    // and lets the destructor run at scope end).
+    static bool hasExited(const PlayingState& state) { return state.m_hasExited; }
 };
 
 #include <SFML/Graphics/Image.hpp>
@@ -727,6 +767,174 @@ void testCameraResetsAcrossALevelTransition() {
     ImGui::DestroyContext(context);
 }
 
+// D29: the respawn-safety loop (makeSpawnSafe(), added to fix "spawn killing"
+// — an enemy already standing on the checkpoint costing the next life the
+// instant the player arrived) swept up anything within 2.5 tiles of the
+// checkpoint by EntityCategory alone, and Boss is an Enemy by category. A
+// player who died and respawned near an active boss silently destroyed it:
+// forgetEntity() treats a boss's destruction as a real death, dropping
+// m_activeBoss and releasing the arena (camera bounds, scroll mode, BGM) with
+// no win recorded and nothing left to fight. Reported live during an R12 Boom
+// Boom attempt — 2 of 3 hits had landed, then a death+respawn removed him,
+// "Boss arena released" printed, and he never reappeared.
+//
+// Walks the player into the arena first (the real fight precondition, not
+// just "a boss exists somewhere in the level") so this also covers the
+// adjacent worry the defect raised: does the arena lock survive a respawn
+// near the boss, or does it get spuriously released the same way the boss
+// used to get spuriously destroyed? A control Goomba dropped on the exact
+// same spot must still be cleared, so the fix cannot be "stop clearing
+// anything here."
+void testBossSurvivesDeathRespawnNearCheckpoint() {
+    section("D29  a death+respawn near an active boss must not delete it");
+
+    ImGuiContext* context = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(1280.0f, 720.0f);
+    io.DeltaTime = 1.0f / 60.0f;
+    unsigned char* fontPixels = nullptr;
+    int fontW = 0, fontH = 0;
+    io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontW, &fontH);
+    io.Fonts->SetTexID(static_cast<ImTextureID>(1));
+
+    // Level index 1 = level_2.json = World 1-2, per LevelCatalog — Boom Boom.
+    PlayingState state(false, false, MapGeneratorConfig(), 0, 1);
+    state.enter();
+    for (int i = 0; i < 10; ++i) { ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render(); }
+
+    Boss* boss = LevelCompletionCameraTestHooks::activeBoss(state);
+    check(boss != nullptr && boss->isActive(), "Boom Boom is alive in a freshly loaded 1-2");
+    Player* player = LevelCompletionCameraTestHooks::activePlayer(state);
+    check(player != nullptr, "1-2 has an active player");
+
+    if (boss && player && boss->hasArena()) {
+        const AABB arena = boss->getArena();
+        // Walk the player into the arena so it actually locks, rather than
+        // asserting only the weaker "a boss object exists somewhere."
+        player->setPosition({arena.x + Constants::TILE_SIZE * 2.0f, arena.y + Constants::TILE_SIZE});
+        ImGui::NewFrame(); state.update(1.0f / 60.0f); ImGui::EndFrame(); ImGui::Render();
+        check(LevelCompletionCameraTestHooks::arenaLocked(state),
+              "walking into the arena locks it — the real fight precondition");
+
+        const sf::Vector2f bossSpot = boss->getPosition();
+
+        // Control, planted on the same spot: an ordinary enemy standing on
+        // the checkpoint must still be cleared, or the fix just disabled the
+        // spawn-camping protection it was not supposed to touch.
+        Entity* goomba = LevelCompletionCameraTestHooks::addTestGoomba(state, bossSpot);
+
+        // The R12 report's exact shape: the checkpoint/respawn point landed
+        // right on top of the boss.
+        LevelCompletionCameraTestHooks::makeSpawnSafe(state, player, bossSpot);
+
+        check(boss->isActive(), "the boss survives a respawn landing on his position");
+        check(LevelCompletionCameraTestHooks::activeBoss(state) == boss,
+              "PlayingState still tracks him as the active boss");
+        check(LevelCompletionCameraTestHooks::arenaLocked(state),
+              "the arena lock survives the respawn instead of being spuriously released");
+        check(!goomba->isActive(),
+              "an ordinary enemy on the same spot is still cleared — the "
+              "spawn-camping protection this loop exists for still works");
+    }
+
+    state.exit();
+    ImGui::DestroyContext(context);
+}
+
+// D30: MenuState's LOAD GAME confirm builds a PlayingState with levelIndex
+// hardcoded to 0 — its own comment says that fresh World 1-1 instance exists
+// only to give loadFromSlot() something to overwrite. Before this fix,
+// loadFromSlot() adopted the saved player's stats and position but never
+// switched the level itself, so LOAD GAME always resumed into World 1-1
+// regardless of which level the slot recorded — the saved (world-space)
+// player position got applied against the wrong tile map. DevPanel's Load
+// button shares the same private loadFromSlot(), so the fix lives there
+// rather than only at the menu's call site.
+void testLoadGameRestoresLevelFromSlot() {
+    section("D30  LOAD GAME resumes into the level the slot recorded, not always World 1-1");
+
+    sf::Vector2f seededPosition{0.0f, 0.0f};
+    {
+        // Level index 1 = level_2.json = World 1-2, per LevelCatalog.
+        PlayingState seed(false, false, MapGeneratorConfig(), 0, /*levelIndex=*/1);
+        seed.enter();
+        check(LevelCompletionCameraTestHooks::selectedLevelIndex(seed) == 1,
+              "seed instance is actually running World 1-2 (levelIndex 1)");
+        Player* player = LevelCompletionCameraTestHooks::activePlayer(seed);
+        check(player != nullptr, "seed level has an active player to save");
+        if (player) {
+            seededPosition = player->getPosition();
+            // Same call saveToSlot()/the checkpoint autosave make, with the
+            // real (1-based) level id instead of the "1, Level 1" every save
+            // call site used to hardcode regardless of the level actually
+            // being played.
+            check(Serializer::saveGame(3, *player, /*levelId=*/2, "1-2", Constants::LEVEL_TIME,
+                                       player->getPosition().x, player->getPosition().y,
+                                       {false, false, false}),
+                  "test save written to slot 3, recording World 1-2");
+        }
+        seed.exit();
+    }
+
+    // Same construction MenuState::activateSelection() performs on a LOAD
+    // GAME confirm for any slot: a fresh Level-1 (levelIndex 0) PlayingState
+    // with pendingLoadSlot set, whose enter() calls the exact private
+    // loadFromSlot() DevPanel's Save/Load Slots panel already calls on a live
+    // instance.
+    PlayingState loaded(false, false, MapGeneratorConfig(), 0, /*levelIndex=*/0,
+                        MatchConfig{}, /*isEndless=*/false, /*pendingLoadSlot=*/3);
+    loaded.enter();
+    check(LevelCompletionCameraTestHooks::selectedLevelIndex(loaded) == 1,
+          "loading slot 3 switched into World 1-2 (levelIndex 1), not the World "
+          "1-1 this instance was constructed with");
+    Player* player = LevelCompletionCameraTestHooks::activePlayer(loaded);
+    check(player != nullptr, "loading slot 3 produced an active player");
+    if (player) {
+        const sf::Vector2f p = player->getPosition();
+        check(std::abs(p.x - seededPosition.x) < 0.5f && std::abs(p.y - seededPosition.y) < 0.5f,
+              "player position restored against the correct (World 1-2) tile "
+              "map, not the throwaway World 1-1 one");
+    }
+    loaded.exit();
+}
+
+// A live playtest script (tests/scripts/verify_r4_resubscribe.txt) found
+// "Exiting PlayingState" logged twice in a row on the pause -> quit-to-menu
+// path: GameStateManager's Change op calls exit() explicitly, then pop_back()
+// destroys the PlayingState, and ~PlayingState() called exit() a second time
+// unconditionally — silently re-running every cleanup step (InputManager
+// registrations, Game::setPlayer(nullptr), etc.) on every single state
+// transition, not only quit-to-menu. Every other test in this file already
+// exercises this exact double-call shape (construct on the stack, call
+// .exit() itself, let the destructor call it again at scope end); none of
+// them ever caught it because the cleanup happened to be safe to repeat.
+// This test names the guard directly instead of relying on that luck.
+// Re-implements A/fix/duplicate-playingstate-exit's test (d6375dd) on current
+// PlayingState — that branch's own dev predates R4/R5/R7/R8/R9/R10 and would
+// not merge cleanly.
+void testPlayingStateExitIsIdempotent() {
+    section("D-exit  PlayingState::exit() runs its cleanup exactly once per transition");
+
+    PlayingState state(false, false, MapGeneratorConfig(), 0, 0);   // level_1.json, 1-1
+    state.enter();
+
+    check(!LevelCompletionCameraTestHooks::hasExited(state),
+          "a freshly entered level has not exited yet");
+
+    state.exit();
+    check(LevelCompletionCameraTestHooks::hasExited(state),
+          "exit() marks itself as having run");
+
+    // Simulates ~PlayingState() calling exit() again right after
+    // GameStateManager already called it explicitly — must not crash and must
+    // not re-run cleanup (there is nothing further to observe from outside the
+    // class beyond "this does not crash and the guard stays set", which is
+    // exactly the contract exit() now provides).
+    state.exit();
+    check(LevelCompletionCameraTestHooks::hasExited(state),
+          "a second exit() call is a safe no-op, not a second teardown");
+}
+
 int main() {
     // Every save path in this process now points at a throwaway
     // directory, so nothing here can read or delete real save data
@@ -769,6 +977,9 @@ int main() {
     testLevelCompleteIsGatedByAnActiveBoss();
     testCameraResetsAcrossALevelTransition();
     testLoadGameRestoresPlayerFromSlot();
+    testBossSurvivesDeathRespawnNearCheckpoint();
+    testLoadGameRestoresLevelFromSlot();
+    testPlayingStateExitIsIdempotent();
 
     // These screens play sounds and load atlases, so both the audio device and a
     // GL context are live. Both singletons hold SFML resources that must be

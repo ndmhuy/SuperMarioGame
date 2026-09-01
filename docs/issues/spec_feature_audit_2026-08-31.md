@@ -111,9 +111,9 @@ descope addendum (task R6) — not for silent omission.
 | D5 | ~~`AnimationManager` compiles, passes its harness, is constructed by nothing reachable from `main()` — last survivor of the B-9 inert-subsystem finding~~ — **resolved 2026-08-31 (R2): deleted.** No caller ever read it back (not even its own harness's `registerAnimations()`); real per-entity setup already lives in `setupAnimations()`/`Animator`. | `src/Graphics/AnimationManager.cpp` (removed) | Medium — closed |
 | D6 | ~~Game aborts on machines with no audio device instead of degrading to silent~~ | ~~logged 2026-08-20+ (`agent_history.log` ~:4118); CI was given a device instead~~ | **RESOLVED (R3):** `SoundManager` now probes device availability at init and degrades to silent no-op when unavailable. |
 | D7 | ~~`EventBus::ScopedSubscription` has zero adopters; `PlayingState.hpp` holds 14 raw `SubscriptionId`s with manual unsubscribes (X-7)~~ — **resolved 2026-08-31 (R4).** All raw `SubscriptionId`s outside `EventBus` migrated (`PlayingState` ×14, `AchievementManager`, `StatisticsTracker`, `Camera`); `Hud`/`ParticleSystem`'s were dead and deleted instead. Migration surfaced and fixed a real static-destruction-order bug (see completion_plan.md item 25). | `include/Core/EventBus.hpp:72-89`, `PlayingState.hpp` | Medium — closed |
-| D8 | A-10 acceptance unmet: `CollisionResolver.cpp` has 9 `dynamic_cast`s (bar was <4), `PhysicsEngine.cpp` has 20 | both files | Medium, quality |
+| D8 | ~~A-10 acceptance unmet: `CollisionResolver.cpp` has 9 `dynamic_cast`s (bar was <4), `PhysicsEngine.cpp` has 20~~ | ~~both files~~ | **RESOLVED (R5):** `CollisionResolver.cpp` 8 real `dynamic_cast`s → 0, `PhysicsEngine.cpp` 20 → 0, via virtual hooks extending the `onStomped`/`onHitFromBelow` pattern across nine dispatch families. Honest residual: 3 casts remain in `CollisionDetector.cpp` (`MiniState` water-walking), deliberately kept and left out of scope. |
 | D9 | ~~`.member_profile.json` still git-tracked — the file AGENTS.md defines as private/gitignored (X-8 residual; leaks member notes)~~ | ~~repo root~~ | **RESOLVED (R6):** `git rm --cached .member_profile.json`, added to `.gitignore`; historical copies remain in git history (history not rewritten). |
-| D10 | Test suite is not hermetic: reads/writes the real `saves/`; one run destroyed `saves/highscores.json` | report §13 admits it; standing CI rule violated | Medium |
+| D10 | ~~Test suite is not hermetic: reads/writes the real `saves/`; one run destroyed `saves/highscores.json`~~ | ~~report §13 admits it; standing CI rule violated~~ | **RESOLVED (R11):** `TestSaveSandbox` verified holding for all cases via sentinel+checksum, plus a permanent ctest guard fixture (`guard_saves_hermeticity_setup`/`_check`) attached to every registered test case, mutation-verified — disabling one test's sandbox makes the guard fail, naming the changed files. |
 | D11 | ~~`docs/Group52_08/` has `52.md` but no `52.pdf` (every other week has both)~~ | ~~docs/Group52_08~~ | **RESOLVED (R6):** Generated `52.pdf` from `52.md` using `scripts/generate_pdf.py`. |
 | D12 | GitHub issues stale: #9 fully implemented, #2 a June status note, #11 33/37 resolved | github.com/ndmhuy/SuperMarioGame | Low, hygiene |
 | D13 | `main` is 9 merge-commits ahead of `dev`, breaking the fast-forward-delivery invariant the 2026-08-20 entry established | git | Low, process |
@@ -132,8 +132,8 @@ descope addendum (task R6) — not for silent omission.
 | D26 | ~~End-of-level flow plays two music cues (touch-flag jingle, then end-level-menu track), but the second cuts off/replaces the first before it finishes~~ | ~~end-level music sequencing (SoundManager / end-state transition)~~ | **RESOLVED (R19):** Plan's described cues were incorrect. Reproducible case: `castle_complete` (fired by BossDefeated) cut off by `level_complete` (fired by LevelComplete) on boss levels. Fixed with deferred swap that only defers when both outgoing and incoming tracks are one-shot. |
 | D27 | ~~Death SFX does not finish playing before the player respawns — cut off by the respawn transition~~ | ~~death SFX / respawn timing~~ | **NOT DEMONSTRABLE AS WORDED:** `lost_life.wav` is 3.267s (longer than 1.6s max fall+respawn window). No code stops it; pool only reuses Stopped channels. SFX plays on over resumed BGM. Observation real, stated mechanism absent — needs someone with audio to characterise what was actually heard. NOT fixed, NOT invalid. |
 | D28 | ~~Colorblind setting toggle has no visible effect on rendering~~ | ~~colorblind option wiring (OptionsState / render filter)~~ | **STRUCK — NEVER OPEN:** Already fixed by commit 2e7f5bb (2026-08-19, 12 days before audit). `ColorPalette::get()` reads `Game::getColorblindMode()` and is wired into Minimap, PlayingState HUD/debug colours, and OptionsState. |
-| D29 | Dying near an active boss and respawning can silently delete the boss entity itself, ending the fight without defeating it — found live in R12's Boom Boom attempt (2 of 3 hits landed, then a death+respawn removed him: stdout printed `Boss arena released` / `Cleared 1 enemy(ies) from the respawn point`, and he never appeared in any screenshot afterward) | `PlayingState.cpp:2701-2718` (the respawn-safety "clear anything within 2.5 tiles of the checkpoint" loop, added to fix a real spawn-killing bug) only checks `entity->getCategory() == EntityCategory::Enemy` before calling `destroy()` — bosses (`Boss`/`BoomBoom`/`Bowser`) are Enemies too, and the loop has no exemption for one that is `m_activeBoss`. If the respawn point lands within 2.5 tiles of the boss (very plausible inside a boss arena, which is often smaller than 5 tiles), the boss is deleted outright rather than merely being kept clear of the player for a moment. | Medium — a boss fight can be trivially and silently ended (not won) by one convenient death, and nothing in the log or HUD calls this out as different from a normal defeat |
-| D30 | `LOAD GAME` always resumes into World 1-1 regardless of which level a save slot recorded — found live in R12 while investigating a route to inject Fire Mario into World 1-3 for the Bowser fireball-stagger check | `MenuState.cpp` (Load page confirm) constructs `PlayingState(false, false, MapGeneratorConfig(), 0, 0, MatchConfig{}, false, pendingLoadSlot)` — levelIndex is hardcoded `0`; the constructor's own comment says this "fresh Level-1 PlayingState exists only to give `loadFromSlot` somewhere to run." `Serializer::saveGame`/`loadGame` read and write `level.id` faithfully, but `PlayingState::loadFromSlot` (`PlayingState.cpp:2100-2117`) only calls `adoptPlayer()` — it restores the player's position/state/coins/lives but never reads `lvlId` to pick which level file backs the running `PlayingState`. A slot saved deep in 1-2 or 1-3 loads the player at that saved (x,y) inside **1-1's own tilemap**, which is not the level that position was ever validated against. | Medium — save/load already shipped (R8, F3) and is reachable from `main()`, but is silently wrong for any slot not saved in World 1-1; a player who saves mid-1-3 and reloads will not be back in 1-3 |
+| D29 | ~~Dying near an active boss and respawning can silently delete the boss entity itself, ending the fight without defeating it — found live in R12's Boom Boom attempt (2 of 3 hits landed, then a death+respawn removed him: stdout printed `Boss arena released` / `Cleared 1 enemy(ies) from the respawn point`, and he never appeared in any screenshot afterward)~~ | ~~`PlayingState.cpp:2701-2718` (the respawn-safety "clear anything within 2.5 tiles of the checkpoint" loop, added to fix a real spawn-killing bug) only checks `entity->getCategory() == EntityCategory::Enemy` before calling `destroy()` — bosses (`Boss`/`BoomBoom`/`Bowser`) are Enemies too, and the loop has no exemption for one that is `m_activeBoss`. If the respawn point lands within 2.5 tiles of the boss (very plausible inside a boss arena, which is often smaller than 5 tiles), the boss is deleted outright rather than merely being kept clear of the player for a moment.~~ | **RESOLVED (R20):** `makeSpawnSafe()`'s clear loop now skips any entity that is-a `Boss` (`dynamic_cast<Boss*>`) before destroying it; ordinary enemies are still cleared, so the original spawn-camping fix is untouched. Mutation-verified (reverting the skip reproduces the exact bug: `Boss arena released.` fires and the boss is deleted) and observed live: walked Mario into Boom Boom to force a death at his exact position — after respawn, HUD still shows `BOOM BOOM` with a full, undamaged health bar, arena still locked. |
+| D30 | ~~`LOAD GAME` always resumes into World 1-1 regardless of which level a save slot recorded — found live in R12 while investigating a route to inject Fire Mario into World 1-3 for the Bowser fireball-stagger check~~ | ~~`MenuState.cpp` (Load page confirm) constructs `PlayingState(false, false, MapGeneratorConfig(), 0, 0, MatchConfig{}, false, pendingLoadSlot)` — levelIndex is hardcoded `0`; the constructor's own comment says this "fresh Level-1 PlayingState exists only to give `loadFromSlot` somewhere to run." `Serializer::saveGame`/`loadGame` read and write `level.id` faithfully, but `PlayingState::loadFromSlot` (`PlayingState.cpp:2100-2117`) only calls `adoptPlayer()` — it restores the player's position/state/coins/lives but never reads `lvlId` to pick which level file backs the running `PlayingState`. A slot saved deep in 1-2 or 1-3 loads the player at that saved (x,y) inside **1-1's own tilemap**, which is not the level that position was ever validated against.~~ | **RESOLVED (R20):** Root cause was one level deeper than it looked — every save call site (`PlayingState::saveToSlot`, the checkpoint autosave) also hardcoded `1, "Level 1"` regardless of the level actually being played, so no slot had ever recorded a real level id. Fixed both ends: saves now write `m_selectedLevelIndex + 1`/the real level name, and `loadFromSlot()` reads the slot's `levelId` and switches the running level (`loadLevelByPath`) before adopting the saved player, so DevPanel's Load button is fixed by the same change. Mutation-verified and observed live: saved from World 1-2, quit to menu, LOAD GAME — HUD reads `WORLD 1-2` again, not `WORLD 1-1`. |
 
 ## 5. Remaining feature work (from the checkbox triage)
 
@@ -237,7 +237,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > tests/scripts/ script. Then correct docs/issues/completion_plan.md item 25
 > status. No merge, no push.
 
-### R5 — dynamic_cast reduction (D8 / A-10) — **Opus 5, effort: high** — branch `A/refactor/collision-dispatch` — **OPEN**
+### R5 — dynamic_cast reduction (D8 / A-10) — **Opus 5, effort: high** — branch `A/refactor/collision-dispatch` — **COMPLETE / merged to dev** (verified during R20's reconciliation pass — see D8's row)
 
 > Read AGENTS.md and SPEC.md §2.2. Acceptance bar from
 > docs/issues/member_a_fix_plan.md WP12: fewer than 4 dynamic_casts in
@@ -354,7 +354,7 @@ and level design; effort = the reasoning-effort setting to run it at.
 > replay system — that dependency is met. Verify live: wait 30 s, watch the
 > demo, press a key, get the menu back; ctest 13/13. No merge, no push.
 
-### R11 — Hermetic test suite (D10) — **Sonnet 5, effort: high** — branch `A/fix/hermetic-tests` — **OPEN**
+### R11 — Hermetic test suite (D10) — **Sonnet 5, effort: high** — branch `A/fix/hermetic-tests` — **COMPLETE / merged to dev** (verified during R20's reconciliation pass — see D10's row)
 
 > Read AGENTS.md (g-rule-13: CI must be hermetic) and report §13's admission:
 > the suite reads/writes the real `saves/`, one run destroyed
@@ -502,6 +502,107 @@ let the wrinkle age out — but pick one and record it.
 > Acceptance: build, ctest green; observe each fix live (finish a level,
 > die and respawn, toggle colorblind mode and confirm a visible change).
 > Commit per item. No merge, no push.
+
+### R20 — Remaining live defects: D29, D30, double-exit guard — **Sonnet 5, effort: medium-high** — branch `A/fix/remaining-defects-d29-d30-exit` — **COMPLETE, awaiting review/merge (not merged, not pushed per instruction)**
+
+> Read AGENTS.md. Three live defects:
+> 1. **D29** — the respawn-safety loop (`makeSpawnSafe()`, `PlayingState.cpp`)
+>    cleared anything within 2.5 tiles of the checkpoint by `EntityCategory`
+>    alone; `Boss` is an `Enemy` by category, so a death+respawn near an
+>    active boss silently deleted him (`forgetEntity()` treats a boss's
+>    destruction as a real death — drops `m_activeBoss`, releases the arena).
+>    Narrow the loop to spare a boss without disabling the spawn-camping fix
+>    it exists for.
+> 2. **D30** — `LOAD GAME` always resumed World 1-1. Root cause went one
+>    level deeper than the filed defect: every save call site hardcoded
+>    `1, "Level 1"` regardless of the level actually being played, so no slot
+>    had ever recorded a real level id for `loadFromSlot()` to read. Fix both
+>    ends; DevPanel's Load button shares `loadFromSlot()`, so it had to be
+>    fixed there rather than only at the menu's call site.
+> 3. **Double-exit guard** — `PlayingState::exit()` ran twice per state
+>    transition (`GameStateManager` calls it explicitly, then `~PlayingState()`
+>    calls it again). An old branch (`A/fix/duplicate-playingstate-exit`,
+>    3 commits, `f169a6c`/`d6375dd`/`cdcb4f9`) fixed this off a `dev` from
+>    before R4-R10 — too stale to merge cleanly. Re-implement the same guard
+>    (`m_hasExited`) on current `dev`, porting the idempotency test.
+> Regression test per defect, each proven by mutation (revert the fix,
+> confirm the new test FAILS, restore, confirm it passes) — not merely
+> written and left green. D29 and D30 additionally verified live via the
+> `--script` harness with a temporary `spawnPoint`/`progress.json` (D29) and
+> a temporary `progress.json` (D30) — both reverted, `git diff` clean on
+> tracked assets afterward. Also struck two stale ledger rows (D8, D10) whose
+> underlying work (R5, R11) had already merged to `dev` before this
+> reconciliation pass ran.
+
+**Result, 2026-09-01:**
+- **D29 — FIXED.** `PlayingState::makeSpawnSafe()`'s clear loop now skips any
+  `dynamic_cast<Boss*>` entity before destroying it. Regression test
+  `testBossSurvivesDeathRespawnNearCheckpoint` (`tests/verify_frontend_states.cpp`)
+  walks the player into World 1-2's arena to lock it, drops a control Goomba
+  on the boss's exact position, then calls `makeSpawnSafe()` with the respawn
+  point ON the boss — asserts Boom Boom survives, is still tracked as
+  `m_activeBoss`, the arena stays locked, and the control Goomba is still
+  cleared. Mutation: removing the `dynamic_cast<Boss*>` skip reproduces the
+  original bug exactly — `Boss arena released.` fires, the boss is deleted,
+  3 checks FAIL. Restored, all pass. **Observed live**
+  (`tests/scripts/verify_d29_boss_survives_respawn.txt`, spawn override at
+  `level_2.json`'s `spawnPoint` reverted after the run): walked Mario into
+  Boom Boom without jumping (`Boss::onPlayerTouch`'s untimed-contact path,
+  same technique as `verify_r12_versus_human_death.txt`), a real death and
+  respawn occurred ("Player 1 was defeated." / "Respawned. Lives remaining:
+  2"), and the post-respawn screenshot shows Boom Boom standing right next to
+  Mario with a full, undamaged health bar and no "Boss arena released" line
+  on stdout.
+- **D30 — FIXED.** Every save call site (`PlayingState::saveToSlot`, the
+  `CheckpointActivated` autosave listener) hardcoded `1, "Level 1"`
+  regardless of `m_selectedLevelIndex` — the save file itself never recorded
+  the real level, which is why the filed defect's "the picker renders the
+  slot's level" premise didn't hold under test. Fixed both call sites to
+  write `m_selectedLevelIndex + 1` and the real `LevelCatalog::nameFor(...)`.
+  `PlayingState::loadFromSlot()` now reads the slot's `levelId`, and — when
+  it differs from the level already loaded and isn't procedural — calls
+  `loadLevelByPath()` to switch the tilemap and updates `m_selectedLevelIndex`
+  before `adoptPlayer()` installs the deserialized player at its saved
+  position; also restores the slot's checkpoint. `MenuState`'s LOAD GAME
+  confirm and `DevPanel`'s Load button both call this same private method, so
+  both are fixed by the one change. Regression test
+  `testLoadGameRestoresLevelFromSlot` seeds a save from World 1-2 (levelIndex
+  1) and loads it via the exact `pendingLoadSlot` construction the menu uses
+  (levelIndex 0), asserting the loaded instance actually switched to levelIndex
+  1. Mutation: disabling the level-switch block reproduces the bug — the
+  assertion fails, instance stays on World 1-1. Restored, passes. **Observed
+  live** (`tests/scripts/verify_d30_load_game_level.txt`, temporary
+  `progress.json` reverted/deleted after the run): entered World 1-2, saved,
+  quit to menu, LOAD GAME → confirm slot 1 — stdout shows `level_2.json`
+  loading a second time and "Loaded save slot 1 successfully!", and the
+  post-load screenshot's HUD reads `WORLD 1-2`, not `WORLD 1-1`.
+- **Double-exit guard — FIXED.** Added `PlayingState::m_hasExited`, checked
+  and set at the top of `exit()`, equivalent to `A/fix/duplicate-playingstate-exit`
+  (f169a6c) re-implemented on current `dev` (that branch's own `dev` predates
+  R4/R5/R7/R8/R9/R10 and would not merge cleanly). Ported that branch's test
+  (`d6375dd`) as `testPlayingStateExitIsIdempotent`. Mutation: commenting out
+  the guard reproduces the original bug exactly — "Exiting PlayingState"
+  prints twice per `exit()` call, both idempotency assertions FAIL. Restored,
+  passes. **Observed live** via the existing `tests/scripts/verify_r4_resubscribe.txt`
+  (pause → quit to menu → play again): stdout shows exactly one "Exiting
+  PlayingState" per transition (previously two), 2 transitions → 2 lines.
+- ctest: 15/15 green on a clean rebuild (`rm -rf build` between the mutation
+  passes and the final run, per instruction). No `-DCMAKE_BUILD_TYPE` or flag
+  overrides used.
+- Ledger bookkeeping: struck D8 and D10 (§4) — both resolved by R5 and R11
+  respectively, whose branches had already merged to `dev` by the time this
+  session ran; `grep -c dynamic_cast` on current `dev` confirms 0 real casts
+  in `CollisionResolver.cpp`/`PhysicsEngine.cpp` (comment-only mentions) and
+  3 genuine casts remaining in `CollisionDetector.cpp` (MiniState
+  water-walking), matching R5's stated residual exactly. Updated the R5/R11
+  section headers from `OPEN` to `COMPLETE / merged to dev` to match.
+- Files modified: `SuperMarioGame/include/Core/PlayingState.hpp`,
+  `SuperMarioGame/src/Core/PlayingState.cpp`,
+  `SuperMarioGame/tests/verify_frontend_states.cpp`; added
+  `SuperMarioGame/tests/scripts/verify_d29_boss_survives_respawn.txt` and
+  `SuperMarioGame/tests/scripts/verify_d30_load_game_level.txt`; this ledger.
+  No level JSON or save data left modified — confirmed via `git diff`/`git
+  status` after every live run.
 
 ### Explicitly descoped (record, don't build)
 

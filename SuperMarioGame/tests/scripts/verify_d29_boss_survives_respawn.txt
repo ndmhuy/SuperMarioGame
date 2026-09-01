@@ -1,0 +1,42 @@
+# D29 live verification: dying near an active boss and respawning must not
+# delete the boss entity.
+#
+# Reached via a TEMPORARY saves/progress.json (level 0 completed only, so
+# WorldMapState opens on World 1-2) and a TEMPORARY level_2.json spawnPoint
+# override (178,19 — two tiles inside the Boom Boom arena's left edge,
+# arenaX=176), the exact technique R12/R15 used for the same defect. Both
+# reverted after this script runs; not committed.
+#
+# The death: walk straight into Boom Boom WITHOUT jumping. Boss::onPlayerTouch
+# (Boss.cpp) calls player.takeDamage(1) for any non-descending contact, and a
+# fresh Small Mario with no power to lose dies on the first hit
+# (Player::powerDown() -> PlayerDied) — the same deterministic, no-timing-luck
+# technique tests/scripts/verify_r12_versus_human_death.txt used against a
+# Goomba. Death parks the player near the spawn point once lives remain, and
+# that spawn point sits right where Boom Boom is standing — the exact "died
+# near an active boss, respawned on top of him" shape from the R12 report.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_d29_boss_survives_respawn.txt
+#
+# Expected stdout evidence:
+#   - "[PlayingState] Boss arena locked: BOOM BOOM" on entry.
+#   - A death ("[PlayingState] Respawned. Lives remaining: N" or similar).
+#   - Cleared-enemy line from makeSpawnSafe() MAY appear for ordinary enemies,
+#     but must NOT be followed by "[PlayingState] Boss arena released." —
+#     that line, if present, is the bug. BOOM BOOM must still show as active
+#     on the HUD after the respawn.
+# Screenshots land in saves/shots/.
+wait 1.5
+press Enter               # START GAME
+wait 0.8
+press Enter               # character select
+wait 0.8
+press Enter               # world map: enter level -> opens on World 1-2, spawns inside the arena
+wait 2.0
+shot d29_00_spawn_inside_arena
+hold D 4.0
+wait 4.5
+shot d29_01_after_contact
+wait 3.0
+shot d29_02_after_respawn
+quit

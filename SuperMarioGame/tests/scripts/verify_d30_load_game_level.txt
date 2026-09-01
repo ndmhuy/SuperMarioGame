@@ -1,0 +1,45 @@
+# D30 live verification: LOAD GAME must resume into the level the save slot
+# actually recorded, not always World 1-1.
+#
+# Reached via a TEMPORARY saves/progress.json (level 0 completed only, so
+# WorldMapState opens on World 1-2), the same technique R12/R15 used for the
+# D29 boss-arena scripts. Reverted after this script runs; not committed.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_d30_load_game_level.txt
+#
+# Expected stdout evidence:
+#   - "[LevelLoader] Successfully loaded 'World 1-2...'" the first time in.
+#   - "SAVED TO SLOT 1" notice on the pause menu.
+#   - After LOAD GAME: "[LevelLoader] Successfully loaded 'World 1-2...'" AGAIN
+#     (not 'World 1-1'), and "Loaded save slot 1 successfully!".
+# Screenshots land in saves/shots/.
+wait 1.5
+press Enter               # START GAME
+wait 0.8
+press Enter               # character select
+wait 0.8
+press Enter               # world map: enter level -> opens on World 1-2 (progress.json)
+wait 2.5
+shot d30_00_in_world_1_2
+press Escape              # pause
+wait 0.5
+press Down                 # RESUME -> SAVE GAME
+press Enter                # save to slot 1
+wait 0.6
+shot d30_01_save_notice
+press Down
+press Down
+press Down                 # SAVE GAME -> OPTIONS -> RESTART LEVEL -> QUIT TO MENU
+wait 0.3
+press Enter
+wait 1.2
+shot d30_02_back_at_menu
+press Down                 # START GAME -> LOAD GAME
+wait 0.3
+press Enter                 # open Load Game page (cursor defaults to Slot 1)
+wait 0.5
+shot d30_03_load_picker
+press Enter                 # confirm Slot 1
+wait 2.5
+shot d30_04_loaded_world_1_2
+quit
