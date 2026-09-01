@@ -5214,3 +5214,66 @@ Still open after this merge: D13 (dev -> main PR, user's call — main 111
 behind, cleanly fast-forwardable), D14 (Windows crash status reconciled but
 uncloseable without Windows CI), GitHub issue #11 (closes once main lands).
 ---
+[2026-09-01 11:05:00] Branch: A/fix/boss-falls-out-of-world
+Git Fingerprint: 59958ba (dev before, == origin/dev) -> 95521a8 (fix branch)
+Fetched Remotes: yes (git fetch --all before branching; dev...origin/dev -> 0 0)
+Prompt: User reported from a live session, with a screenshot: the BOWSER health
+bar showing at full health in World 1-3 with no Bowser anywhere on screen —
+"I don't see the bowser".
+Files Modified: SuperMarioGame/include/Entities/Entity.hpp,
+SuperMarioGame/include/Entities/Boss.hpp, SuperMarioGame/src/Entities/Boss.cpp,
+SuperMarioGame/src/Core/PlayingState.cpp,
+SuperMarioGame/tests/verify_frontend_states.cpp
+Reachable From Main: yes on dev's line — the void-plane check runs every frame
+in PlayingState::update(). Not on main: main is still 111 behind dev (D13).
+Verified By: diagnosis by measurement, not inspection alone.
+- Ruled OUT first, each by evidence rather than reasoning: missing atlas frames
+  (all 12 bowser_* frames present with valid 32x32 rects); mis-wired sprite
+  sheet (Enemy branch routes Bowser to enemy_projectile, which holds them);
+  a dangling m_activeBoss from the R20 D30 level-switch (loadLevelByPath ends
+  in findActiveBoss(), which resets it); the other three m_entities.erase()
+  sites (they erase players and flagpole/castle, never a boss); New Game Plus
+  (progress.json says newGamePlus=1, but MetaGame only scales enemy speed by
+  1.15x); and a P-Switch turning the bridge to coins (level_3 has no P-Switch).
+- A headless probe on 1-3 showed Bowser healthy at load (active, 7/7,
+  hasArena) and stable across 28 simulated seconds of patrol and chase, so the
+  level data and wiring were not at fault.
+- ROOT CAUSE: PlayingState.cpp's void-plane check iterated {m_player,
+  m_player2} only. Nothing else was ever removed for leaving the level. Bowser
+  stands on brick directly above lava in 1-3 (level_3.json rows 20 vs 21-22)
+  and lava is not solid and burns only the player, so losing that floor by any
+  route other than the axe dropped him out of the world. chopBridge() calls
+  defeatNow() BEFORE clearing tiles, which is why the axe never showed it.
+  Proven by dropping the boss below the plane and watching him: y 3000 ->
+  16105 and still rising, active=1, m_activeBoss still set, arenaLocked=1 the
+  whole way. That is the reported screenshot exactly — and it is a softlock,
+  not a cosmetic bug, because updateBossArena() keeps the player inside.
+- FIX: Entity::onLeftLevel() virtual hook, default "despawn me"; Boss
+  overrides it to return to its arena spawn at full health. A hook rather than
+  a category check per AGENTS.md's Open/Closed rule, which also avoids adding
+  a 30th dynamic_cast to PlayingState.cpp. Behaviour picked by the user over
+  "count it as a defeat" and "despawn and unlock the arena".
+- MUTATION 1: restore the players-only check -> 2 checks FAIL. MUTATION 2:
+  Boss::onLeftLevel() returns true like an ordinary enemy -> 1 check FAILS.
+  Rebuild exit code confirmed 0 on both. Restored -> pass.
+- Mutation 2 initially SEGFAULTED the test instead of failing it: the test had
+  captured a Boss* and dereferenced it after the despawn had freed it. Test
+  hardened to re-read m_activeBoss and to count the control enemy rather than
+  hold it. Re-verified: exit 1 with a named check, not 139.
+- ctest 15/15 on a clean rebuild (rm -rf build). Observed live in 1-3 via
+  --script: the fight is unchanged, Bowser present and breathing fire
+  (saves/shots/fix_01_after_moving.png). Temporary LevelCatalog and
+  level_3.json spawn overrides used to reach the arena deterministically were
+  reverted before committing; git status confirmed only the five real files.
+- NOT verified live: the return itself. Removing the bridge floor mid-run is
+  not scriptable with the --script harness (no positional feedback), so that
+  path rests on the mutation-verified regression test, not on a playthrough.
+SEPARATE HAZARD FOUND, NOT FIXED HERE: an untracked assets/levels/ exists at
+the repo root (dated Aug 31) alongside the tracked SuperMarioGame/assets/levels/.
+They disagree — the root level_3.json is a different 200-wide overworld map with
+bowser at tile 179 and no arenaX/arenaW. Levels resolve from the working
+directory, so launching from the repo root loads that copy, and doing so
+reproduces this same symptom for an unrelated reason. The user's saves/
+timestamps show they launched from SuperMarioGame/, so it was not the trigger
+this time. Left for the user to decide: delete it, or track it.
+---
