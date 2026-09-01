@@ -229,6 +229,7 @@ protected:
     Animation m_animJump;
     Animation m_animCrouch;
     Animation m_animHurt;
+    Animation m_animDeath;
     Animation m_animHoldIdle;
     Animation m_animHoldWalk;
     Animation m_animHoldCrouch;

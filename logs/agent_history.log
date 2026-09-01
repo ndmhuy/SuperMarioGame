@@ -5334,3 +5334,26 @@ Summary of Changes:
 - Bowser Arena & Axe 1-3: Added 1-block tall walls at bridge boundaries (x=180, x=189) in level_3.json to enclose Bowser, moved bridge axe to y=19, synced camera position during locked arena mode, and immediately released arena lock and snapped camera upon Bowser defeat/bridge chop.
 ---
 
+[2026-09-01 23:30:00] Branch: dev
+Git Fingerprint: 60becee (before) → pending commit (after)
+Fetched Remotes: yes, 11:31
+Prompt: Export feature demo video requirements checklist without code/design pattern section to md file; fix M key minimap toggle; fix double player death animation; lower metal walk sfx volume; slow Thwomp slam speed, elevate Thwomp in 1-3, and increase Thwomp recovery rising speed; commit in 1 commit.
+Files Modified:
+- SuperMarioGame/assets/levels/level_3.json
+- SuperMarioGame/include/Entities/Player.hpp
+- SuperMarioGame/include/Utils/Constants.hpp
+- SuperMarioGame/src/Core/InputManager.cpp
+- SuperMarioGame/src/Core/PlayingState.cpp
+- SuperMarioGame/src/Entities/Player.cpp
+- SuperMarioGame/src/Entities/ProximityTriggerStrategy.cpp
+- submission_documents/demo_video_requirements.md
+- logs/agent_history.log
+Reachable From Main: yes
+Verified By: build only (compiled and linked SuperMarioGame in SuperMarioGame/build/Debug/SuperMarioGame.exe and build/SuperMarioGame.exe with zero errors)
+Summary of Changes:
+- Demo Video Requirements: Created submission_documents/demo_video_requirements.md detailing all required gameplay features, items, level progressions, and mechanics for the demo video.
+- Minimap Controls: Added M key to MinimapToggled event trigger in PlayingState.cpp; re-mapped Player 2 fire action to Period and RControl in InputManager.cpp to eliminate key collision.
+- Single Authentic Death Animation: Removed duplicate EntityDeathEffect::spawnDeathEffect call in PlayingState::killPlayer; configured m_animDeath in Player.cpp to play character-specific authentic death frames (mario_death, etc.) during physics death fall.
+- Metal Footstep Audio: Lowered footstep_metalcap playback volume scale to 0.10f in PlayingState::handleFootsteps for subtle ambient feedback.
+- Thwomp Speed & Height Adjustments: Halved slam speed to 75.0f px/s in Constants.hpp and ProximityTriggerStrategy.cpp; increased recovery rising speed to -80.0f px/s; elevated both Thwomps in level_3.json by 6 tiles (from y=15 to y=9).
+---

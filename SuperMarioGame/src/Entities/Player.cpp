@@ -444,6 +444,21 @@ void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std:
     m_animHurt = Animation(prefix + "_hurt");
     m_animHurt.frameList = {{hurtFrame, 0.15f}};
 
+    std::string deathFrame = prefix + "_death";
+    if (!spriteSheet->hasFrame(deathFrame)) {
+        std::string charName = prefix;
+        size_t underPos = charName.find('_');
+        if (underPos != std::string::npos) {
+            charName = charName.substr(0, underPos);
+        }
+        deathFrame = charName + "_death";
+    }
+    if (!spriteSheet->hasFrame(deathFrame)) {
+        deathFrame = "mario_death";
+    }
+    m_animDeath = Animation(prefix + "_death");
+    m_animDeath.frameList = {{deathFrame, 0.15f}};
+
     // Hold animations for carrying objects/shells
     m_animHoldIdle = Animation(prefix + "_hold_idle");
     m_animHoldIdle.frameList = {{holdFrame0, 0.15f}};
@@ -474,7 +489,9 @@ void Player::update(float dt) {
 
     if (m_animator && m_hasAnimation) {
         Animation* targetAnim = &m_animIdle;
-        if (invincibilityTimer > 1.7f && invincibilityTimer < 9000.0f) {
+        if (m_dying) {
+            targetAnim = &m_animDeath;
+        } else if (invincibilityTimer > 1.7f && invincibilityTimer < 9000.0f) {
             targetAnim = &m_animHurt;
         } else if (m_heldEntity != nullptr) {
             if (crouched) {

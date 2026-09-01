@@ -85,7 +85,8 @@ void InputManager::loadDefaultBindings() {
     // Player 1 had two and Player 2 had one, which on a shared keyboard reads as
     // Player 2's controls being incomplete — the arrow cluster has no thumb key.
     m_pressMappings[1][sf::Keyboard::Key::RShift] = compositeJumpCmd;
-    m_pressMappings[1][sf::Keyboard::Key::M] = fireCmd;
+    m_pressMappings[1][sf::Keyboard::Key::Period] = fireCmd;
+    m_pressMappings[1][sf::Keyboard::Key::RControl] = fireCmd;
     m_pressMappings[1][sf::Keyboard::Key::Slash] = gpCmd; // Press Slash to ground pound (Down is crouch)
 
     // Hold mappings (continuous actions)
@@ -99,7 +100,7 @@ void InputManager::loadDefaultBindings() {
                      {"groundpound", sf::Keyboard::Key::Q}, {"left", sf::Keyboard::Key::A},
                      {"right", sf::Keyboard::Key::D}, {"crouch", sf::Keyboard::Key::S},
                      {"run", sf::Keyboard::Key::LShift}};
-    m_boundKey[1] = {{"jump", sf::Keyboard::Key::Up}, {"fire", sf::Keyboard::Key::M},
+    m_boundKey[1] = {{"jump", sf::Keyboard::Key::Up}, {"fire", sf::Keyboard::Key::Period},
                      {"groundpound", sf::Keyboard::Key::Slash}, {"left", sf::Keyboard::Key::Left},
                      {"right", sf::Keyboard::Key::Right}, {"crouch", sf::Keyboard::Key::Down},
                      {"run", sf::Keyboard::Key::N}};

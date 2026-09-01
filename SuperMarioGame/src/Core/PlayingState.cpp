@@ -555,14 +555,8 @@ void PlayingState::handleInput(const sf::Event& event) {
                 Game::getInstance().changeState(std::make_unique<MenuState>());
             }
 
-            // Tab toggles the minimap. Minimap subscribes to this event itself.
-            //
-            // This was M, which is also Player 2's bound fire key. In a
-            // two-player match one keypress therefore both threw a fireball and
-            // flipped the minimap, and the minimap won the visual argument — so
-            // the collision read as "P2 cannot shoot". Tab is bound to nothing
-            // and is the conventional map key.
-            if (keyPressed->code == sf::Keyboard::Key::Tab) {
+            // M or Tab toggles the minimap. Minimap subscribes to this event itself.
+            if (keyPressed->code == sf::Keyboard::Key::M || keyPressed->code == sf::Keyboard::Key::Tab) {
                 EventBus::getInstance().publish({EventType::MinimapToggled, 0});
             }
 
@@ -2577,13 +2571,16 @@ void PlayingState::updateFootstep(Player* who, float& timer, float dt) {
     // is the one case with a real "Metal" identity in the SPEC, so it overrides
     // by level rather than by tile.
     std::string sfx = "footstep_grass";
+    float vol = 0.25f;
     if (m_selectedLevelIndex == 2) {
         sfx = "footstep_metalcap";
+        vol = 0.10f; // Soft ambient volume for metal walk sfx
     } else if (underfoot != TileType::Ground) {
         sfx = "footstep_floor";
+        vol = 0.20f;
     }
     // Lower volume scale for footstep audio so it remains a subtle ambient cue
-    SoundManager::getInstance().playSound(sfx, 1.0f, 0.30f);
+    SoundManager::getInstance().playSound(sfx, 1.0f, vol);
 }
 
 void PlayingState::updateBossArena() {
@@ -2709,15 +2706,6 @@ void PlayingState::killPlayer(Player* who, const char* reason) {
     // Pop up, then fall through the level. The respawn happens when the fall is
     // over, not on the frame of the hit.
     who->beginDeathFall();
-
-    // SPEC 15.2's player death animation, layered over the real fall the same
-    // way the enemy-defeat handler above layers EnemyFlip/StarKillSpin over the
-    // squish/flip the enemy itself is already doing — DeathEffectType::
-    // PlayerDeathHop existed but nothing ever spawned it (R7 audit).
-    if (who->hasArtwork()) {
-        EntityDeathEffect::getInstance().spawnDeathEffect(
-            who->getPosition(), who->getCurrentSprite(), DeathEffectType::PlayerDeathHop);
-    }
 
     // Deliberately does NOT re-publish PlayerDied. Player::powerDown() already
     // published it for a damage death, and re-publishing meant StatisticsTracker

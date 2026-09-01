@@ -93,11 +93,11 @@ void ProximityTriggerStrategy::applyMovement(Enemy& enemy, float dt) {
             enemy.velocity = sf::Vector2f(0.0f, 0.0f);
             break;
         case ProximityState::Slamming:
-            // 150 px/s slam, carried by the Thwomp itself (halved from 300).
-            enemy.velocity = sf::Vector2f(0.0f, enemy.speed > 0.0f ? enemy.speed : 150.0f);
+            // 75 px/s slam, carried by the Thwomp itself (halved from 150).
+            enemy.velocity = sf::Vector2f(0.0f, enemy.speed > 0.0f ? enemy.speed : 75.0f);
             break;
         case ProximityState::Rising:
-            enemy.velocity = sf::Vector2f(0.0f, -50.0f); // slow climb back home
+            enemy.velocity = sf::Vector2f(0.0f, -80.0f); // Faster recovery climb back home
             break;
     }
 }
