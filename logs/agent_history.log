@@ -5039,3 +5039,123 @@ Summary of Changes:
   override was passed. build/ removed at session end (not committed either
   way). Did not merge, did not push, per instruction.
 ---
+[2026-09-01 09:13:24] Branch: A/fix/remaining-defects-d29-d30-exit
+Git Fingerprint: 7bc1dd9 (before, dev tip == origin/dev) -> 23619ec (after, no merge/push per instruction)
+Fetched Remotes: yes, 08:38 (git fetch --all; git rev-list --left-right --count dev...origin/dev -> 0 0, confirmed dev == origin/dev before branching)
+Prompt: Fix D29 (death+respawn near an active boss silently deletes it), D30
+(LOAD GAME always resumes World 1-1 regardless of the save slot's level), and
+re-implement the double-exit guard (PlayingState::exit() running twice per
+transition) fresh on current dev rather than merging the old, stale
+A/fix/duplicate-playingstate-exit branch. Add a mutation-verified regression
+test per defect. Update the audit ledger (D8/D10 reconciliation + D29/D30
+closure). Commit per defect, no merge, no push.
+Files Modified: SuperMarioGame/include/Core/PlayingState.hpp,
+SuperMarioGame/src/Core/PlayingState.cpp,
+SuperMarioGame/tests/verify_frontend_states.cpp,
+SuperMarioGame/tests/scripts/verify_d29_boss_survives_respawn.txt (new),
+SuperMarioGame/tests/scripts/verify_d30_load_game_level.txt (new),
+docs/issues/spec_feature_audit_2026-08-31.md
+Reachable From Main: yes — all three fixes sit on PlayingState's real
+runtime paths (respawnPlayer -> makeSpawnSafe; MenuState's LOAD GAME confirm
+and DevPanel's Load button -> loadFromSlot; GameStateManager's
+Change/clearStates -> exit() -> ~PlayingState() -> exit() again), not solely
+inside the verify_frontend_states harness that also now covers them.
+Verified By: ctest (all 15 registered cases, clean rebuild, rm -rf build
+before trusting it) PLUS ran the game — see per-defect detail below.
+Summary of Changes:
+- D29 (fix, commit ec33965): PlayingState::makeSpawnSafe()'s respawn-safety
+  clear loop (destroys any EntityCategory::Enemy within 2.5 tiles of the
+  respawn point) now skips dynamic_cast<Boss*> entities before destroying
+  them. Root cause: Boss inherits Enemy's getCategory(), so a boss standing
+  near a checkpoint got swept up like an ordinary Goomba, and forgetEntity()
+  treats a boss's destruction as ending the fight (drops m_activeBoss,
+  releases the arena) rather than as a normal enemy kill. Ordinary enemies
+  are still cleared; the 1.5s landing invincibility already granted still
+  covers the player. No separate arena lock/release fix was needed — release
+  was only ever a side effect of the boss's spurious destruction.
+  MUTATION: removed the dynamic_cast<Boss*> skip, rebuilt, ran
+  testBossSurvivesDeathRespawnNearCheckpoint -> observed exactly the original
+  bug reproduced verbatim: stdout printed "[PlayingState] Boss arena
+  released." and "[PlayingState] Cleared 2 enemy(ies) from the respawn
+  point.", then 3 checks FAILED ("the boss survives...", "...still tracks
+  him...", "...arena lock survives..."); the 4th (control Goomba cleared)
+  still passed. Restored the fix, rebuilt, all 4 checks PASS.
+  VERIFIED LIVE (tests/scripts/verify_d29_boss_survives_respawn.txt, via a
+  temporary level_2.json spawnPoint override [178,19] + temporary
+  saves/progress.json unlocking World 1-2, both reverted after the run — git
+  diff clean on assets/levels/level_2.json before this commit): walked Mario
+  into Boom Boom without jumping (untimed contact -> Player::takeDamage(1) ->
+  death for Small Mario, same technique as verify_r12_versus_human_death.txt)
+  to force a real death+respawn at his exact position. stdout: "[PlayingState]
+  Boss arena locked: BOOM BOOM" -> "Player 1 was defeated." -> "Respawned.
+  Lives remaining: 2" -> no "Boss arena released" line. Screenshot
+  saves/shots/d29_02_after_respawn.png shows Boom Boom standing right next to
+  Mario with a full, undamaged health bar and "MARIO x 2" (confirming the
+  death actually happened).
+- D30 (fix, commit bab8b31): every save call site
+  (PlayingState::saveToSlot, the CheckpointActivated autosave listener) had
+  hardcoded `1, "Level 1"` regardless of m_selectedLevelIndex — the save file
+  itself never recorded the real level, one layer deeper than the filed
+  defect's framing. Fixed both to write m_selectedLevelIndex + 1 and
+  LevelCatalog::nameFor(...) (or "Procedural"). PlayingState::loadFromSlot()
+  now reads the slot's levelId and, when it names a different valid campaign
+  level, calls loadLevelByPath() to switch the tilemap and updates
+  m_selectedLevelIndex before adoptPlayer() installs the deserialized player
+  at its saved position; also restores the slot's checkpoint (checkpointX/Y
+  were read and silently discarded before). MenuState's LOAD GAME confirm and
+  DevPanel's Load button share this one method, so both are fixed together.
+  MUTATION: disabled the level-switch block in loadFromSlot(), rebuilt, ran
+  testLoadGameRestoresLevelFromSlot -> "loading slot 3 switched into World
+  1-2..." FAILED (instance stayed on World 1-1, confirmed by stdout showing
+  only "'World 1-1: Grassland Overworld'" loading, never 1-2). Restored,
+  rebuilt, PASSES, stdout shows level_2.json loading a second time as
+  expected.
+  VERIFIED LIVE (tests/scripts/verify_d30_load_game_level.txt, via a
+  temporary saves/progress.json unlocking World 1-2, deleted after the run):
+  entered World 1-2, paused, SAVE GAME (slot 1), QUIT TO MENU, LOAD GAME ->
+  confirm slot 1. stdout shows "[LevelLoader] Successfully loaded 'World
+  1-1...'" (the throwaway instance) immediately followed by "'World
+  1-2...'" + "Boss in this level: BOOM BOOM" + "Loaded sub-level / main
+  level: assets/levels/level_2.json at spawn (96, 608)" + "Loaded save slot 1
+  successfully!". Screenshot saves/shots/d30_04_loaded_world_1_2.png shows
+  the HUD reading "WORLD 1-2" after the load, not "WORLD 1-1".
+- Double-exit guard (fix, commit abc0870): added PlayingState::m_hasExited,
+  checked/set at the top of exit(), so ~PlayingState()'s unconditional call
+  after GameStateManager's own explicit exit() call is a no-op instead of a
+  second full teardown. Re-implements A/fix/duplicate-playingstate-exit
+  (f169a6c) on current dev — that branch (3 commits: f169a6c fix, d6375dd
+  test, cdcb4f9 log) branched off a dev from before R4/R5/R7/R8/R9/R10, too
+  stale to merge cleanly; read via `git show f169a6c`/`git show d6375dd` and
+  credited in the fix commit message.
+  MUTATION: commented out the m_hasExited guard, rebuilt, ran
+  testPlayingStateExitIsIdempotent -> both idempotency checks FAILED, and
+  stdout showed "Exiting PlayingState" printed twice for a single .exit()
+  call as expected. Restored, rebuilt, both checks PASS.
+  VERIFIED LIVE via the existing tests/scripts/verify_r4_resubscribe.txt
+  (already on dev since R4, not authored this session): pause -> quit to
+  menu -> play again. stdout shows exactly one "Exiting PlayingState" per
+  transition (2 transitions -> 2 lines total), where it printed twice per
+  transition before this fix.
+- Tests (commit 1fa34ef): testBossSurvivesDeathRespawnNearCheckpoint,
+  testLoadGameRestoresLevelFromSlot, testPlayingStateExitIsIdempotent added
+  to verify_frontend_states.cpp, plus five new LevelCompletionCameraTestHooks
+  (selectedLevelIndex, arenaLocked, makeSpawnSafe, addTestGoomba, hasExited)
+  following the file's existing narrow-friend-class pattern. Two new live
+  scripts added under tests/scripts/ (see per-defect detail above).
+- Ledger (commit 23619ec): docs/issues/spec_feature_audit_2026-08-31.md — D8
+  and D10 struck as RESOLVED (R5, R11 respectively; both already merged to
+  dev before this session — grep -c dynamic_cast on current dev confirms 0
+  real casts in CollisionResolver.cpp/PhysicsEngine.cpp, matching R5's claim
+  exactly, and the guard_saves_hermeticity_setup/_check ctest cases matching
+  R11's). R5/R11 section headers updated from OPEN to COMPLETE / merged to
+  dev to match. D29/D30 struck as RESOLVED (R20), full session detail
+  recorded in a new R20 section.
+- Cleanup: temporary saves/progress.json and level_2.json spawnPoint edit
+  both reverted before committing; confirmed via git status/git diff (only
+  the tracked repo-root saves/config.json was briefly clobbered by an
+  incidental `rm -rf` of a scratch saves/ directory this session created one
+  level above SuperMarioGame/ — caught immediately, restored via `git
+  checkout -- saves/config.json`, confirmed byte-identical via git diff
+  before proceeding). build/ removed at session end. Did not merge, did not
+  push, per instruction.
+---
