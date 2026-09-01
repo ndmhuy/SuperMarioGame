@@ -2705,6 +2705,19 @@ void PlayingState::makeSpawnSafe(Player* who, sf::Vector2f respawn) {
         if (!entity || !entity->isActive()) continue;
         if (entity->getCategory() != EntityCategory::Enemy) continue;
 
+        // A boss is an Enemy by category but is not a spawn hazard to be swept
+        // away like a wandering Goomba: destroying it here does not just remove
+        // one enemy, it silently ends the fight. forgetEntity() treats a boss's
+        // destruction as a real death — it drops m_activeBoss and releases the
+        // arena (camera bounds, scroll mode, BGM) — so a boss standing near the
+        // checkpoint while the player respawns used to end the encounter with
+        // no win recorded and nothing left to fight (D29). The arena's own
+        // "no escape until defeated" clamp (updateBossArena) already keeps the
+        // player inside with the boss, and the 1.5s landing invincibility below
+        // still protects against a boss attack landing on the respawn frame, so
+        // skipping the boss here costs nothing the spawn-camping fix needed.
+        if (dynamic_cast<Boss*>(entity.get())) continue;
+
         const sf::Vector2f delta = entity->getPosition() - respawn;
         if (std::abs(delta.x) > kClearRadius || std::abs(delta.y) > kClearRadius) continue;
 
