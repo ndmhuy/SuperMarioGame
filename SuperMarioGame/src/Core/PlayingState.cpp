@@ -215,7 +215,17 @@ void PlayingState::enter() {
         int activeSlot = Game::getInstance().getActiveSlot();
         if (!m_entities.empty() && m_entities[0]) {
             if (auto* player = dynamic_cast<Player*>(m_entities[0].get())) {
-                bool success = Serializer::saveGame(activeSlot, *player, 1, "Level 1", Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
+                // Real level, not the "1, Level 1" this used to hardcode
+                // regardless of where the checkpoint actually was (D30): every
+                // autosave recorded World 1-1 even when the player was three
+                // levels in, so LOAD GAME had nothing but level 1 to resume
+                // into no matter which slot or level. levelId is 1-based to
+                // match the convention getSlotPreview()/loadFromSlot() already
+                // use.
+                const int levelId = m_selectedLevelIndex + 1;
+                const std::string levelName = m_isProcedural ? "Procedural"
+                                                              : LevelCatalog::nameFor(m_selectedLevelIndex);
+                bool success = Serializer::saveGame(activeSlot, *player, levelId, levelName, Constants::LEVEL_TIME, player->getPosition().x, player->getPosition().y, std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
                 if (success) {
                     std::cout << "[Auto-Save] Progress saved to Slot " << activeSlot << " at checkpoint!" << std::endl;
                 }
@@ -2092,7 +2102,13 @@ void PlayingState::extendEndlessLevelIfNeeded() {
 
 void PlayingState::saveToSlot(int slot) {
     if (!m_player) return;
-    Serializer::saveGame(slot, *m_player, 1, "Level 1", Constants::LEVEL_TIME,
+    // See the checkpoint autosave's comment above (D30): this used to hardcode
+    // level 1 too, so the pause menu's manual Save and DevPanel's Save button
+    // shared the exact same bug.
+    const int levelId = m_selectedLevelIndex + 1;
+    const std::string levelName = m_isProcedural ? "Procedural"
+                                                  : LevelCatalog::nameFor(m_selectedLevelIndex);
+    Serializer::saveGame(slot, *m_player, levelId, levelName, Constants::LEVEL_TIME,
                          m_player->getPosition().x, m_player->getPosition().y,
                          std::vector<bool>(m_starCoinsCollected.begin(), m_starCoinsCollected.end()));
 }
@@ -2109,12 +2125,48 @@ void PlayingState::loadFromSlot(int slot) {
         return;
     }
 
+    // Switch to the level the save recorded (D30). This instance was already
+    // running some level before this call — MenuState's LOAD GAME picker
+    // builds a throwaway World 1-1 PlayingState specifically to give this
+    // method something to overwrite (see the constructor's pendingLoadSlot
+    // doc), and DevPanel's Load button calls this on whatever level a
+    // developer happened to be testing — so lvlId (1-based, same convention
+    // saveToSlot()/the checkpoint autosave write) has to be trusted over
+    // whatever level is already loaded. Without this, the player's saved
+    // world-space position gets applied against the wrong tile map: LOAD GAME
+    // always resumed into World 1-1 no matter which level the slot held.
+    // Procedural/endless levels have no catalog entry to switch to and never
+    // wrote anything but level 1 to begin with, so they are left alone.
+    const int targetIndex = lvlId - 1;
+    if (!m_isProcedural && LevelCatalog::isValidIndex(targetIndex) &&
+        targetIndex != m_selectedLevelIndex) {
+        if (loadLevelByPath(LevelCatalog::pathFor(targetIndex))) {
+            m_selectedLevelIndex = targetIndex;
+            SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
+        } else {
+            std::cerr << "[PlayingState] loadFromSlot: could not switch to level "
+                      << lvlId << "; resuming in the level already loaded." << std::endl;
+        }
+    }
+
     if (starCoins.size() >= 3) {
         m_starCoinsCollected = {starCoins[0], starCoins[1], starCoins[2]};
     }
     // adoptPlayer refreshes m_player, InputManager and Game together; assigning
     // m_entities[0] directly here is what left m_player dangling (audit A-3).
+    // Runs after the level switch above: loadLevelByPath() spawns its own
+    // throwaway player at the fresh level's spawn point, and adoptPlayer()
+    // replaces it with the one just deserialized (already at its saved
+    // position from Serializer::loadGame, which restores it independently of
+    // checkpointX/Y below).
     adoptPlayer(std::move(loadedPlayer));
+
+    // The checkpoint the save recorded, so a death in the resumed session
+    // respawns at the save point rather than the level's own start (which
+    // loadLevelByPath(), above, would otherwise have left as the only option).
+    m_checkpointPosition = sf::Vector2f(checkX, checkY);
+    m_hasCheckpoint = true;
+
     Game::getInstance().setActiveSlot(slot);
     std::cout << "Loaded save slot " << slot << " successfully!" << std::endl;
 }
