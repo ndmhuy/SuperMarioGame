@@ -920,7 +920,7 @@ through in &sect;10, and the full ledgers live in the audit documents named belo
  <td>One commit, on every branch. Reported as a quiet week rather than padded with the adjacent
  weeks' work.</td></tr>
 <tr><td><strong>W13</strong></td><td>30 Aug &ndash; 5 Sep<br><em>reported to 2 Sep</em></td>
- <td>The specification audit, its twenty remediation batches, and the submission sweep: pipe entry
+ <td>The specification audit, its remediation batches, and the submission sweep: pipe entry
  modes, save-slot selection, the lighting renderer, the level editor's custom levels, the entity
  registry, and the documents this report is part of.</td></tr>
 </tbody></table></div>
@@ -955,9 +955,10 @@ third. No lane's report was accepted on its word: <strong>the reviewer re-ran th
 measurement</strong> &mdash; its <code>ctest</code> run, its commit range count, its build &mdash;
 before accepting the branch. Several lanes were sent back for rework, one of them three times over
 counts it had typed but could not measure. Several others came back having <em>corrected the plan
-that briefed them</em> &mdash; a document it was told to archive turned out to be cited by section
-number from seven live engine sources, and a defect it was told to fix did not exist (&sect;12.4).
-That is the outcome a review round exists to produce.</p>
+that briefed them</em>: one lane was told to archive a document that turned out to be cited by
+section number from seven live engine sources, and refused; another was told to fix a defect that
+did not exist, and proved it (&sect;12.4). That is the outcome a review round exists to
+produce.</p>
 <p><strong>Remediation in numbered batches.</strong> Every defect got a number and its own small
 project: a branch, a fix, a guard that fails without the fix, and a log entry recording what was
 actually run. The two audits' remediation ran as numbered batches <strong>R1 through R21</strong>
@@ -1015,8 +1016,8 @@ something other than good intentions.</p>
  <td>Counts in the generated documents come from the tree, never from prose. The sweep's execution
  record is itself a document.</td></tr>
 <tr><td><strong>Per-lane review round</strong><br>within the sweep</td>
- <td>Every lane's measurement re-run rather than trusted. Three lanes reworked; two lanes proved the
- plan wrong.</td>
+ <td>Every lane's measurement re-run rather than trusted. Several lanes reworked; several came back
+ having corrected the plan that briefed them.</td>
  <td>A lane with no way to measure a number will still write one down. Review re-measures.</td></tr>
 <tr><td><strong>Mutation testing</strong></td>
  <td>Every guard observed failing with its fix reverted. One vacuous guard caught before it shipped;
