@@ -93,6 +93,11 @@ IMovementStrategy* Enemy::getStrategy() const {
     return m_aiStrategy.get();
 }
 
+void Enemy::translate(sf::Vector2f delta) {
+    if (m_aiStrategy) m_aiStrategy->translateAnchor(delta);
+    Entity::translate(delta);
+}
+
 bool Enemy::onPlayerTouch(Player& player, const CollisionInfo& info, bool stomped) {
     // Most enemies have nothing special to say: stomp them and they die, touch
     // them any other way and they hurt you. The resolver owns both rules.

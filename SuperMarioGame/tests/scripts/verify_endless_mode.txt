@@ -5,11 +5,18 @@
 #
 #   ./build/SuperMarioGame --script tests/scripts/verify_endless_mode.txt
 
+# NOTE (R21 Lane D): the main-menu walk below is SIX Downs, not four. MenuState
+# has ten rows and moveSelection() skips none of them, and LOAD GAME and CUSTOM
+# LEVELS were added to that list after this script was written - four Downs
+# lands on MAP EDITOR and the run silently verifies nothing.
+
 wait 2.0
 shot e0_menu
-press Down                 # VERSUS
+press Down                 # LOAD GAME
+press Down                 # MULTIPLAYER
 press Down                 # DAILY CHALLENGE
 press Down                 # MAP EDITOR
+press Down                 # CUSTOM LEVELS
 press Down                 # PROCEDURAL LEVEL
 press Enter                # open the generator submenu
 wait 0.5

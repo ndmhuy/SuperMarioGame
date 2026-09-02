@@ -106,6 +106,20 @@ public:
     void returnToArenaSpawn();
     bool onLeftLevel() override;
 
+    // Relocating a boss has to take the whole fight with it: m_arenaSpawn is
+    // where onLeftLevel() puts him back, and the arena is the room PlayingState
+    // locks the camera to and clamps the player inside. Moving only `position`
+    // leaves a boss who walks to a room he is not in and returns, on his first
+    // fall, to a spawn point in another chunk entirely.
+    void translate(sf::Vector2f delta) override {
+        m_arenaSpawn += delta;
+        if (hasArena()) {
+            m_arena.x += delta.x;
+            m_arena.y += delta.y;
+        }
+        Enemy::translate(delta);
+    }
+
 protected:
     // The subclass's own fight logic, called once per frame while the boss is
     // alive. Gravity and collision are still the physics engine's job.

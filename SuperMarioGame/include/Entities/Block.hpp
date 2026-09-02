@@ -51,6 +51,14 @@ public:
 
     bool isBreakable() const { return m_breakable; }
 
+    // A block's bump animation and a FallingPlatform's respawn both restore
+    // m_originalPosition, so relocating the block without it snaps the block
+    // back to where it was first constructed the next time either runs.
+    void translate(sf::Vector2f delta) override {
+        m_originalPosition += delta;
+        Entity::translate(delta);
+    }
+
 
 protected:
     bool m_breakable = false;

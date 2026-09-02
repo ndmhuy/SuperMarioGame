@@ -146,6 +146,7 @@ void PlayingState::enter() {
     // Initialize HUD and Level Timer
     m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT), m_itemSheet.get(), m_playerSheet.get());
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_tileAnimTimer = 0.0f;
 
     if (m_isProcedural) {
@@ -210,6 +211,14 @@ void PlayingState::enter() {
             }
             m_worldLabel = "ENDLESS";
         }
+
+        // Without this a procedurally generated Bowser was inert scenery:
+        // findActiveBoss() was called only from setupTestScene() and
+        // loadLevelByPath(), never from any procedural path, so m_activeBoss
+        // stayed null — updateBossArena() returned immediately, syncBossHud()
+        // reported bossActive=false, and there was no health bar, no battle
+        // music, no camera lock and nothing for chopBridge() to defeat.
+        findActiveBoss();
     } else {
         setupTestScene();
     }
@@ -1108,7 +1117,20 @@ void PlayingState::update(float dt) {
     // Debug > Cheats' FREEZE TIMER holds the countdown where it is, so a take can
     // run past the level's own clock without the countdown creeping into
     // the shot or timing the run out mid-sentence.
-    if (!m_levelComplete && m_levelTimer > 0.0f &&
+
+    // How long this run has actually been going, whatever the countdown is
+    // doing. Kept separately because two things stop the countdown without
+    // stopping the run — Endless Mode below and the FREEZE TIMER cheat above —
+    // and updateShadow() reads "LEVEL_TIME minus the countdown" as its clock,
+    // so a held countdown froze Shadow Mario's replay timeline along with it.
+    if (!m_levelComplete) m_runElapsed += dt;
+
+    // Endless Mode has no countdown at all. It is an overworld survival run
+    // scored on distance — there is no flagpole to reach and no time bonus to
+    // earn — and nothing gated the countdown on it, so an endless mode ENDED,
+    // every time, after Constants::LEVEL_TIME (300) seconds, by killing the
+    // player for running out of time on a level that has no end.
+    if (!m_levelComplete && !m_isEndless && m_levelTimer > 0.0f &&
         !Game::getInstance().debugCheats().holdsLevelTimer()) {
         m_levelTimer -= dt;
 
@@ -1217,6 +1239,9 @@ void PlayingState::update(float dt) {
         m_hud->update(dt);
         HudData hudData;
         hudData.timeLeft = static_cast<int>(m_levelTimer);
+        // A frozen "300" in the TIME field would read as a broken clock. Say
+        // there is no clock instead.
+        hudData.timeUnlimited = m_isEndless;
         // The HUD has always drawn these two; nothing ever set them, so the
         // countdown never appeared however long the switch ran.
         hudData.pSwitchActive = m_pSwitchActive;
@@ -2181,6 +2206,9 @@ void PlayingState::regenerateProceduralLevel() {
     m_levelSpawnPoint = m_player ? m_player->getPosition() : sf::Vector2f(96.0f, 64.0f);
     m_checkpointPosition = m_levelSpawnPoint;
     m_hasCheckpoint = false;
+    // The old level's boss was just deleted with the rest of m_entities; the new
+    // one's has to be found, for the same reasons enter() gives.
+    findActiveBoss();
     if (m_minimap) m_minimap->initialize(m_tileMap);
 }
 
@@ -2201,12 +2229,35 @@ void PlayingState::extendEndlessLevelIfNeeded() {
     chunkConfig.seed = 0;   // fresh randomness per chunk, not a repeat of chunk 0
     // Rising difficulty with distance, capped so it stays a platformer and not
     // a wall — SPEC's "escalating difficulty curve" for this feature.
-    chunkConfig.pitProbability  = std::min(0.35f, 0.10f + 0.02f * m_endlessChunkIndex);
-    chunkConfig.enemySpawnRate  = std::min(0.35f, 0.15f + 0.02f * m_endlessChunkIndex);
-    chunkConfig.roughness       = std::min(1.0f,  0.30f + 0.05f * m_endlessChunkIndex);
+    // A chunk, not a level: no player, no checkpoint, no flagpole, no castle,
+    // and content across its whole width instead of a 45% dead margin. See
+    // MapGeneratorConfig::isChunk.
+    chunkConfig.isChunk = true;
+    // Escalation is applied to what the player ASKED for, not to a hardcoded
+    // base. These four lines used to overwrite the generator sliders the player
+    // set on the PROCEDURAL LEVEL menu with a fixed formula, so raising ENEMIES
+    // to maximum and starting an Endless run gave the same 0.15 as leaving it at
+    // minimum. coinClusterRate was left out of the escalation entirely, which
+    // mattered more than it looks: until this session every ground enemy spawn
+    // was nested inside the coin-cluster branch.
+    chunkConfig.pitProbability  = std::min(0.35f, chunkConfig.pitProbability  + 0.02f * m_endlessChunkIndex);
+    chunkConfig.enemySpawnRate  = std::min(0.35f, chunkConfig.enemySpawnRate  + 0.02f * m_endlessChunkIndex);
+    chunkConfig.coinClusterRate = std::min(0.45f, chunkConfig.coinClusterRate + 0.02f * m_endlessChunkIndex);
+    chunkConfig.roughness       = std::min(1.0f,  chunkConfig.roughness       + 0.05f * m_endlessChunkIndex);
     chunkConfig.difficulty = m_endlessChunkIndex >= 6 ? MapDifficulty::Hard
                             : m_endlessChunkIndex >= 3 ? MapDifficulty::Medium
                                                         : MapDifficulty::Easy;
+
+    // A boss every ENDLESS_BOSS_CHUNK_INTERVAL chunks, and never anywhere else.
+    //
+    // The difficulty ramp above turns Hard from chunk 6 onwards, and the
+    // generator drops a Bowser into every Hard map — so an Endless run past ~600
+    // tiles spliced ANOTHER Bowser into the level every hundred tiles, each one
+    // breathing fire on sight, against a findActiveBoss() whose own comment says
+    // "one boss per level". A boss is a milestone here: it gives the run a
+    // rhythm, it is the only thing in Endless Mode that is not more of the same,
+    // and meeting one has to be an event rather than the weather.
+    chunkConfig.bossArena = (m_endlessChunkIndex % ENDLESS_BOSS_CHUNK_INTERVAL) == 0;
 
     TileMap chunkMap;
     std::vector<std::unique_ptr<Entity>> chunkEntities;
@@ -2240,23 +2291,82 @@ void PlayingState::extendEndlessLevelIfNeeded() {
     // builds its own Mario and, near its own local exitX, a flagpole/castle —
     // none of which belong in a middle-of-nowhere chunk: the real player
     // already exists, and Endless Mode has no "end" to reach.
+    bool splicedBoss = false;
+    int splicedCount = 0;
+    int splicedFirstTile = m_tileMap.getWidth();
+    int splicedLastTile = 0;
     for (auto& entity : chunkEntities) {
         if (!entity) continue;
         const std::string type = entity->getTypeName();
         if (dynamic_cast<Player*>(entity.get())) continue;
         if (type == "flagpole" || type == "castle" || type == "pipe") continue;
-        entity->setPosition(entity->getPosition() + sf::Vector2f(offsetPx, 0.0f));
+
+        // One fight at a time. findActiveBoss() takes the first Boss it finds
+        // and its own comment says "one boss per level"; a second one spliced in
+        // while a fight is live would be invisible to the HUD, unlockable by the
+        // camera and unkillable by the axe, while still breathing fire.
+        if (auto* boss = dynamic_cast<Boss*>(entity.get())) {
+            if (m_activeBoss) {
+                std::cout << "[PlayingState] Endless Mode: dropped a second "
+                          << boss->getDisplayName() << " from chunk "
+                          << m_endlessChunkIndex << "; a fight is already live."
+                          << std::endl;
+                continue;
+            }
+            splicedBoss = true;
+        }
+
+        // translate(), not setPosition(): several of these classes cache their
+        // spawn point at construction and drive themselves back to it, so a
+        // plain setPosition() left them teleporting to their chunk-LOCAL
+        // coordinates on their first update — i.e. back near the start of the
+        // world. See Entity::translate for the full list. This is the defect
+        // that made appended chunks look empty (R21 D7).
+        entity->translate(sf::Vector2f(offsetPx, 0.0f));
+        ++splicedCount;
+        const int tileX = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
+        splicedFirstTile = std::min(splicedFirstTile, tileX);
+        splicedLastTile  = std::max(splicedLastTile, tileX);
         admitEntity(entity.get());
         m_entities.push_back(std::move(entity));
     }
 
-    m_camera.setBounds(AABB{0.0f, 0.0f,
-                            static_cast<float>(m_tileMap.getWidth()) * Constants::TILE_SIZE,
-                            static_cast<float>(m_tileMap.getHeight()) * Constants::TILE_SIZE});
+    // Adopt the new fight, exactly as loading a level would. Guarded on
+    // m_activeBoss being null because findActiveBoss() also clears m_arenaLocked,
+    // which would release the camera in the middle of a live fight.
+    if (splicedBoss && !m_activeBoss) {
+        findActiveBoss();
+    }
+
+    const AABB worldBounds{0.0f, 0.0f,
+                           static_cast<float>(m_tileMap.getWidth()) * Constants::TILE_SIZE,
+                           static_cast<float>(m_tileMap.getHeight()) * Constants::TILE_SIZE};
+    if (m_arenaLocked) {
+        // A boss arena sits at the END of its chunk, so the player is well
+        // inside the lookahead when the fight starts and the next chunk is
+        // appended DURING it. Writing the world bounds onto the camera here
+        // would silently undo the arena lock mid-fight, and releaseBossArena()
+        // would then restore a snapshot taken before this chunk existed —
+        // clamping the camera to a world two hundred tiles shorter than the one
+        // the player is standing in. Update what the release will restore
+        // instead, and leave the camera on the arena.
+        m_preArenaCameraBounds = worldBounds;
+    } else {
+        m_camera.setBounds(worldBounds);
+    }
     if (m_minimap) m_minimap->initialize(m_tileMap);
 
+    // The entity count and world-tile span are the two facts worth having here:
+    // "the far chunks have no entities in them" (R21 D7) was reported from
+    // play, and a chunk that splices nothing, or splices everything back at
+    // world tile 20-80, is visible in this one line.
     std::cout << "[PlayingState] Endless Mode: appended chunk " << m_endlessChunkIndex
-              << ", tilemap now " << m_tileMap.getWidth() << " tiles wide." << std::endl;
+              << (chunkConfig.bossArena ? " (BOSS)" : "")
+              << ": " << splicedCount << " entities"
+              << (splicedCount > 0 ? " across world tiles " + std::to_string(splicedFirstTile)
+                                      + "-" + std::to_string(splicedLastTile)
+                                   : std::string())
+              << "; tilemap now " << m_tileMap.getWidth() << " tiles wide." << std::endl;
 }
 
 void PlayingState::saveToSlot(int slot) {
@@ -2391,11 +2501,12 @@ void PlayingState::updateShadow(float dt) {
     if (!m_shadow || !m_player) return;
 
     // Sampled here, before the entity update pass runs the shadow, so a packet
-    // recorded this frame can never also be consumed this frame. The clock is
-    // the level timer counting down, inverted into elapsed time: it advances
-    // with the simulation and stops with it, which a wall clock would not.
-    const float elapsed = Constants::LEVEL_TIME - m_levelTimer;
-    m_shadow->recordFrame(elapsed, *m_player);
+    // recorded this frame can never also be consumed this frame. The clock
+    // advances with the simulation and stops with it, which a wall clock would
+    // not. It used to be derived from the level countdown (LEVEL_TIME minus
+    // m_levelTimer), which stops in Endless Mode and under the FREEZE TIMER
+    // cheat — freezing the shadow's whole replay timeline with it.
+    m_shadow->recordFrame(m_runElapsed, *m_player);
 }
 
 float PlayingState::shadowProximitySeconds() const {
@@ -3161,6 +3272,7 @@ void PlayingState::respawnPlayer(Player* who) {
 
     // A fresh clock per life, so a timeout death is recoverable.
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_timeWarningFired = false;
 
     SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
@@ -3208,6 +3320,7 @@ void PlayingState::restartLevel() {
     m_levelCompleteTimer = 0.0f;
     m_summaryShown = false;
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     m_starCoinsCollected = {false, false, false};
@@ -3299,6 +3412,7 @@ void PlayingState::advanceToNextLevel() {
     m_summaryShown = false;
     m_starCoinsCollected = {false, false, false};
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     setupTestScene();

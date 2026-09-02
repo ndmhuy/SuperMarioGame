@@ -13,6 +13,7 @@ public:
 
     sf::Vector2f getAnchorPos() const;
     void setAnchorPos(sf::Vector2f anchorPos);
+    void translateAnchor(sf::Vector2f delta) override { setAnchorPos(m_anchorPos + delta); }
     float getTetherRadius() const;
     void setTetherRadius(float radius);
 

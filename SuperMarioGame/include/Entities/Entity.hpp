@@ -177,6 +177,26 @@ public:
     // Setters for coordinates
     void setPosition(sf::Vector2f pos);
     void setVelocity(sf::Vector2f vel);
+
+    // Move this entity AND everything it remembers about where it was placed.
+    //
+    // setPosition() writes `position` and `boundingBox` and nothing else, which
+    // is correct for "the physics engine moved you" and wrong for "the level
+    // moved you". Several classes cache their spawn point at construction and
+    // steer themselves back to it every frame: MovingPlatform recomputes
+    // m_startPos + range*progress, TimerEmergenceStrategy parks a retracted
+    // PiranhaPlant on its anchor, FallingPlatform respawns at
+    // Block::m_originalPosition, and Boss::onLeftLevel() returns to
+    // m_arenaSpawn. Endless Mode's chunk splice used setPosition() to shift a
+    // freshly generated chunk into world space, so every one of those entities
+    // teleported back to its chunk-local coordinates — i.e. back around world
+    // tiles 20-80 — on its very first update. The player saw appended chunks
+    // that looked empty and a pile of stray platforms near the start (R21 D7).
+    //
+    // A relative move rather than an absolute one because that is the operation
+    // whose meaning every subclass can express: "everything I remember shifts
+    // by the same delta" needs no knowledge of what the new origin is.
+    virtual void translate(sf::Vector2f delta) { setPosition(position + delta); }
     void setTargetSize(sf::Vector2f size) { m_targetSize = size; boundingBox.width = size.x; boundingBox.height = size.y; }
 
     // Will this entity draw real artwork, or fall back to drawPlaceholder()?

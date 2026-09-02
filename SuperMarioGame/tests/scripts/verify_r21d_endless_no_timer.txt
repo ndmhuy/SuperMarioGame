@@ -1,0 +1,61 @@
+# R21 Lane D - Defect 7 part 4, the decisive form: NO CHEATS.
+#
+# Endless Mode is entered and then nothing is touched for 330 seconds.
+# Constants::LEVEL_TIME is 300 and PlayingState's countdown was not gated on
+# m_isEndless, so before this fix the player was killed at exactly 300s for
+# "ran out of time" - in a mode that has no end to run out of time before. A
+# standing player cannot die of anything else, so if the run is still in
+# PlayingState at 330s with lives untouched, the countdown is genuinely off.
+#
+# The HUD TIME field must read "---" rather than a frozen 300, which is
+# indistinguishable from a broken clock.
+#
+#   ./build_r21_lane_d/SuperMarioGame --script tests/scripts/verify_r21d_endless_no_timer.txt
+
+wait 2.0
+press Down
+press Down
+press Down
+press Down
+press Down
+press Down                 # PROCEDURAL LEVEL
+press Enter
+wait 0.5
+press Down
+press Down
+press Down
+press Down
+press Down
+press Down
+press Down
+press Down                 # PLAY ENDLESS
+press Enter
+wait 1.5
+press Enter                # character select
+wait 3.0
+shot r21d_t0_endless_started_lives3
+wait 30.0
+shot r21d_t1_idle_30s
+wait 30.0
+shot r21d_t2_idle_60s
+wait 30.0
+shot r21d_t3_idle_90s
+wait 30.0
+shot r21d_t4_idle_120s
+wait 30.0
+shot r21d_t5_idle_150s
+wait 30.0
+shot r21d_t6_idle_180s
+wait 30.0
+shot r21d_t7_idle_210s
+wait 30.0
+shot r21d_t8_idle_240s
+wait 30.0
+shot r21d_t9_idle_270s
+wait 30.0
+shot r21d_t10_idle_300s
+wait 30.0
+shot r21d_t11_idle_330s
+wait 10.0
+shot r21d_t12_idle_340s_still_playing
+quit

@@ -5,6 +5,7 @@
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
+#include "Entities/Bowser.hpp"
 #include "Utils/Constants.hpp"
 #include "Utils/LevelSolvability.hpp"
 #include <random>
@@ -34,13 +35,39 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
         groundTile = TileType::Ground;
         blockTile = (config.difficulty == MapDifficulty::Hard) ? TileType::Conveyor : TileType::Brick;
         if (config.enableLava) {
-            hazardTile = TileType::Water; // Liquid hazard (Lava physics / hazard)
+            // Lava, not Water. The comment always said "Lava physics / hazard"
+            // and the tile was Water, which is inert: the damage check tests
+            // TileType::Lava and nothing else, so every generated castle pit was
+            // decorative. It also made a generated castle's bridge chop
+            // unimplementable, because PlayingState::chopBridge() identifies
+            // bridge columns by the lava underneath them and there was none.
+            //
+            // This IS a difficulty change: pits in a generated castle that were
+            // survivable scenery are now lethal.
+            hazardTile = TileType::Lava;
         }
     }
 
     int midX = config.width / 2;
     int exitX = config.width - 15;
     int defaultGroundY = config.height - 2;
+
+    // Where the boss arena goes, or -1 for no arena. Placed at the right-hand
+    // end of the playable run in both modes: a chunk's arena is the last thing
+    // in it, and a level's sits immediately before the victory staircase so the
+    // flagpole is the reward for getting past Bowser rather than a detour
+    // around him.
+    const bool wantsBossArena = config.bossArena ||
+                                (!config.isChunk && config.difficulty == MapDifficulty::Hard);
+    const int bossSpan = BOSS_ARENA_TILES + BOSS_LANDING_TILES;
+    int bossLeftX = -1;
+    if (wantsBossArena) {
+        const int candidate = config.isChunk ? (config.width - bossSpan)
+                                              : (exitX - 6 - BOSS_ARENA_TILES);
+        // Only if the whole encounter fits with a run-up in front of it; a
+        // half-built arena is worse than the flat exit apron it replaces.
+        if (candidate > 24) bossLeftX = candidate;
+    }
 
     // 1. Build Ceilings for Castle & Underground themes
     if (config.theme == MapTheme::Castle || config.theme == MapTheme::Underground) {
@@ -129,10 +156,13 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
         solidGroundCounter++;
     }
 
-    // 3. Spawn Player at safe starting area
-    int startY = groundHeights[3];
-    auto player = std::make_unique<Mario>(sf::Vector2f(96.0f, (startY - 2) * Constants::TILE_SIZE));
-    entities.push_back(std::move(player));
+    // 3. Spawn Player at safe starting area. A chunk is spliced into a level the
+    // player is already alive in, so it must not build a second one.
+    if (!config.isChunk) {
+        int startY = groundHeights[3];
+        auto player = std::make_unique<Mario>(sf::Vector2f(96.0f, (startY - 2) * Constants::TILE_SIZE));
+        entities.push_back(std::move(player));
+    }
 
     // 4. Generate 3 Star Coins distributed across level tiers
     std::vector<int> starCoinLocations = {
@@ -153,50 +183,71 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
         if (starCoin) entities.push_back(std::move(starCoin));
     }
 
-    // 5. Generate Midpoint Checkpoint Structure & Sub-Level Entrance Warp Pipe
-    int midY = groundHeights[midX];
-
-    std::string subLevelTarget = "";
-    if (config.theme == MapTheme::Overworld) subLevelTarget = "assets/levels/level_1_sub.json";
-    else if (config.theme == MapTheme::Ice) subLevelTarget = "assets/levels/level_2_sub.json";
-    else if (config.theme == MapTheme::Castle) subLevelTarget = "assets/levels/level_3_sub.json";
-
-    sf::Vector2f returnExitPos((midX + 4) * Constants::TILE_SIZE, (midY - 1) * Constants::TILE_SIZE);
-    // Three rows above the surface, not four.
+    // 5. Generate Midpoint Checkpoint Structure & Sub-Level Entrance Warp Pipe.
     //
-    // A Pipe is placed by its top-left corner and is Pipe::HEIGHT_PX (4 tiles)
-    // tall, so seating its foot exactly on row midY would put its rim 128px up
-    // — Constants::JUMP_HEIGHT to the pixel, i.e. the apex of the arc, for a
-    // solid block the player has to get on top of to use. Set one row into the
-    // ground instead: the rim is three tiles up and comfortably reachable, and
-    // the buried row is hidden by the terrain drawn over it. Every authored
-    // level places its pipes the same way.
-    auto warpPipe = std::make_unique<Pipe>(
-        sf::Vector2f((midX - 2) * Constants::TILE_SIZE, (midY - 3) * Constants::TILE_SIZE),
-        1, returnExitPos, subLevelTarget, true
-    );
-    entities.push_back(std::move(warpPipe));
+    // Skipped for a chunk: a checkpoint halfway to nowhere is meaningless, and
+    // the warp pipe would drop the player out of an Endless run into a
+    // hand-authored bonus vault whose exit pipe returns to a level path the run
+    // does not have. The splice already discards the Pipe entity; without this
+    // the pipe's TILES were spliced in anyway, leaving a half pipe and a
+    // free-standing question block in the middle of every chunk.
+    if (!config.isChunk) {
+        int midY = groundHeights[midX];
 
-    // Two columns wide, like every other pipe in the game. cc6a32d fixed the
-    // identical one-column bug in generateSubLevel but missed this call site, so
-    // every procedurally generated overworld still emitted a half pipe at its
-    // checkpoint (D22/D23, still live at R21).
-    for (int pipeCol = midX + 2; pipeCol <= midX + 3; ++pipeCol) {
-        tileMap.setTile(pipeCol, midY - 1, TileType::Pipe);
-        tileMap.setTile(pipeCol, midY - 2, TileType::Pipe);
+        std::string subLevelTarget = "";
+        if (config.theme == MapTheme::Overworld) subLevelTarget = "assets/levels/level_1_sub.json";
+        else if (config.theme == MapTheme::Ice) subLevelTarget = "assets/levels/level_2_sub.json";
+        else if (config.theme == MapTheme::Castle) subLevelTarget = "assets/levels/level_3_sub.json";
+
+        sf::Vector2f returnExitPos((midX + 4) * Constants::TILE_SIZE, (midY - 1) * Constants::TILE_SIZE);
+        // Three rows above the surface, not four.
+        //
+        // A Pipe is placed by its top-left corner and is Pipe::HEIGHT_PX (4 tiles)
+        // tall, so seating its foot exactly on row midY would put its rim 128px up
+        // — Constants::JUMP_HEIGHT to the pixel, i.e. the apex of the arc, for a
+        // solid block the player has to get on top of to use. Set one row into the
+        // ground instead: the rim is three tiles up and comfortably reachable, and
+        // the buried row is hidden by the terrain drawn over it. Every authored
+        // level places its pipes the same way.
+        auto warpPipe = std::make_unique<Pipe>(
+            sf::Vector2f((midX - 2) * Constants::TILE_SIZE, (midY - 3) * Constants::TILE_SIZE),
+            1, returnExitPos, subLevelTarget, true
+        );
+        entities.push_back(std::move(warpPipe));
+
+        // Two columns wide, like every other pipe in the game. cc6a32d fixed the
+        // identical one-column bug in generateSubLevel but missed this call site, so
+        // every procedurally generated overworld still emitted a half pipe at its
+        // checkpoint (D22/D23, still live at R21).
+        for (int pipeCol = midX + 2; pipeCol <= midX + 3; ++pipeCol) {
+            tileMap.setTile(pipeCol, midY - 1, TileType::Pipe);
+            tileMap.setTile(pipeCol, midY - 2, TileType::Pipe);
+        }
+
+        auto qBlock = std::make_unique<QuestionBlock>(sf::Vector2f(midX * Constants::TILE_SIZE, (midY - 3) * Constants::TILE_SIZE), 1);
+        entities.push_back(std::move(qBlock));
+
+        auto checkpointTrampoline = EntityFactory::create(EntityType::Trampoline, sf::Vector2f(midX * Constants::TILE_SIZE, (midY - 1) * Constants::TILE_SIZE));
+        if (checkpointTrampoline) entities.push_back(std::move(checkpointTrampoline));
     }
 
-    auto qBlock = std::make_unique<QuestionBlock>(sf::Vector2f(midX * Constants::TILE_SIZE, (midY - 3) * Constants::TILE_SIZE), 1);
-    entities.push_back(std::move(qBlock));
+    // 6. Generate Prefab Chunks, Structures & Enemy Pacing.
+    //
+    // The bounds used to be the literals 22 and exitX-8 whatever the map was.
+    // See MapGeneratorConfig::isChunk for why that is a 45% dead zone on a
+    // 100-tile Endless chunk and why the right-hand half of it is precisely
+    // where the player arrives. Derived from the width now, and a chunk gets
+    // essentially all of itself.
+    const int prefabFirstX = config.isChunk ? 2
+                                             : std::min(22, std::max(4, config.width / 9));
+    int prefabLastX = config.isChunk ? config.width - 2 : exitX - 8;
+    // Nothing may be built into the room the arena is about to claim.
+    if (bossLeftX > 0) prefabLastX = std::min(prefabLastX, bossLeftX - 2);
 
-    auto checkpointTrampoline = EntityFactory::create(EntityType::Trampoline, sf::Vector2f(midX * Constants::TILE_SIZE, (midY - 1) * Constants::TILE_SIZE));
-    if (checkpointTrampoline) entities.push_back(std::move(checkpointTrampoline));
-
-    // 6. Generate Prefab Chunks, Structures & Enemy Pacing
     int lastEnemyX = 0;
 
-    for (int x = 22; x < exitX - 8; ++x) {
-        if (x >= midX - 5 && x <= midX + 5) continue;
+    for (int x = prefabFirstX; x < prefabLastX; ++x) {
+        if (!config.isChunk && x >= midX - 5 && x <= midX + 5) continue;
 
         int gy = groundHeights[x];
         if (tileMap.getTileType(x, gy) == TileType::Empty || tileMap.getTileType(x + 1, gy) == TileType::Empty) {
@@ -228,7 +279,7 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
             int blockRow = gy - 4;
             int length = platformLengthDist(rng);
 
-            for (int lx = 0; lx < length && (x + lx) < exitX - 8; ++lx) {
+            for (int lx = 0; lx < length && (x + lx) < prefabLastX; ++lx) {
                 int curX = x + lx;
                 if (lx == 1 || lx == length - 2) {
                     int itemType = 1;
@@ -250,38 +301,12 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
                 if (pow) entities.push_back(std::move(pow));
             }
 
-            if ((x - lastEnemyX) >= 5 && dist01(rng) < config.enemySpawnRate) {
-                lastEnemyX = x;
-                float progress = static_cast<float>(x) / config.width;
-
-                std::vector<EntityType> pool;
-                if (config.difficulty == MapDifficulty::Easy) {
-                    pool = { EntityType::Goomba, EntityType::KoopaTroopa };
-                } else if (config.difficulty == MapDifficulty::Medium) {
-                    pool = { EntityType::Goomba, EntityType::KoopaTroopa, EntityType::KoopaParatroopa, EntityType::Spiny };
-                } else {
-                    if (progress > 0.5f) {
-                        pool = { EntityType::HammerBro, EntityType::Lakitu, EntityType::Spiny, EntityType::Boo, EntityType::Thwomp };
-                    } else {
-                        pool = { EntityType::Goomba, EntityType::KoopaTroopa, EntityType::KoopaParatroopa, EntityType::HammerBro };
-                    }
-                }
-
-                EntityType chosenType = pool[static_cast<int>(dist01(rng) * pool.size())];
-                sf::Vector2f enemyPos((x + 2) * Constants::TILE_SIZE, (gy - 1) * Constants::TILE_SIZE);
-                if (chosenType == EntityType::Thwomp) {
-                    enemyPos.y = (gy - 6) * Constants::TILE_SIZE;
-                }
-                auto enemy = EntityFactory::create(chosenType, enemyPos);
-                if (enemy) entities.push_back(std::move(enemy));
-            }
-
             x += length + 2;
             continue;
         }
 
         // 6c. Chunk: Climbable Staircase Pyramid
-        if (dist01(rng) < 0.08f && x < exitX - 12) {
+        if (dist01(rng) < 0.08f && x < prefabLastX - 4) {
             int height = 3 + (config.difficulty == MapDifficulty::Hard ? 1 : 0);
             for (int h = 1; h <= height; ++h) {
                 for (int w = 0; w < (height - h + 1); ++w) {
@@ -293,56 +318,115 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
         }
     }
 
-    // 7. Boss Fight (Hard Difficulty): Spawn Bowser guarding exit
-    int exitGY = groundHeights[exitX];
-    if (config.difficulty == MapDifficulty::Hard) {
-        sf::Vector2f bowserPos((exitX - 6) * Constants::TILE_SIZE, (exitGY - 2) * Constants::TILE_SIZE);
-        auto bowser = EntityFactory::create(EntityType::Bowser, bowserPos);
-        if (bowser) entities.push_back(std::move(bowser));
-    }
-
-    // 8. Build Victory Staircase leading to Goal Flagpole
-    for (int step = 1; step <= 5; ++step) {
-        int stepX = exitX - 6 + step;
-        for (int h = 1; h <= step; ++h) {
-            tileMap.setTile(stepX, exitGY - h, blockTile);
-        }
-    }
-
-    // 9. Spawn Goal Flagpole
+    // 6d. Enemy pacing, as a pass of its own over every column.
     //
-    // The y here is a hint. exitGY-9 put the pole's foot nearly four tiles above
-    // the floor — the flag hung in mid-air in every generated level, the same
-    // defect the hand-authored files had. PlayingState::settleEndOfLevelScenery()
-    // stands it on whatever is actually beneath it at load time, so this only
-    // has to name the column.
-    sf::Vector2f flagpolePos(exitX * Constants::TILE_SIZE, (exitGY - 9) * Constants::TILE_SIZE);
-    auto flagpole = EntityFactory::create(EntityType::Flagpole, flagpolePos);
-    if (flagpole) entities.push_back(std::move(flagpole));
+    // This used to be nested INSIDE the floating-canopy branch above, so a
+    // ground enemy could only appear on a column that had already won the
+    // coin-cluster roll: the effective density was coinClusterRate x
+    // enemySpawnRate — about 0.6-1.3 enemies per 100-tile chunk at the default
+    // 0.2 x 0.15, which is what "there are no entities in the far chunks"
+    // actually was. It also has to be its own LOOP and not merely its own
+    // branch, because the prefab loop skips x forward by 4-10 columns whenever
+    // it builds something, so an enemy roll taken inside it is starved in
+    // exactly the structure-rich stretches that most need pacing.
+    for (int x = prefabFirstX; x < prefabLastX; ++x) {
+        if (!config.isChunk && x >= midX - 5 && x <= midX + 5) continue;
+        if ((x - lastEnemyX) < ENEMY_SPACING_TILES) continue;
 
-    // 10. The victory castle.
-    //
-    // This used to stamp a 5x5 square of ordinary GROUND tiles with a one-tile
-    // hole punched through it. That is not a building: it is a solid brown box
-    // the player can climb on top of and stand on, and it looked like level
-    // geometry because it *was* level geometry. The atlas has shipped castle_end
-    // since the beginning, so the castle is now a real entity drawn from real
-    // art, standing on the floor and settled the same way the flagpole is.
-    const int castleStartX = exitX + 4;
-    // Only if it fits: a castle hanging off the right edge of the map is worse
-    // than no castle, and the generator's width is configurable.
-    if (castleStartX + static_cast<int>(Castle::WIDTH_TILES) + 1 < config.width) {
-        // Make sure it has a floor to stand on — the terrain pass may have left
-        // a pit here, and a castle over a pit settles onto nothing.
-        for (int cx = 0; cx <= static_cast<int>(Castle::WIDTH_TILES) + 1; ++cx) {
-            for (int y = exitGY; y < config.height; ++y) {
-                tileMap.setTile(castleStartX + cx, y, groundTile);
+        const int gy = groundHeights[x];
+        // Two columns of floor to stand and walk on, and headroom above it: an
+        // enemy dropped on a pipe alley or under a canopy row starts the level
+        // already inside solid tiles.
+        if (tileMap.getTileType(x, gy) == TileType::Empty ||
+            tileMap.getTileType(x + 1, gy) == TileType::Empty) continue;
+        if (TileMap::getInfo(tileMap.getTileType(x, gy - 1)).isSolid ||
+            TileMap::getInfo(tileMap.getTileType(x, gy - 2)).isSolid) continue;
+        if (dist01(rng) >= config.enemySpawnRate) continue;
+
+        lastEnemyX = x;
+        const float progress = static_cast<float>(x) / config.width;
+
+        std::vector<EntityType> pool;
+        if (config.difficulty == MapDifficulty::Easy) {
+            pool = { EntityType::Goomba, EntityType::KoopaTroopa };
+        } else if (config.difficulty == MapDifficulty::Medium) {
+            pool = { EntityType::Goomba, EntityType::KoopaTroopa, EntityType::KoopaParatroopa, EntityType::Spiny };
+        } else {
+            if (progress > 0.5f) {
+                pool = { EntityType::HammerBro, EntityType::Lakitu, EntityType::Spiny, EntityType::Boo, EntityType::Thwomp };
+            } else {
+                pool = { EntityType::Goomba, EntityType::KoopaTroopa, EntityType::KoopaParatroopa, EntityType::HammerBro };
             }
         }
-        sf::Vector2f castlePos(castleStartX * Constants::TILE_SIZE,
-                               (exitGY - Castle::HEIGHT_TILES) * Constants::TILE_SIZE);
-        auto castle = EntityFactory::create(EntityType::Castle, castlePos);
-        if (castle) entities.push_back(std::move(castle));
+
+        const EntityType chosenType = pool[static_cast<int>(dist01(rng) * pool.size())];
+        sf::Vector2f enemyPos(x * Constants::TILE_SIZE, (gy - 1) * Constants::TILE_SIZE);
+        if (chosenType == EntityType::Thwomp) {
+            enemyPos.y = (gy - 6) * Constants::TILE_SIZE;
+        }
+        auto enemy = EntityFactory::create(chosenType, enemyPos);
+        if (enemy) entities.push_back(std::move(enemy));
+    }
+
+    // 7. Boss Fight.
+    //
+    // This used to be four lines: drop a Bowser at exitX-6 on Hard and hope.
+    // Nothing else about it was a boss FIGHT — no arena, so hasArena() was
+    // false and PlayingState's camera lock, HUD health bar, battle music and
+    // "no escape" clamp all sat behind a condition that could never be true; no
+    // room, because he landed on the flat exit apron with the victory staircase
+    // immediately to his right, so the player walked straight past him; no
+    // bridge and no axe, so the non-combat solution the fight is balanced
+    // around did not exist.
+    int exitGY = groundHeights[exitX];
+    if (bossLeftX > 0) {
+        buildBossArena(tileMap, entities, config, bossLeftX, groundTile, TileType::Brick);
+    }
+
+    // 8. Build Victory Staircase leading to Goal Flagpole. A chunk has no exit.
+    if (!config.isChunk) {
+        for (int step = 1; step <= 5; ++step) {
+            int stepX = exitX - 6 + step;
+            for (int h = 1; h <= step; ++h) {
+                tileMap.setTile(stepX, exitGY - h, blockTile);
+            }
+        }
+
+        // 9. Spawn Goal Flagpole
+        //
+        // The y here is a hint. exitGY-9 put the pole's foot nearly four tiles above
+        // the floor — the flag hung in mid-air in every generated level, the same
+        // defect the hand-authored files had. PlayingState::settleEndOfLevelScenery()
+        // stands it on whatever is actually beneath it at load time, so this only
+        // has to name the column.
+        sf::Vector2f flagpolePos(exitX * Constants::TILE_SIZE, (exitGY - 9) * Constants::TILE_SIZE);
+        auto flagpole = EntityFactory::create(EntityType::Flagpole, flagpolePos);
+        if (flagpole) entities.push_back(std::move(flagpole));
+
+        // 10. The victory castle.
+        //
+        // This used to stamp a 5x5 square of ordinary GROUND tiles with a one-tile
+        // hole punched through it. That is not a building: it is a solid brown box
+        // the player can climb on top of and stand on, and it looked like level
+        // geometry because it *was* level geometry. The atlas has shipped castle_end
+        // since the beginning, so the castle is now a real entity drawn from real
+        // art, standing on the floor and settled the same way the flagpole is.
+        const int castleStartX = exitX + 4;
+        // Only if it fits: a castle hanging off the right edge of the map is worse
+        // than no castle, and the generator's width is configurable.
+        if (castleStartX + static_cast<int>(Castle::WIDTH_TILES) + 1 < config.width) {
+            // Make sure it has a floor to stand on — the terrain pass may have left
+            // a pit here, and a castle over a pit settles onto nothing.
+            for (int cx = 0; cx <= static_cast<int>(Castle::WIDTH_TILES) + 1; ++cx) {
+                for (int y = exitGY; y < config.height; ++y) {
+                    tileMap.setTile(castleStartX + cx, y, groundTile);
+                }
+            }
+            sf::Vector2f castlePos(castleStartX * Constants::TILE_SIZE,
+                                   (exitGY - Castle::HEIGHT_TILES) * Constants::TILE_SIZE);
+            auto castle = EntityFactory::create(EntityType::Castle, castlePos);
+            if (castle) entities.push_back(std::move(castle));
+        }
     }
 
     std::cout << "[MapGenerator] Generated winnable procedural level (Width: " << config.width
@@ -351,6 +435,105 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
               << ", Roughness: " << config.roughness
               << ", Star Coins: " << config.starCoinCount
               << ", Seed: " << seed << ")" << std::endl;
+}
+
+void MapGenerator::buildBossArena(TileMap& tileMap,
+                                   std::vector<std::unique_ptr<Entity>>& entities,
+                                   const MapGeneratorConfig& config,
+                                   int leftX, TileType groundTile, TileType bridgeTile) {
+    const float TS = Constants::TILE_SIZE;
+    const int floorRow  = config.height - 2;   // the map's default walking surface
+    const int bridgeRow = floorRow - 1;        // one step up, as in level_3.json
+    const int postRow   = floorRow - 2;
+    const int trenchFirst = leftX + 1;
+    const int trenchLast  = leftX + 8;         // 8 bridge tiles, as in level_3.json
+    const int rightPostX  = leftX + 9;
+    const int lastX = std::min(tileMap.getWidth() - 1,
+                               leftX + BOSS_ARENA_TILES + BOSS_LANDING_TILES - 1);
+
+    // The arena replaces whatever the terrain and prefab passes left here, so
+    // clear it first — everything below the themed ceiling, which stays.
+    const int clearFromRow = (config.theme == MapTheme::Castle ||
+                              config.theme == MapTheme::Underground) ? 2 : 0;
+    for (int x = leftX; x <= lastX; ++x) {
+        for (int y = clearFromRow; y < config.height; ++y) {
+            tileMap.setTile(x, y, TileType::Empty);
+        }
+    }
+
+    // Two flat approach columns in front of it, so the run-up cannot arrive at
+    // the arena over a pit the terrain pass happened to carve at its lip.
+    for (int x = std::max(0, leftX - 2); x < leftX; ++x) {
+        for (int y = floorRow; y < config.height; ++y) {
+            tileMap.setTile(x, y, groundTile);
+        }
+    }
+
+    // An entity the earlier passes put inside the arena is now standing in a
+    // room that was built around it — a moving platform patrolling the lava, a
+    // question block floating over the bridge. They go with the tiles.
+    const float spanLeftPx  = leftX * TS;
+    const float spanRightPx = (lastX + 1) * TS;
+    entities.erase(std::remove_if(entities.begin(), entities.end(),
+        [spanLeftPx, spanRightPx](const std::unique_ptr<Entity>& e) {
+            if (!e) return false;
+            const float x = e->getPosition().x;
+            return x >= spanLeftPx && x < spanRightPx;
+        }), entities.end());
+
+    // The two posts and the ledges they stand on.
+    for (int x : {leftX, rightPostX}) {
+        tileMap.setTile(x, postRow, bridgeTile);
+        for (int y = bridgeRow; y < config.height; ++y) {
+            tileMap.setTile(x, y, groundTile);
+        }
+    }
+
+    // The trench: lava all the way to the floor, spanned by a solid bridge one
+    // row up. chopBridge() finds these columns by exactly this shape — a solid
+    // tile with lava underneath it, inside the arena — so the bridge does not
+    // have to be declared anywhere.
+    for (int x = trenchFirst; x <= trenchLast; ++x) {
+        for (int y = floorRow; y < config.height; ++y) {
+            tileMap.setTile(x, y, TileType::Lava);
+        }
+        tileMap.setTile(x, bridgeRow, bridgeTile);
+    }
+
+    // The far ledge stays at bridge level for two more columns — that is what
+    // the player lands on once the bridge is gone, and what the axe stands on —
+    // then the apron steps back down to the map's own floor so the run
+    // continues normally after the fight.
+    const int ledgeLastX = rightPostX + 2;
+    for (int x = rightPostX + 1; x <= std::min(ledgeLastX, lastX); ++x) {
+        for (int y = bridgeRow; y < config.height; ++y) {
+            tileMap.setTile(x, y, groundTile);
+        }
+    }
+    for (int x = ledgeLastX + 1; x <= lastX; ++x) {
+        for (int y = floorRow; y < config.height; ++y) {
+            tileMap.setTile(x, y, groundTile);
+        }
+    }
+
+    // Constructed directly rather than through EntityFactory::create, which
+    // returns a unique_ptr<Entity> and would need a dynamic_cast back to Boss
+    // just to hand it the arena it cannot be a fight without.
+    auto bowser = std::make_unique<Bowser>(sf::Vector2f((leftX + 4) * TS, (bridgeRow - 2) * TS));
+    bowser->setArena(AABB{leftX * TS, 0.0f,
+                          BOSS_ARENA_TILES * TS,
+                          config.height * TS});
+    entities.push_back(std::move(bowser));
+
+    // The axe sits on the far ledge, past the bridge and inside the arena — the
+    // player has to get THROUGH the fight to reach it, which is the point of it.
+    auto axe = EntityFactory::create(EntityType::BridgeAxe,
+                                     sf::Vector2f((rightPostX + 1) * TS, postRow * TS));
+    if (axe) entities.push_back(std::move(axe));
+
+    std::cout << "[MapGenerator] Boss arena at tiles " << leftX << "-"
+              << (leftX + BOSS_ARENA_TILES - 1) << " (bridge " << trenchFirst << "-"
+              << trenchLast << " over lava, axe at " << (rightPostX + 1) << ")" << std::endl;
 }
 
 void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, MapTheme theme, MapDifficulty difficulty, const std::string& returnLevelPath, sf::Vector2f returnPosition, unsigned int seed) {
@@ -447,7 +630,15 @@ bool MapGenerator::generateSolvable(TileMap& tileMap, std::vector<std::unique_pt
         generate(tileMap, entities, attemptConfig);
 
         const int startTileX = 3;
-        const int endTileX = std::max(startTileX + 1, attemptConfig.width - 15);
+        // Three tiles short of the right edge, not `width - 15`.
+        //
+        // `width - 15` is exitX — the column the flagpole stands in — and the
+        // BFS returns as soon as it reaches its goal, so everything from there
+        // on was never examined at all: the victory staircase, the flagpole
+        // approach, the castle apron, and (since R21) the boss arena, its lava
+        // trench and its bridge. The whole point of the check is that the
+        // player can reach the END, and the end is the right-hand edge.
+        const int endTileX = std::max(startTileX + 1, attemptConfig.width - 3);
         if (LevelSolvability::isPathReachable(tileMap, entities, startTileX, endTileX)) {
             if (attempt > 0) {
                 std::cout << "[MapGenerator] Solvability check passed on attempt "

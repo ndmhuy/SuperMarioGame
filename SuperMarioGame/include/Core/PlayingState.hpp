@@ -269,6 +269,11 @@ private:
 
     std::unique_ptr<Hud> m_hud;
     float m_levelTimer = Constants::LEVEL_TIME;
+    // Simulated seconds since the level began, independent of the countdown.
+    // Endless Mode and the FREEZE TIMER cheat both stop m_levelTimer without
+    // stopping the run, so anything that needs "how long has this been going"
+    // — Shadow Mario's replay clock — has to ask this instead.
+    float m_runElapsed = 0.0f;
     bool  m_timeWarningFired = false;
 
     // Level completion (flagpole -> walk to the castle door -> short celebration -> advance)
@@ -454,6 +459,11 @@ private:
     float m_endlessBestDistanceTiles = 0.0f;
     static constexpr int ENDLESS_CHUNK_TILES = 100;
     static constexpr int ENDLESS_LOOKAHEAD_TILES = 40;
+    // Every fifth chunk — roughly every 500 tiles — carries a real Bowser
+    // encounter, and no other chunk carries a boss at all. Five because it is
+    // far enough apart to be a milestone the run builds towards and near enough
+    // that a good run meets several.
+    static constexpr int ENDLESS_BOSS_CHUNK_INTERVAL = 5;
     void extendEndlessLevelIfNeeded();
 
     // Sprite Sheet Atlases (owned by PlayingState)

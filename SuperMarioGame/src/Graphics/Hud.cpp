@@ -159,7 +159,11 @@ void Hud::sync(const HudData& data) {
     // 4. Time left countdown (Y=60, Center-Right)
     char timeBuf[32];
     std::snprintf(timeBuf, sizeof(timeBuf), "%03d", m_curData.timeLeft);
-    m_timeLeftText.setString(timeBuf);
+    // "---" rather than a number for a level with no countdown: a static "300"
+    // is indistinguishable from a clock that has stopped working, and PressStart2P
+    // has no infinity glyph to say it more elegantly.
+    m_timeLeftText.setString(m_curData.timeUnlimited ? std::string("---")
+                                                      : std::string(timeBuf));
     m_timeLeftText.setPosition(sf::Vector2f(820.f, 60.f));
 
     // 5. Lives count: x  9 (Y=60, Left)

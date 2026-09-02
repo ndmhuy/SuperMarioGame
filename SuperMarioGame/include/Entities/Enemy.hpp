@@ -30,6 +30,10 @@ public:
     void setStrategy(std::unique_ptr<IMovementStrategy> strategy);
     IMovementStrategy* getStrategy() const;
 
+    // An anchored strategy steers its enemy back to a fixed point, so relocating
+    // the enemy has to relocate that point too or the next tick undoes the move.
+    void translate(sf::Vector2f delta) override;
+
     // Virtual interaction handlers
     virtual void onStomped() = 0;
     virtual void onHitByFireball() = 0;

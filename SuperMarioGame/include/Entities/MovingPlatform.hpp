@@ -40,6 +40,19 @@ public:
     // re-probes the terrain and re-derives the clamp.
     sf::Vector2f getTravelRange() const { return m_travelRange; }
 
+    // update() drives the platform to m_startPos + m_travelRange * m_progress
+    // every frame, so moving it without moving its anchor is undone on the very
+    // next tick — deterministically, not intermittently. The terrain probe is
+    // deliberately left un-latched: the platform is standing over different
+    // tiles now, so the sweep it had shortened itself to no longer applies.
+    void translate(sf::Vector2f delta) override {
+        m_startPos += delta;
+        m_minProgress = 0.0f;
+        m_maxProgress = 1.0f;
+        m_terrainProbed = false;
+        Block::translate(delta);
+    }
+
 private:
     // The platform's footprint if it stood at `pos`, for probing a destination
     // before committing to it.
