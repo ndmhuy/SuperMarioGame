@@ -1083,48 +1083,154 @@ outside the arena's boundary. A procedure that only ever confirms its own findin
 this one is allowed to say it was wrong, and did.</p>
 
 <h2 id="verify">13 &middot; Verification, CI and known gaps</h2>
-<p>The tree holds {F['harnesses']} verification harnesses. {F['targets']} are built by CMake and
-{F['ctests']} of those are registered as CTest cases and run by GitHub Actions on every push to the
-integration branches &mdash; the difference is the harnesses that open a window and cannot run on a
-headless runner, which are compiled but not executed there. The registered suite is currently
-{F['ctests']}/{F['ctests']} green, with 504 individual checks in the regression binary alone at the last logged run. Cases are added whenever a defect escapes to the audit stage, so the suite is a
-record of every bug the project has shipped.</p>
-<p>The suite is hermetic (R11, docs/issues/spec_feature_audit_2026-08-31.md): every harness's
-<code>main()</code> opens a <code>TestSaveSandbox</code> (<code>tests/TestSaveSandbox.hpp</code>) that
-points <code>Serializer::setSaveDirectory()</code> at a throwaway per-process temp directory before any
-other code runs, so nothing under test can reach the developer's real <code>saves/</code>. That the seam
-exists is not proof every harness uses it correctly, so <code>guard_saves_hermeticity</code>
-(<code>tests/guard_saves_hermeticity.cpp</code>) checks it empirically: a CTest fixture named
-<code>saves_hermeticity</code> snapshots the content of the real <code>saves/</code> directory before any
-verify_* case runs and re-snapshots it after every one has finished, failing the run if a single byte
-differs or a file was added or removed. Verified by mutation, not merely by a green run: disabling one
-harness's sandbox line reproduced the original incident &mdash; the guard caught both a rewritten
-<code>config.json</code> and a newly created <code>profile.json</code> &mdash; and re-enabling it turned
-the guard green again on the next run.</p>
-<h3>What is not done</h3>
+<p>The tree holds {F['harnesses']} verification harnesses; {F['targets']} of them are built by CMake,
+and the {F['ctests']} registered as CTest cases are run by GitHub Actions on every push to the
+integration branches. Not every harness is registered: those that open a window cannot run on a
+headless runner, so they are compiled but not executed there &mdash; "number of test files" and
+"number of things CI runs" are different figures, and reporting the first as the second would
+overstate what is verified automatically. Alongside the harnesses, CMake registers the standalone
+hygiene guards <code>guard_saves_hermeticity</code> and <code>guard_asset_single_source</code>,
+which check the repository rather than the gameplay. Cases are added whenever a defect escapes to an
+audit, so the suite is a record of every bug the project has shipped rather than a plan someone
+wrote in advance.</p>
+<p>The suite is hermetic (R11, <code>docs/issues/spec_feature_audit_2026-08-31.md</code>): every
+harness's <code>main()</code> opens a <code>TestSaveSandbox</code>
+(<code>tests/TestSaveSandbox.hpp</code>) that points <code>Serializer::setSaveDirectory()</code> at
+a throwaway per-process temp directory before any other code runs, so nothing under test can reach
+the developer's real <code>saves/</code>. That the seam exists is not proof every harness uses it
+correctly, so <code>guard_saves_hermeticity</code>
+(<code>tests/guard_saves_hermeticity.cpp</code>) checks it empirically: a CTest fixture snapshots
+the content of the real <code>saves/</code> directory before any <code>verify_*</code> case runs and
+re-snapshots it after every one has finished, failing the run if a single byte differs or a file was
+added or removed. Verified by mutation, not merely by a green run: disabling one harness's sandbox
+line reproduced the original incident &mdash; the guard caught both a rewritten
+<code>config.json</code> and a newly created <code>profile.json</code> &mdash; and re-enabling it
+turned the guard green again on the next run.</p>
+
+<h3>13.1 Known gaps</h3>
+<p>What follows is the honest state of the project on the day it was submitted, grouped by the kind
+of gap rather than by severity. It is written to the project's own definition of complete
+(&sect;12.2): reasoning about code is not observation of it, so anything verified only by reasoning
+is listed here even where the reasoning is sound.</p>
+
+<h4>Claims this project cannot verify with the environments it has</h4>
 <ul>
-<li><strong>No 3D renderer.</strong> The 5-point rubric line is forfeited, deliberately (&sect;4).</li>
-<li><strong>The Windows crash fix is not confirmed on Windows.</strong> Both verification runs were on
-macOS, where the bug was already invisible. They show the fix breaks nothing; the argument that it cures
-the crash is the analysis in &sect;10.1. A Windows playtest of 1-3 is the outstanding confirmation.</li>
-<li><strong>The rebalanced Bowser fight is unplaytested.</strong> The stagger cost (four fireballs) and
-its duration (three seconds) are reasoned, not measured against a player.</li>
-<li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against {F['harnesses']} test
-harnesses in the tree (86 written over the project's history) is the project's standing imbalance, and
-the reason several of the defects in &sect;10 survived as long as they did.</li>
-<li><strong>World 1-3 plays the wrong background music.</strong> <code>SoundManager::playLevelBGM</code>
-maps catalog index 2 to the underwater theme, but index 2 is Bowser's Castle &mdash; the registered
-castle track is never played as level BGM. Found by the August 31 documentation audit; open.</li>
-<li><strong>One graphics subsystem is still inert.</strong> <code>AnimationManager</code> compiles and
-passes its harness but is constructed by nothing reachable from <code>main()</code> &mdash; the last
-survivor of the six-inert-subsystems finding (&sect;10.5).</li>
-<li><strong>The solvability oracle does not gate shipping.</strong> If all bounded reseed attempts fail,
-<code>MapGenerator::generateSolvable</code> keeps the last unverified layout and logs the failure; both
-call sites discard the return value. "Checked with retries" is true; "verified before shipping" is not.</li>
-<li><strong>Six implemented enemy types never appear in the shipped campaign.</strong> Koopa Paratroopa,
-Boo, Bullet Bill, Thwomp, Chain Chomp and Lakitu are fully functional and editor-placeable, but no
-campaign level file uses them &mdash; and no shipped level places a hidden block, which also leaves the
-<code>secret_finder</code> achievement unreachable in the campaign.</li></ul>
+<li><strong>No 3D renderer.</strong> The rubric's 5-point line is forfeited, deliberately and with
+the trade-off argued in &sect;4.</li>
+<li><strong>The Windows platform claim is unconfirmed, and will stay that way.</strong> CI runs on
+<code>ubuntu-latest</code> only (<code>.github/workflows/ci.yml</code>), and no session in this
+project's history has had a Windows or MSVC environment. The crash's <em>fix</em> is independently
+verified: the undefined-behaviour analysis in
+<code>docs/learning/mid-frame-entity-spawn-crash.html</code> plus scripted runs that hold World 1-3
+through Bowser's fireballs without a crash on macOS. What is unconfirmed is specifically the claim
+that a Windows build was produced and run &mdash; a log entry asserting one was struck as
+unsubstantiated during the 31 August audit, because it modified no source and no build
+configuration and there has never been Windows CI that could have produced it. The honest status is
+the earlier entry's: not confirmed on Windows.</li>
+</ul>
+
+<h4>A defect neither fixed nor dismissed</h4>
+<ul>
+<li><strong>The death-sound complaint is not demonstrable as worded.</strong> The playtest
+observation was that the death SFX is cut off by the respawn transition. Investigated:
+<code>lost_life.wav</code> runs 3.267&nbsp;s, longer than any fall-plus-respawn window; no code
+stops it; the channel pool only reuses channels that have already stopped; and it plays on over the
+resumed BGM. So the stated mechanism is absent from the code, while the observation itself came from
+someone who was listening. It is recorded as <em>neither fixed nor invalid</em>, and it needs
+someone with working audio to characterise what was actually heard. Quietly closing it as "cannot
+reproduce" would have been the dishonest option.</li>
+</ul>
+
+<h4>Verification that stops short of observation</h4>
+<ul>
+<li><strong>Four level-placed Spiny hatches are unit-tested, not observed.</strong> A
+<code>Spiny</code> now starts as an egg by default, which was necessary because every production
+construction path used the one-argument constructor and so produced a Spiny already walking in
+mid-air. That default also changes behaviour for four placements in the shipped campaign &mdash;
+three in <code>level_2.json</code>, one in <code>level_3.json</code> &mdash; and those four were
+<em>not</em> watched in a live run. They are covered by a mutation-tested post-condition (a Spiny
+built the way <code>LevelLoader</code> builds one must reach the walking state once grounded, which
+asserts the outcome rather than the default, so the test cannot license the bug it guards). Reading
+<code>Spiny::update()</code> shows an egg resting on ground hatches on its first grounded update
+&mdash; but that is reasoning, and this project's rule is explicit that reasoning is not
+observation.</li>
+<li><strong>The Bowser stagger is observed but not tuned.</strong> Four fireballs and a three-second
+window (<code>Bowser::FIRE_HITS_PER_STAGGER</code>, <code>STAGGER_SECONDS</code>) were watched
+firing live &mdash; the counter running 1 to 4, the HUD switching to the stomp prompt, contact
+refused while he guards. What no run measures is whether those two numbers are <em>right</em> for a
+human player. They are reasoned and observed, not balanced.</li>
+<li><strong>Playtest coverage still lags harness coverage.</strong> The 18 August audit named this
+imbalance and it has narrowed rather than closed: the log now records live scripted runs across
+every shipped world, driven by committed input scripts, but the harnesses still outnumber the
+recorded sessions by a wide margin. Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was
+invisible to the test suite and obvious within seconds of watching the game run. The suite is not
+the problem &mdash; it is what makes the fixes stick &mdash; but it only verifies what someone
+already thought to doubt.</li>
+<li><strong>No sanitizer job in CI.</strong> AddressSanitizer would have found &sect;10.1 on its
+first run. The suite is now hermetic, which is the precondition for adding one; nothing else blocks
+it.</li>
+</ul>
+
+<h4>Performance left on the table, measured rather than guessed</h4>
+<ul>
+<li><strong><code>PhysicsEngine::update()</code> is not distance-gated.</strong> It runs five loops
+over every entity, every frame, however far behind the camera that entity is. The off-camera freeze
+that Endless Mode needed landed on the game-state side of the update instead, and its own
+measurements are the reason this entry exists: at the third appended chunk, 23 of 90 entities were
+frozen while the deliberate exemptions accounted for 43 &mdash; a real but modest win whose
+dominant term is the exemption list, not the gate. <code>PhysicsEngine.cpp</code> sat outside that
+lane's file budget and is the larger remaining cost. Deferred with the census counters left in
+place, so whoever takes it can measure the result instead of asserting one.</li>
+</ul>
+
+<h4>Design trade-offs accepted rather than fixed</h4>
+<p>These are decisions, not oversights, and &sect;6 argues each one on its merits with the code that
+motivates it. They are repeated here because a known cost belongs in the list of known gaps.</p>
+<ul>
+<li><strong><code>PlayingState</code> is a god class</strong> &mdash; the largest file in the
+project by a wide margin, carrying level load, spawning, physics orchestration, camera, HUD sync,
+boss arenas, two-player, rewind, pipes, cheats, the editor bridge and endless chunk extension. Five
+subsystems have already been extracted from it; the remaining decomposition was not attempted in
+submission week, because a refactor of the file every other lane was editing is the wrong change to
+make under a deadline.</li>
+<li><strong>Twelve singletons, not four.</strong> The specification claims four; the code has twelve
+reached from across the tree. &sect;6 owns the real number and argues the construction-order
+rationale rather than restating the claim.</li>
+<li><strong>Friend sprawl.</strong> <code>Entity</code> and <code>Character</code> each grant twelve
+friend declarations, giving the physics engine, the collision resolver, <code>PlayingState</code>
+and the movement strategies direct write access to protected state. Formally accepted as a
+deliberate trade-off in <code>SPEC.md</code> &sect;22 with its rationale; the alternative was a
+mutator interface wide enough to be equivalent.</li>
+<li><strong>The <code>IPlayerState</code> axis is paid for and under-used.</strong> Four of its five
+forms have empty bodies and the forms differ only by the size they report; only the cape form
+carries behaviour. Real per-form behaviour lives in the Decorator layer instead. Two axes were
+built; one of them does most of the work.</li>
+<li><strong><code>GameSnapshot</code> is a fully public aggregate.</strong> A C++ Memento written as
+a plain <code>struct</code> has no narrow interface, so the Originator's internals are readable
+anywhere the type is. A common simplification, and still a weakened encapsulation boundary.</li>
+</ul>
+
+<h4>Specification items that were not built</h4>
+<ul>
+<li><strong>The descope list is explicit and dated.</strong> <code>SPEC.md</code> &sect;21 carries a
+"Descope Addendum (2026-08-31)" naming every specified feature that will not be implemented, each
+with a reason: dynamic music layers, autoscroll sections, timed bonus rooms, climbing, swimming as a
+distinct state, the skid and hover-pause mechanics, knockback input-lock, red enemy variants, the
+cape swoop, the Mini form's abilities, the character-switch hotkey, floating score text, extra
+object pools, A* pathfinding and split-screen speedrun. The addendum exists because the audit found
+the alternative in progress: features quietly missing from the code while the documents still
+claimed them. One entry has since been <em>un</em>-descoped &mdash; the GLSL lighting and weather
+line, because the shader was subsequently built for real (weather remains out of scope) &mdash;
+which is worth more than the list itself, since it shows the addendum is maintained rather than
+written once.</li>
+<li><strong>The solvability oracle records its own failure but does not gate on it.</strong> If
+every bounded reseed attempt fails, <code>MapGenerator::generateSolvable</code> keeps the last
+unverified layout and returns <code>false</code>. All three call sites do consume that result: they
+set an <code>m_lastLevelUnverified</code> flag, warn on standard error, and the dev panel reports
+"layout unverified" in its generator section. What no caller does is <em>refuse to play the
+level</em>. "Checked with retries, and told when the check failed" is true; "verified before
+shipping" is not.</li>
+</ul>
 
 <h2 id="conclusion">14 &middot; Conclusion and future work</h2>
 <p>The project delivers a complete, playable platformer whose value as coursework lies in its
