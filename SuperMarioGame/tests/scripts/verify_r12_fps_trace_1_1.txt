@@ -1,6 +1,12 @@
 # R12 (f) — a 60-second FPS trace of World 1-1, read from the same readout
-# Game.cpp:176 prints to the "Super Mario Engine Dev Tools" ImGui panel
+# Game.cpp prints to the "Super Mario Engine Dev Tools" ImGui panel
 # ("Application Average: %.3f ms/frame (%.1f FPS)").
+#
+# PREREQUISITE SINCE R21 (defect 12): that panel is now gated on debug mode,
+# which is OFF by default. Before running this script, either set
+# "debugMode": true in saves/config.json, or start the game, open
+# OPTIONS > DEBUG MODE and turn it on — it persists. Without that the panel is
+# never drawn and every shot below is blank where the FPS number should be.
 #
 # The panel ships collapsed by default (ImGuiCond_FirstUseEver in Game.cpp), and
 # this harness has no mouse, so it cannot click the collapse arrow. Instead the

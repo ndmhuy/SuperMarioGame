@@ -10,6 +10,11 @@ QuestionBlock::QuestionBlock(sf::Vector2f position, int itemType)
     m_breakable = false;
 }
 
+void QuestionBlock::setContents(int itemType) {
+    if (itemType < Content::Coin || itemType > Content::OneUp) return;
+    m_containedItemType = itemType;
+}
+
 void QuestionBlock::onHitFromBelow(Player& player) {
     if (!m_isHit) {
         m_isHit = true;

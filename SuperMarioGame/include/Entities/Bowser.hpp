@@ -58,8 +58,12 @@ private:
     // Fireballs absorbed since the last stagger. Reset when the window opens,
     // so the cost of each opening is the same all through the fight.
     int m_fireHits = 0;
-    // Bowser paces between these two x values. Set from the arena when one is
-    // assigned, so level design controls the pacing width.
+    // Bowser paces between these two x values, and is hard-clamped to them.
+    // Derived from the arena when one is assigned, so level design controls the
+    // pacing width — and re-derived every frame in that case, because
+    // returnToArenaSpawn() moves him without telling him and a stale bound
+    // would clamp him to the wrong room. m_patrolInitialised latches only the
+    // arena-less fallback, which is relative to his own position.
     float m_patrolLeft = 0.0f;
     float m_patrolRight = 0.0f;
     bool m_patrolInitialised = false;

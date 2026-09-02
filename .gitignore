@@ -47,3 +47,23 @@ Report/SuperMarioGame/img/*.pdf
 # build outputs, the originals are the tracked ones.
 Report/SuperMarioGame/img/*.png
 !Report/SuperMarioGame/img/hcmus-logo.png
+
+# The one and only level/asset tree is SuperMarioGame/assets/. A second tree at
+# the repository root used to be created by tools/generate_game_levels.cpp and
+# won path resolution whenever the game was launched from here, silently serving
+# stale levels (all themes flattened to "overworld", half pipes, Brick sub-level
+# floors a P-Switch could delete under the player). The dual-write is gone; this
+# anchored rule makes sure a stray recreation can never be committed.
+/assets/
+
+# Per-lane build trees from parallel agent work (build_r21_lane_a/ etc). The
+# canonical build dir is already ignored above; these are the same thing under
+# a different name and must never be committed.
+SuperMarioGame/build_*/
+
+# Levels authored in the in-game level editor. They are somebody's own content,
+# written to SuperMarioGame/assets/levels/custom/ so the game can find and play
+# them (LevelCatalog::customLevels) — not part of the shipped campaign, and not
+# something one developer's scratch level should arrive in another's checkout.
+# The directory is recreated on demand by LevelCatalog::resolvedCustomDirectory.
+SuperMarioGame/assets/levels/custom/

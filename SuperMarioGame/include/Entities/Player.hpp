@@ -161,7 +161,10 @@ public:
     void endDeathFall() { m_dying = false; }
     void moveLeft() override;
     void moveRight() override;
-    bool collidesWithTiles() const override { return !m_dying; }
+    // Out of line because both now consult Debug > Cheats' NOCLIP as well as the
+    // death fall, and a header cannot reach Game from here.
+    bool collidesWithTiles() const override;
+    float getGravityMultiplier() const override;
     bool isCollidable() const override { return !m_dying; }
 
     // --- Cape ---------------------------------------------------------------

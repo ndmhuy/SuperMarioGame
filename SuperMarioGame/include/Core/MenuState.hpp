@@ -30,7 +30,7 @@ public:
 
 private:
     // Which list the keyboard is currently driving.
-    enum class Page { Main, Generator, Multiplayer, Load };
+    enum class Page { Main, Generator, Multiplayer, Load, CustomLevels };
 
     // Rows of the generator submenu, in display order.
     enum class GenRow { Theme, Difficulty, PitProbability, PipeFrequency,
@@ -45,6 +45,9 @@ private:
 
     // Rows of the Load Game submenu: one per save slot, plus a way back out.
     enum class LoadRow { Slot1, Slot2, Slot3, Back, COUNT };
+
+    // The Custom Levels page has no fixed row enum: its length is however many
+    // levels the author has written, plus a BACK row that is always last.
 
     void moveSelection(int delta);
     void adjustSelection(int direction);
@@ -64,11 +67,19 @@ private:
     void refreshSlotPreviews();
     std::vector<UiMenuItem> buildLoadItems() const;
 
+    // The author's own levels, re-scanned every time the page opens — a level
+    // saved from the editor a moment ago has to be playable without a restart.
+    // This is the route from "I made a level" to "I am playing my level" that
+    // did not exist at all: MapEditor wrote to saves/ and nothing ever looked
+    // there.
+    std::vector<UiMenuItem> buildCustomLevelItems() const;
+
     Page m_page = Page::Main;
     int m_mainSelected = 0;
     int m_genSelected = 0;
     int m_mpSelected = 0;
     int m_loadSelected = 0;
+    int m_customSelected = 0;
     float m_elapsed = 0.0f;
 
     // F5 attract mode (SPEC 10.2). Seconds since the last key this menu

@@ -1,0 +1,60 @@
+# R21 Lane E - Playtest (F5) out of the editor and back, then the in-game F1
+# editor that PlayingState still hosts.
+#
+# The F5 route is the "how do I play it" answer that needs no menu trip: the
+# level is round-tripped through a scratch file (so the playtest proves the file
+# will load, not just the in-memory state) and the run is pushed OVER the
+# editor, so quitting it pops back to the level still being authored rather than
+# stranding it under a main menu.
+#
+#   ./build_r21_lane_e/SuperMarioGame --script tests/scripts/verify_r21e_playtest_and_f1.txt
+
+wait 1.5
+
+# MAP EDITOR, then open World 1-1 so the playtest has a real level to run.
+press Down
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 1.5
+press O ctrl
+wait 0.8
+press Enter
+wait 1.5
+
+# F5: playtest.
+press F5
+wait 2.5
+shot r21e_20_playtest_running
+hold D 1.2
+wait 2.0
+shot r21e_21_playtest_moving
+
+# Esc opens the pause overlay; QUIT TO MENU is its fifth row and, for a
+# playtest, pops back to the editor.
+press Escape
+wait 0.8
+press Down
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 1.5
+shot r21e_22_back_in_editor
+
+# And the in-game F1 editor over a normal run, which must still work.
+press Escape
+wait 1.2
+press Enter
+wait 1.0
+press Enter
+wait 1.5
+press Enter
+wait 3.0
+press F1
+wait 1.0
+shot r21e_23_f1_ingame_editor
+quit

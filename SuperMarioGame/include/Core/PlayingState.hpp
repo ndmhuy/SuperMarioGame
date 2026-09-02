@@ -13,6 +13,9 @@
 #include "Graphics/Minimap.hpp"
 #include "Graphics/ParticleEmitter.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/LightingRenderer.hpp"
+#include "Graphics/TileMapRenderer.hpp"
+#include "Graphics/EntityArtBinder.hpp"
 #include "Core/TimeRewindManager.hpp"
 #include "Core/DevPanel.hpp"
 #include "Utils/Constants.hpp"
@@ -61,11 +64,23 @@ public:
     // site. It is always constructed with plain defaults for everything else
     // (SinglePlayer, not endless) by MenuState's idle timer, so it can never be
     // an Endless or versus run.
+    // `customLevelPath` plays a level that is not part of the campaign — one
+    // authored in the editor, listed by LevelCatalog::customLevels(). When it is
+    // set, setupTestScene() loads THAT file instead of pathFor(levelIndex), and
+    // advanceToNextLevel() treats the run as a one-off rather than walking into
+    // World 1-2. Without it an authored level could be saved and never played,
+    // because PlayingState only ever knew how to load a campaign index.
+    // `isPlaytest` says this run was PUSHED over an editor rather than started
+    // from a menu, so leaving it must pop back to the editor. Quitting with
+    // changeState() would replace this state and leave the editor stranded
+    // underneath a main menu with the author's unsaved level still in it.
     explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
                           const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
                           int characterIndex = 0, int levelIndex = 0,
                           MatchConfig match = MatchConfig{}, bool isEndless = false,
-                          int pendingLoadSlot = 0, bool isAttractDemo = false);
+                          int pendingLoadSlot = 0, bool isAttractDemo = false,
+                          std::string customLevelPath = std::string(),
+                          bool isPlaytest = false);
     ~PlayingState() override;
 
     void enter() override;
@@ -95,6 +110,13 @@ private:
     // into the next level) — narrower than adding getters nothing else would
     // ever call, the same tradeoff DevPanel's friendship above already makes.
     friend class LevelCompletionCameraTestHooks;
+
+    // tests/verify_r21_debug_cheats.cpp reaches the void plane, the level clock,
+    // the camera and rescueDestination() to prove Debug > Cheats' IMMORTAL
+    // rescues a player out of a pit instead of killing them — the same tradeoff
+    // as the friend above, and for the same reason: none of it is worth a public
+    // getter that only a test would ever call.
+    friend class DebugCheatsTestHooks;
 
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
@@ -240,6 +262,10 @@ private:
     // scores and the lead in versus, a shared pool in co-op, the delay gauge in
     // Shadow Chase.
     void renderMatchHud(sf::RenderTarget& target) const;
+    // Bonus D. Collects this frame's lamps -- the players, every live fireball --
+    // and hands them to the shader pass. Called between the world and the HUD so
+    // an underground level goes dark without the score bar going with it.
+    void renderLightPass(sf::RenderTarget& target);
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
     int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
@@ -248,6 +274,11 @@ private:
 
     std::unique_ptr<Hud> m_hud;
     float m_levelTimer = Constants::LEVEL_TIME;
+    // Simulated seconds since the level began, independent of the countdown.
+    // Endless Mode and the FREEZE TIMER cheat both stop m_levelTimer without
+    // stopping the run, so anything that needs "how long has this been going"
+    // — Shadow Mario's replay clock — has to ask this instead.
+    float m_runElapsed = 0.0f;
     bool  m_timeWarningFired = false;
 
     // Level completion (flagpole -> walk to the castle door -> short celebration -> advance)
@@ -279,6 +310,37 @@ private:
     // null is treated as Player 1 so the debug key and the older callers keep
     // meaning what they always meant.
     void killPlayer(Player* who, const char* reason);
+
+    // --- Debug > Cheats: IMMORTAL --------------------------------------------
+    //
+    // What killPlayer() does instead when the run may not end. Suppressing the
+    // kill on its own would be WORSE than the death it replaces: the player
+    // drops through the floor and keeps falling forever with nothing to catch
+    // them. So the lethal event is converted into a rescue.
+    //
+    // This is the same shape commit 95521a8 gave bosses for the identical
+    // problem — Entity::onLeftLevel() -> Boss::returnToArenaSpawn() exists
+    // because a boss that left the level fell forever. The player simply never
+    // had the equivalent.
+    void rescuePlayer(Player* who, const char* reason);
+
+    // Where a rescue puts `who`, in preference order: solid ground in the column
+    // they fell from (so they keep their place in the level, which is what
+    // matters mid-take), then the last checkpoint, then the level spawn. Only
+    // positions isSpawnUsable() accepts are offered.
+    sf::Vector2f rescueDestination(const Player* who) const;
+
+    // --- Debug > Cheats: FREE CAMERA -----------------------------------------
+    //
+    // Pans the detached camera with WASD/arrows, the same keys and speed
+    // MapEditor::handlePanning() uses — the editor's free camera is the
+    // behaviour a recorder already knows.
+    void updateFreeCamera(float dt);
+
+    // Debug > Cheats' "Kill all enemies on screen" button. Routed through the
+    // same onStomped() the POW block uses, so the enemies play their real defeat
+    // rather than blinking out of existence.
+    void clearOnScreenEnemies();
     // Clear enemies sitting on a respawn point and grant landing invincibility,
     // so coming back to life is not immediately fatal.
     void makeSpawnSafe(Player* who, sf::Vector2f respawn);
@@ -343,6 +405,14 @@ private:
 
     bool m_startInEditor = false;
     bool m_isProcedural = false;
+    // Set only for a one-off custom level; empty for every campaign run.
+    std::string m_customLevelPath;
+    // True when an EditorState pushed this run; see the constructor's doc.
+    bool m_isPlaytest = false;
+
+    // Leave this run the way it was entered: pop back to the editor for a
+    // playtest, replace with the main menu otherwise.
+    void leaveToCallingScreen();
     MapGeneratorConfig m_genConfig;
 
     // Guards exit() against running twice per transition: GameStateManager
@@ -394,6 +464,11 @@ private:
     float m_endlessBestDistanceTiles = 0.0f;
     static constexpr int ENDLESS_CHUNK_TILES = 100;
     static constexpr int ENDLESS_LOOKAHEAD_TILES = 40;
+    // Every fifth chunk — roughly every 500 tiles — carries a real Bowser
+    // encounter, and no other chunk carries a boss at all. Five because it is
+    // far enough apart to be a milestone the run builds towards and near enough
+    // that a good run meets several.
+    static constexpr int ENDLESS_BOSS_CHUNK_INTERVAL = 5;
     void extendEndlessLevelIfNeeded();
 
     // Sprite Sheet Atlases (owned by PlayingState)
@@ -413,6 +488,21 @@ private:
     // Parallax backdrop (task 5.5). Before this the window was cleared to a flat
     // cornflower blue and every level looked identical behind the geometry.
     BackgroundRenderer m_background;
+
+    // Bonus D -- the GLSL darkness pass (SPEC §19.4). Owns its shader and
+    // latches "this machine has no GLSL" so a driver without it costs one
+    // stderr line, not one per frame. The theme it darkens for comes from
+    // m_background, so the level file's "theme" field drives both.
+    LightingRenderer m_lighting;
+
+    // How a TileType becomes a sprite. Mutable because render() is where the
+    // sheet and theme are pushed into it and render() is const-correct about
+    // nothing else it touches either; keeping it a member rather than a local
+    // avoids rebuilding it 60 times a second.
+    mutable TileMapRenderer m_tileMapRenderer;
+
+    // Which atlas each entity class draws from. Shared with EditorState.
+    mutable EntityArtBinder m_artBinder;
 
     std::array<bool, 3> m_starCoinsCollected = {false, false, false};
     EventBus::ScopedSubscription m_starCoinSub;
@@ -456,6 +546,21 @@ private:
     // The world y of the first solid tile's top surface at or below `from`, or a
     // negative value when the column is empty all the way down.
     float floorBelow(float worldX, float fromWorldY) const;
+
+    // Whether a player can be put down at `topLeft` without being buried.
+    //
+    // Requires all three of: inside the map; the 32x32 box a small player
+    // occupies clear of solid tiles; and a floor somewhere beneath that box.
+    bool isSpawnUsable(sf::Vector2f topLeft) const;
+
+    // `desired` if isSpawnUsable() accepts it, otherwise the nearest position on
+    // the same row that it does accept, otherwise `desired` unchanged (with a
+    // complaint on stderr — there is nothing better to offer).
+    //
+    // Every level transition goes through this: pipe warps, the flagpole
+    // advancing to the next level, level select, and LOAD GAME.
+    sf::Vector2f usableSpawnNear(sf::Vector2f desired, const std::string& levelPath) const;
+
 
     // Somewhere the given player can come back that is on screen and on solid
     // ground.
@@ -555,5 +660,24 @@ private:
 
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet
     void wireEntityAnimations(Entity* entity);
+
+    // The way MapEditor reaches this state's own bookkeeping.
+    //
+    // A nested adapter rather than making PlayingState itself an
+    // IEntityAdmitter: admitEntity() and forgetEntity() stay private, and
+    // nothing outside this class gains the ability to call them. The editor
+    // mutates m_entities directly, so without this an entity it placed never
+    // had setupAnimations() run (it drew as a flat placeholder box) and an
+    // entity it erased left m_player, InputManager and Game holding freed
+    // memory.
+    class EditorBridge : public IEntityAdmitter {
+    public:
+        explicit EditorBridge(PlayingState& owner) : m_owner(owner) {}
+        void admit(Entity* entity) override { m_owner.admitEntity(entity); }
+        void release(Entity* entity) override { m_owner.forgetEntity(entity); }
+    private:
+        PlayingState& m_owner;
+    };
+    EditorBridge m_editorBridge{*this};
 };
 

@@ -70,7 +70,8 @@ float Peach::getGravityMultiplier() const {
     if (m_isHovering) {
         return 0.0f;
     }
-    return 1.0f;
+    // Same reasoning as Luigi's: the base carries NOCLIP's zero-gravity answer.
+    return Player::getGravityMultiplier();
 }
 
 float Peach::getRunSpeed() const {

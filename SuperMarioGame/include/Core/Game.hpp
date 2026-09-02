@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SFML/Window/Mouse.hpp>
+
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <memory>
 #include <optional>
@@ -7,6 +9,7 @@
 #include <string>
 #include "Core/GameStateManager.hpp"
 #include "Core/DifficultyStrategy.hpp"
+#include "Core/DebugCheats.hpp"
 #include "Core/GameMode.hpp"
 #include "Utils/InputScript.hpp"
 
@@ -36,6 +39,24 @@ public:
 
     // Map mouse position to coordinates safely (Encapsulation)
     sf::Vector2f getMouseWorldPosition(const sf::View& view) const;
+
+    // Mouse position in WINDOW pixels, or (-1,-1) when there is no window.
+    //
+    // The editor needs this as well as the world position: whether a click is
+    // over the canvas or over a panel is a screen-space question, and asking
+    // ImGui instead (io.WantCaptureMouse) reads a frame stale here — the state
+    // machine updates before ImGui::SFML::Update does.
+    sf::Vector2f getMousePixelPosition() const;
+
+    // Whether `button` is down, from the SCRIPT's pointer when one is driving
+    // and from the real mouse otherwise.
+    //
+    // The level editor is the only mouse-driven screen in the game, so it was
+    // the only one a --script verification run could not exercise at all
+    // (directive 10). Polling through here rather than sf::Mouse directly is
+    // what lets a script place a Goomba; nothing else in the game polls the
+    // mouse, so nothing else is affected.
+    bool isMouseButtonDown(sf::Mouse::Button button) const;
 
     // Game State stack wrappers (Encapsulation of GameStateManager)
     void pushState(std::unique_ptr<IGameState> state);
@@ -110,6 +131,32 @@ public:
     bool getColorblindMode() const { return m_colorblindMode; }
     void setColorblindMode(bool enabled) { m_colorblindMode = enabled; }
 
+    // Whether the ImGui developer surfaces are drawn at all. Off by default and
+    // persisted like every other setting, because six of the ten ImGui windows
+    // had no flag, no compile guard and no keybinding: the engine Dev Tools
+    // panel was up in every state including the main menu of a release build,
+    // and Num1..Num9 fired achievement events in every gameplay frame.
+    //
+    // Deliberately does NOT gate the Mario Maker level editor (F1) or the debug
+    // console (backtick): the editor is a shipped feature and the console owns
+    // its own visibility flag.
+    bool getDebugMode() const { return m_debugMode; }
+    // Arms or disarms the cheats with the flag, so turning debug mode off in
+    // Options cannot leave an immortal player behind in the level underneath it.
+    void setDebugMode(bool enabled);
+
+    // The Debug > Cheats switches — immortality, slow motion, hidden HUD.
+    //
+    // Handed out as a reference rather than proxied through nine pairs of
+    // delegating accessors on Game (directive 5's "avoid unnecessary, trivial
+    // getters/setters"). DebugCheats is the encapsulation here: it owns its own
+    // armed gate and taint rule, and its methods are named for the decisions
+    // callers make rather than for the bools behind them. The non-const form
+    // exists for the two surfaces that legitimately flip switches — the ImGui
+    // panel and the console's `god` command; everything else asks the const one.
+    DebugCheats& debugCheats() { return m_cheats; }
+    const DebugCheats& debugCheats() const { return m_cheats; }
+
     // What match is being played. PlayingState publishes this when it sets a
     // level up, so systems too deep to be handed the mode — the collision
     // resolver deciding whether a stomp is an attack or a co-op boost — can ask.
@@ -155,6 +202,11 @@ private:
     std::unordered_map<std::string, std::string> m_keyBindings;
     std::unordered_map<std::string, std::string> m_keyBindings2;
     bool m_colorblindMode = false;
+    bool m_debugMode = false;
+    // Deliberately NOT persisted alongside the settings above: a cheat is a
+    // per-take aid, and a config.json that remembered immortality would make
+    // the next ordinary launch a cheated one.
+    DebugCheats m_cheats;
     MatchConfig m_matchConfig;
 
     // Scripted input for verification runs. Inactive unless loadInputScript()

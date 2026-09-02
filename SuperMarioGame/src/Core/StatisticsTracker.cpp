@@ -1,4 +1,5 @@
 #include "Core/StatisticsTracker.hpp"
+#include "Core/Game.hpp"
 #include <any>
 #include <exception>
 #include <iostream>
@@ -37,6 +38,14 @@ void StatisticsTracker::update(float dt) {
 }
 
 void StatisticsTracker::handleEvent(const GameEvent& event) {
+    // A run recorded with Debug > Cheats on contributes nothing to the LIFETIME
+    // counters. These are persisted to the profile and shown on the Game Over
+    // panel and the STATS page, and a demo take would otherwise inflate every
+    // one of them — including totalDeaths, since a lethal hit under IMMORTAL
+    // still publishes PlayerDied on its way to being rescued. Same taint gate,
+    // same reasoning, as AchievementManager::unlockAchievement.
+    if (Game::getInstance().debugCheats().tainted()) return;
+
     try {
         switch (event.type) {
             case EventType::CoinCollected: {

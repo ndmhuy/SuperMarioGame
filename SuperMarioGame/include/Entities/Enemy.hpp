@@ -30,6 +30,10 @@ public:
     void setStrategy(std::unique_ptr<IMovementStrategy> strategy);
     IMovementStrategy* getStrategy() const;
 
+    // An anchored strategy steers its enemy back to a fixed point, so relocating
+    // the enemy has to relocate that point too or the next tick undoes the move.
+    void translate(sf::Vector2f delta) override;
+
     // Virtual interaction handlers
     virtual void onStomped() = 0;
     virtual void onHitByFireball() = 0;
@@ -69,6 +73,20 @@ public:
     // Sets the tuned base speed. Used only by EntityFactory when applying
     // assets/config/entities.json; gameplay code scales, it does not assign.
     void setSpeed(float newSpeed);
+
+    // Is there solid ground to stand on just past this enemy's leading edge?
+    //
+    // `dx` is a signed world-pixel offset: its sign picks the edge (right when
+    // >= 0, left otherwise) and its magnitude says how far past that edge to
+    // look. Answers true whenever the enemy is not currently standing on
+    // something solid — an airborne enemy has nothing under it by definition,
+    // and testing the tile below a falling one would flip it every frame of the
+    // fall.
+    //
+    // Lifted out of PatrolStrategy, which was the codebase's only ledge check,
+    // so HammerThrowStrategy can ask the same question: its shuffle was blind
+    // and walked Hammer Bros off their platforms to be culled (R21 D10).
+    bool hasFloorAhead(float dx) const;
 
     bool isFlipped() const { return m_isFlipped; }
     bool isDyingDownward() const { return m_isDyingDownward; }

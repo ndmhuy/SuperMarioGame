@@ -36,6 +36,14 @@ public:
     int getContainedItemType() const { return m_containedItemType; }
     bool isEmpty() const { return m_isEmpty; }
 
+    // Re-author what this block holds, for the level editor's Inspector.
+    //
+    // "itemType" has been in the level schema since the schema existed and was
+    // settable only by hand-editing JSON, so every block anyone placed in the
+    // editor dispensed a coin. Refuses an id outside Content rather than
+    // storing one the spawn listener would silently drop.
+    void setContents(int itemType);
+
 private:
     int m_containedItemType = 0;
     bool m_isEmpty = false;

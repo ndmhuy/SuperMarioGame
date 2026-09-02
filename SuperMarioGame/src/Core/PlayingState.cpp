@@ -88,13 +88,15 @@ BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
                            int characterIndex, int levelIndex, MatchConfig match, bool isEndless,
-                           int pendingLoadSlot, bool isAttractDemo)
+                           int pendingLoadSlot, bool isAttractDemo,
+                           std::string customLevelPath, bool isPlaytest)
     : m_match(match),
       m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
       m_startInEditor(startInEditor), m_isProcedural(isProcedural),
-      m_genConfig(genConfig), m_isEndless(isEndless), m_pendingLoadSlot(pendingLoadSlot),
-      m_isAttractDemo(isAttractDemo) {
+      m_customLevelPath(std::move(customLevelPath)), m_isPlaytest(isPlaytest),
+      m_genConfig(genConfig), m_pendingLoadSlot(pendingLoadSlot),
+      m_isAttractDemo(isAttractDemo), m_isEndless(isEndless) {
     // Published now rather than in enter(), because the collision resolver can
     // be reached by a harness that never enters a state, and a stale co-op flag
     // there would silently turn a versus stomp into a friendly boost.
@@ -107,6 +109,18 @@ PlayingState::~PlayingState() {
 
 void PlayingState::enter() {
     std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
+
+    // Every run starts honest. Cheats are a per-take recording aid, so they are
+    // reset at the one boundary that is unambiguously "a new run has begun"
+    // rather than left to be turned off by hand — the alternative is a player
+    // who tried immortality once and then spends the campaign wondering why
+    // nothing can kill them. This also clears the taint flag, so the next run's
+    // score is eligible for the high-score table again.
+    //
+    // A level TRANSITION (1-1 to 1-2) constructs a new PlayingState and so also
+    // resets: mildly annoying mid-recording, and the right default. Toggling a
+    // cheat back on costs one click.
+    Game::getInstance().debugCheats().resetForNewRun();
 
     // Load SFX & Start Level BGM
     SoundManager::getInstance().loadAllSounds();
@@ -132,6 +146,7 @@ void PlayingState::enter() {
     // Initialize HUD and Level Timer
     m_hud = std::make_unique<Hud>(sf::Vector2i(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT), m_itemSheet.get(), m_playerSheet.get());
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_tileAnimTimer = 0.0f;
 
     if (m_isProcedural) {
@@ -196,9 +211,22 @@ void PlayingState::enter() {
             }
             m_worldLabel = "ENDLESS";
         }
+
+        // Without this a procedurally generated Bowser was inert scenery:
+        // findActiveBoss() was called only from setupTestScene() and
+        // loadLevelByPath(), never from any procedural path, so m_activeBoss
+        // stayed null — updateBossArena() returned immediately, syncBossHud()
+        // reported bossActive=false, and there was no health bar, no battle
+        // music, no camera lock and nothing for chopBridge() to defeat.
+        findActiveBoss();
     } else {
         setupTestScene();
     }
+
+    // Before the editor can place or erase anything: without an admitter it
+    // pushes raw into m_entities and frees Players out from under m_player.
+    m_mapEditor.setEntityAdmitter(&m_editorBridge);
+    m_mapEditor.setSpawnPoint(m_levelSpawnPoint);
 
     if (m_startInEditor && !m_mapEditor.isActive()) {
         m_mapEditor.toggleActive();
@@ -248,7 +276,11 @@ void PlayingState::enter() {
             }
         }
 
-        if (activeFireballs < 2) { // Max 2 active fireballs on screen
+        // Max 2 active fireballs on screen, unless Debug > Cheats' INFINITE
+        // FIREBALLS is on — the cap is the half of the ration that lives here;
+        // Player::canShootFireball() owns the cooldown half.
+        if (activeFireballs < 2 ||
+            Game::getInstance().debugCheats().liftsFireballCap()) {
             float dir = player->isFacingRight() ? 1.0f : -1.0f;
             sf::Vector2f spawnPos = player->getPosition() + sf::Vector2f(dir * 16.0f, 8.0f);
             sf::Vector2f vel(dir * 350.0f, 50.0f);
@@ -427,8 +459,10 @@ void PlayingState::enter() {
             if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
                 castle->raiseFlag();
                 m_hasLevelCompleteCastle = true;
+                // The box, not WIDTH_TILES: a themed castle can be a few pixels
+                // wider (Castle::setFrame), and the door is at its centre.
                 m_levelCompleteCastleTarget = castle->getPosition() +
-                    sf::Vector2f{Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f, 0.0f};
+                    sf::Vector2f{castle->getBoundingBox().width * 0.5f, 0.0f};
             }
         }
         std::cout << "[PlayingState] Level complete!" << std::endl;
@@ -473,6 +507,14 @@ void PlayingState::exit() {
     m_hasExited = true;
 
     std::cout << "Exiting PlayingState" << std::endl;
+
+    // No cheat follows the player out of the level. Slow motion in particular is
+    // applied by Game::run's accumulator, which keeps running over the menus, so
+    // leaving a 0.2x take on would crawl every screen after it. The taint is
+    // deliberately kept — GameOverState and VictoryState are entered after this
+    // and still have to refuse the high-score table for a cheated run.
+    Game::getInstance().debugCheats().disengageAll();
+
     cleanupTestScene();
 
     // RAII subscription tokens (audit X-7): reset() unsubscribes immediately
@@ -544,15 +586,15 @@ void PlayingState::handleInput(const sf::Event& event) {
                 Game::getInstance().pushState(std::make_unique<PauseState>(
                     [this]() { restartLevel(); },
                     [this]() { saveToSlot(Game::getInstance().getActiveSlot()); },
-                    []() {
+                    [this]() {
                         ScreenTransitionManager::getInstance().reset();
-                        Game::getInstance().changeState(std::make_unique<MenuState>());
+                        leaveToCallingScreen();
                     }));
                 return;
             }
 
             if (keyPressed->code == sf::Keyboard::Key::Backspace) {
-                Game::getInstance().changeState(std::make_unique<MenuState>());
+                leaveToCallingScreen();
             }
 
             // M or Tab toggles the minimap. Minimap subscribes to this event itself.
@@ -560,39 +602,97 @@ void PlayingState::handleInput(const sf::Event& event) {
                 EventBus::getInstance().publish({EventType::MinimapToggled, 0});
             }
 
-            EventBus& bus = EventBus::getInstance();
-            switch (keyPressed->code) {
-                case sf::Keyboard::Key::Num1: // Collect Coin
-                    bus.publish({EventType::CoinCollected, 1});
-                    break;
-                case sf::Keyboard::Key::Num2: // Defeat Enemy
-                    bus.publish({EventType::EnemyDefeated, 0});
-                    break;
-                case sf::Keyboard::Key::Num3: // Take Damage
-                    bus.publish({EventType::PlayerDamaged, 0});
-                    break;
-                case sf::Keyboard::Key::Num4: // Lose Life / Die
-                    bus.publish({EventType::PlayerDied, 0});
-                    break;
-                case sf::Keyboard::Key::Num5: // Checkpoint Activated
-                    bus.publish({EventType::CheckpointActivated, 0});
-                    break;
-                case sf::Keyboard::Key::Num6: // Finish Level 3 (unlocks character achievements)
-                    bus.publish({EventType::LevelComplete, 3});
-                    break;
-                case sf::Keyboard::Key::Num7: // Boss Defeated
-                    bus.publish({EventType::BossDefeated, 0});
-                    break;
-                case sf::Keyboard::Key::Num8: // Star Coin Collected
-                    bus.publish({EventType::StarCoinCollected, 0});
-                    break;
-                case sf::Keyboard::Key::Num9: // Hidden Block Found
-                    // Was BlockBroken, which is a brick shattering, not a secret
-                    // being found; the two are separate events now.
-                    bus.publish({EventType::HiddenBlockFound, 0});
-                    break;
-                default:
-                    break;
+            // R21: the number row publishes gameplay events directly -- coins,
+            // deaths, level completion, boss defeat. Useful for exercising the
+            // HUD and the achievement rules, and indefensible in a release
+            // build, where Num6 finishes the level and Num4 kills the player.
+            // Behind the same Options > DEBUG MODE flag as the dev panel.
+            if (Game::getInstance().getDebugMode()) {
+                // Debug > Cheats on the function row, so the switches this
+                // session is most likely to flip mid-take (immortality, a hidden
+                // HUD) do not need the mouse and a collapsed panel reopened
+                // while the camera is rolling. F1 is the editor and F5 is
+                // playtest/attract, so both are skipped. The panel is the
+                // discoverable surface; these are the shortcut to it, and both
+                // read and write the one DebugCheats object.
+                DebugCheats& cheats = Game::getInstance().debugCheats();
+                // Reported on stderr as well as flipped, because the panel these
+                // shadow is collapsed by default: without a line here there is
+                // no way to tell a shortcut that landed from one that did not.
+                auto toggleAndReport = [&cheats](DebugCheats::Cheat cheat) {
+                    cheats.toggle(cheat);
+                    std::cout << "[Cheats] " << DebugCheats::label(cheat) << ": "
+                              << (cheats.isOn(cheat) ? "ON" : "off") << std::endl;
+                };
+                switch (keyPressed->code) {
+                    case sf::Keyboard::Key::F2:
+                        toggleAndReport(DebugCheats::Cheat::Immortal); break;
+                    case sf::Keyboard::Key::F3:
+                        toggleAndReport(DebugCheats::Cheat::Invincible); break;
+                    case sf::Keyboard::Key::F4:
+                        toggleAndReport(DebugCheats::Cheat::InfiniteLives); break;
+                    case sf::Keyboard::Key::F6:
+                        toggleAndReport(DebugCheats::Cheat::FreezeTimer); break;
+                    case sf::Keyboard::Key::F7:
+                        toggleAndReport(DebugCheats::Cheat::HideHud); break;
+                    case sf::Keyboard::Key::F8:
+                        toggleAndReport(DebugCheats::Cheat::Noclip); break;
+                    case sf::Keyboard::Key::F9:
+                        toggleAndReport(DebugCheats::Cheat::FreeCamera); break;
+                    case sf::Keyboard::Key::F10:
+                        toggleAndReport(DebugCheats::Cheat::InfiniteFireballs); break;
+                    case sf::Keyboard::Key::F11: {
+                        // Steps the slider's useful stops rather than nudging by
+                        // a delta: mid-take you want a named speed you can get
+                        // back out of, not to hunt for 1.0x again by ear.
+                        constexpr float kStops[] = {1.0f, 0.5f, 0.25f, 0.1f};
+                        const float now = cheats.simulationTimeScale();
+                        int next = 0;
+                        for (int i = 0; i < 4; ++i) {
+                            if (std::abs(kStops[i] - now) < 0.001f) { next = (i + 1) % 4; break; }
+                        }
+                        cheats.setTimeScale(kStops[next]);
+                        std::cout << "[Cheats] Time scale: " << kStops[next] << "x" << std::endl;
+                        break;
+                    }
+                    default:
+                        break;
+                }
+
+                EventBus& bus = EventBus::getInstance();
+                switch (keyPressed->code) {
+                    case sf::Keyboard::Key::Num1: // Collect Coin
+                        bus.publish({EventType::CoinCollected, 1});
+                        break;
+                    case sf::Keyboard::Key::Num2: // Defeat Enemy
+                        bus.publish({EventType::EnemyDefeated, 0});
+                        break;
+                    case sf::Keyboard::Key::Num3: // Take Damage
+                        bus.publish({EventType::PlayerDamaged, 0});
+                        break;
+                    case sf::Keyboard::Key::Num4: // Lose Life / Die
+                        bus.publish({EventType::PlayerDied, 0});
+                        break;
+                    case sf::Keyboard::Key::Num5: // Checkpoint Activated
+                        bus.publish({EventType::CheckpointActivated, 0});
+                        break;
+                    case sf::Keyboard::Key::Num6: // Finish Level 3 (unlocks character achievements)
+                        bus.publish({EventType::LevelComplete, 3});
+                        break;
+                    case sf::Keyboard::Key::Num7: // Boss Defeated
+                        bus.publish({EventType::BossDefeated, 0});
+                        break;
+                    case sf::Keyboard::Key::Num8: // Star Coin Collected
+                        bus.publish({EventType::StarCoinCollected, 0});
+                        break;
+                    case sf::Keyboard::Key::Num9: // Hidden Block Found
+                        // Was BlockBroken, which is a brick shattering, not a secret
+                        // being found; the two are separate events now.
+                        bus.publish({EventType::HiddenBlockFound, 0});
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -620,7 +720,8 @@ void PlayingState::update(float dt) {
 
     if (m_mapEditor.isActive()) {
         sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(m_camera.getView());
-        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt, &m_camera);
+        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos,
+                           Game::getInstance().getMousePixelPosition(), dt, &m_camera);
         m_camera.update(dt);
         // The editor skips the simulation, not the presentation layer. enter()
         // starts a 0.45s fade-in, and render() draws that overlay after the
@@ -739,9 +840,14 @@ void PlayingState::update(float dt) {
     // needs gating is who the keys belong to while the window *is* focused:
     // typing "difficulty hard" in the console, or into any ImGui field, must not
     // also walk the player right on every "d".
+    // Debug > Cheats' FREE CAMERA borrows the same keys the editor's free camera
+    // uses (WASD/arrows), so while it is on the movement keys belong to the
+    // camera and the player holds still — which is the point of framing a shot
+    // without walking there.
     const bool inputBelongsToGameplay =
         !DebugConsole::getInstance().isVisible() &&
-        !ImGui::GetIO().WantCaptureKeyboard;
+        !ImGui::GetIO().WantCaptureKeyboard &&
+        !Game::getInstance().debugCheats().detachesCamera();
 
     if (inputBelongsToGameplay) {
         if (m_player)  InputManager::getInstance().update(*m_player);
@@ -925,6 +1031,14 @@ void PlayingState::update(float dt) {
         if (!who || !who->isActive()) continue;
         const sf::Vector2f at = who->getPosition();
         if (at.y > bottomVoidY || at.x < -64.0f || at.x > rightVoidX) {
+            // Debug > Cheats' IMMORTAL short-circuits ahead of the publish, not
+            // just inside killPlayer(): PlayerDied is what StatisticsTracker
+            // counts a death on, and a run nobody died in must not be reported
+            // as one full of deaths.
+            if (Game::getInstance().debugCheats().rescueInsteadOfKill()) {
+                rescuePlayer(who, "fell into the void");
+                continue;
+            }
             // Nothing else publishes for a fall, so this path does.
             EventBus::getInstance().publish({EventType::PlayerDied, who});
             killPlayer(who, "fell into the void");
@@ -1000,7 +1114,24 @@ void PlayingState::update(float dt) {
     // rewind, but never actually decremented — so there was no time pressure and
     // no time-out death, and TimeWarning was never published despite having a
     // subscriber (audit G-2).
-    if (!m_levelComplete && m_levelTimer > 0.0f) {
+    // Debug > Cheats' FREEZE TIMER holds the countdown where it is, so a take can
+    // run past the level's own clock without the countdown creeping into
+    // the shot or timing the run out mid-sentence.
+
+    // How long this run has actually been going, whatever the countdown is
+    // doing. Kept separately because two things stop the countdown without
+    // stopping the run — Endless Mode below and the FREEZE TIMER cheat above —
+    // and updateShadow() reads "LEVEL_TIME minus the countdown" as its clock,
+    // so a held countdown froze Shadow Mario's replay timeline along with it.
+    if (!m_levelComplete) m_runElapsed += dt;
+
+    // Endless Mode has no countdown at all. It is an overworld survival run
+    // scored on distance — there is no flagpole to reach and no time bonus to
+    // earn — and nothing gated the countdown on it, so an endless mode ENDED,
+    // every time, after Constants::LEVEL_TIME (300) seconds, by killing the
+    // player for running out of time on a level that has no end.
+    if (!m_levelComplete && !m_isEndless && m_levelTimer > 0.0f &&
+        !Game::getInstance().debugCheats().holdsLevelTimer()) {
         m_levelTimer -= dt;
 
         if (!m_timeWarningFired && m_levelTimer <= 100.0f) {
@@ -1038,7 +1169,14 @@ void PlayingState::update(float dt) {
     updateBossArena();
 
     // 4. Update Camera & Screen Transitions
-    if (m_player2) {
+    //
+    // Debug > Cheats' FREE CAMERA takes the camera off the player entirely so a
+    // shot can be framed without walking there. It has to pre-empt every follow
+    // path below, versus included, or the follow would drag the frame straight
+    // back to the player on the same tick the pan moved it away.
+    if (Game::getInstance().debugCheats().detachesCamera()) {
+        updateFreeCamera(dt);
+    } else if (m_player2) {
         updateVersusCamera(dt);
     } else if (m_player) {
         // Velocity drives the lookahead (task 4.3): the camera leads the player
@@ -1057,7 +1195,13 @@ void PlayingState::update(float dt) {
     // plane (3c, above) is a world-space plane well below the level, and a
     // falling player must keep dropping below the visible view until that
     // check catches them rather than being arrested at the screen's bottom.
-    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying()) {
+    // Exempt under FREE CAMERA (the player is standing still somewhere the frame
+    // has deliberately been moved away from, and shoving them back into it would
+    // undo the shot) and under NOCLIP (a ghost that cannot leave the visible
+    // window is not a ghost).
+    const DebugCheats& cheatsForClamp = Game::getInstance().debugCheats();
+    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying() &&
+        !cheatsForClamp.detachesCamera() && !cheatsForClamp.passesThroughSolids()) {
         const AABB view = m_camera.getVisibleBounds();
         const AABB box = m_player->getBoundingBox();
         sf::Vector2f position = m_player->getPosition();
@@ -1095,6 +1239,9 @@ void PlayingState::update(float dt) {
         m_hud->update(dt);
         HudData hudData;
         hudData.timeLeft = static_cast<int>(m_levelTimer);
+        // A frozen "300" in the TIME field would read as a broken clock. Say
+        // there is no clock instead.
+        hudData.timeUnlimited = m_isEndless;
         // The HUD has always drawn these two; nothing ever set them, so the
         // countdown never appeared however long the switch ran.
         hudData.pSwitchActive = m_pSwitchActive;
@@ -1256,6 +1403,12 @@ void PlayingState::refreshWorldLabel(const std::string& levelPath) {
         m_worldLabel = "RANDOM";
         return;
     }
+    // An authored level has no world number and never will; falling through to
+    // the catalogue match below would print "WORLD ?" over somebody's own level.
+    if (!m_customLevelPath.empty()) {
+        m_worldLabel = "CUSTOM";
+        return;
+    }
 
     // Match the loaded path against the campaign catalogue, so the label comes
     // from the same table the level select reads and cannot drift from it.
@@ -1315,6 +1468,67 @@ float PlayingState::floorBelow(float worldX, float fromWorldY) const {
     return -1.0f;
 }
 
+namespace {
+// A small player is 32x32 (Mario's constructor). Deliberately the SMALLEST
+// form: a spawn that a small player fits is the weakest claim worth making, and
+// the level restores the saved power-up form after the spawn anyway.
+constexpr float SPAWN_BOX = 32.0f;
+}
+
+bool PlayingState::isSpawnUsable(sf::Vector2f topLeft) const {
+    const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
+    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+    if (topLeft.x < 0.0f || topLeft.x + SPAWN_BOX > mapRight ||
+        topLeft.y < 0.0f || topLeft.y + SPAWN_BOX > mapBottom) {
+        return false;
+    }
+
+    // The spawn's OWN box, not just the column beneath it.
+    //
+    // The old guard asked only "is anything solid below?" and began that scan at
+    // the spawn point itself, so a spawn buried in a solid tile hit that tile on
+    // its first sample and was reported standable. All three sub-levels shipped
+    // a spawn point inside their own entrance pipe on the strength of that
+    // answer, masked only because every route in overrode it (R21-D2).
+    for (float dy = 4.0f; dy < SPAWN_BOX; dy += 12.0f) {
+        for (float dx = 4.0f; dx < SPAWN_BOX; dx += 12.0f) {
+            if (TileMap::getInfo(m_tileMap.getTileAt(topLeft.x + dx, topLeft.y + dy)).isSolid) {
+                return false;
+            }
+        }
+    }
+
+    // Starting below the box, for the same reason.
+    return floorBelow(topLeft.x + SPAWN_BOX * 0.5f, topLeft.y + SPAWN_BOX) >= 0.0f;
+}
+
+sf::Vector2f PlayingState::usableSpawnNear(sf::Vector2f desired, const std::string& levelPath) const {
+    if (isSpawnUsable(desired)) return desired;
+
+    // Sideways along the same row rather than downwards: a level's spawn row is
+    // chosen to be above its floor, and stepping out of whatever the author
+    // buried it in is a smaller lie than dropping it into the room below.
+    const float mapRight = m_tileMap.getWidth() * Constants::TILE_SIZE;
+    for (float step = Constants::TILE_SIZE; step < mapRight; step += Constants::TILE_SIZE) {
+        for (const float candidateX : {desired.x + step, desired.x - step}) {
+            const sf::Vector2f candidate{candidateX, desired.y};
+            if (isSpawnUsable(candidate)) {
+                std::cerr << "[PlayingState] Spawn (" << desired.x << ", " << desired.y
+                          << ") in " << levelPath
+                          << " is inside solid geometry or has no floor; moved to ("
+                          << candidate.x << ", " << candidate.y << ")." << std::endl;
+                return candidate;
+            }
+        }
+    }
+
+    std::cerr << "[PlayingState] Spawn (" << desired.x << ", " << desired.y
+              << ") in " << levelPath
+              << " is unusable and no position on its row is any better; using it anyway."
+              << std::endl;
+    return desired;
+}
+
 void PlayingState::settleEndOfLevelScenery() {
     for (const auto& entity : m_entities) {
         if (!entity) continue;
@@ -1337,9 +1551,15 @@ void PlayingState::settleEndOfLevelScenery() {
         }
 
         if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
+            // Styled before it is settled, because setFrame() can change the
+            // box width the floor probe below is centred on.
+            const BackgroundTheme theme = m_background.getTheme();
+            castle->setFrame((theme == BackgroundTheme::Ice || theme == BackgroundTheme::Castle)
+                                 ? Castle::STONE_FRAME
+                                 : Castle::DEFAULT_FRAME);
+
             const sf::Vector2f at = castle->getPosition();
-            const float floorTop = floorBelow(at.x + Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f,
-                                              at.y);
+            const float floorTop = floorBelow(at.x + castle->getBoundingBox().width * 0.5f, at.y);
             if (floorTop < 0.0f) continue;
             castle->setPosition({at.x, floorTop - Castle::HEIGHT_TILES * Constants::TILE_SIZE});
         }
@@ -1429,6 +1649,61 @@ void PlayingState::detonatePOW() {
     std::cout << "[PlayingState] POW block: flipped " << flipped << " enemy(ies)." << std::endl;
 }
 
+void PlayingState::updateFreeCamera(float dt) {
+    // Bounds off while detached, so the frame can sit past the edge of the level
+    // — otherwise the pan stops dead at the last column and half the point of a
+    // free camera (framing scenery, the flagpole, the sky above a level) is
+    // lost. update() re-asserts the invariant the moment the cheat goes off, the
+    // same way it already does after the map editor unclamps it (audit C-3).
+    if (m_camera.isBoundsEnabled()) m_camera.setBoundsEnabled(false);
+
+    // Deliberately the same keys and the same 650 px/s as
+    // MapEditor::handlePanning(): the editor's free camera is the one this
+    // project already has, and a second set of pan keys to remember would be a
+    // worse tool, not a better one.
+    constexpr float PAN_SPEED = 650.0f;
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
+
+    InputManager& input = InputManager::getInstance();
+    sf::Vector2f pan{0.0f, 0.0f};
+    if (input.isHeld(sf::Keyboard::Key::A) || input.isHeld(sf::Keyboard::Key::Left))  pan.x -= 1.0f;
+    if (input.isHeld(sf::Keyboard::Key::D) || input.isHeld(sf::Keyboard::Key::Right)) pan.x += 1.0f;
+    if (input.isHeld(sf::Keyboard::Key::W) || input.isHeld(sf::Keyboard::Key::Up))    pan.y -= 1.0f;
+    if (input.isHeld(sf::Keyboard::Key::S) || input.isHeld(sf::Keyboard::Key::Down))  pan.y += 1.0f;
+    if (pan.x != 0.0f || pan.y != 0.0f) {
+        m_camera.move(pan * PAN_SPEED * dt);
+    }
+}
+
+void PlayingState::clearOnScreenEnemies() {
+    // Same on-screen test and the same "a boss is not a Goomba" carve-out as
+    // detonatePOW(), for the same reason: one button must not silently end a
+    // fight that has a health bar and a win condition attached to it.
+    const AABB view = m_camera.getVisibleBounds();
+    int cleared = 0;
+
+    for (const auto& entity : m_entities) {
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy || !enemy->isActive() || enemy->isDeadOrDying()) continue;
+        if (dynamic_cast<Boss*>(enemy)) continue;
+
+        const AABB box = enemy->getBoundingBox();
+        const bool onScreen = box.x + box.width  > view.x &&
+                              box.x              < view.x + view.width &&
+                              box.y + box.height > view.y &&
+                              box.y              < view.y + view.height;
+        if (!onScreen) continue;
+
+        // onStomped() rather than destroy(): the defeat animation, the sound and
+        // the shell-vs-Goomba difference are what a demo is being recorded to
+        // show. Unlike detonatePOW() this awards no score — a cleared frame is
+        // staging, not play.
+        enemy->onStomped();
+        ++cleared;
+    }
+    std::cout << "[Cheats] Cleared " << cleared << " on-screen enemy(ies)." << std::endl;
+}
+
 void PlayingState::syncBackdropGround() {
     // Find the top of the ground the player actually walks on, and hand it to the
     // backdrop so the hills and bushes stand on it.
@@ -1509,12 +1784,6 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Set view to camera view for scrolling world space rendering
     target.setView(m_camera.getView());
 
-    // Compute animated tile frame indices from timer
-    int coinFrame     = static_cast<int>(m_tileAnimTimer / 0.15f) % 4;
-    int questionFrame = static_cast<int>(m_tileAnimTimer / 0.20f) % 4;
-    // Two-frame wave cycle shared by water and lava surfaces.
-    const int waveFrame = static_cast<int>(m_tileAnimTimer / 0.35f) % 2;
-
     // Only iterate tiles the camera can actually see. Sweeping the whole grid was
     // roughly 4,400 sprite draws per frame on a 200-wide level (audit A-14).
     // One tile of margin keeps partially-visible edges and the water bob covered.
@@ -1526,141 +1795,12 @@ void PlayingState::render(sf::RenderTarget& target) {
     const int lastY  = std::min(m_tileMap.getHeight() - 1,
                                 static_cast<int>(std::floor((view.y + view.height) / Constants::TILE_SIZE)) + 1);
 
-    // 1. Draw the tilemap tiles (bottom-to-top to ensure overlapping/bobbing top layers draw on top of background)
-    for (int y = lastY; y >= firstY; --y) {
-        for (int x = firstX; x <= lastX; ++x) {
-            TileType tileType = m_tileMap.getTileType(x, y);
-            if (tileType == TileType::Empty) continue;
-
-            sf::Vector2f tilePos(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE);
-            bool spriteDrawn = false;
-
-            if (m_scenerySheet) {
-                std::string frameKey;
-
-                switch (tileType) {
-                    case TileType::Ground: {
-                        // Themed terrain. This used to be brown-on-grey for every
-                        // level in the game, so an ice cavern and a castle floor
-                        // and a grass field all looked identical — and a
-                        // generated level looked like nothing in particular.
-                        const bool isTopExposed =
-                            (y == 0) || (m_tileMap.getTileType(x, y - 1) == TileType::Empty);
-                        switch (m_background.getTheme()) {
-                            case BackgroundTheme::Underground:
-                                frameKey = isTopExposed ? "solid_block_grey" : "brick_grey_inside";
-                                break;
-                            case BackgroundTheme::Castle:
-                                frameKey = isTopExposed ? "castle_brick_white" : "brick_grey_inside";
-                                break;
-                            case BackgroundTheme::Ice:
-                                frameKey = isTopExposed ? "solid_block_blue" : "brick_blue_inside";
-                                break;
-                            case BackgroundTheme::Overworld:
-                            default:
-                                frameKey = isTopExposed ? "solid_block_brown" : "brick_brown_inside";
-                                break;
-                        }
-                        break;
-                    }
-                    case TileType::Brick:
-                        frameKey = (m_background.getTheme() == BackgroundTheme::Ice)
-                                       ? "brick_blue_one_side"
-                                       : (m_background.getTheme() == BackgroundTheme::Underground ||
-                                          m_background.getTheme() == BackgroundTheme::Castle)
-                                             ? "brick_grey_one_side"
-                                             : "brick_brown_side";
-                        break;
-                    case TileType::Question:
-                        frameKey = "question_block_" + std::to_string(questionFrame % 3);
-                        break;
-                    case TileType::Pipe: {
-                        bool isTopExposed = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Pipe);
-                        bool hasLeftTile = (x > 0) && (m_tileMap.getTileType(x - 1, y) == TileType::Pipe);
-                        if (isTopExposed) {
-                            frameKey = hasLeftTile ? "pipe_green_head_right" : "pipe_green_head_left";
-                        } else {
-                            frameKey = hasLeftTile ? "pipe_green_body_right" : "pipe_green_body_left";
-                        }
-                        break;
-                    }
-                    case TileType::Ice:
-                        // No dedicated ice sprite in world_scenery — use solid_block_blue as fallback
-                        frameKey = "solid_block_blue";
-                        break;
-                    case TileType::Conveyor:
-                        frameKey = "conveyor_belt_green";
-                        break;
-                    case TileType::Water: {
-                        const bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Water);
-                        // The surface alternates between the two wave frames the
-                        // atlas ships, so it actually moves rather than only
-                        // bobbing up and down (task 5.10).
-                        frameKey = isSurface
-                            ? (waveFrame == 0 ? "water_dark_blue_wave_long" : "water_light_blue_wave_long")
-                            : "water_dark_blue_bg";
-                        break;
-                    }
-                    case TileType::Lava: {
-                        const bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Lava);
-                        frameKey = isSurface
-                            ? (waveFrame == 0 ? "lava_wave_long" : "lava_wave_short")
-                            : "lava_bg";
-                        break;
-                    }
-                    case TileType::Coin:
-                        frameKey = "coin_" + std::to_string(coinFrame % 2);
-                        break;
-                    default:
-                        break;
-                }
-
-                if (!frameKey.empty()) {
-                    sf::Sprite tileSprite = m_scenerySheet->getSprite(frameKey);
-                    auto bounds = tileSprite.getLocalBounds();
-                    if (bounds.size.x > 0 && bounds.size.y > 0) {
-                        tileSprite.setScale(sf::Vector2f(
-                            Constants::TILE_SIZE / bounds.size.x,
-                            Constants::TILE_SIZE / bounds.size.y
-                        ));
-                        sf::Vector2f drawPos = tilePos;
-                        const bool liquidSurface =
-                            (tileType == TileType::Water &&
-                             (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Water)) ||
-                            (tileType == TileType::Lava &&
-                             (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Lava));
-                        if (liquidSurface) {
-                            // Pure vertical bobbing up and down (started 5px lower to prevent exposing top gap)
-                            float bobY = std::sin(m_tileAnimTimer * 3.0f) * 2.5f;
-                            drawPos.y += 5.0f + bobY;
-                        }
-                        tileSprite.setPosition(drawPos);
-                        target.draw(tileSprite);
-                        spriteDrawn = true;
-                    }
-                }
-            }
-
-            // Fallback to debug color rectangles if no atlas loaded or unknown tile
-            if (!spriteDrawn) {
-                const TileInfo& info = TileMap::getInfo(tileType);
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(tilePos);
-                tileShape.setFillColor(info.debugColor);
-                tileShape.setOutlineColor(sf::Color(60, 40, 20));
-                tileShape.setOutlineThickness(0.5f);
-                target.draw(tileShape);
-
-                // Decoration on debug shapes
-                if (tileType == TileType::Ground) {
-                    sf::RectangleShape grassShape(sf::Vector2f(Constants::TILE_SIZE, 6.0f));
-                    grassShape.setPosition(tilePos);
-                    grassShape.setFillColor(sf::Color(46, 139, 87));
-                    target.draw(grassShape);
-                }
-            }
-        }
-    }
+    // 1. Draw the tilemap tiles. The two hundred lines of TileType-to-atlas-frame
+    // switch that used to live here are TileMapRenderer's now, because the level
+    // editor draws the same world and a second copy of them would drift.
+    m_tileMapRenderer.setSpriteSheet(m_scenerySheet.get());
+    m_tileMapRenderer.setTheme(m_background.getTheme());
+    m_tileMapRenderer.render(target, m_tileMap, view, m_tileAnimTimer);
 
     // 2. Draw all active entities. Players are drawn last so a large entity
     // they are walking toward (Bowser, Boom Boom) can never paint over them —
@@ -1680,6 +1820,21 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Both are world-space, so they must be drawn while the camera view is still active.
     EntityDeathEffect::getInstance().render(target);
     target.draw(ParticleSystem::getInstance());
+
+    // 3b. Bonus D — the dynamic light pass.
+    //
+    // This seam is the whole reason the effect works: everything drawn so far is
+    // the world, and everything after it is either a developer overlay or the
+    // screen-space HUD. Darkening here dims the cave without dimming the score
+    // bar, the minimap or the pause menu, which is what a darkness overlay drawn
+    // last would have done. It sits ahead of the AABB overlay deliberately too —
+    // a debug outline you cannot see is not a debug tool.
+    //
+    // Outside the HUD block on purpose: Debug > Cheats' HIDE HUD takes the
+    // interface away for clean capture, and the lighting is world, not
+    // interface. Hiding the HUD to film a cave must not switch the cave's
+    // lighting off with it.
+    renderLightPass(target);
 
     // 4. Draw AABB overlays (dev toggle)
     if (m_devPanel.showAABB()) {
@@ -1716,8 +1871,13 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
-    // Draw the screen-space HUD overlay
-    if (m_hud) {
+    // Draw the screen-space HUD overlay.
+    //
+    // Debug > Cheats' HIDE HUD takes the whole screen-space layer away — score
+    // bar, minimap, match line, the rewind vignette — rather than only the score
+    // bar, because "clean capture for b-roll" means nothing of the interface is
+    // in the frame.
+    if (m_hud && !Game::getInstance().debugCheats().hidesHud()) {
         sf::View oldView = target.getView();
         target.setView(target.getDefaultView());
         target.draw(*m_hud);
@@ -1770,7 +1930,14 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Suppressed while an overlay is up: an ImGui window drawn underneath the
     // pause menu still reacts to the mouse, which would let the player edit the
     // level they just paused.
-    if (!m_suspended) {
+    // R21: and suppressed entirely unless the player asked for debug mode in
+    // Options. This panel was never gated at all -- it drew over ordinary play
+    // in a release build, which is also how the duplicate achievement toast
+    // shipped: the newer SFML toast was added because the ImGui one supposedly
+    // "only appeared while the dev overlay was up", and the overlay was always
+    // up. The map editor is deliberately NOT behind this flag; it is a shipped
+    // feature reachable from the main menu.
+    if (!m_suspended && Game::getInstance().getDebugMode()) {
         m_devPanel.draw(*this);
     }
 }
@@ -1796,8 +1963,12 @@ void PlayingState::setupTestScene() {
     LevelLoader loader;
     LevelData levelData;
     // Campaign order lives in LevelCatalog — this used to be an if-chain here
-    // with a matching hardcoded level count in advanceToNextLevel().
-    std::string levelPath = LevelCatalog::pathFor(m_selectedLevelIndex);
+    // with a matching hardcoded level count in advanceToNextLevel(). A custom
+    // level is not in that order and is addressed by path instead; it is the
+    // only way an authored level can be played at all.
+    std::string levelPath = m_customLevelPath.empty()
+                                ? LevelCatalog::pathFor(m_selectedLevelIndex)
+                                : m_customLevelPath;
 
 
     std::vector<std::string> pathCandidates = {
@@ -1814,11 +1985,14 @@ void PlayingState::setupTestScene() {
     }
 
     if (loader.loadLevel(chosenPath, m_tileMap, levelData)) {
-        // Spawn active player character at the spawnPoint loaded from JSON
-        m_levelSpawnPoint = levelData.spawnPoint;
+        // Guarded for the same reason the warp path is: this is the flagpole ->
+        // next level route and the level-select route, and a level file's own
+        // spawnPoint is exactly as trustworthy as a pipe's exit.
+        const sf::Vector2f spawnPos = usableSpawnNear(levelData.spawnPoint, chosenPath);
+        m_levelSpawnPoint = spawnPos;
         m_hasCheckpoint = false;   // a new level invalidates the old checkpoint
-        spawnSelectedPlayer(levelData.spawnPoint);
-        
+        spawnSelectedPlayer(spawnPos);
+
         // Transfer all loaded items/entities and wire their animations
         for (auto& entity : levelData.entities) {
             admitEntity(entity.get());
@@ -1832,12 +2006,12 @@ void PlayingState::setupTestScene() {
         // centred on its own spawn point, never carrying either over from
         // whatever the previous level last did with the camera.
         m_camera.setScrollMode(Camera::ScrollMode::Free);
-        m_camera.snapTo(levelData.spawnPoint);
+        m_camera.snapTo(spawnPos);
         m_background.setTheme(levelData.theme);
         syncBackdropGround();
         syncVoidPlane();
         settleEndOfLevelScenery();
-        refreshWorldLabel(m_isProcedural ? std::string() : LevelCatalog::pathFor(m_selectedLevelIndex));
+        refreshWorldLabel(m_isProcedural ? std::string() : chosenPath);
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -1973,28 +2147,18 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     // A pipe exit is level data, and level data can be wrong: these used to name
     // tile (104,20) of a 65-tile-wide level, which dropped the player outside
-    // the map into open air. Rather than trust it, check that the exit is inside
-    // the destination and has ground beneath it, and fall back to the level's
-    // own spawn point when it does not. Landing at the start of a room is a
-    // visible oddity; landing in the void is an unrecoverable one.
-    const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
-    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
-    auto standableBelow = [this, mapBottom](sf::Vector2f p) {
-        for (float y = p.y; y < mapBottom; y += 8.0f) {
-            if (TileMap::getInfo(m_tileMap.getTileAt(p.x + 4.0f, y)).isSolid ||
-                TileMap::getInfo(m_tileMap.getTileAt(p.x + 16.0f, y)).isSolid ||
-                TileMap::getInfo(m_tileMap.getTileAt(p.x + 28.0f, y)).isSolid) return true;
-        }
-        return false;
-    };
-    const bool insideMap = spawnPos.x >= 0.0f && spawnPos.x < mapRight &&
-                           spawnPos.y >= 0.0f && spawnPos.y < mapBottom;
-    if (!insideMap || !standableBelow(spawnPos)) {
-        std::cerr << "[PlayingState] Spawn (" << spawnPos.x << ", " << spawnPos.y
-                  << ") is outside " << chosenPath
-                  << " or has no floor; using the level's own spawn point." << std::endl;
+    // the map into open air. Rather than trust it, fall back to the level's own
+    // spawn point when the exit is unusable — and then check THAT too, because a
+    // level's own spawn point can be just as wrong (all three sub-levels'
+    // were). Landing at the start of a room is a visible oddity; landing in the
+    // void, or inside a pipe, is an unrecoverable one.
+    if (!isSpawnUsable(spawnPos)) {
+        std::cerr << "[PlayingState] Pipe exit (" << spawnPos.x << ", " << spawnPos.y
+                  << ") is not a usable spawn in " << chosenPath
+                  << "; using the level's own spawn point." << std::endl;
         spawnPos = levelData.spawnPoint;
     }
+    spawnPos = usableSpawnNear(spawnPos, chosenPath);
 
     // cleanupTestScene() nulled m_player, so spawnSelectedPlayer cannot carry the
     // stats itself — apply them here, through the same silent path.
@@ -2057,6 +2221,9 @@ void PlayingState::regenerateProceduralLevel() {
     m_levelSpawnPoint = m_player ? m_player->getPosition() : sf::Vector2f(96.0f, 64.0f);
     m_checkpointPosition = m_levelSpawnPoint;
     m_hasCheckpoint = false;
+    // The old level's boss was just deleted with the rest of m_entities; the new
+    // one's has to be found, for the same reasons enter() gives.
+    findActiveBoss();
     if (m_minimap) m_minimap->initialize(m_tileMap);
 }
 
@@ -2077,12 +2244,35 @@ void PlayingState::extendEndlessLevelIfNeeded() {
     chunkConfig.seed = 0;   // fresh randomness per chunk, not a repeat of chunk 0
     // Rising difficulty with distance, capped so it stays a platformer and not
     // a wall — SPEC's "escalating difficulty curve" for this feature.
-    chunkConfig.pitProbability  = std::min(0.35f, 0.10f + 0.02f * m_endlessChunkIndex);
-    chunkConfig.enemySpawnRate  = std::min(0.35f, 0.15f + 0.02f * m_endlessChunkIndex);
-    chunkConfig.roughness       = std::min(1.0f,  0.30f + 0.05f * m_endlessChunkIndex);
+    // A chunk, not a level: no player, no checkpoint, no flagpole, no castle,
+    // and content across its whole width instead of a 45% dead margin. See
+    // MapGeneratorConfig::isChunk.
+    chunkConfig.isChunk = true;
+    // Escalation is applied to what the player ASKED for, not to a hardcoded
+    // base. These four lines used to overwrite the generator sliders the player
+    // set on the PROCEDURAL LEVEL menu with a fixed formula, so raising ENEMIES
+    // to maximum and starting an Endless run gave the same 0.15 as leaving it at
+    // minimum. coinClusterRate was left out of the escalation entirely, which
+    // mattered more than it looks: until this session every ground enemy spawn
+    // was nested inside the coin-cluster branch.
+    chunkConfig.pitProbability  = std::min(0.35f, chunkConfig.pitProbability  + 0.02f * m_endlessChunkIndex);
+    chunkConfig.enemySpawnRate  = std::min(0.35f, chunkConfig.enemySpawnRate  + 0.02f * m_endlessChunkIndex);
+    chunkConfig.coinClusterRate = std::min(0.45f, chunkConfig.coinClusterRate + 0.02f * m_endlessChunkIndex);
+    chunkConfig.roughness       = std::min(1.0f,  chunkConfig.roughness       + 0.05f * m_endlessChunkIndex);
     chunkConfig.difficulty = m_endlessChunkIndex >= 6 ? MapDifficulty::Hard
                             : m_endlessChunkIndex >= 3 ? MapDifficulty::Medium
                                                         : MapDifficulty::Easy;
+
+    // A boss every ENDLESS_BOSS_CHUNK_INTERVAL chunks, and never anywhere else.
+    //
+    // The difficulty ramp above turns Hard from chunk 6 onwards, and the
+    // generator drops a Bowser into every Hard map — so an Endless run past ~600
+    // tiles spliced ANOTHER Bowser into the level every hundred tiles, each one
+    // breathing fire on sight, against a findActiveBoss() whose own comment says
+    // "one boss per level". A boss is a milestone here: it gives the run a
+    // rhythm, it is the only thing in Endless Mode that is not more of the same,
+    // and meeting one has to be an event rather than the weather.
+    chunkConfig.bossArena = (m_endlessChunkIndex % ENDLESS_BOSS_CHUNK_INTERVAL) == 0;
 
     TileMap chunkMap;
     std::vector<std::unique_ptr<Entity>> chunkEntities;
@@ -2116,23 +2306,82 @@ void PlayingState::extendEndlessLevelIfNeeded() {
     // builds its own Mario and, near its own local exitX, a flagpole/castle —
     // none of which belong in a middle-of-nowhere chunk: the real player
     // already exists, and Endless Mode has no "end" to reach.
+    bool splicedBoss = false;
+    int splicedCount = 0;
+    int splicedFirstTile = m_tileMap.getWidth();
+    int splicedLastTile = 0;
     for (auto& entity : chunkEntities) {
         if (!entity) continue;
         const std::string type = entity->getTypeName();
         if (dynamic_cast<Player*>(entity.get())) continue;
         if (type == "flagpole" || type == "castle" || type == "pipe") continue;
-        entity->setPosition(entity->getPosition() + sf::Vector2f(offsetPx, 0.0f));
+
+        // One fight at a time. findActiveBoss() takes the first Boss it finds
+        // and its own comment says "one boss per level"; a second one spliced in
+        // while a fight is live would be invisible to the HUD, unlockable by the
+        // camera and unkillable by the axe, while still breathing fire.
+        if (auto* boss = dynamic_cast<Boss*>(entity.get())) {
+            if (m_activeBoss) {
+                std::cout << "[PlayingState] Endless Mode: dropped a second "
+                          << boss->getDisplayName() << " from chunk "
+                          << m_endlessChunkIndex << "; a fight is already live."
+                          << std::endl;
+                continue;
+            }
+            splicedBoss = true;
+        }
+
+        // translate(), not setPosition(): several of these classes cache their
+        // spawn point at construction and drive themselves back to it, so a
+        // plain setPosition() left them teleporting to their chunk-LOCAL
+        // coordinates on their first update — i.e. back near the start of the
+        // world. See Entity::translate for the full list. This is the defect
+        // that made appended chunks look empty (R21 D7).
+        entity->translate(sf::Vector2f(offsetPx, 0.0f));
+        ++splicedCount;
+        const int tileX = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
+        splicedFirstTile = std::min(splicedFirstTile, tileX);
+        splicedLastTile  = std::max(splicedLastTile, tileX);
         admitEntity(entity.get());
         m_entities.push_back(std::move(entity));
     }
 
-    m_camera.setBounds(AABB{0.0f, 0.0f,
-                            static_cast<float>(m_tileMap.getWidth()) * Constants::TILE_SIZE,
-                            static_cast<float>(m_tileMap.getHeight()) * Constants::TILE_SIZE});
+    // Adopt the new fight, exactly as loading a level would. Guarded on
+    // m_activeBoss being null because findActiveBoss() also clears m_arenaLocked,
+    // which would release the camera in the middle of a live fight.
+    if (splicedBoss && !m_activeBoss) {
+        findActiveBoss();
+    }
+
+    const AABB worldBounds{0.0f, 0.0f,
+                           static_cast<float>(m_tileMap.getWidth()) * Constants::TILE_SIZE,
+                           static_cast<float>(m_tileMap.getHeight()) * Constants::TILE_SIZE};
+    if (m_arenaLocked) {
+        // A boss arena sits at the END of its chunk, so the player is well
+        // inside the lookahead when the fight starts and the next chunk is
+        // appended DURING it. Writing the world bounds onto the camera here
+        // would silently undo the arena lock mid-fight, and releaseBossArena()
+        // would then restore a snapshot taken before this chunk existed —
+        // clamping the camera to a world two hundred tiles shorter than the one
+        // the player is standing in. Update what the release will restore
+        // instead, and leave the camera on the arena.
+        m_preArenaCameraBounds = worldBounds;
+    } else {
+        m_camera.setBounds(worldBounds);
+    }
     if (m_minimap) m_minimap->initialize(m_tileMap);
 
+    // The entity count and world-tile span are the two facts worth having here:
+    // "the far chunks have no entities in them" (R21 D7) was reported from
+    // play, and a chunk that splices nothing, or splices everything back at
+    // world tile 20-80, is visible in this one line.
     std::cout << "[PlayingState] Endless Mode: appended chunk " << m_endlessChunkIndex
-              << ", tilemap now " << m_tileMap.getWidth() << " tiles wide." << std::endl;
+              << (chunkConfig.bossArena ? " (BOSS)" : "")
+              << ": " << splicedCount << " entities"
+              << (splicedCount > 0 ? " across world tiles " + std::to_string(splicedFirstTile)
+                                      + "-" + std::to_string(splicedLastTile)
+                                   : std::string())
+              << "; tilemap now " << m_tileMap.getWidth() << " tiles wide." << std::endl;
 }
 
 void PlayingState::saveToSlot(int slot) {
@@ -2267,11 +2516,12 @@ void PlayingState::updateShadow(float dt) {
     if (!m_shadow || !m_player) return;
 
     // Sampled here, before the entity update pass runs the shadow, so a packet
-    // recorded this frame can never also be consumed this frame. The clock is
-    // the level timer counting down, inverted into elapsed time: it advances
-    // with the simulation and stops with it, which a wall clock would not.
-    const float elapsed = Constants::LEVEL_TIME - m_levelTimer;
-    m_shadow->recordFrame(elapsed, *m_player);
+    // recorded this frame can never also be consumed this frame. The clock
+    // advances with the simulation and stops with it, which a wall clock would
+    // not. It used to be derived from the level countdown (LEVEL_TIME minus
+    // m_levelTimer), which stops in Endless Mode and under the FREEZE TIMER
+    // cheat — freezing the shadow's whole replay timeline with it.
+    m_shadow->recordFrame(m_runElapsed, *m_player);
 }
 
 float PlayingState::shadowProximitySeconds() const {
@@ -2339,6 +2589,86 @@ bool PlayingState::allPlayersOut() const {
     const bool oneOut = !m_player || m_player->getLives() <= 0;
     const bool twoOut = !m_player2 || m_player2->getLives() <= 0;
     return oneOut && twoOut;
+}
+
+void PlayingState::renderLightPass(sf::RenderTarget& target) {
+    // The level editor paints its own overlay over this same world and its
+    // author needs to see what they are placing. Darkening the level being
+    // edited would be a tool regression dressed up as an effect. EditorState is
+    // a separate state that never calls this render(), so the editor is covered
+    // from both directions.
+    if (m_mapEditor.isActive()) return;
+
+    // Sizes in world px. A ~9-tile lamp leaves a cave readable while still
+    // hiding what is coming; a fireball is a thrown ember, not a torch.
+    constexpr float kPlayerLightRadius   = 290.0f;
+    constexpr float kFireballLightRadius = 210.0f;
+    constexpr float kFreeCameraRadius    = 460.0f;
+
+    std::vector<LightingRenderer::Light> lights;
+    lights.reserve(LightingRenderer::MAX_LIGHTS);
+
+    auto addPlayerLight = [&](Player* who) {
+        if (!who || !who->isActive()) return;
+        const AABB bb = who->getBoundingBox();
+        LightingRenderer::Light light;
+        light.worldPosition = {bb.x + bb.width * 0.5f, bb.y + bb.height * 0.5f};
+        // A perfectly steady disc reads as a vignette bug. A slow 5% breathe
+        // reads as a carried lamp. Driven off m_runElapsed rather than a render
+        // clock so a replay lights the same way it was recorded.
+        light.radius    = kPlayerLightRadius * (1.0f + 0.05f * std::sin(m_runElapsed * 3.7f));
+        light.intensity = 1.0f;
+        // A warm near-neutral SHADOW colour, not a lamp colour -- see
+        // LightingRenderer::Light::shadowTint. Anything brighter than the scene
+        // here draws a bright ring instead of a lamp.
+        light.shadowTint = sf::Color(58, 56, 48);
+        lights.push_back(light);
+    };
+    addPlayerLight(m_player);
+    addPlayerLight(m_player2);
+
+    // Free camera (F9) detaches the view from the player, who can then be
+    // anywhere — including off-screen, leaving the operator panning a black
+    // rectangle. A lamp on the camera itself keeps the cheat usable in exactly
+    // the levels it is most useful for.
+    if (Game::getInstance().debugCheats().detachesCamera()) {
+        LightingRenderer::Light light;
+        light.worldPosition = m_camera.getView().getCenter();
+        light.radius        = kFreeCameraRadius;
+        light.intensity     = 1.0f;
+        light.shadowTint    = sf::Color(44, 50, 62);
+        lights.push_back(light);
+    }
+
+    // Fireballs are already ordinary entities in m_entities with their own
+    // lifetimes and their own pool. Reading them here means no second registry
+    // to keep in sync and no way for a light to outlive the thing casting it —
+    // a released fireball is inactive on the very next frame.
+    for (const auto& entity : m_entities) {
+        if (lights.size() >= LightingRenderer::MAX_LIGHTS) break;
+        if (!entity || !entity->isActive()) continue;
+
+        const bool isPlayerShot = dynamic_cast<Fireball*>(entity.get()) != nullptr;
+        const bool isBossShot   = dynamic_cast<BossFireball*>(entity.get()) != nullptr;
+        if (!isPlayerShot && !isBossShot) continue;
+
+        const AABB bb = entity->getBoundingBox();
+        LightingRenderer::Light light;
+        light.worldPosition = {bb.x + bb.width * 0.5f, bb.y + bb.height * 0.5f};
+        light.radius        = kFireballLightRadius;
+        // Short of 1.0 on purpose: a fireball that cleared the darkness
+        // completely would be a hole indistinguishable from the player's, and
+        // the tint below only shows in shadow the lamp has NOT cleared.
+        light.intensity     = 0.85f;
+        // Ember, not flame: the shadow a fireball fails to clear goes warm, and
+        // that warmth is what separates its pool of light from the player's.
+        light.shadowTint    = isBossShot ? sf::Color(104, 34, 10)
+                                         : sf::Color(96, 44, 14);
+        lights.push_back(light);
+    }
+
+    m_lighting.render(target, m_camera.getView(), lights,
+                      m_background.getTheme(), m_runElapsed);
 }
 
 void PlayingState::renderMatchHud(sf::RenderTarget& target) const {
@@ -2510,6 +2840,15 @@ void PlayingState::forgetEntity(Entity* entity) {
     // behind it is released. The shadow outlives the level only if nothing
     // pruned it, and updateShadow() would read freed memory the frame after.
     if (entity == m_shadow) m_shadow = nullptr;
+    // Player 1 too. The prune never removes it, so this case never mattered —
+    // until the level editor gained a working Erase tool, which can delete the
+    // player the same as anything else. m_player, InputManager and Game all hold
+    // the same raw pointer and all three have to let go together (audit A-3).
+    if (entity == m_player) {
+        m_player = nullptr;
+        InputManager::getInstance().registerPlayer(nullptr, 0);
+        Game::getInstance().setPlayer(nullptr);
+    }
     if (entity == m_player2) {
         m_player2 = nullptr;
         m_aiController.reset();
@@ -2658,11 +2997,82 @@ bool PlayingState::anyDeathInProgress() const {
     return m_death.phase != DeathPhase::None || m_death2.phase != DeathPhase::None;
 }
 
+sf::Vector2f PlayingState::rescueDestination(const Player* who) const {
+    const float mapRight = m_tileMap.getWidth() * Constants::TILE_SIZE;
+    const AABB box = who->getBoundingBox();
+
+    // (a) The column they fell from. Clamped into the map first, so a player who
+    // left sideways is put back at the nearest real column rather than dropped
+    // straight to (b) — "where I was" is still the best answer available.
+    const float columnX = std::clamp(who->getPosition().x, 0.0f,
+                                     mapRight - Constants::TILE_SIZE);
+    // From the top of the map down: the FIRST solid tile in the column is the
+    // surface they were walking on before they left it. Scanning from their
+    // current y would find whatever is under the pit instead, which is the one
+    // place they must not be put back.
+    const float floorTop = floorBelow(columnX + Constants::TILE_SIZE * 0.5f, 0.0f);
+    if (floorTop >= 0.0f &&
+        isSpawnUsable({columnX, floorTop - Constants::TILE_SIZE})) {
+        // Placed by the FEET, not by the 32px probe box: a Super or Cape player
+        // is taller than the box isSpawnUsable() tests with, and landing them by
+        // the box would bury them by the difference.
+        return {columnX, floorTop - box.height};
+    }
+
+    // (b) A genuine bottomless pit — nothing solid anywhere in that column. The
+    // last checkpoint is the next-best claim on "where they were".
+    if (m_hasCheckpoint && isSpawnUsable(m_checkpointPosition)) {
+        return m_checkpointPosition;
+    }
+
+    // (c) The level's own spawn, nudged onto something usable if the level file
+    // buried it (the same treatment every other transition into this level got).
+    return usableSpawnNear(m_levelSpawnPoint, "<immortal rescue>");
+}
+
+void PlayingState::rescuePlayer(Player* who, const char* reason) {
+    if (!who) return;
+
+    const sf::Vector2f destination = rescueDestination(who);
+    who->setPosition(destination);
+    who->setVelocity({0.0f, 0.0f});
+    who->setGrounded(false);
+
+    // Deliberately NOT touched: lives, coins, score, the power-up form, the
+    // combo and m_levelTimer. "No lost progress" is the whole point — a rescue
+    // that cost the fire flower would still ruin the take it was meant to save.
+    //
+    // A second of i-frames, because the rescue can land next to whatever was
+    // chasing them. Under 1.7s so it does not trip the hurt animation
+    // (Player::update reads the same timer to pick that frame). No enemy sweep:
+    // makeSpawnSafe() deletes enemies near a respawn, and deleting level content
+    // out from under a recording is exactly the kind of surprise this must not
+    // spring.
+    who->setInvincible(1.0f);
+
+    if (who == m_player && !Game::getInstance().debugCheats().detachesCamera()) {
+        m_camera.snapTo(destination);
+    }
+
+    std::cout << "[Cheats] IMMORTAL: rescued " << (who == m_player2 ? "Player 2" : "Player 1")
+              << " (" << reason << ") to (" << destination.x << ", " << destination.y
+              << "). Lives unchanged at " << who->getLives() << "." << std::endl;
+}
+
 void PlayingState::killPlayer(Player* who, const char* reason) {
     // Null means Player 1: the debug key and the level-timer path have no
     // particular player in mind.
     if (!who) who = m_player;
     if (!who) return;
+
+    // Debug > Cheats' IMMORTAL, checked at the single door every lethal event in
+    // the game comes through — the void plane, the level clock, lava, a crush, a
+    // hit that finishes Small Mario. Nothing downstream of here runs: no death
+    // fall, no life spent, no game over.
+    if (Game::getInstance().debugCheats().rescueInsteadOfKill()) {
+        rescuePlayer(who, reason);
+        return;
+    }
 
     DeathState* death = deathStateFor(who);
     if (!death) return;   // not a participant — the shadow cannot die
@@ -2957,6 +3367,7 @@ void PlayingState::respawnPlayer(Player* who) {
 
     // A fresh clock per life, so a timeout death is recoverable.
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_timeWarningFired = false;
 
     SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
@@ -3004,6 +3415,7 @@ void PlayingState::restartLevel() {
     m_levelCompleteTimer = 0.0f;
     m_summaryShown = false;
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     m_starCoinsCollected = {false, false, false};
@@ -3050,13 +3462,28 @@ void PlayingState::presentLevelSummary() {
         summary, [this]() { advanceToNextLevel(); }));
 }
 
+void PlayingState::leaveToCallingScreen() {
+    Game& game = Game::getInstance();
+    if (m_isPlaytest) {
+        // Pop, not change: EditorState is directly underneath with the author's
+        // level still loaded, and replacing this state would strand it under a
+        // main menu it can never be reached from.
+        game.popState();
+        return;
+    }
+    game.changeState(std::make_unique<MenuState>());
+}
+
 void PlayingState::advanceToNextLevel() {
     // Campaign order matches the level dropdown: 1-1, 1-1 sub, 1-2, 1-2 sub,
     // 1-3, 1-3 sub, bonus. Finishing the last one returns to the menu.
     const int nextIndex = m_selectedLevelIndex + 1;
 
-    if (m_isProcedural || nextIndex >= LevelCatalog::count()) {
-        if (!m_isProcedural) {
+    // A custom level is a one-off, not position zero of the campaign: advancing
+    // from it would drop the player into World 1-2 and, worse, credit them with
+    // a New Game+ cycle for finishing a level they wrote themselves.
+    if (m_isProcedural || !m_customLevelPath.empty() || nextIndex >= LevelCatalog::count()) {
+        if (!m_isProcedural && m_customLevelPath.empty()) {
             // Finishing the last level opens the next New Game+ cycle: the level
             // flags reset, the counter and the unlocks do not (task 11.3).
             MetaGame::advanceNewGamePlus();
@@ -3064,8 +3491,11 @@ void PlayingState::advanceToNextLevel() {
                       << MetaGame::newGamePlusLevel() << "." << std::endl;
         }
         std::cout << "[PlayingState] Campaign complete — returning to menu." << std::endl;
-        ScreenTransitionManager::getInstance().fadeOut(0.8f, []() {
-            Game::getInstance().changeState(std::make_unique<MenuState>());
+        // The bool is captured by value, not `this`: the callback fires 0.8s
+        // later and must not depend on this state still existing.
+        ScreenTransitionManager::getInstance().fadeOut(0.8f, [playtest = m_isPlaytest]() {
+            if (playtest) Game::getInstance().popState();
+            else Game::getInstance().changeState(std::make_unique<MenuState>());
         });
         return;
     }
@@ -3077,6 +3507,7 @@ void PlayingState::advanceToNextLevel() {
     m_summaryShown = false;
     m_starCoinsCollected = {false, false, false};
     m_levelTimer = Constants::LEVEL_TIME * Game::getInstance().difficulty().levelTimeScale();
+    m_runElapsed = 0.0f;
     m_timeWarningFired = false;
     m_hasCheckpoint = false;
     setupTestScene();
@@ -3219,34 +3650,13 @@ void PlayingState::admitEntity(Entity* entity) {
 }
 
 void PlayingState::wireEntityAnimations(Entity* entity) {
-    if (!entity) return;
-
-    // Route entity to its matching sprite sheet atlas based on type hierarchy.
-    // setupAnimations() lives on Player, Enemy, Item, Block — not on Entity base.
-    if (auto* p = dynamic_cast<Player*>(entity)) {
-        if (m_playerSheet) p->setupAnimations(m_playerSheet.get());
-    } else if (auto* e = dynamic_cast<Enemy*>(entity)) {
-        if (m_enemySheet) e->setupAnimations(m_enemySheet.get());
-    } else if (auto* proj = dynamic_cast<Projectile*>(entity)) {
-        // Hammers and Bowser's fire breath both live in the enemy/projectile
-        // atlas. One branch covers every projectile, so a new one is wired by
-        // existing.
-        if (m_enemySheet) proj->setupAnimations(m_enemySheet.get());
-    } else if (dynamic_cast<StarCoin*>(entity) || dynamic_cast<BridgeAxe*>(entity)) {
-        // Two Items whose art is in the world/scenery atlas rather than the item
-        // one: StarCoin's big_coin_0..2, and BridgeAxe's axe_0..2. Routed by
-        // the generic Item branch below they find no frame, and drawSprite bails
-        // on a zero-size sprite — so they drew a placeholder rectangle.
-        if (auto* sceneryItem = dynamic_cast<Item*>(entity)) {
-            if (m_scenerySheet) sceneryItem->setupAnimations(m_scenerySheet.get());
-        }
-    } else if (auto* i = dynamic_cast<Item*>(entity)) {
-        if (m_itemSheet) i->setupAnimations(m_itemSheet.get());
-    } else if (auto* b = dynamic_cast<Block*>(entity)) {
-        if (m_scenerySheet) b->setupAnimations(m_scenerySheet.get());
-    } else {
-        // Fallback: unknown entity type — silently skip
-        std::cerr << "[wireEntityAnimations] Unknown entity type, skipping animation setup." << std::endl;
-    }
+    // The class-to-atlas routing itself lives in EntityArtBinder, because the
+    // level editor screen has to make exactly the same decision and a second
+    // copy of it would drift (g-rule-22). The sheets are pushed in here rather
+    // than in enter(), so an entity admitted before the atlases finished
+    // loading still gets bound with whatever is available now.
+    m_artBinder.setSheets(m_playerSheet.get(), m_enemySheet.get(),
+                          m_itemSheet.get(), m_scenerySheet.get());
+    m_artBinder.bind(entity);
 }
 

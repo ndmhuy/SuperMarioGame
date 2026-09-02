@@ -114,8 +114,13 @@ void testSettings() {
     std::unordered_map<std::string, std::string> bindings = { {"jump", "Space"}, {"left", "Left"}, {"right", "Right"} };
     std::unordered_map<std::string, std::string> bindings2 = { {"jump", "Up"}, {"fire", "M"} };
     bool colorblind = true;
+    // R21: settings gained a debugMode flag (the release build hides the dev
+    // ImGui unless Options > DEBUG MODE turns it on). Round-tripped here as a
+    // non-default value so a save that silently dropped the field would fail
+    // the assert below rather than pass on the default.
+    bool debugMode = true;
 
-    bool saveSuccess = Serializer::saveSettings(sfx, music, diff, bindings, bindings2, colorblind);
+    bool saveSuccess = Serializer::saveSettings(sfx, music, diff, bindings, bindings2, colorblind, debugMode);
     assert(saveSuccess && "Failed to save settings");
 
     float loadedSfx, loadedMusic;
@@ -123,9 +128,11 @@ void testSettings() {
     std::unordered_map<std::string, std::string> loadedBindings;
     std::unordered_map<std::string, std::string> loadedBindings2;
     bool loadedColorblind;
+    bool loadedDebugMode = false;
 
-    bool loadSuccess = Serializer::loadSettings(loadedSfx, loadedMusic, loadedDiff, loadedBindings, loadedBindings2, loadedColorblind);
+    bool loadSuccess = Serializer::loadSettings(loadedSfx, loadedMusic, loadedDiff, loadedBindings, loadedBindings2, loadedColorblind, loadedDebugMode);
     assert(loadSuccess && "Failed to load settings");
+    assert(loadedDebugMode == debugMode && "debugMode did not survive the settings round-trip");
 
     assert(floatsEqual(loadedSfx, sfx));
     assert(floatsEqual(loadedMusic, music));

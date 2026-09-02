@@ -117,15 +117,26 @@ public:
 class GodCommand : public IConsoleCommand {
 public:
     std::string name() const override { return "god"; }
-    std::string help() const override { return "god - toggle very long invincibility"; }
+    std::string help() const override {
+        return "god - toggle Debug > Cheats' IMMORTAL + INVINCIBLE together";
+    }
     std::string execute(const std::vector<std::string>&) override {
-        if (!player()) return requirePlayer();
+        // This used to set invincibilityTimer to 100000, which is not a second
+        // source of truth so much as a second, worse answer: it guarded only
+        // Player::takeDamage's i-frame check, so a pit, the level clock and a
+        // crush all still ended the run, and the same field drives the hurt
+        // animation. It now flips the very switches the Cheats panel does, so
+        // the panel and the console cannot disagree about whether god mode is
+        // on — and toggling one visibly moves the other's checkbox.
+        DebugCheats& cheats = Game::getInstance().debugCheats();
+        if (!cheats.isArmed()) {
+            return "cheats are off - turn on OPTIONS > DEBUG MODE first";
+        }
 
-        // Player::render dims the sprite while invincibilityTimer is below 9000,
-        // so a large value is both effectively permanent and visually quiet.
-        const bool wasOn = player()->getInvincibilityTimer() > 9000.0f;
-        player()->setInvincible(wasOn ? 0.0f : 100000.0f);
-        return wasOn ? "god mode off" : "god mode on";
+        const bool wasOn = cheats.rescueInsteadOfKill() && cheats.blocksDamage();
+        cheats.set(DebugCheats::Cheat::Immortal, !wasOn);
+        cheats.set(DebugCheats::Cheat::Invincible, !wasOn);
+        return wasOn ? "god mode off" : "god mode on (immortal + invincible)";
     }
 };
 

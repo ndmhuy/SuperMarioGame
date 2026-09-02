@@ -30,10 +30,20 @@ int maxJumpTilesVertical() {
     return static_cast<int>(Constants::JUMP_HEIGHT / Constants::TILE_SIZE);
 }
 
-// The first solid tile scanning down from the top of the map at column `x`,
-// or -1 if the column is a bottomless pit (no floor at all within the map).
+// The first tile the player could stand ON at column `x`, scanning down, or -1
+// if the column is a bottomless pit (no floor at all within the map).
+//
+// The run of solid tiles hanging from row 0 is skipped, because it is a
+// CEILING and nobody stands on the underside of one. This check used to return
+// the first solid tile full stop, and MapGenerator gives every Castle and
+// Underground map a two-row solid ceiling across its whole width — so every
+// column answered "row 0", every rise was zero, and isPathReachable() returned
+// true unconditionally. The solvability guarantee was vacuous for exactly the
+// two themes with the least forgiving geometry, the boss castle among them.
 int groundRowAt(const TileMap& map, int x) {
-    for (int y = 0; y < map.getHeight(); ++y) {
+    int y = 0;
+    while (y < map.getHeight() && TileMap::getInfo(map.getTileType(x, y)).isSolid) ++y;
+    for (; y < map.getHeight(); ++y) {
         if (TileMap::getInfo(map.getTileType(x, y)).isSolid) return y;
     }
     return -1;

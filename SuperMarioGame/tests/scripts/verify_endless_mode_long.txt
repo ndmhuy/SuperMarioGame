@@ -1,6 +1,13 @@
 # Longer Endless Mode run: push past the first chunk seam (~160 tiles in)
 # to confirm extendEndlessLevelIfNeeded() actually appends a chunk live.
+# NOTE (R21 Lane D): the main-menu walk below is SIX Downs, not four. MenuState
+# has ten rows and moveSelection() skips none of them, and LOAD GAME and CUSTOM
+# LEVELS were added to that list after this script was written - four Downs
+# lands on MAP EDITOR and the run silently verifies nothing.
+
 wait 2.0
+press Down
+press Down
 press Down
 press Down
 press Down

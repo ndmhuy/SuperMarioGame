@@ -24,15 +24,39 @@ Castle::Castle(sf::Vector2f position) : Block(position, {CASTLE_W, CASTLE_H}) {
 void Castle::setupAnimations(const SpriteSheet* spriteSheet) {
     Block::setupAnimations(spriteSheet);
     m_sheet = spriteSheet;
+    applyFrame();
+}
+
+void Castle::setFrame(const std::string& frameKey) {
+    if (frameKey.empty() || frameKey == m_frameKey) return;
+    // Recorded even before the atlas is attached: a procedurally generated level
+    // styles its castle (settleEndOfLevelScenery) before it wires entities up
+    // (admitEntity), and the frame has to survive that ordering.
+    if (m_sheet && !m_sheet->hasFrame(frameKey)) return;
+    m_frameKey = frameKey;
+    applyFrame();
+}
+
+void Castle::applyFrame() {
+    if (!m_sheet || !m_sheet->hasFrame(m_frameKey)) return;
 
     // A single frame, not an animation — the castle does not move. It goes
     // through the Animator anyway so it is wired the same way every other block
     // is and Block::render can draw it without a special case.
     m_animation = Animation("castle");
-    m_animation.frameList = {{"castle_0", 1.0f}};
+    m_animation.frameList = {{m_frameKey, 1.0f}};
     m_animation.isLooping = false;
 
-    if (m_animator && spriteSheet && spriteSheet->hasFrame("castle_0")) {
+    // The box follows the art rather than the art being squashed into the box —
+    // see setFrame's contract in the header.
+    const sf::FloatRect bounds = m_sheet->getSprite(m_frameKey).getLocalBounds();
+    if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+        setTargetSize({bounds.size.x, bounds.size.y});
+        boundingBox.width  = bounds.size.x;
+        boundingBox.height = bounds.size.y;
+    }
+
+    if (m_animator) {
         m_animator->play(&m_animation);
         m_hasAnimation = true;
     }
@@ -70,7 +94,8 @@ void Castle::render(sf::RenderTarget& target) {
 
     // The mast sits above the centre of the gatehouse. The flag travels the
     // height of one tile as it rises, ending just below the battlement line.
-    const float mastX = position.x + CASTLE_W * 0.5f - bounds.size.x * FLAG_SCALE * 0.5f;
+    // The box, not CASTLE_W: setFrame() can widen it (castle_white is 153px).
+    const float mastX = position.x + boundingBox.width * 0.5f - bounds.size.x * FLAG_SCALE * 0.5f;
     const float travel = Constants::TILE_SIZE;
     const float restY = position.y + Constants::TILE_SIZE * 1.25f;
     const float y = restY + travel * (1.0f - m_flagRise);

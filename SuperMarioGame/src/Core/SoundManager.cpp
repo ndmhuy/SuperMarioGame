@@ -1,6 +1,7 @@
 #include "Core/SoundManager.hpp"
 #include "Core/ResourceManager.hpp"
 #include "Core/EventBus.hpp"
+#include "Core/Game.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -116,7 +117,28 @@ void SoundManager::setupEventSubscriptions() {
     // switch going down, and is used by nothing else.
     bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent&) { playSound("kick"); });
     bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent&) { playSound("stomp"); });
-    bus.subscribe(EventType::PlayerDied, [this](const GameEvent&) { stopMusic(); playSound("lost_life"); });
+    // A death takes the level music down with it, and respawnPlayer's
+    // playLevelBGM brings it back. That is right for one player, whose run has
+    // genuinely stopped -- and wrong for a two-player match, where it silenced
+    // the survivor for somebody else's death.
+    //
+    // Two ways it went wrong, both reported as "P2 dies and the music stops":
+    // a non-final death muted Player 1 for the whole of Player 2's death fall,
+    // and a FINAL death muted them for the rest of the level -- an eliminated
+    // player never respawns, so the playLevelBGM that would have restored the
+    // track never runs, and nothing else restarts it until a level load.
+    //
+    // The jingle is this player's own feedback that they died and always
+    // plays. Only the music is conditional. Note the deliberate asymmetry with
+    // Shadow Chase: hasSecondPlayer() is false there, and correctly so -- there is
+    // one real player, so their death really is the run stopping.
+    //
+    // Both players being out is not this handler's problem: that publishes
+    // GameOver, whose subscription below switches to the game-over track.
+    bus.subscribe(EventType::PlayerDied, [this](const GameEvent&) {
+        if (!Game::getInstance().matchConfig().hasSecondPlayer()) stopMusic();
+        playSound("lost_life");
+    });
     bus.subscribe(EventType::PowerUpCollected, [this](const GameEvent&) { playSound("power_up"); });
     // One owner for the level-clear cue, and one play of it.
     //

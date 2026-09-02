@@ -83,7 +83,7 @@
       "targetLevel": "assets/levels/level_1.json",
       "type": "pipe",
       "x": 59,
-      "y": 16
+      "y": 15
     },
     {
       "type": "goomba",
@@ -128,7 +128,7 @@
   "height": 20,
   "name": "World 1-1 Sub: Underground Coin Vault",
   "spawnPoint": {
-    "x": 3,
+    "x": 6,
     "y": 16
   },
   "theme": "underground",

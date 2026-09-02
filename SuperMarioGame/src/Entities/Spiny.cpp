@@ -6,6 +6,10 @@
 #include "Core/EventBus.hpp"
 #include "Core/SoundManager.hpp"
 
+#include <algorithm>
+
+std::vector<Spiny*> Spiny::s_live;
+
 Spiny::Spiny(sf::Vector2f position, bool isEgg)
     : Enemy(position, 200), m_isEgg(isEgg) {
     speed = Constants::ENEMY_SPINY_SPEED;
@@ -13,6 +17,21 @@ Spiny::Spiny(sf::Vector2f position, bool isEgg)
 
     // PatrolStrategy: Spiny patrols back and forth on platforms/ground
     setStrategy(std::make_unique<PatrolStrategy>(/*ledgeAware=*/true, false));
+
+    s_live.push_back(this);
+}
+
+Spiny::~Spiny() {
+    s_live.erase(std::remove(s_live.begin(), s_live.end(), this), s_live.end());
+}
+
+int Spiny::liveCount() {
+    // "Alive" is narrower than "still in the vector": a Spiny knocked over by a
+    // fireball is falling out of the world and will be pruned in a moment, and
+    // it must not go on holding Lakitu's allowance while it does.
+    return static_cast<int>(std::count_if(
+        s_live.begin(), s_live.end(),
+        [](const Spiny* spiny) { return spiny->isActive() && !spiny->isDeadOrDying(); }));
 }
 
 void Spiny::setupAnimations(const SpriteSheet* spriteSheet) {

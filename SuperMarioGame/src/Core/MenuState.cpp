@@ -2,12 +2,14 @@
 #include "Core/AchievementManager.hpp"
 #include "Core/CharacterSelectState.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Core/EditorState.hpp"
 #include "Core/OptionsState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/Game.hpp"
 #include "Core/InputManager.hpp"
 #include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/LevelCatalog.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Utils/Serializer.hpp"
 
@@ -27,8 +29,8 @@
 namespace {
 
 // Main-menu rows, in display order.
-enum MainRow { ROW_START = 0, ROW_LOAD, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
-               ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
+enum MainRow { ROW_START = 0, ROW_LOAD, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_CUSTOM,
+               ROW_GENERATOR, ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
 constexpr int kThemeCount = 4;
@@ -149,6 +151,11 @@ void MenuState::enter() {
     m_mainItems.emplace_back("MULTIPLAYER", "4 MODES");
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
+    // The other half of the editor: a level you author is worthless if there is
+    // no way to play it, and until now there was none.
+    LevelCatalog::refreshCustomLevels();
+    m_mainItems.emplace_back("CUSTOM LEVELS",
+                             std::to_string(LevelCatalog::customLevels().size()));
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
     // Achievement progress on the row itself, so the player can see there is
     // something to chase without opening the page first.
@@ -227,6 +234,21 @@ std::vector<UiMenuItem> MenuState::buildLoadItems() const {
     return rows;
 }
 
+std::vector<UiMenuItem> MenuState::buildCustomLevelItems() const {
+    std::vector<UiMenuItem> rows;
+    for (const LevelEntry& entry : LevelCatalog::customLevels()) {
+        // The file stem as the value column, so two levels that named themselves
+        // the same are still told apart.
+        std::string stem = std::filesystem::path(entry.path).stem().string();
+        rows.emplace_back(entry.displayName, stem + ".json");
+    }
+    if (rows.empty()) {
+        rows.emplace_back("NO CUSTOM LEVELS YET", "MAP EDITOR > SAVE AS", false);
+    }
+    rows.emplace_back("BACK");
+    return rows;
+}
+
 void MenuState::moveSelection(int delta) {
     // SPEC 17.3: "Menu selection: click sound on highlight change". CharSelect
     // and WorldMapState only ever play "bump" for a *blocked* move (a locked
@@ -243,6 +265,11 @@ void MenuState::moveSelection(int delta) {
     if (m_page == Page::Generator) {
         const int n = static_cast<int>(GenRow::COUNT);
         m_genSelected = (m_genSelected + delta + n) % n;
+        return;
+    }
+    if (m_page == Page::CustomLevels) {
+        const int n = static_cast<int>(buildCustomLevelItems().size());
+        if (n > 0) m_customSelected = (m_customSelected + delta + n) % n;
         return;
     }
     if (m_page == Page::Load) {
@@ -375,8 +402,17 @@ void MenuState::activateSelection() {
                 break;
             }
             case ROW_EDITOR:
+                // A screen of its own, with a blank canvas. This row used to
+                // open PlayingState(true, false) — the editor as one floating
+                // ImGui window over a silently loaded copy of World 1-1, with
+                // nothing on screen saying which level that was.
                 m_dismissed = true;
-                game.changeState(std::make_unique<PlayingState>(true, false));
+                game.changeState(std::make_unique<EditorState>());
+                break;
+            case ROW_CUSTOM:
+                LevelCatalog::refreshCustomLevels();
+                m_page = Page::CustomLevels;
+                m_customSelected = 0;
                 break;
             case ROW_GENERATOR:
                 m_page = Page::Generator;
@@ -399,6 +435,23 @@ void MenuState::activateSelection() {
             default:
                 break;
         }
+        return;
+    }
+
+    if (m_page == Page::CustomLevels) {
+        const auto& levels = LevelCatalog::customLevels();
+        const int backRow = static_cast<int>(levels.size());
+        if (m_customSelected >= backRow || levels.empty()) {
+            m_page = Page::Main;
+            return;
+        }
+        m_dismissed = true;
+        // Addressed by PATH, not by a campaign index: an authored level is not
+        // part of the campaign and must not renumber it.
+        game.changeState(std::make_unique<PlayingState>(
+            false, false, MapGeneratorConfig(), 0, 0, MatchConfig{},
+            /*isEndless=*/false, /*pendingLoadSlot=*/0, /*isAttractDemo=*/false,
+            levels[static_cast<std::size_t>(m_customSelected)].path));
         return;
     }
 
@@ -610,7 +663,7 @@ void MenuState::render(sf::RenderTarget& target) {
                               sf::Color(0, 0, 0, 170));
         UiRenderer::drawMenuItems(target, m_mainItems, m_mainSelected,
                                   {centerX - 270.0f, PANEL_TOP + PADDING}, ROW_HEIGHT, 15,
-                                  centerX + 40.0f, m_elapsed);
+                                  centerX + 40.0f, m_elapsed, centerX + 320.0f);
         // Shadowed: this line sits over the parallax bushes, and plain white
         // text on light green foliage is unreadable.
         UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  CONFIRM",
@@ -648,6 +701,12 @@ void MenuState::render(sf::RenderTarget& target) {
         // edge of the frame.
         constexpr float kTop = 196.0f;
         constexpr float kRowHeight = 34.0f;
+        // Named because four things now measure against it: the frame itself,
+        // the row list's right clip, and the two centred summary lines below.
+        constexpr float kPanelHalfW = 280.0f;
+        // One character cell of clearance at each edge, matching the gutter
+        // drawMenuItems uses so the centred lines and the rows agree.
+        constexpr float kTextBudget = kPanelHalfW * 2.0f - 22.0f * 2.0f;
         const float rowsTop = kTop + 58.0f;
         const float rowsBottom = rowsTop + kRowHeight * static_cast<float>(rows.size());
         const float blurbY = rowsBottom + 16.0f;
@@ -656,17 +715,17 @@ void MenuState::render(sf::RenderTarget& target) {
         const float contentBottom = padsCollide ? warnY : (twoHumans ? keysY : blurbY);
         const float panelHeight = (contentBottom + 22.0f) - kTop;
 
-        UiRenderer::drawPanel(target, {centerX - 280.0f, kTop}, {560.0f, panelHeight},
-                              sf::Color(0, 0, 0, 200));
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
         UiRenderer::drawText(target, "MULTIPLAYER", {centerX, kTop + 20.0f}, 14,
                              sf::Color(255, 170, 220), true);
         UiRenderer::drawMenuItems(target, rows, m_mpSelected,
                                   {centerX - 210.0f, rowsTop}, kRowHeight, 13,
-                                  centerX + 90.0f, m_elapsed);
+                                  centerX + 90.0f, m_elapsed, centerX + kPanelHalfW);
 
         // What the highlighted mode actually does. The labels alone do not say.
-        UiRenderer::drawText(target, modeBlurb(m_match.mode), {centerX, blurbY}, 11,
-                             sf::Color(200, 200, 200), true);
+        UiRenderer::drawTextFitted(target, modeBlurb(m_match.mode), {centerX, blurbY}, 11,
+                                   sf::Color(200, 200, 200), kTextBudget, true);
 
         if (twoHumans) {
             auto padSummary = [&input](int pad) {
@@ -675,19 +734,52 @@ void MenuState::render(sf::RenderTarget& target) {
                 const std::string jump  = input.getBoundKeyName("jump", pad);
                 return left + "/" + right + " + " + jump;
             };
-            UiRenderer::drawText(target, "P1  " + padSummary(0) + "      P2  " + padSummary(1),
-                                 {centerX, keysY}, 11, sf::Color(150, 220, 150), true);
+            // Fitted, not fixed: the key names are rebindable, so this line has
+            // no maximum length the layout can be written against. "LShift" on
+            // both pads already made it 58 characters — 637px in a 560px panel.
+            UiRenderer::drawTextFitted(target, "P1  " + padSummary(0) + "      P2  " + padSummary(1),
+                                       {centerX, keysY}, 11, sf::Color(150, 220, 150),
+                                       kTextBudget, true);
 
             // Both pads on the same key is unplayable, and the only place it can
             // be noticed before the level starts is here.
             if (padsCollide) {
-                UiRenderer::drawText(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
-                                     {centerX, warnY}, 10, sf::Color(255, 140, 140), true);
+                UiRenderer::drawTextFitted(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
+                                           {centerX, warnY}, 10, sf::Color(255, 140, 140),
+                                           kTextBudget, true);
             }
         }
 
         UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
                                      {centerX, kTop + panelHeight + 18.0f}, 11,
+                                     sf::Color(220, 220, 220), true);
+        return;
+    }
+
+    if (m_page == Page::CustomLevels) {
+        const std::vector<UiMenuItem> rows = buildCustomLevelItems();
+
+        constexpr float kTop = 200.0f;
+        constexpr float kRowHeight = 34.0f;
+        const float rowsTop = kTop + 56.0f;
+        const float panelHeight = (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 30.0f) - kTop;
+        constexpr float kPanelHalfW = 320.0f;
+
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
+        UiRenderer::drawText(target, "CUSTOM LEVELS", {centerX, kTop + 20.0f}, 14,
+                             sf::Color(120, 220, 160), true);
+        UiRenderer::drawMenuItems(target, rows, m_customSelected,
+                                  {centerX - 250.0f, rowsTop}, kRowHeight, 11,
+                                  0.0f, m_elapsed, centerX + kPanelHalfW);
+        // The directory, on the screen that lists the files: "where is it" has
+        // to be answerable from outside the editor too.
+        UiRenderer::drawShadowedText(target,
+                                     toUpper(LevelCatalog::customDirectory()),
+                                     {centerX, kTop + panelHeight + 18.0f}, 10,
+                                     sf::Color(190, 190, 190), true);
+        UiRenderer::drawShadowedText(target, "ENTER  PLAY      ESC  BACK",
+                                     {centerX, kTop + panelHeight + 36.0f}, 11,
                                      sf::Color(220, 220, 220), true);
         return;
     }
@@ -700,13 +792,21 @@ void MenuState::render(sf::RenderTarget& target) {
         const float rowsTop = kTop + 56.0f;
         const float panelHeight = (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 30.0f) - kTop;
 
-        UiRenderer::drawPanel(target, {centerX - 300.0f, kTop}, {600.0f, panelHeight},
-                              sf::Color(0, 0, 0, 200));
+        constexpr float kPanelHalfW = 300.0f;
+
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
         UiRenderer::drawText(target, "LOAD GAME", {centerX, kTop + 20.0f}, 14,
                              sf::Color(120, 220, 160), true);
+        // No explicit value column: the labels are "SLOT n" and "BACK", so
+        // letting drawMenuItems derive the column from the widest of them hands
+        // the summary every pixel the panel has. The old hardcoded column at
+        // centerX+10 left it 290px for a string that is never shorter than 31
+        // characters and typically 35-37 — it printed 81-153px out through the
+        // right border of the frame on every save that existed.
         UiRenderer::drawMenuItems(target, rows, m_loadSelected,
                                   {centerX - 230.0f, rowsTop}, kRowHeight, 12,
-                                  centerX + 10.0f, m_elapsed);
+                                  0.0f, m_elapsed, centerX + kPanelHalfW);
         UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  LOAD      ESC  BACK",
                                      {centerX, kTop + panelHeight + 18.0f}, 11,
                                      sf::Color(220, 220, 220), true);
@@ -726,13 +826,27 @@ void MenuState::render(sf::RenderTarget& target) {
     rows.emplace_back("PLAY ENDLESS");
     rows.emplace_back("BACK");
 
-    UiRenderer::drawPanel(target, {centerX - 280.0f, 200.0f}, {560.0f, 400.0f},
-                          sf::Color(0, 0, 0, 200));
-    UiRenderer::drawText(target, "PROCEDURAL GENERATOR", {centerX, 220.0f}, 14,
+    // Height derived from the row count, like the other three pages. This was
+    // the last page still hardcoding 400px: ten rows of 36px from y=262 end at
+    // 599 against a panel bottom of 600 — one pixel of clearance — and the hint
+    // line at y=570 was drawn *inside* the frame, between rows 9 and 10. Adding
+    // an eleventh generator row would have repeated the main-menu overflow that
+    // the comment at the top of this function records.
+    constexpr float kTop = 200.0f;
+    constexpr float kPanelHalfW = 280.0f;
+    constexpr float kRowHeight = 36.0f;
+    const float rowsTop = kTop + 62.0f;
+    const float panelHeight =
+        (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 26.0f) - kTop;
+
+    UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                          {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
+    UiRenderer::drawText(target, "PROCEDURAL GENERATOR", {centerX, kTop + 20.0f}, 14,
                          sf::Color(120, 200, 255), true);
     UiRenderer::drawMenuItems(target, rows, m_genSelected,
-                              {centerX - 210.0f, 262.0f}, 36.0f, 13,
-                              centerX + 110.0f, m_elapsed);
+                              {centerX - 210.0f, rowsTop}, kRowHeight, 13,
+                              centerX + 110.0f, m_elapsed, centerX + kPanelHalfW);
     UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
-                                 {centerX, 570.0f}, 11, sf::Color(220, 220, 220), true);
+                                 {centerX, kTop + panelHeight + 18.0f}, 11,
+                                 sf::Color(220, 220, 220), true);
 }

@@ -7,13 +7,21 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <cmath>
 
-Pipe::Pipe(sf::Vector2f position, int pipeId, sf::Vector2f exitPosition, std::string targetLevel, bool isEntrance, float rotationDegrees)
-    : Block(position, {64.0f, 64.0f}), m_pipeId(pipeId), m_exitPosition(exitPosition), m_targetLevel(targetLevel), m_isEntrance(isEntrance), m_rotationDegrees(rotationDegrees) {
+Pipe::Pipe(sf::Vector2f position, int pipeId, sf::Vector2f exitPosition, std::string targetLevel, bool isEntrance, float rotationDegrees, std::string color)
+    : Block(position, {WIDTH_PX, HEIGHT_PX}), m_pipeId(pipeId), m_exitPosition(exitPosition), m_targetLevel(std::move(targetLevel)), m_isEntrance(isEntrance), m_rotationDegrees(rotationDegrees), m_color(std::move(color)) {
     m_breakable = false;
 }
 
 void Pipe::onHitFromBelow(Player& player) {
     // Solid block, does nothing from below except play normal bump sound if necessary
+}
+
+void Pipe::configureWarp(int pipeId, bool isEntrance, std::string targetLevel,
+                         sf::Vector2f exitPosition) {
+    m_pipeId = pipeId;
+    m_isEntrance = isEntrance;
+    m_targetLevel = std::move(targetLevel);
+    m_exitPosition = exitPosition;
 }
 
 bool Pipe::checkWarp(const Player& player) const {
@@ -52,7 +60,11 @@ void Pipe::setupAnimations(const SpriteSheet* spriteSheet) {
 void Pipe::render(sf::RenderTarget& target) {
     if (!active) return;
     if (m_spriteSheet) {
-        PipeRenderer::draw(target, m_spriteSheet, sf::Vector2f(boundingBox.x, boundingBox.y), sf::Vector2f(boundingBox.width, boundingBox.height), m_rotationDegrees, true, "green");
+        // hasHead is always true: a Pipe is a whole pipe, not a body segment.
+        // Stacking two Pipe entities to make a taller one would need the upper
+        // one to own the head — no level does that, and the 2x4 collider is
+        // there so none has to.
+        PipeRenderer::draw(target, m_spriteSheet, sf::Vector2f(boundingBox.x, boundingBox.y), sf::Vector2f(boundingBox.width, boundingBox.height), m_rotationDegrees, true, m_color);
     } else {
         Block::render(target);
     }

@@ -127,18 +127,29 @@ void PauseState::render(sf::RenderTarget& target) {
     const float py = (Constants::WINDOW_HEIGHT - PANEL_H) * 0.5f;
     UiRenderer::drawPanel(target, {px, py}, {PANEL_W, PANEL_H});
 
+    constexpr float TITLE_Y = 36.0f;
+    constexpr float LIST_TOP = 118.0f;
+
     UiRenderer::drawShadowedText(target, "PAUSED",
-                                 {Constants::WINDOW_WIDTH * 0.5f, py + 36.0f},
+                                 {Constants::WINDOW_WIDTH * 0.5f, py + TITLE_Y},
                                  28, sf::Color(255, 216, 0), true);
 
-    UiRenderer::drawMenuItems(target, m_items, m_selected,
-                              {px + 78.0f, py + 118.0f}, 42.0f, 16, 0.0f, m_elapsed);
-
+    // The notice goes in the empty band between the title and the first row,
+    // not at the bottom of the panel. Down there it landed on top of QUIT TO
+    // MENU — the last of five 42px rows ends at py+482 and the notice was drawn
+    // at py+290+... i.e. y 470, overlapping in both axes every single time the
+    // player saved. This band belongs to nothing else, so a sixth row can be
+    // added without recreating the collision.
     if (!m_notice.empty()) {
-        UiRenderer::drawText(target, m_notice,
-                             {Constants::WINDOW_WIDTH * 0.5f, py + PANEL_H - 70.0f},
-                             10, sf::Color(120, 255, 140), true);
+        UiRenderer::drawTextFitted(target, m_notice,
+                                   {Constants::WINDOW_WIDTH * 0.5f,
+                                    py + (TITLE_Y + 34.0f + LIST_TOP) * 0.5f},
+                                   10, sf::Color(120, 255, 140), PANEL_W - 32.0f, true);
     }
+
+    UiRenderer::drawMenuItems(target, m_items, m_selected,
+                              {px + 78.0f, py + LIST_TOP}, 42.0f, 16, 0.0f, m_elapsed,
+                              px + PANEL_W);
 
     UiRenderer::drawText(target, "UP/DOWN  SELECT   ENTER  CONFIRM",
                          {Constants::WINDOW_WIDTH * 0.5f, py + PANEL_H - 44.0f},

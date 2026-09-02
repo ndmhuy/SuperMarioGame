@@ -64,7 +64,10 @@ void Luigi::doubleJump() {
 }
 
 float Luigi::getGravityMultiplier() const {
-    return Constants::LUIGI_GRAVITY_MULT;
+    // Chained rather than returned flat: Player's answer is where Debug > Cheats'
+    // NOCLIP switches gravity off, and a character that ignored the base would be
+    // the one character noclip did not work for.
+    return Player::getGravityMultiplier() * Constants::LUIGI_GRAVITY_MULT;
 }
 
 float Luigi::getRunSpeed() const {

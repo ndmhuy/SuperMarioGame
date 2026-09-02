@@ -10,9 +10,15 @@ int main() {
 
     LevelLoader loader;
 
+    // Writes exactly one copy, relative to the current working directory. This
+    // used to also write "../" + relPath, which created a second levels tree at
+    // the repository root. ResourceManager::resolvePath tries the bare relative
+    // path first, so whichever tree the launch directory happened to sit next to
+    // won -- and the root copy, being raw generator output, silently reverted
+    // the D21/D22/D23 fixes (Brick sub-level floors the P-Switch could eat, and
+    // one-column "half" pipes). One tree, one source of truth.
     auto saveBoth = [&](const std::string& relPath, TileMap& map, std::vector<std::unique_ptr<Entity>>& ents, const std::string& name) {
         loader.saveLevel(relPath, map, ents, name);
-        loader.saveLevel("../" + relPath, map, ents, name);
         std::cout << "[SUCCESS] Generated " << relPath << std::endl;
     };
 

@@ -176,6 +176,15 @@ list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 #     the tests need them live. A single shared OBJECT library cannot serve
 #     both, since it compiles each source once with one set of flags — hence
 #     two libraries, not one.
+#
+# Keep both of these OBJECT libraries. Converting either to a static archive
+# (add_library(... STATIC ...)) would change link semantics, not just packaging:
+# an archive contributes only the members whose symbols something already
+# references, so any translation unit that registers itself at static-init time
+# rather than being called by name would be dropped, silently and only in some
+# link configurations. EntityCatalogue's registry is written as one explicit
+# table for exactly that reason (see the comment on all()) — this note is here
+# so the constraint is visible from the build file too.
 add_library(AppObjectsRelease OBJECT ${APP_SOURCES})
 target_include_directories(AppObjectsRelease PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -262,9 +271,30 @@ set_tests_properties(guard_saves_hermeticity_check PROPERTIES
     FIXTURES_CLEANUP saves_hermeticity
     TIMEOUT 30)
 
+# R21: one asset tree, enforced. tools/generate_game_levels.cpp used to write
+# every level twice -- once relative to the cwd, once to "../" + path -- which
+# created a second, untracked levels tree at the repository root. Because
+# ResourceManager::resolvePath tries the bare relative path first, that stale
+# tree won whenever the game was launched from the repo root, silently serving
+# levels that predated the D21/D22/D23 fixes. The dual-write is gone and
+# /assets/ is gitignored, but neither keeps a recreated tree OFF THE DISK, and
+# the disk is what path resolution reads. This guard is what actually fails.
+add_executable(guard_asset_single_source "tests/guard_asset_single_source.cpp")
+target_compile_definitions(guard_asset_single_source PRIVATE
+    ASSET_GUARD_PROJECT_ROOT="${CMAKE_CURRENT_SOURCE_DIR}"
+    ASSET_GUARD_REPO_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_dependencies(ctest_binaries guard_asset_single_source)
+
+add_test(NAME guard_asset_single_source COMMAND guard_asset_single_source)
+set_tests_properties(guard_asset_single_source PROPERTIES TIMEOUT 30)
+
 add_verify_test(verify_all "tests/verify_all.cpp")
 
-add_verify_test(verify_map_editor "tests/verify_map_editor.cpp" NO_CTEST)
+# Registered as a ctest case (R21): it opens no window and needs none, and the
+# NO_CTEST it carried meant the one harness named after the level editor never
+# ran in CI while PlaceEntityCommand silently placed nothing for 24 of the 40
+# palette types.
+add_verify_test(verify_map_editor "tests/verify_map_editor.cpp")
 
 add_verify_test(verify_save_load "tests/verify_save_load.cpp")
 
@@ -381,12 +411,38 @@ target_link_libraries(generate_game_levels PRIVATE AppObjectsRelease)
 # This target is the guard against that recurring. Keep it headless so CI can
 # run it without a display.
 add_verify_test(verify_regressions "tests/verify_regressions.cpp")
+
+# R21 release-defect batch. Three suites, each guarding a class of defect that
+# had no guard at all -- which is why each class kept coming back.
+#   entity_guards: platforms that drive into terrain, Lakitu's drop allowance,
+#                  and enemies (bosses included) walking off the world.
+#   level_data:    invariants over the seven shipped level JSONs -- pipe runs
+#                  >=2x2, no P-Switch can delete a column's last solid tile,
+#                  spawns and pipe exits outside solid geometry, castle seated
+#                  on its flagpole's row, no platform sweep into terrain.
+#   ui_layout:     text fits the box it is drawn in, and debugMode survives a
+#                  settings round-trip defaulting to off.
+add_verify_test(verify_r21_entity_guards "tests/verify_r21_entity_guards.cpp")
+add_verify_test(verify_r21_level_data "tests/verify_r21_level_data.cpp")
+add_verify_test(verify_r21_ui_layout "tests/verify_r21_ui_layout.cpp")
+add_verify_test(verify_r21_debug_cheats "tests/verify_r21_debug_cheats.cpp")
+# entity_registry: walks the EntityType ENUM (0..Count), not the catalogue, and
+#                  fails if any enumerator has no registration whose creator
+#                  builds an entity — the check that turns "someone forgot to
+#                  register a type" from a dead palette button into a red suite.
+add_verify_test(verify_r21_entity_registry "tests/verify_r21_entity_registry.cpp")
 add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 
 # Two-player modes, the CPU opponent and Shadow Mario. Headless: it drives the
 # policy and the controller directly against a hand-built TileMap, so it needs
 # no window and no assets.
 add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
+
+# Bonus D dynamic lighting. Headless by design: the day/night model, the
+# theme->darkness mapping and the C++/GLSL uniform contract are all checked
+# without a GPU, and the handful of genuinely GPU-dependent checks announce a
+# SKIP when sf::Shader::isAvailable() is false rather than failing the run.
+add_verify_test(verify_r21_lighting "tests/verify_r21_lighting.cpp")
 
 # ---------------------------------------------------------
 # 19. Asset synchronisation
@@ -399,8 +455,14 @@ add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
 # and textureless.
 #
 # Copying after every build keeps one source of truth in the source tree.
+#
+# Bonus D's GLSL lives at assets/shaders/radial_light.frag, so it is carried by
+# this step already and deliberately does NOT get a second copy_directory of its
+# own: a shader synced by two rules is a shader that can be stale by one of them.
+# What guards it instead is verify_r21_lighting, which resolves the .frag through
+# the same ResourceManager::resolvePath the game uses and fails if it is missing.
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    COMMENT "Syncing assets/ into the build directory")
+    COMMENT "Syncing assets/ (levels, textures, audio, shaders) into the build directory")

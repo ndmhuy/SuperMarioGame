@@ -1,40 +1,11 @@
 #include "Utils/SerializationUtils.hpp"
 #include "Entities/EntityCatalogue.hpp"
 #include "Entities/Entity.hpp"
-#include "Entities/Mario.hpp"
-#include "Entities/Luigi.hpp"
-#include "Entities/Toad.hpp"
-#include "Entities/Peach.hpp"
 
-#include "Entities/Goomba.hpp"
-#include "Entities/KoopaTroopa.hpp"
-#include "Entities/KoopaParatroopa.hpp"
-#include "Entities/PiranhaPlant.hpp"
-#include "Entities/HammerBro.hpp"
-#include "Entities/Thwomp.hpp"
-#include "Entities/Boo.hpp"
-#include "Entities/Lakitu.hpp"
-#include "Entities/Spiny.hpp"
-
-#include "Entities/Mushroom.hpp"
-#include "Entities/OneUpMushroom.hpp"
-#include "Entities/MiniMushroom.hpp"
-#include "Entities/MegaMushroom.hpp"
-#include "Entities/CapeFeather.hpp"
-#include "Entities/FireFlower.hpp"
-#include "Entities/Star.hpp"
-#include "Entities/Coin.hpp"
-#include "Entities/StarCoin.hpp"
-#include "Entities/PSwitch.hpp"
-#include "Entities/POWBlock.hpp"
-#include "Entities/Trampoline.hpp"
-
-#include "Entities/Pipe.hpp"
-#include "Entities/Flagpole.hpp"
-#include "Entities/QuestionBlock.hpp"
-#include "Entities/BrickBlock.hpp"
-#include "Entities/MovingPlatform.hpp"
-#include "Entities/FallingPlatform.hpp"
+// The thirty-one concrete entity headers that used to sit here are gone with
+// the thirty dynamic_casts that needed them: an entity reports its own name now
+// (Entity::getTypeName), and the reverse direction resolves through the
+// EntityCatalogue registry.
 
 namespace SerializationUtils {
 
@@ -87,10 +58,12 @@ std::string getEntityTypeName(const Entity& entity) {
 }
 
 EntityType parseEntityTypeName(const std::string& name) {
-    // The canonical names live in EntityCatalogue, which is also what the level
-    // editor's palette is built from. This function used to carry its own
-    // hand-written copy of the same 40-entry list; the two drifted, and the
-    // editor's version was missing every enemy and every block.
+    // The canonical names live in EntityCatalogue — the same registry the
+    // palette is built from and the same one EntityFactory constructs through,
+    // so a name that parses here is by construction a type that can be built.
+    // This function used to carry its own hand-written copy of the same 40-entry
+    // list; the two drifted, and the editor's version was missing every enemy
+    // and every block.
     if (const auto* entry = EntityCatalogue::findByName(name)) {
         return entry->type;
     }

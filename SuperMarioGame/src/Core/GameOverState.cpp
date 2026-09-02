@@ -44,7 +44,17 @@ void GameOverState::enter() {
     InputManager::getInstance().clearHeldKeys();
 
     // A finished run is the only point at which a score is final, so this is
-    // where the high-score table is written.
+    // where the high-score table is written — unless Debug > Cheats was used
+    // during it. A demo take with infinite lives is not a score, and letting one
+    // into saves/highscores.json would push a real run off the bottom of the
+    // table permanently. PlayingState::exit() keeps the taint flag alive
+    // precisely so this check can still see it from here.
+    if (Game::getInstance().debugCheats().tainted()) {
+        std::cout << "[GameOverState] Cheats were used this run; not recording a high score."
+                  << std::endl;
+        return;
+    }
+
     HighScoreEntry entry;
     entry.score      = m_summary.score;
     entry.coins      = m_summary.coins;

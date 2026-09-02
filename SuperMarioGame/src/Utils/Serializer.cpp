@@ -285,7 +285,8 @@ bool Serializer::saveGame(int slot, const Player& player, int levelId, const std
         std::unordered_map<std::string, std::string> bindings;
         std::unordered_map<std::string, std::string> bindings2;
         bool colorblind = false;
-        loadSettings(sfx, music, diff, bindings, bindings2, colorblind);
+        bool debugMode = false;
+        loadSettings(sfx, music, diff, bindings, bindings2, colorblind, debugMode);
 
         j["settings"]["sfxVolume"] = sfx;
         j["settings"]["musicVolume"] = music;
@@ -293,6 +294,7 @@ bool Serializer::saveGame(int slot, const Player& player, int levelId, const std
         j["settings"]["keyBindings"] = bindings;
         j["settings"]["keyBindings2"] = bindings2;
         j["settings"]["colorblindMode"] = colorblind;
+        j["settings"]["debugMode"] = debugMode;
 
         std::ofstream file(path);
         if (!file.is_open()) return false;
@@ -420,7 +422,7 @@ bool Serializer::deleteSlot(int slot) {
 bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty,
                              const std::unordered_map<std::string, std::string>& keyBindings,
                              const std::unordered_map<std::string, std::string>& keyBindings2,
-                             bool colorblindMode) {
+                             bool colorblindMode, bool debugMode) {
     try {
         std::string path = getSettingsFilePath();
         std::filesystem::path fsPath(path);
@@ -435,6 +437,7 @@ bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::str
         j["keyBindings"] = keyBindings;
         j["keyBindings2"] = keyBindings2;
         j["colorblindMode"] = colorblindMode;
+        j["debugMode"] = debugMode;
 
         std::ofstream file(path);
         if (!file.is_open()) return false;
@@ -448,7 +451,7 @@ bool Serializer::saveSettings(float sfxVolume, float musicVolume, const std::str
 bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty,
                              std::unordered_map<std::string, std::string>& keyBindings,
                              std::unordered_map<std::string, std::string>& keyBindings2,
-                             bool& colorblindMode) {
+                             bool& colorblindMode, bool& debugMode) {
     try {
         std::string path = getSettingsFilePath();
         if (!std::filesystem::exists(path)) {
@@ -462,6 +465,7 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
             // given. Naming them here would be a second source of truth.
             keyBindings2.clear();
             colorblindMode = false;
+            debugMode = false;
             return true;
         }
 
@@ -485,6 +489,14 @@ bool Serializer::loadSettings(float& sfxVolume, float& musicVolume, std::string&
             colorblindMode = j["colorblindMode"];
         } else {
             colorblindMode = false;
+        }
+        // Same forward-compatible read, and the absent case must be false: an
+        // existing config.json has no "debugMode" key, and a player upgrading
+        // into this build must not inherit the developer overlays.
+        if (j.contains("debugMode")) {
+            debugMode = j["debugMode"];
+        } else {
+            debugMode = false;
         }
         return true;
     } catch (...) {

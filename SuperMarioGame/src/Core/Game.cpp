@@ -29,11 +29,15 @@ void Game::run() {
 
     // Load settings from config
     Serializer::loadSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
-                             m_keyBindings2, m_colorblindMode);
+                             m_keyBindings2, m_colorblindMode, m_debugMode);
     
     // Build the difficulty strategy from what was just loaded. Without this the
     // persisted setting stayed a string nothing consumed (task 9.4).
     setDifficulty(m_difficulty);
+
+    // The cheats follow the persisted debug flag. loadSettings() writes
+    // m_debugMode directly, so nothing has armed them yet at this point.
+    m_cheats.arm(m_debugMode);
 
     // Apply loaded volumes to SoundManager
     SoundManager::getInstance().setSFXVolume(m_sfxVolume);
@@ -92,7 +96,14 @@ void Game::run() {
 
     while (m_isRunning && m_window && m_window->isOpen()) {
         sf::Time elapsed = clock.restart();
-        lag += elapsed.asSeconds();
+        // The time scale is applied to the accumulator and nowhere else, which is
+        // what keeps slow motion a SIMULATION effect. Everything below this line
+        // that is handed `elapsed` — event polling, the input script's own clock,
+        // ImGui::SFML::Update — keeps real time, so the cheat panel stays
+        // responsive at 0.1x and a scripted `wait 2` still means two seconds.
+        // Scaling the fixed timestep itself would have been the other option and
+        // is wrong: the physics constants in SPEC are quoted per 1/60s step.
+        lag += elapsed.asSeconds() * m_cheats.simulationTimeScale();
 
         // 1. Handle Events (SFML 3.0 style)
         while (const std::optional<sf::Event> event = m_window->pollEvent()) {
@@ -178,17 +189,23 @@ void Game::run() {
         // 3. Update ImGui
         ImGui::SFML::Update(*m_window, elapsed);
 
-        // ImGui Dev Tools panel
+        // ImGui Dev Tools panel. Behind OPTIONS > DEBUG MODE, which is off
+        // unless the player turns it on: this window had no gate of any kind and
+        // was therefore drawn in every state of a release build, including over
+        // the main menu before a level had even been chosen.
+        //
         // Bottom-right, below the map editor window (912,8 - 360x600) and clear
         // of the AI overlay. At its old spot it landed on top of both.
-        ImGui::SetNextWindowPos(ImVec2(912.0f, 616.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(360.0f, 96.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Super Mario Engine Dev Tools");
-        ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)", 
-                    1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::Text("Press ` to toggle the debug console.");
-        ImGui::End();
+        if (getDebugMode()) {
+            ImGui::SetNextWindowPos(ImVec2(912.0f, 616.0f), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(360.0f, 96.0f), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
+            ImGui::Begin("Super Mario Engine Dev Tools");
+            ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)",
+                        1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::Text("Press ` to toggle the debug console.");
+            ImGui::End();
+        }
 
         DebugConsole::getInstance().draw();
 
@@ -249,6 +266,13 @@ void Game::saveScreenshot(const std::string& name) {
     }
 }
 
+bool Game::isMouseButtonDown(sf::Mouse::Button button) const {
+    if (m_inputScript.active() && m_inputScript.hasPointer()) {
+        return m_inputScript.buttonDown(button);
+    }
+    return sf::Mouse::isButtonPressed(button);
+}
+
 sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
     // mapPixelToCoords divides by the viewport size, so it asserts on a window
     // that has not been created yet. Head-less harnesses drive the map editor
@@ -257,7 +281,20 @@ sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
     if (!m_window) return {0.0f, 0.0f};
     const sf::Vector2u windowSize = m_window->getSize();
     if (windowSize.x == 0 || windowSize.y == 0) return {0.0f, 0.0f};
-    return m_window->mapPixelToCoords(sf::Mouse::getPosition(*m_window), view);
+    const sf::Vector2i pixel = (m_inputScript.active() && m_inputScript.hasPointer())
+                                   ? m_inputScript.pointerPixel()
+                                   : sf::Mouse::getPosition(*m_window);
+    return m_window->mapPixelToCoords(pixel, view);
+}
+
+sf::Vector2f Game::getMousePixelPosition() const {
+    // Off-screen sentinel rather than (0,0): a headless harness must not read as
+    // "the pointer is in the top-left corner of the canvas".
+    if (!m_window) return {-1.0f, -1.0f};
+    const sf::Vector2i pixel = (m_inputScript.active() && m_inputScript.hasPointer())
+                                   ? m_inputScript.pointerPixel()
+                                   : sf::Mouse::getPosition(*m_window);
+    return {static_cast<float>(pixel.x), static_cast<float>(pixel.y)};
 }
 
 void Game::pushState(std::unique_ptr<IGameState> state) {
@@ -307,19 +344,24 @@ void Game::initImGui() {
     // effect, users can still drag windows and have that remembered, and bumping
     // the version when the default layout changes retires the old file instead
     // of fighting it.
-    static const char* const kIniFile = "imgui_layout_v2.ini";
+        // v3: the level editor's panels are a fixed full-screen layout now
+    // (EditorState), and a v2 file pinned from the old floating windows would
+    // put them back where they used to be. Bumping the name retires the old
+    // file rather than fighting it - which is the whole reason it is versioned.
+    static const char* const kIniFile = "imgui_layout_v3.ini";
     ImGui::GetIO().IniFilename = kIniFile;
 
     // Retire the unversioned file so it stops being written and stops shadowing
     // the defaults. Best-effort: failing to remove it is cosmetic.
     std::error_code ignored;
     std::filesystem::remove("imgui.ini", ignored);
+    std::filesystem::remove("imgui_layout_v2.ini", ignored);
 }
 
 void Game::shutdown() {
     // Save configuration settings
     Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
-                             m_keyBindings2, m_colorblindMode);
+                             m_keyBindings2, m_colorblindMode, m_debugMode);
     // And the profile: achievements and lifetime statistics. Written here as well
     // as on each unlock, so a session that earns nothing still persists its
     // playtime and counters.
@@ -422,6 +464,15 @@ void Game::setSfxVolume(float volume) {
 void Game::setMusicVolume(float volume) {
     m_musicVolume = volume;
     SoundManager::getInstance().setMusicVolume(volume);
+}
+
+void Game::setDebugMode(bool enabled) {
+    m_debugMode = enabled;
+    // The cheats are armed by the same switch that shows the panel. Without
+    // this, turning DEBUG MODE off from the Options screen would hide the
+    // controls while leaving whatever they had set still acting on the level
+    // underneath — an immortal player with no visible way to stop being one.
+    m_cheats.arm(enabled);
 }
 
 void Game::setDifficulty(const std::string& diff) {

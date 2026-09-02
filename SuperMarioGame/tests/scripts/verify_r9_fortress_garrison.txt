@@ -1,6 +1,11 @@
 # Verifies R9 / F1's new 1-3 garrison live, through the real main() path:
 # menu -> Start -> character select -> world map -> Enter -> level_3.json.
 #
+# PREREQUISITE SINCE R21 (defect 12): the AI Debug Overlay this script reads
+# lives in DevPanel, which is now gated on debug mode and OFF by default. Set
+# "debugMode": true in saves/config.json, or turn on OPTIONS > DEBUG MODE once
+# (it persists), before running — otherwise no dev window is drawn at all.
+#
 #   ./build/SuperMarioGame --script tests/scripts/verify_r9_fortress_garrison.txt
 #
 # Prerequisite: saves/progress.json with levels[0].completed and

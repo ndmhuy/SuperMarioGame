@@ -21,6 +21,18 @@ protected:
     void applyMovement(Enemy& enemy, float dt) override;
 
 private:
+    // Shuffle speed, unchanged from the literal it replaces. Deliberately not
+    // Enemy::speed: the shuffle is a fidget in place, and driving it from the
+    // tuned walk speed would send a Hammer Bro pacing across the screen.
+    static constexpr float SHUFFLE_SPEED = 30.0f;
+    // How far past the leading edge the ledge check looks, matching
+    // PatrolStrategy's own probe distance so both turn around in the same place.
+    static constexpr float SHUFFLE_PROBE_AHEAD = 4.0f;
+
+    // The last shuffle direction the ledge check approved while grounded, held
+    // across the periodic hop so the jump cannot carry him off the edge.
+    float m_groundShuffleDir = 0.0f;
+
     float m_throwCooldownTimer;
     float m_jumpCooldownTimer;
     float m_throwCooldownMax;

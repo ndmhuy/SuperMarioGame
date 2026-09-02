@@ -11,6 +11,7 @@
       "y": 20
     },
     {
+      "rangeX": 2,
       "type": "moving_platform",
       "x": 90,
       "y": 20
@@ -63,7 +64,7 @@
       "targetLevel": "assets/levels/level_1_sub.json",
       "type": "pipe",
       "x": 98,
-      "y": 19
+      "y": 17
     },
     {
       "itemType": 1,
@@ -267,12 +268,6 @@
     },
     {
       "type": "ground",
-      "w": 5,
-      "x": 189,
-      "y": 16
-    },
-    {
-      "type": "ground",
       "w": 2,
       "x": 25,
       "y": 17
@@ -405,12 +400,6 @@
     },
     {
       "type": "ground",
-      "w": 5,
-      "x": 189,
-      "y": 17
-    },
-    {
-      "type": "ground",
       "w": 3,
       "x": 25,
       "y": 18
@@ -445,12 +434,6 @@
       "type": "brick",
       "w": 3,
       "x": 182,
-      "y": 18
-    },
-    {
-      "type": "ground",
-      "w": 5,
-      "x": 189,
       "y": 18
     },
     {
@@ -505,18 +488,6 @@
       "type": "brick",
       "w": 4,
       "x": 181,
-      "y": 19
-    },
-    {
-      "type": "ground",
-      "w": 2,
-      "x": 189,
-      "y": 19
-    },
-    {
-      "type": "ground",
-      "w": 2,
-      "x": 192,
       "y": 19
     },
     {
@@ -577,18 +548,6 @@
       "type": "brick",
       "w": 5,
       "x": 180,
-      "y": 20
-    },
-    {
-      "type": "ground",
-      "w": 2,
-      "x": 189,
-      "y": 20
-    },
-    {
-      "type": "ground",
-      "w": 2,
-      "x": 192,
       "y": 20
     },
     {

@@ -23,6 +23,13 @@ void Player::performJump() {
 
 void Player::jump() {
     if (m_dying) return;
+    // NOCLIP holds onGround false every frame (a ghost stands on nothing), which
+    // meant the jump that is supposed to be the ghost's ASCEND control was
+    // refused and buffered instead -- so noclip could sink and never rise.
+    if (Game::getInstance().debugCheats().passesThroughSolids()) {
+        velocity.y = -Constants::WALK_SPEED;
+        return;
+    }
     if (onGround || coyoteFramesLeft > 0) {
         performJump();
     } else {
@@ -69,7 +76,13 @@ void Player::slide() {
 }
 
 bool Player::canShootFireball() const {
-    if (m_fireballCooldownTimer > 0.0f) return false;
+    // Debug > Cheats' INFINITE FIREBALLS lifts the cooldown; PlayingState's
+    // PlayerShotFireball handler lifts the two-on-screen cap. Both are needed —
+    // either one alone still rations the throws.
+    if (m_fireballCooldownTimer > 0.0f &&
+        !Game::getInstance().debugCheats().liftsFireballCap()) {
+        return false;
+    }
     // getBaseState() unwraps Star and Mega, so an invincible or giant Fire Mario
     // keeps his fireballs — the decorators wrap the form, they do not replace it.
     return dynamic_cast<FireState*>(getBaseState()) != nullptr;
@@ -244,8 +257,26 @@ bool Player::hasStarPower() const {
     return false;
 }
 
+bool Player::collidesWithTiles() const {
+    return !m_dying && !Game::getInstance().debugCheats().passesThroughSolids();
+}
+
+float Player::getGravityMultiplier() const {
+    // NOCLIP is a ghost, not a very light player: falling while phased through
+    // the floor would drop straight past the void plane. Luigi and Peach chain
+    // to this, so the rule lives in exactly one place.
+    return Game::getInstance().debugCheats().passesThroughSolids() ? 0.0f : 1.0f;
+}
+
 void Player::takeDamage(int amount) {
     if (m_dying) return;
+    // Debug > Cheats' INVINCIBLE. Ahead of the i-frame check rather than
+    // implemented as a very long invincibilityTimer, which is what the console's
+    // `god` command used to do: that value is also what drives the hurt
+    // animation and the sprite dimming, so it could not be told apart from
+    // having just been hit, and it protected only the paths that happen to read
+    // it. This is the single door all ten damage sources come through.
+    if (Game::getInstance().debugCheats().blocksDamage()) return;
     if (invincibilityTimer > 0.0f || hasStarPower()) return;
     // Taking a hit breaks the chain — that is what makes a long combo a risk
     // worth taking rather than a number that only grows.
@@ -475,6 +506,20 @@ void Player::setupCharacterAnimations(const SpriteSheet* spriteSheet, const std:
 }
 
 void Player::update(float dt) {
+    // Debug > Cheats' NOCLIP. getGravityMultiplier() has already switched gravity
+    // off, so a jump impulse would carry the ghost upward forever and nothing
+    // would ever bring it down; the damping turns jump into an upward nudge and
+    // crouch is the other direction. Deliberately reuses the jump and crouch the
+    // recorder already has under their fingers rather than adding two more
+    // bindings to learn. m_crouchRequestedThisFrame is written by
+    // InputManager::update, which PlayingState runs before this (step 2 vs 3).
+    if (Game::getInstance().debugCheats().passesThroughSolids()) {
+        if (m_crouchRequestedThisFrame) velocity.y = Constants::WALK_SPEED;
+        velocity.y *= 0.88f;
+        if (std::abs(velocity.y) < 1.0f) velocity.y = 0.0f;
+        onGround = false;
+    }
+
     if (m_capeSpinTimer > 0.0f) {
         m_capeSpinTimer -= dt;
         if (m_capeSpinTimer < 0.0f) m_capeSpinTimer = 0.0f;
@@ -701,6 +746,11 @@ void Player::gainLife() {
 }
 
 void Player::loseLife() {
+    // Debug > Cheats' INFINITE LIVES. Distinct from m_isImmortal below, which is
+    // ShadowMario's "cannot be removed from the level" and forcibly resets the
+    // count to 1 and the form to Small: a recording must keep the life count the
+    // HUD is showing exactly where it was.
+    if (Game::getInstance().debugCheats().preservesLives()) return;
     if (m_isImmortal) {
         lives = 1;
         changeState(std::make_unique<SmallState>());

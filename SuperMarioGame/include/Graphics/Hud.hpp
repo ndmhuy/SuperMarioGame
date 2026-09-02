@@ -15,6 +15,9 @@ struct HudData {
     int coins = 0;
     int lives = 3;
     int timeLeft = 300;
+    // This level has no countdown, so the TIME field shows dashes rather than a
+    // number that never changes. Endless Mode is scored on distance, not time.
+    bool timeUnlimited = false;
 
     // What the WORLD field reads.
     //
@@ -89,6 +92,12 @@ private:
     // player look like a participant rather than an afterthought.
     void drawPlayerBadge(sf::RenderTarget& target, sf::RenderStates state,
                          const std::string& characterName, sf::Vector2f iconCentre) const;
+
+    // Left edge for the coin icon. Derived from where the coin count actually
+    // ended up, because that field is right-aligned and therefore moves with
+    // the digit count: a fixed icon x would drift away from a two-digit total
+    // and be overlapped by a five-digit one.
+    float coinIconX() const;
     std::vector<std::unique_ptr<sf::Drawable>> m_uiElements;
 
     mutable sf::ConvexShape m_starShape;

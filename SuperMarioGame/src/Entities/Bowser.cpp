@@ -142,31 +142,48 @@ void Bowser::onStaggerEnded() {
 }
 
 void Bowser::updateBehaviour(float dt) {
-    if (!m_patrolInitialised) {
-        // Pace the width of the arena when one was assigned; otherwise a fixed
-        // span around wherever the level put him.
-        if (hasArena()) {
-            const AABB arena = getArena();
-            m_patrolLeft  = arena.x + Constants::TILE_SIZE;
-            m_patrolRight = arena.x + arena.width - Constants::TILE_SIZE - BOWSER_WIDTH;
-        } else {
-            m_patrolLeft  = position.x - DEFAULT_PATROL_HALF_WIDTH;
-            m_patrolRight = position.x + DEFAULT_PATROL_HALF_WIDTH;
+    // Recomputed every frame while an arena exists, and latched only for the
+    // arena-less fallback.
+    //
+    // Both bounds used to be computed once, lazily. That was harmless while
+    // nothing read them, but the clamp below is load-bearing and
+    // Boss::returnToArenaSpawn() teleports him back to his spawn without
+    // telling him — a boss recovered that way would have gone on being clamped
+    // to bounds derived from wherever he happened to be standing when he first
+    // updated. An arena is fixed level geometry, so deriving from it every
+    // frame costs nothing and cannot go stale. The fallback span is relative to
+    // his own position, so it must still be latched or it would follow him.
+    if (hasArena()) {
+        const AABB arena = getArena();
+        m_patrolLeft  = arena.x + Constants::TILE_SIZE;
+        m_patrolRight = arena.x + arena.width - Constants::TILE_SIZE - BOWSER_WIDTH;
+        if (m_patrolRight < m_patrolLeft) {
+            std::swap(m_patrolLeft, m_patrolRight);
         }
+        m_patrolInitialised = true;
+    } else if (!m_patrolInitialised) {
+        m_patrolLeft  = position.x - DEFAULT_PATROL_HALF_WIDTH;
+        m_patrolRight = position.x + DEFAULT_PATROL_HALF_WIDTH;
         if (m_patrolRight < m_patrolLeft) {
             std::swap(m_patrolLeft, m_patrolRight);
         }
         m_patrolInitialised = true;
     }
 
-    // --- Walk ---
-    velocity.x = facingRight ? walkSpeed() : -walkSpeed();
-    if (position.x <= m_patrolLeft) {
-        facingRight = true;
-    } else if (position.x >= m_patrolRight) {
-        facingRight = false;
-    }
+    // Keep him in the room he is fought in, whatever anything else wants —
+    // exactly what BoomBoom::updateBehaviour has always done, and a straight
+    // omission here between two bosses written to the same pattern (R21 D10).
+    //
+    // This is the part that survives the leap: JUMP_IMPULSE -520 against
+    // gravity 1800 px/s^2 is a ~75px rise, which clears the 32px enclosure wall
+    // added in 384250f, and in phase 2 he tries it every 2.6s. Landing outside
+    // is not cosmetic — PlayingState holds the player inside the arena while the
+    // boss lives and refuses LevelComplete, so an escaped Bowser is a softlock,
+    // which is what the "Bowser disappears" report actually was.
+    position.x = std::clamp(position.x, m_patrolLeft, m_patrolRight);
+    boundingBox.x = position.x;
 
+    // --- Walk ---
     // Face the player when they get behind him, so he is never harmlessly
     // breathing fire at a wall.
     if (const Player* player = Game::getInstance().getNearestPlayer(getPosition())) {
@@ -175,6 +192,19 @@ void Bowser::updateBehaviour(float dt) {
             facingRight = toPlayer > 0.0f;
         }
     }
+
+    // The bounds get the last word. This test used to run *before* the
+    // player-facing override above, which overwrote it whenever the player was
+    // more than 64px away — so the turnaround was dead code nearly always, and
+    // a player standing outside the arena walked Bowser into its wall and held
+    // him there.
+    if (position.x <= m_patrolLeft) {
+        facingRight = true;
+    } else if (position.x >= m_patrolRight) {
+        facingRight = false;
+    }
+
+    velocity.x = facingRight ? walkSpeed() : -walkSpeed();
 
     if (m_animator && m_hasAnimation) {
         // Directional frames, not a mirrored sprite: the atlas ships both.
