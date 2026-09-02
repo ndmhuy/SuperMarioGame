@@ -29,7 +29,7 @@ Work was split into two \emph{vertical} domain slices rather than horizontal lay
 \textbf{Member} & \textbf{Domain} & \textbf{Systems work} & \textbf{Presentation work} & \textbf{Commits} \\
 \midrule
 \endhead
-\textbf{A} --- Nguyễn Đình Minh Huy \newline 25125083 & Player \& World & Core engine and game loop, physics and collision pipeline, player entities and states, items, TileMap and level loading, camera, save/load, time rewind, map generator & Parallax backdrop, screen transitions, Menu / WorldMap / Playing / Options states, two-player modes, level editor & 452 \\
+\textbf{A} --- Nguyễn Đình Minh Huy \newline 25125083 & Player \& World & Core engine and game loop, physics and collision pipeline, player entities and states, items, TileMap and level loading, camera, save/load, time rewind, map generator & Parallax backdrop, screen transitions, Menu / WorldMap / Playing / Options states, two-player modes, level editor & 457 \\
 \textbf{B} --- Trần Gia Huy \newline 25125084 & Enemies \& Interaction & Input manager and command objects, sound manager, enemies and AI movement strategies, blocks, entity factory, object pool, replay recorder, debug console & Sprite sheets and animation, HUD, minimap, particles, death effects, audio wiring, character select, pause / game over / victory, statistics, achievements, boss fights & 61 \\
 \bottomrule
 \end{longtable}}
@@ -706,10 +706,15 @@ All five figures are unretouched frames captured from the running game by a scri
 \end{center}
 
 \begin{center}\small\itshape Figure 5 --- The in-game level editor (F1). The entity palette is generated from the single catalogue and grouped into Players, Enemies, Items, Blocks and Scenery, with a filter box and the serialised name on hover. Edits go through Command objects, so undo and redo come for free.\end{center}
+\begin{center}
+\includegraphics[width=\linewidth]{img/11_main_features.png}
+\end{center}
+
+\begin{center}\small\itshape Figure 6 --- A contact sheet of the core screens (Main Menu, Character Select, World Map, a level in play, Pause) and headline gameplay (the Small/Super/Fire/Cape power-up chain plus Mini and the Star and Mega decorators, and three of the roster's enemies), captured with a scripted \codebreak{--script} input driver. The power-up and enemy cells are one continuous scripted walk through a small custom level (\codebreak{assets/levels/custom/report\_showcase.json}, authored directly as JSON rather than through the in-game editor or the debug console's \codebreak{spawn} command, since a scripted run's synthetic input never reaches ImGui and so cannot drive either one) that carries the player through the mushroom, cape feather, fire flower, mini mushroom, star and mega mushroom in a single pass. This sheet covers the catalogue's main features rather than every family (every enemy, item and block type, every mode) to fit the time remaining in this pass; it is additional to Figures 1--5 above, not a replacement. At contact-sheet scale the player sprite is small: the cells record that each form was reached in a real run, and the form itself is read most clearly in the demonstration video rather than here.\end{center}
 
 \section{Process and project history}
 
-The project ran from 29 May to 2 September 2026 across 10 weekly reporting periods (\codebreak{docs/Group52\_04/} through \codebreak{Group52\_13/}), 513 commits and 302 recorded working sessions in \codebreak{logs/agent\_history.log}. This section is about the third of those numbers rather than the first two: \textbf{how the project checked itself, what the checking produced, and why its engineering rules read the way they do}. The individual defects are deliberately not restated here --- the five worth reading are worked through in \S{}10, and the full ledgers live in the audit documents named below.
+The project ran from 29 May to 2 September 2026 across 10 weekly reporting periods (\codebreak{docs/Group52\_04/} through \codebreak{Group52\_13/}), 518 commits and 303 recorded working sessions in \codebreak{logs/agent\_history.log}. This section is about the third of those numbers rather than the first two: \textbf{how the project checked itself, what the checking produced, and why its engineering rules read the way they do}. The individual defects are deliberately not restated here --- the five worth reading are worked through in \S{}10, and the full ledgers live in the audit documents named below.
 
 \subsection{Timeline}
 
@@ -749,7 +754,7 @@ The project's verification is not one final review. \textbf{Four times, work sto
 
 \textbf{"Complete" means reachable from \codebreak{main()} and observed running.} Not that a file exists, compiles, and has a passing harness. This is the project's most expensive lesson priced in advance: the 18 August audit found \textbf{six subsystems that were "complete" and inert} --- compiled, harnessed, green, and constructed by nothing the game ever reached. Every claim in \S{}4 of this report is graded against the stronger definition, and where only the weaker one holds, \S{}13 says so.
 
-\textbf{The log is the audit trail.} \codebreak{logs/agent\_history.log} holds 302 entries, and it is not a changelog. Each records the commit before and after, whether the remotes were fetched, whether the work is reachable from \codebreak{main()}, how it was verified, and --- required, not optional --- the mistakes made getting there. It is append-only and \textbf{union-merged}: when two branches both appended, the resolution is to keep both entries, never to pick a side, because a deletion destroys evidence while a duplicate merely wastes a line. Several passages of this report, including \S{}12.4, are drawn from it.
+\textbf{The log is the audit trail.} \codebreak{logs/agent\_history.log} holds 303 entries, and it is not a changelog. Each records the commit before and after, whether the remotes were fetched, whether the work is reachable from \codebreak{main()}, how it was verified, and --- required, not optional --- the mistakes made getting there. It is append-only and \textbf{union-merged}: when two branches both appended, the resolution is to keep both entries, never to pick a side, because a deletion destroys evidence while a duplicate merely wastes a line. Several passages of this report, including \S{}12.4, are drawn from it.
 
 \textbf{CI is the part that does not depend on anyone remembering.} GitHub Actions builds the game and runs the registered test suite on every push to the integration branches (\codebreak{.github/workflows/ci.yml}), inside a virtual framebuffer and against a dummy audio device so that a harness needing a display or a sound card still runs on a headless runner. A rule only a human applies is not enforced; CI is what makes "reachable and observed" checkable by something other than good intentions.
 
@@ -766,7 +771,7 @@ The project's verification is not one final review. \textbf{Four times, work sto
 \textbf{Per-lane review round} \newline within the sweep & Every lane's measurement re-run rather than trusted. Several lanes reworked; several came back having corrected the plan that briefed them. & A lane with no way to measure a number will still write one down. Review re-measures. \\
 \textbf{Mutation testing} & Every guard observed failing with its fix reverted. One vacuous guard caught before it shipped; one surviving mutation recorded rather than dropped. & A green test is evidence only once it has been seen to go red. \\
 \textbf{Reachable-and-observed rule} & Six inert subsystems wired in one session; the menu music, silently failing for weeks, found by running the game for six seconds. & \S{}4 grades every capability by how it was confirmed; \S{}13 lists what only compiles. \\
-\textbf{The log} & 302 entries carrying fingerprints, fetch status, reachability, verification and mistakes. & Union on merge conflict --- keep both entries, never choose a side. \\
+\textbf{The log} & 303 entries carrying fingerprints, fetch status, reachability, verification and mistakes. & Union on merge conflict --- keep both entries, never choose a side. \\
 \textbf{CI} & Build plus the registered suite on every push to the integration branches. & The rules stop depending on whoever is at the keyboard. \\
 \bottomrule
 \end{longtable}}
@@ -958,7 +963,7 @@ Lines of C++ (excluding third-party) & 36,766 \\
 Concrete entity classes & 5 players, 13 enemies, 13 items, 10 blocks \\
 Design patterns & see \S{}7 for the full list, each with the problem it solves \\
 Verification harnesses & 40 source files, 38 built, 32 registered as CTest cases \\
-Commits on the integration branch & 513 \\
+Commits on the integration branch & 518 \\
 Sound effects / music tracks & 29 / 12 \\
 Achievements & 12 \\
 \bottomrule
@@ -1105,4 +1110,4 @@ Seven of the nine show \textbf{every attribute and method, with its real visibil
 \end{center}
 
 \begin{center}\small\itshape Figure 12 (full detail) --- The complete Strategy hierarchy, every attribute and method.\end{center}
-Group 52 \textperiodcentered{} CS202 Object-Oriented Programming \textperiodcentered{} University of Science, VNU-HCM \\  Generated by \codebreak{reports/build\_report.py} from the repository at commit 3ec20ac. Self-contained: opens from disk, no network, prints to PDF.
+Group 52 \textperiodcentered{} CS202 Object-Oriented Programming \textperiodcentered{} University of Science, VNU-HCM \\  Generated by \codebreak{reports/build\_report.py} from the repository at commit 98f7603. Self-contained: opens from disk, no network, prints to PDF.
