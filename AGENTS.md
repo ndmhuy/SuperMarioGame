@@ -405,7 +405,7 @@ Agents must follow these rules when writing weekly reports:
 - **[g-rule-3]** Context-Efficient Subagent Execution: Delegate long-running research or deep search tasks to subagents with isolated context windows.
 - **[g-rule-4]** Empirical Log Verification & Audit Trails: Never declare a bug fixed or feature complete without running test/build verification commands...
 - **[g-rule-5]** AI Usage Logging & Declaration: Before concluding any task, append an entry to logs/agent_history.log in the format: [YYYY-MM-DD HH:MM:SS...
-- **[g-rule-6]** Plan Adherence & Deviation Approval: The project's designated plan file (SPEC.md, or TASKS.md) is the source of t...
+- **[g-rule-6]** Plan Adherence & Deviation Approval: The project's designated plan file (implementation_plan.md, SPEC.md, or TASKS.md) is the source of t...
 - **[g-rule-7]** Human-Owned Integration (No Auto-Merge): Agents implement on their task branch, verify compilation, push the branch to origin, and stop.
 - **[g-rule-8]** Destructive VCS Operation Guard: Before any reset, rebase, checkout that discards changes, clean, stash drop, or merge: run git status an...
 - **[g-rule-9]** Targeted Edits, Never Whole-File Overwrites: Apply changes as targeted replacements that preserve surrounding human-authored content.
@@ -494,7 +494,7 @@ Never declare a bug fixed or feature complete without running test/build verific
 Before concluding any task, append an entry to logs/agent_history.log in the format: [YYYY-MM-DD HH:MM:SS] Branch: <branch> / Prompt: <summary> / Files Modified: <list> / Summary of Changes: <bullets> / Git Fingerprint: <commit before> -> <after>. EVERY field the project's template defines is mandatory: a field you cannot answer is written 'n/a' WITH a reason, never omitted. Report honestly - if code compiles but nothing calls it, say so; if you did not run the program, write 'build only'. An optimistic entry is worse than no entry because it stops anyone looking again. The log is append-only shared history: when it CONFLICTS during a merge, resolve by UNION - keep every entry from both sides sorted by timestamp, never choose a side. Maintain prompts.md where the course requires an AI Usage Declaration.
 
 ### [Planning & Scope] Plan Adherence & Deviation Approval
-The project's designated plan file (SPEC.md, or TASKS.md) is the source of truth for scope. Read it before writing code. If you intend to deviate from the approved plan, or to do work not in it, inform the user and obtain confirmation first. Update task checkboxes as work completes.
+The project's designated plan file (implementation_plan.md, SPEC.md, or TASKS.md) is the source of truth for scope. Read it before writing code. If you intend to deviate from the approved plan, or to do work not in it, inform the user and obtain confirmation first. Update task checkboxes as work completes.
 
 ### [Git & Branching] Human-Owned Integration (No Auto-Merge)
 Agents implement on their task branch, verify compilation, push the branch to origin, and stop. Never merge into dev, never commit directly to main, never open and self-merge a pull request. Code review and integration are the user's decisions.

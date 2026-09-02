@@ -66,18 +66,40 @@ own citation.
 
 Decision (user-confirmed, plan §7 Q1): archive it, and repoint the
 architecture/behaviour source of truth at `SPEC.md`, which was already the
-Key Files list's first entry. `AGENTS.md`'s Key Files pointer, project
-structure tree, and g-rule-6 ("the project's designated plan file
-(`implementation_plan.md`, `SPEC.md`, or `TASKS.md`)") were all updated —
-g-rule-6's rule *text* was edited, not just a doc pointer, because the file
-it named no longer serves that role; this is called out explicitly in the
-2026-09-02 commit for the orchestrator to confirm with the user.
-`README.md`'s project-structure tree was updated the same way. `SPEC.md`
-itself was **not** touched — it is frozen ("APPROVED — do not modify without
-user confirmation") and its provenance line is a historical claim about how
-it was produced, which stays true regardless of what the source file holds
-today. `25125083.md`'s references to `implementation_plan.md` are inside an
-already-archived, dated snapshot and were likewise left as written.
+Key Files list's first entry. `AGENTS.md`'s Key Files pointer (line 20,
+project-owned, above the AgentHub block) and `README.md`'s project-structure
+tree were updated to drop the stale `implementation_plan.md` entry and name
+`SPEC.md` instead.
+
+**Correction (2026-09-02, same day, coordinator-caught):** this lane's first
+pass also edited g-rule-6's text inside `AGENTS.md` — both the BOOT DIGEST
+one-liner and the full Tier-2 rule — to drop `implementation_plan.md` from
+its plan-file list. That was wrong: g-rule-6 lives inside the
+`<!-- AGENTHUB:L3:BEGIN/END -->` generated block (lines 396-612), a Layer 3
+rule owned by AgentHub, not this project (g-rule-18: "Suggest Rules
+Upstream, Do Not Fork Them"). Editing it here would have silently reverted
+on the next AgentHub sync — `AGENTS.md` would go back to citing the archived
+file with nothing failing to say so. Both edits were reverted byte-for-byte
+against `dev @ 6af4f8e` (verified with `git diff dev -- AGENTS.md`: the only
+remaining hunks are the line-20 Key Files pointer and the structure-tree
+row, both above line 396). The suggestion was instead routed upstream via
+`.agenthub/suggestions.json`, per the "Suggesting a rule back to AgentHub"
+section of `AGENTS.md` (around line 459) — proposing g-rule-6 either drop
+the file-specific example (a per-project fact that already drifted once) or
+read cleanly as "(SPEC.md or TASKS.md)" if an example stays inline, avoiding
+the comma-before-or artifact a naive deletion leaves. Promoting that
+suggestion is a human/AgentHub-maintainer decision (g-rule-18); this lane
+does not have or use write access to `~/Documents/AgentHub`.
+
+**Net effect**: in this project's own tree, g-rule-6's generated text still
+literally names `implementation_plan.md` as a plan file, even though that
+file is now archived — this is a known, upstream-flagged staleness, not an
+oversight. `SPEC.md` itself was **not** touched — it is frozen ("APPROVED —
+do not modify without user confirmation") and its provenance line is a
+historical claim about how it was produced, which stays true regardless of
+what the source file holds today. `25125083.md`'s references to
+`implementation_plan.md` are inside an already-archived, dated snapshot and
+were likewise left as written.
 
 ## Closed audits and fix-plans
 

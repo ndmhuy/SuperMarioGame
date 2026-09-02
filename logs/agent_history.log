@@ -5787,3 +5787,43 @@ STILL OPEN: whether to archive docs/two_player_ai_plan.md despite its live
   scope); this branch has not been pushed or merged (per g-rule-7, human
   integration only).
 ---
+[2026-09-02 19:35:00] Branch: A/chore/archive-2026-09-02
+Git Fingerprint: 0e93f54 (before this correction) -> pending commit (after)
+Fetched Remotes: yes, 19:13 (unchanged since the prior entry this session; dev...origin/dev = 0/0)
+Prompt: Coordinator correction, mid-task: the two g-rule-6 edits in AGENTS.md
+  (BOOT DIGEST line 408, full Tier-2 text line 497) fall INSIDE the
+  AgentHub-generated <!-- AGENTHUB:L3:BEGIN/END --> block (lines 396-612).
+  g-rule-18 ("Suggest Rules Upstream, Do Not Fork Them") forbids hand-editing
+  that block; worse, it is regenerated on the next AgentHub sync, so the
+  edit would silently revert with nothing failing and AGENTS.md would go
+  back to citing the archived implementation_plan.md. Directed to: revert
+  both edits byte-for-byte against dev@6af4f8e, keep the line-20 Key Files
+  pointer (project-owned, correct, above line 396), and route the rule
+  change upstream via .agenthub/suggestions.json instead of editing
+  ~/Documents/AgentHub directly. Also: the replacement wording I had used,
+  "(SPEC.md, or TASKS.md)", left a comma-before-or artifact from deleting
+  the first list item; noted in the upstream suggestion that any inline
+  example should read "(SPEC.md or TASKS.md)".
+Files Modified:
+- AGENTS.md: reverted lines 408 and 497 to dev@6af4f8e's exact text
+  (confirmed with `git diff dev -- AGENTS.md`: only the line-20 Key Files
+  pointer and the line-222-225 structure-tree row remain as hunks, both
+  strictly above line 396 — zero hunks inside the generated block)
+- Created: .agenthub/suggestions.json (one entry, proposedLayer "L3",
+  requestedDisposition "defer" — promoting a Layer 3 rule change is an
+  AgentHub-maintainer/human decision this lane cannot make; validated with
+  python3 -c "import json; json.load(...)")
+- docs/archive/README.md: replaced the paragraph that had (wrongly) claimed
+  g-rule-6's rule text was updated, with a correction section recording
+  what was reverted, why, and where the upstream suggestion now lives
+Reachable From Main: n/a, docs-only.
+Verified By: `git diff dev -- AGENTS.md` shows exactly two hunks (line ~20,
+  line ~222-225), neither touching lines 396-612; `python3 -c "import
+  json;json.load(open('.agenthub/suggestions.json'))"` parses clean; `git
+  status --short` clean after commit.
+NOT DONE: did not edit ~/Documents/AgentHub (a different repository, outside
+  this lane, and g-rule-18 reserves rule promotion to a human). g-rule-6's
+  generated text in this project's AGENTS.md still literally names
+  implementation_plan.md as of this commit — that staleness is now
+  upstream-flagged, not silently fixed and not silently left unflagged.
+---
