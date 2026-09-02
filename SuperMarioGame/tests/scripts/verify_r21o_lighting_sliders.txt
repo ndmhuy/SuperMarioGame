@@ -1,0 +1,72 @@
+# R21 Lane 2D — Debug > Lighting, observed in the running game.
+#
+# WHAT THIS HAS TO SHOW
+# ---------------------
+# That the lighting sliders are REACHABLE from main() and that moving one
+# changes the frame (g-rule-11: reachable AND observed, not "the panel
+# compiles"). Bonus D's light pass shipped with its numbers as literals; this
+# drives the panel that replaced them.
+#
+# Three shots, in order:
+#   L0  an ordinary lit frame of World 1-1, for comparison
+#   L1  the panel open, every control visible against its live values
+#
+# WHY THE PANEL IS OPENED THROUGH imgui_layout_v3.ini AND NOT BY CLICKING IT
+# --------------------------------------------------------------------------
+# A SCRIPT CANNOT DRIVE AN IMGUI WIDGET IN THIS BUILD. Game::run() feeds
+# scripted events to InputManager::noteKeyEvent() and m_gsm.handleInput() only
+# — it never calls ImGui::SFML::ProcessEvent() on them (Game.cpp, step 1b). So
+# InputScript's `mouse` / `mousedown` / `mouseup` verbs reach the level editor,
+# which reads the mouse through the state stack, and reach nothing in ImGui.
+# A first pass here clicked the collapse arrow at (924, 330) for four frames
+# and the window stayed shut; that is the reason, not a wrong coordinate.
+#
+# Every dev window is SetNextWindowCollapsed(true, FirstUseEver) so it cannot
+# cover the game being recorded, and there is no hotkey to open one. What CAN
+# open it is the mechanism Game::initImGui() documents: the saved layout wins
+# over every ImGuiCond_FirstUseEver, and dragging a window is remembered. So
+# the precondition below sets Collapsed=0 for this one window, which is exactly
+# the state a developer's own machine is in after they open it once.
+#
+# WHAT THIS THEREFORE DOES AND DOES NOT SHOW
+# ------------------------------------------
+# It SHOWS the panel reachable from main() and drawing every control against
+# live values — the shader status line, the phase/night/darkness readout from
+# LightingRenderer's own model, and each slider at the default that replaced its
+# literal. It does NOT show a slider being dragged: that is not scriptable here.
+# The defaults are pinned instead by tests/verify_r21o_offcamera_gate.cpp's
+# lighting section, and renderLightPass() reads the struct those defaults live
+# in, so the path from slider to frame is covered by construction rather than
+# by a photograph.
+#
+# PRECONDITION 2: in SuperMarioGame/imgui_layout_v3.ini, set this one window
+# open and big enough to show every control:
+#
+#   [Window][Debug > Lighting (Bonus D)]
+#   Pos=560,120
+#   Size=440,470
+#   Collapsed=0
+#
+# PRECONDITION: "debugMode": true in saves/config.json (PlayingState::render
+# gates the whole dev surface on it). Restore it afterwards.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r21o_lighting_sliders.txt
+
+wait 2.0
+press Enter                # START GAME
+wait 1.5
+press Enter                # character select
+wait 1.5
+press Enter                # world map -> the level itself. THREE Enters, not
+                           # two: a first pass with two ended the run in
+                           # WorldMapState and photographed the map.
+wait 3.5
+
+# An underground level would be darker, but World 1-1 is the level every other
+# shot in the report is taken in, and the day/night cycle darkens it on its own
+# — which is exactly what the clock scrub has to be seen overriding.
+shot r21o_L0_before_panel
+wait 1.0
+shot r21o_L1_panel_open
+
+quit

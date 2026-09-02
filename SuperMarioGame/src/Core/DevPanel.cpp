@@ -384,7 +384,14 @@ void DevPanel::drawMatchPanel(PlayingState& state) {
 void DevPanel::drawLightingPanel(PlayingState& state) {
     // Collapsed and placed, like every other window in this file: they all used
     // to open at ImGui's default position and stack over the player.
-    ImGui::SetNextWindowPos(ImVec2(8.0f, 320.0f), ImGuiCond_FirstUseEver);
+    //
+    // (912, 320) is the last free cell of the 4x2 grid the other seven windows
+    // sit in. It is NOT (8, 320): that is four pixels off the generator panel's
+    // (8, 316), and a first run put this window's collapsed title bar straight
+    // on top of "Procedural Level Generator Tuning" — the exact stacking the
+    // comment above records having already been fixed once. Observed in
+    // saves/shots/r21o_06_t235s.png before this line was changed.
+    ImGui::SetNextWindowPos(ImVec2(912.0f, 320.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(360.0f, 340.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
     ImGui::Begin("Debug > Lighting (Bonus D)");
