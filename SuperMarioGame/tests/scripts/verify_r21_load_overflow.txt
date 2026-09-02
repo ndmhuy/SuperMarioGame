@@ -1,0 +1,77 @@
+# R21 defect 6 / P1 — the LOAD GAME slot summary, observed with a REAL save.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_r21_load_overflow.txt
+#
+# Why this script exists at all: the first attempt screenshotted LOAD GAME with
+# three empty slots and proved nothing. "EMPTY" is 5 characters. The defect is
+# that a POPULATED slot renders formatSlotSummary()'s output --
+#
+#     MARIO  L1  0PT  STARS 0/3  0:00
+#
+# -- which is 31 characters MINIMUM and 35-37 typically, at charSize 12 into a
+# 290px value column. At the font's real hinted advance for size 12 (13px/char,
+# not the nominal 12) that is 22 characters of room, so the string ran 81-153px
+# straight through the panel's right border. A shot of an empty slot list is not
+# evidence; a shot with a save in slot 1 is.
+#
+# So: start a game, pause, SAVE GAME into slot 1, quit to the menu, and only
+# then open LOAD GAME.
+#
+# Produces saves/shots/r21_load_populated.png and r21_options_debug.png.
+# NOTE this writes saves/slot_1.json for real. That is the point -- it is the
+# only way to see the defect -- and the integrator removes it afterwards.
+
+wait 1.5
+
+# Row 0 is START GAME; Enter opens character select, Enter again confirms.
+press Enter
+wait 1.0
+press Enter
+wait 2.5
+
+# Pause, then SAVE GAME (row 1 of RESUME/SAVE GAME/OPTIONS/RESTART/QUIT).
+press Escape
+wait 1.0
+press Down
+wait 0.4
+press Enter
+wait 1.5
+shot r21_pause_saved
+
+# QUIT TO MENU is row 4: three more Downs from row 1.
+press Down
+wait 0.25
+press Down
+wait 0.25
+press Down
+wait 0.4
+press Enter
+wait 2.0
+
+# Now LOAD GAME (row 1) shows a real summary in slot 1.
+press Down
+wait 0.4
+press Enter
+wait 1.5
+shot r21_load_populated
+press Escape
+wait 1.0
+
+# OPTIONS is row 7. Coming back from LOAD GAME the cursor sits on row 1.
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.2
+press Down
+wait 0.4
+press Enter
+wait 1.5
+shot r21_options_debug
+wait 0.5
+quit
