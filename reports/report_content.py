@@ -285,10 +285,11 @@ exist without deciding what it does. The three second-level abstracts each add e
 {uml('Item', 2, 'Figure 6a &mdash; Thirteen items behind one activate() call.',
      'A Mushroom, a Star and a 1-Up all answer the same question &mdash; what happens to the player who '
      'touches me &mdash; with a different body. QuestionBlock never asks which one it is holding.')}
-{uml('Block', 2, 'Figure 6b &mdash; Ten blocks, three of them stateful.',
-     'FallingPlatform and Thwomp are State machines in their own right (Idle/Shaking/Falling/Respawning; '
-     'wind-up/slam/rest/climb); Pipe and Flagpole are not &mdash; they fire once. Block does not know '
-     'the difference, which is the point of putting it here rather than in each concrete class.')}
+{uml('Block', 2, 'Figure 6b &mdash; Ten blocks, two of them stateful.',
+     'FallingPlatform and Thwomp each drive themselves through phases (Idle/Shaking/Falling/Respawning; '
+     'wind-up/slam/rest/climb) held as a plain enum &mdash; state machines, but not State-pattern '
+     'participants, which is argued in &sect;7.4. Pipe and Flagpole are stateless: they fire once. Block '
+     'does not know the difference, which is the point of putting it here rather than in each concrete class.')}
 <p><code>Item</code> and <code>Block</code> look similar &mdash; both are collidable, both are mostly
 inert until the player reaches them &mdash; and the project's own history has a concrete argument for
 keeping them as separate branches rather than merging them into one "InteractableEntity". A block's
@@ -331,8 +332,9 @@ decorators are the part worth noticing &mdash; a sixth "Star state" would have t
 to exit back into, whereas wrapping preserves it for free.</p>
 
 <h3>6.5 The pattern interfaces</h3>
-{uml('IGameState', 1, 'Figure 10 &mdash; Eight screens behind one interface (State).',
-     'GameStateManager holds a stack, so PauseState can overlay PlayingState rather than replace it.')}
+{uml('IGameState', 1, 'Figure 10 &mdash; Nine screens behind one interface (State).',
+     'GameStateManager holds the stack as a vector, not a std::stack, so render() can walk down through '
+     'an overlay: PauseState draws over PlayingState rather than replacing it.')}
 {uml('ICommand', 1, 'Figure 11 &mdash; Input as objects (Command).',
      'Every action the player can take is an object, which is what makes key rebinding possible '
      'and lets a second player use the same commands through a different binding table.')}
@@ -364,95 +366,782 @@ position setters that any code could reach. And <code>Serializer</code>'s file-p
 private even though the tests wanted them: the tests were given
 <code>Serializer::clearHighScores()</code> instead, because what they needed was the table cleared, not
 the path it lives at.</p>
+<p>Two properties of the whole tree are worth stating because they can be checked rather than asserted.
+First, <strong>no <code>class</code> in the project exposes a mutable data member</strong>: every
+declared field sits behind <code>private</code> or <code>protected</code>, and the only public data
+anywhere are <code>struct</code> aggregates whose whole purpose is to carry values across a boundary
+(<code>GameSnapshot</code>, <code>PlayerSnapshot</code>, <code>EntitySnapshot</code>,
+<code>EntityConfigEntry</code>, <code>EntityCatalogue::Entry</code>) &mdash; a simplification argued for
+in &sect;7.13 and charged as a cost there. The one getter that broke the rule is worth recording
+because of how it was found and closed rather than because it survives:
+<code>Camera::getView()</code> used to return a mutable <code>sf::View&amp;</code>, handing any caller
+the camera's internals. The audit written for this submission sweep flagged it as the class's only
+encapsulation leak, and it is now <code>const sf::View&amp; getView() const</code>, with the single
+caller that genuinely had to reshape the view &mdash; <code>EditorState</code>, fitting the canvas
+rectangle &mdash; served by two named operations, <code>Camera::setViewSize</code> and
+<code>Camera::setViewViewport</code>. That is the shape the fix should take: not a wider getter, but the
+narrowest operation the real caller needs.</p>
+<p>Second, <strong>ownership is uniform</strong>. Every owning pointer in the project's own code is a
+<code>std::unique_ptr</code>, and there is not a single <code>delete</code> anywhere in
+<code>src/</code> or <code>include/</code> &mdash; the eight textual matches are all the word appearing
+in comments or in <code>= delete</code>. Raw <code>new</code> now occurs exactly once, in the
+deliberately never-deleted <code>ResourceManager</code> instance of &sect;7.3, whose 27-line rationale
+explains why. It had occurred eight times: the other seven were spawner lambdas in
+<code>DevPanel</code> that wrapped a raw <code>new</code> in a <code>unique_ptr</code> on the same line,
+and they now call <code>EntityFactory::create</code> instead, which closed a raw allocation and an
+open/closed violation in one edit. Shared ownership appears exactly once in the project's own code, for
+<code>ICommand</code>, and &sect;7.8 explains why.</p>
+
+<h3>6.8 SOLID, principle by principle</h3>
+<p>The five principles are taken one at a time below, each with the strongest evidence the codebase can
+offer <em>and</em> the place where it is knowingly not followed. The second half of each paragraph is the
+more useful one: a principle stated without its exception is a slogan, and every exception here was
+decided rather than drifted into.</p>
+
+<p><strong>Single responsibility.</strong> The evidence for is structural: physics does not know what a
+Goomba is, entities do not resolve their own collisions, <code>EntityCatalogue</code> is the single
+declaration of what an entity type <em>is</em>, and the class that owns a fight
+(<code>Boss</code>) is separate from the class that owns a level. The evidence against is one file.
+<code>PlayingState</code> is a god class: its <code>.cpp</code> is past four thousand lines and its
+header past eight hundred, and it orchestrates level loading, spawning, physics stepping, the camera,
+HUD synchronisation, boss arenas, two-player rules, time rewind, pipe transitions, cheats, the editor
+bridge and endless-mode chunking. The next largest source file in the project is under a quarter of its
+size. <strong>The decision was to document it rather than split it in submission week</strong>, and the
+reason is that the direction has already been demonstrated: <code>DevPanel</code>,
+<code>DebugCheats</code>, <code>LightingRenderer</code>, <code>PipeRenderer</code> and the
+<code>EditorBridge</code> port were all carved out of this class, each extraction verified by playing the
+game afterwards. Five more extractions in the last week, each touching the one class every mode runs
+through, would put the working build at risk to improve a number in a report. The trend is the argument;
+the remaining size is the honest cost, and it is listed in &sect;13 as work rather than as an
+achievement.</p>
+
+<p><strong>Open/closed.</strong> This is the principle the project can demonstrate mechanically rather
+than assert. Adding an entity type is <em>one row</em> in <code>EntityCatalogue</code> &mdash; the
+factory, the level parser and the editor palette all read that table, and
+<code>verify_r21_entity_registry</code> walks every enumerator from <code>0</code> to
+<code>EntityType::Count</code> and fails the suite for any row that is missing, so the openness is
+enforced by a test rather than by a convention. The same shape holds on four more axes: a new enemy
+behaviour is one <code>IMovementStrategy</code>, a new difficulty one
+<code>IDifficultyStrategy</code>, a new screen one <code>IGameState</code>, a new undoable editor
+operation one <code>IEditorCommand</code> &mdash; and none of them requires editing a
+<code>switch</code>. Where it is not held: run-time type dispatch survives in three places, each named
+with its reason. The decorator chain of &sect;7.12 is inspectable only by <code>dynamic_cast</code>, at
+seventeen sites, which is an inherent cost of that pattern rather than a lapse. Per-type serialization in
+<code>Serializer</code> and <code>LevelLoader</code> still branches on type, because the on-disk schema is
+a compatibility surface that deliberately does not follow the class hierarchy. The third had no defence
+and so was fixed rather than argued for: <code>PlayingState::recycleEntity</code> used to run three
+sequential <code>dynamic_cast</code>s to decide which <code>ObjectPool</code> an expiring projectile
+belonged to. It now switches on <code>Entity::poolTag()</code>, a virtual returning an
+<code>Entity::PoolTag</code> that <code>Fireball</code>, <code>Hammer</code> and
+<code>BossFireball</code> each override &mdash; one v-table lookup instead of three RTTI walks, and a
+fourth pooled type needs an override rather than another cast block. That is the difference this section
+is trying to draw: two of the three remaining type tests are the price of a decision, and the third was
+simply a lapse, which is why only the third was removed.</p>
+
+<p><strong>Liskov substitution.</strong> The evidence is that the engine's hot paths never ask what an
+entity is. <code>PhysicsEngine::update</code> takes a
+<code>std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt;</code> and integrates all of it through virtuals:
+<code>getGravityMultiplier()</code> returns 0 for a block and 1 for a Goomba, so one integrator handles
+both, and <code>collidesWithTiles()</code> returns false for a dying player, which is what lets a corpse
+fall through the floor with no special case anywhere in the physics code. The sharpest measurement is in
+<code>CollisionResolver</code>: identifying both sides of a contact once cost up to twelve sequential
+<code>dynamic_cast</code>s per colliding pair per frame, and the file now contains <strong>zero</strong>
+&mdash; the four textual matches left in it are comments recording the change. Contact rules are virtual
+hooks (<code>onStomped</code>, <code>onHitFromBelow</code>, <code>onPlayerTouch</code>) over an ordered
+category pair, and every hierarchy root in the project &mdash; <code>Entity</code>,
+<code>IGameState</code>, <code>ICommand</code>, <code>IMovementStrategy</code>,
+<code>IPlayerState</code>, <code>IEditorCommand</code>, <code>IConsoleCommand</code>,
+<code>IAIPolicy</code>, <code>IEntityAdmitter</code>, <code>IDifficultyStrategy</code> &mdash; declares
+a <code>virtual</code> destructor, so deleting through a base pointer is always defined.
+<code>PlayerStateDecorator</code> is the cleanest case of the principle: it substitutes for
+<code>IPlayerState</code> by forwarding every operation to what it wraps, which is exactly why a Star can
+be layered over any form. Two honest qualifications. Four of the five player forms satisfy their
+interface partly by <em>doing nothing</em> (&sect;7.4), so their substitutability is cheap rather than
+earned. And <code>EntityFactory::createUnconfigured</code> may return <code>nullptr</code>, a weakened
+postcondition every caller has to check &mdash; accepted, because level files are hand-editable and a bad
+name must not be fatal.</p>
+
+<p><strong>Interface segregation.</strong> The interfaces added most recently are the narrowest, which
+is the direction to want. <code>IEntityAdmitter</code> has two methods and a contract written into the
+header saying what each must guarantee; <code>IEditorCommand</code> has three;
+<code>IAIPolicy</code> has three, one of them defaulted. <code>IGameState</code> asks five things every
+screen genuinely does and puts the rest &mdash; <code>isOverlay</code>, <code>onSuspend</code>,
+<code>onResume</code> &mdash; behind defaults, so a screen implements only what it needs.
+<code>IMovementStrategy</code> is segregated in a second sense: the public surface is
+<code>execute</code> plus three defaulted queries, while the three sequencing hooks are
+<code>protected</code>, so a caller cannot reach a phase and a subclass cannot reorder them. Three
+failures, all real. <code>ICommand::execute(Character&amp;)</code> is a narrow interface with too fat a
+parameter and no argument channel, which is precisely why the debug console needed a second hierarchy
+(&sect;7.10). <code>IPlayerState</code> demands five methods of implementers that mostly need one. And
+the widest interface in the codebase is not an interface at all: <code>Entity</code> and
+<code>Character</code> each declare <strong>twelve</strong> <code>friend</code> classes &mdash;
+<code>PhysicsEngine</code>, <code>CollisionResolver</code>, <code>PlayingState</code>, and then
+<code>IMovementStrategy</code> together with all eight of its concrete strategies. That list is the bill
+for &sect;7.5: moving movement out of the entity means the thing that moves it is no longer the entity,
+and it still has to write velocity. Friendship was chosen over public position and velocity setters,
+because a setter is reachable by <em>every</em> caller while a friend list is at least enumerable and
+reviewable &mdash; but nine of the twelve entries are one pattern's cost, and the smaller fix (a single
+<code>protected</code> mutation API the strategies inherit access to) is recorded in &sect;13 rather than
+claimed here.</p>
+
+<p><strong>Dependency inversion.</strong> Where a dependency crosses a layer boundary, it is inverted
+through an interface, and the examples are the load-bearing ones: <code>PhysicsEngine</code> and
+<code>CollisionResolver</code> depend on <code>Entity</code> and on <code>EntityCategory</code>, never on
+<code>Goomba</code>; <code>GameStateManager</code> depends on <code>IGameState</code>;
+<code>MapEditor</code> depends on <code>IEditorCommand</code>; the editor's entity commands depend on
+<code>IEntityAdmitter</code> rather than on <code>PlayingState</code>, which is the whole point of
+&sect;7.15; <code>AIController</code> depends on <code>IAIPolicy</code>; and <code>Game</code> consults
+<code>IDifficultyStrategy</code> instead of comparing a string. Then the cost, owned rather than
+minimised. The specification says this project has four singletons. It has <strong>twelve</strong>, and
+they are reached from everywhere: <code>Game::getInstance()</code> appears at 143 call sites in 39 files,
+<code>SoundManager::getInstance()</code> at 86 in 31, <code>EventBus::getInstance()</code> at 54 in 28.
+Every one of those is a dependency that does not appear in a constructor signature and cannot be
+substituted for a fake, which is the textbook DIP failure and is stated here as such. The reason it was
+chosen is real but partial: SFML's audio device, texture cache and event bus are genuinely process-wide,
+and a Meyers singleton gives a defined construction order where a file-scope global would load a texture
+before the graphics context exists. What that does <em>not</em> excuse is the number.
+<code>ScreenTransitionManager</code> and <code>EntityDeathEffect</code> each have exactly one caller
+outside their own implementation file &mdash; <code>PlayingState</code> &mdash; so both are singletons by
+habit rather than by necessity, and each would be better as a member of whatever owns it. Injecting
+twelve managers through the constructors of a class the size of <code>PlayingState</code> is a week's
+work carrying live regression risk, so the decision was the same as for single responsibility: document
+the number, keep the dependencies that were <em>dangerous</em> under control, and put the injection work
+in &sect;13 where a reader can see it is known rather than missed. The dangerous ones were the lifetime
+hazards, and each now has a named mechanism: <code>EventBus::ScopedSubscription</code> for subscriber
+lifetime, which <code>SoundManager</code> was the last holdout against &mdash; its twenty subscriptions
+were raw ids that never unsubscribed, and are now a
+<code>std::vector&lt;EventBus::ScopedSubscription&gt;</code>, closing the last place where a callback
+could outlive its owner by omission rather than by design; a constant-initialised
+<code>g_eventBusAlive</code> flag so a <code>ScopedSubscription</code> destructor running after the bus
+is gone cannot resurrect a destroyed singleton; and the written rationale above
+<code>ResourceManager</code>'s never-deleted instance, which explains why leaking one fixed-size
+allocation at process exit is the correct answer to an undefined static destruction order. The pattern
+across all four of those is worth naming, because it is the honest answer to a reader who counts twelve
+singletons and stops there: the number was not reduced, and the failure modes it creates were closed one
+at a time, each with a mechanism a compiler or a destructor enforces rather than a rule someone has to
+remember.</p>
 
 <h2 id="patterns">7 &middot; Design patterns</h2>
-<p>Ten, each solving a problem the codebase actually had. The rubric asks for five.</p>
+<p>The rubric asks for five patterns. The specification claims ten. This section takes each of the ten
+in turn, adds the four the codebase grew without ever claiming them, and names the two it deliberately
+does <em>without</em> &mdash; because a pattern that was considered and rejected for a stated reason is
+better evidence of design than a pattern that happens to be present.</p>
+<p>Every subsection answers the same four questions in the same order, and the order is the argument:
+<strong>the problem</strong> this codebase actually had, <strong>the naive alternative</strong> that was
+in the code or would have been, <strong>why this pattern</strong> answers it, and <strong>what it
+cost</strong> &mdash; because a pattern with no cost has not been used for anything. Participants are
+named with the file they live in, so every claim here can be checked against the tree rather than taken
+on trust.</p>
+
 <div class="tbl"><table>
-<thead><tr><th>Pattern</th><th>Where</th><th>The problem it solves</th></tr></thead>
+<thead><tr><th>&sect;</th><th>Pattern</th><th>Root participant</th><th>Claimed?</th></tr></thead>
 <tbody>
-<tr><td><strong>Factory</strong></td><td><code>EntityFactory::create</code></td>
- <td>Levels are JSON. The loader reads the string <code>"koopa_paratroopa"</code> and must produce an
- object without including its header. The factory is the single construction point for all
- {F['enemies']+F['items']+F['blocks']+F['players']} types, and applies <code>entities.json</code>
- tuning on top.</td></tr>
-<tr><td><strong>Singleton</strong></td><td>13 managers: <code>Game</code>, <code>ResourceManager</code>,
- <code>SoundManager</code>, <code>InputManager</code>, <code>EventBus</code>,
- <code>AchievementManager</code>, &hellip;</td>
- <td>One audio device, one texture cache, one event bus. Meyers singletons, so construction order is
- defined and no global is initialised before <code>main()</code>.</td></tr>
-<tr><td><strong>Observer</strong></td><td><code>EventBus</code>, 35+ event types</td>
- <td>Collecting a coin must update the HUD, play a sound, advance statistics and possibly unlock an
- achievement. Without the bus, <code>Coin::activate</code> would have to know about all four.
- Subscriptions are tombstoned rather than erased so a handler may unsubscribe during delivery.</td></tr>
-<tr><td><strong>State</strong></td><td><code>IGameState</code> (8 screens); <code>IPlayerState</code>
- (5 forms); <code>FallingPlatform</code>, <code>Thwomp</code></td>
- <td>Mario's jump height, hitbox and reaction to damage all change with his form. As states, the
- transition table lives in one place; as flags, it was a growing pile of conditionals.</td></tr>
-<tr><td><strong>Strategy</strong></td><td>8 <code>IMovementStrategy</code> implementations</td>
- <td>A Koopa and a Paratroopa differ only in how they move. Composition means "the same enemy but
- flying" is a constructor argument.</td></tr>
-<tr><td><strong>Command</strong></td><td>8 input commands; <code>IEditorCommand</code>;
- <code>IConsoleCommand</code></td>
- <td>Rebindable keys, and an editor whose undo/redo is free because every edit is already an object
- that knows how to reverse itself.</td></tr>
-<tr><td><strong>Decorator</strong></td><td><code>StarDecorator</code>, <code>MegaDecorator</code> around
- <code>IPlayerState</code></td>
- <td>A Star is temporary and orthogonal to form: Fire Mario with a Star is still Fire Mario underneath.
- Wrapping the active state preserves what it wraps; a sixth state would have to be exited back into the
- right one.</td></tr>
-<tr><td><strong>Memento</strong></td><td><code>GameSnapshot</code>, <code>TimeRewindManager</code>,
- <code>ReplayRecorder</code></td>
- <td>Hold R to rewind five seconds. Entities are restored <em>by id</em>, not by index, because pruning
- and spawning permute the list between capture and restore.</td></tr>
-<tr><td><strong>Object Pool</strong></td><td><code>ObjectPool&lt;T&gt;</code> for fireballs, hammers,
- boss fireballs</td>
- <td>Projectiles are created and destroyed several times a second. The pool trades in
- <code>unique_ptr</code>, so pooled and unpooled entities are stored identically and the entity list
- never learns that pooling exists.</td></tr>
-<tr><td><strong>Template Method</strong></td><td><code>Boss::update</code> is <code>final</code> and
- calls <code>updateBehaviour()</code>; <code>IMovementStrategy::execute</code></td>
- <td>Every boss needs i-frames, phase transitions and a defeat sequence in the right order. Sealing the
- skeleton means a new boss writes only its attack pattern and <em>cannot</em> forget the rest.</td></tr>
+<tr><td>7.1</td><td>Factory</td><td><code>EntityFactory::create</code></td><td>yes</td></tr>
+<tr><td>7.2</td><td>Registry / Type Object</td><td><code>EntityCatalogue::Entry</code></td><td><em>no</em></td></tr>
+<tr><td>7.3</td><td>Singleton</td><td>12 managers</td><td>yes</td></tr>
+<tr><td>7.4</td><td>State</td><td><code>IGameState</code>, <code>IPlayerState</code></td><td>yes</td></tr>
+<tr><td>7.5</td><td>Strategy</td><td><code>IMovementStrategy</code></td><td>partly</td></tr>
+<tr><td>7.6</td><td>Template Method</td><td><code>Boss::update</code></td><td>yes</td></tr>
+<tr><td>7.7</td><td>Command (input)</td><td><code>ICommand</code></td><td>yes</td></tr>
+<tr><td>7.8</td><td>Composite</td><td><code>CompositeCommand</code></td><td><em>no</em></td></tr>
+<tr><td>7.9</td><td>Command, undoable</td><td><code>IEditorCommand</code></td><td><em>no</em></td></tr>
+<tr><td>7.10</td><td>Command (console)</td><td><code>IConsoleCommand</code></td><td>partly</td></tr>
+<tr><td>7.11</td><td>Observer</td><td><code>EventBus</code></td><td>yes</td></tr>
+<tr><td>7.12</td><td>Decorator</td><td><code>PlayerStateDecorator</code></td><td>yes</td></tr>
+<tr><td>7.13</td><td>Memento</td><td><code>GameSnapshot</code></td><td>yes</td></tr>
+<tr><td>7.14</td><td>Object Pool</td><td><code>ObjectPool&lt;T&gt;</code></td><td>yes</td></tr>
+<tr><td>7.15</td><td>Adapter</td><td><code>IEntityAdmitter</code></td><td><em>no</em></td></tr>
+<tr><td>7.16</td><td>Rejected on purpose</td><td>Visitor, Flyweight</td><td>&mdash;</td></tr>
 </tbody></table></div>
 
-<h3>7.1 The naive alternative, for four of them</h3>
-<p>"The rubric asks for five" is not a reason to use a pattern; the table above names the actual problem
-each one solved. Four are worth walking through the alternative that was rejected, because the
-alternative is not a straw man &mdash; it is what an early, smaller version of this codebase actually
-looked like before the pattern replaced it.</p>
-<p><strong>Factory.</strong> The naive alternative is a level loader that <code>#include</code>s every
-concrete entity header and switches on the type string:
-<code>if (name == "goomba") return new Goomba(pos); else if (name == "koopa_troopa") ...</code>. It works
-for the first ten types. By {F['enemies']+F['items']+F['blocks']+F['players']} types it is a
-{F['enemies']+F['items']+F['blocks']+F['players']}-branch function that every new entity must be added
-to, in a file (the level loader) that has no other reason to know a Spiny exists. <code>EntityFactory</code>
-moves that one decision into one file whose entire job is making that decision, and the loader asks a
-question ("build me a Spiny") instead of making one.</p>
-<p><strong>Observer.</strong> The naive alternative is <code>Coin::activate(Player&amp; p)</code> calling
+<p>A note on figures before the patterns themselves. The class diagrams in &sect;6 and &sect;16.4 are
+generated from the headers by <code>gen_class_diagram.py</code>, which draws <em>inheritance</em> edges.
+A pattern whose structure <em>is</em> a hierarchy therefore has a figure and is pointed at below; a
+pattern whose structure is an association &mdash; Factory, Registry, Observer, Memento, Object Pool,
+Adapter &mdash; has no generated figure, because there is no generalization arrow for the tool to find.
+Two hierarchies that do exist are also missing from the figures for a duller reason:
+<code>CompositeCommand</code> and the eleven <code>IConsoleCommand</code> classes are declared inside
+<code>.cpp</code> files, and the generator only scans headers. That is recorded as a known gap in
+&sect;13 rather than papered over with a hand-drawn diagram that would then rot.</p>
+
+<h3>7.1 Factory</h3>
+<p><strong>The problem.</strong> Levels are JSON. <code>LevelLoader</code> reads the string
+<code>"koopa_paratroopa"</code> out of a file a human may have hand-edited, and has to end up holding a
+<code>std::unique_ptr&lt;Entity&gt;</code> without knowing that a <code>KoopaParatroopa</code> class
+exists. So do <code>MapGenerator</code> (which builds endless chunks at runtime),
+<code>PlaceEntityCommand</code> (the editor's brush), <code>PlayingState::spawnProjectile</code>
+(anything asked for at run time through an <code>EntitySpawnRequested</code> event) and
+<code>DevPanel</code>'s seven spawn buttons: five callers, one question.</p>
+<p><strong>The naive alternative.</strong> Each caller includes every concrete entity header and
+switches on the type: <code>if (name == "goomba") return new Goomba(pos); else if ...</code>. It is
+fine for ten types. At the
+{F['players']+F['enemies']+F['items']+F['blocks']} concrete entity classes this project ships it is a
+{F['players']+F['enemies']+F['items']+F['blocks']}-branch function that has to be edited in
+<em>five</em> places for every new entity, in files whose real job is reading a file, generating terrain,
+painting tiles, stepping a frame and drawing a debug panel respectively. That is not hypothetical: it is
+what the code did, and &sect;7.2 records what it cost. <code>DevPanel</code> was the last caller still
+doing it by hand &mdash; seven <code>new X(p)</code> lambdas naming seven concrete item classes &mdash;
+and it was routed through the factory during this submission sweep.</p>
+<p><strong>Why this pattern.</strong> <code>EntityFactory::create(EntityType, sf::Vector2f)</code> is the
+single construction point. Callers ask a question &mdash; build me this &mdash; instead of making a
+decision. And because construction is funnelled, the factory can insert a step no caller knows about:
+<code>applyConfig()</code> looks the new entity's <code>getTypeName()</code> up in
+<code>assets/config/entities.json</code> and overrides speed and score value where the file has an
+opinion. Balance tuning became a data edit without a single call site changing, which is the payoff a
+factory is actually for &mdash; not saving a <code>switch</code>, but owning a policy step.</p>
+<p><strong>What it cost.</strong> Two things, both real. Construction is now indirect, so a stack trace
+from a broken constructor passes through a function pointer rather than naming the caller. And the
+factory returns <code>nullptr</code> for a type it cannot build instead of failing to compile: the
+compile-time exhaustiveness a <code>switch</code> over an enum would have given up is gone. That cost is
+paid for deliberately &mdash; level files are hand-editable, so a bad name must not crash the game &mdash;
+and bought back by a test rather than by the compiler (&sect;7.2).</p>
+<p><strong>Participants.</strong> <code>EntityFactory</code> (creator),
+<code>EntityCatalogue::Entry::create</code> (the concrete creators),
+<code>EntityConfig</code> / <code>EntityConfigEntry</code> (the tuning policy), <code>Entity</code> and
+its subclasses (products). This is a <em>Simple Factory with a registry</em>, not GoF Factory Method:
+there is no hierarchy of creators, and deliberately so &mdash; a creator subclass per entity type would
+have doubled the class count to remove a table.</p>
+
+<h3>7.2 Registry / Type Object</h3>
+<p><strong>The problem.</strong> This is the pattern the specification never claimed and the one with
+the sharpest evidence, because the bug it fixed was invisible. The same list of entity types was
+written out by hand in four places: <code>EntityFactory::create</code> knew 40 types,
+<code>SerializationUtils</code> knew 40 names, the <code>MapEditor</code> palette knew 16 &mdash; none of
+them enemies &mdash; and <code>PlaceEntityCommand</code>'s <code>if</code>-chain knew 16 name strings and
+<em>built nothing</em>. The consequence: the level editor, whose entire purpose is placing entities,
+could not place a Goomba, a Koopa, a pipe, a question block or a flagpole. Clicking the button did
+nothing and nothing anywhere reported a failure.</p>
+<p><strong>The naive alternative.</strong> Fix the four lists and remember to edit four files next time.
+That is what was actually tried first, and then guarded with a regression test that compared the factory
+switch against the table &mdash; which is a guard on a hazard, not the removal of one.</p>
+<p><strong>Why this pattern.</strong> <code>EntityCatalogue::Entry</code> makes the type itself an object:
+one row per entity type carrying its <code>EntityType</code> enumerator, its canonical serialised
+<code>name</code>, the <code>label</code> the editor shows a human, its palette <code>Category</code>, and
+&mdash; the field that turns a description into a registry &mdash; a <code>Creator</code> function pointer
+that builds one. The parser, the palette and the factory all read this one table. Adding an entity type is
+one row. The factory's 42-case <code>switch</code> is gone, and <code>createUnconfigured</code> is two
+lines: look the entry up, call its creator.</p>
+<p><strong>What it cost.</strong> The compile-time exhaustiveness of &sect;7.1, bought back as a test:
+<code>verify_r21_entity_registry</code> walks every enumerator from <code>0</code> to
+<code>EntityType::Count</code> and fails the suite for any that has no row, so a type added to the enum
+and forgotten cannot become a palette button that silently places nothing. A function pointer rather than
+<code>std::function</code> keeps the storage cost at zero &mdash; every creator is a capture-less lambda
+&mdash; and, more usefully, cannot be left empty in a way that would fail only at the call site. The three
+types needing more than a position (a moving platform's travel range, two projectiles' launch velocities)
+supply it inside their own lambda, which is the honest wrinkle: the uniform creator signature is uniform
+because three rows hide a constant inside themselves.</p>
+<p><strong>Participants.</strong> <code>EntityCatalogue::Entry</code>, <code>EntityCatalogue::all()</code>,
+<code>findByName</code> / <code>findByType</code>, <code>EntityCatalogue::Category</code>;
+<code>verify_r21_entity_registry</code> as the mechanism that keeps it total. The data-driven half of the
+same idea is <code>EntityConfigEntry</code>, where negative and empty fields mean <em>the file did not
+say</em> so a half-filled JSON entry cannot silently zero a value the constructor had set.</p>
+
+<h3>7.3 Singleton</h3>
+<p><strong>The problem.</strong> There is exactly one audio device, one texture cache and one event bus
+in a process, and the objects that need them are everywhere: an <code>Item</code> deep in the entity
+vector wants to publish an event; a state being constructed wants a font. Handing each of them a
+reference would mean threading three parameters through every constructor in the entity tree.</p>
+<p><strong>The naive alternative.</strong> File-scope globals. Those are initialised before
+<code>main()</code> in an order the standard does not define across translation units, which for an SFML
+texture cache means loading a texture before the graphics context exists.</p>
+<p><strong>Why this pattern.</strong> Meyers singletons &mdash; a function-local <code>static</code>
+returned by <code>getInstance()</code> &mdash; are constructed on first use, so the order is defined by
+the program's own call sequence and nothing is built before <code>main()</code>. Copy and move are
+deleted on each, so the single instance is enforced by the compiler rather than by convention.</p>
+<p><strong>What it cost.</strong> This is the trade-off the report is least comfortable with, and it is
+stated rather than hidden. There are <strong>twelve</strong> of them, not the four the specification
+claims: <code>Game</code>, <code>SoundManager</code>, <code>EventBus</code>, <code>InputManager</code>,
+<code>ResourceManager</code>, <code>AchievementManager</code>, <code>ScreenTransitionManager</code>,
+<code>StatisticsTracker</code>, <code>DebugConsole</code>, <code>ReplayRecorder</code>,
+<code>ParticleSystem</code> and <code>EntityDeathEffect</code>. <code>Game::getInstance()</code> alone
+appears at 143 call sites across 39 files. Every one of those is a dependency that does not appear in a
+constructor signature and cannot be substituted in a test &mdash; the dependency-inversion cost is
+discussed as a decision in &sect;6.8. One of the twelve is a deliberate exception worth naming:
+<code>ResourceManager</code>'s instance is a heap allocation that is never deleted, because destruction
+order between this translation unit's statics and SFML's is not something the program gets to choose. It
+is one fixed-size allocation reported as <em>still reachable</em> rather than lost, and the real run still
+frees everything deterministically through <code>Game::shutdown()</code> calling <code>clear()</code>
+while the window is alive. The 27-line comment above it exists so a later reader does not "fix" it.</p>
+
+<h3>7.4 State</h3>
+<p><strong>The problem.</strong> Two independent instances of the same problem. At screen level: pausing
+must draw the level underneath the pause menu, and a state must be able to ask for its own removal.
+At player level: Mario's hitbox, jump behaviour and reaction to damage all change with his form.</p>
+<p><strong>The naive alternative.</strong> An <code>enum m_screen</code> plus a <code>switch</code> in
+<code>handleInput</code>, <code>update</code> and <code>render</code>; and a pile of booleans on
+<code>Player</code>. The enum cannot express "paused <em>over</em> playing" at all &mdash; before the
+stack existed, <code>render()</code> drew only the top of the stack, so pushing anything hid the game
+entirely.</p>
+<p><strong>Why this pattern.</strong> <code>IGameState</code> has five pure virtuals
+(<code>enter</code>, <code>exit</code>, <code>handleInput</code>, <code>update</code>,
+<code>render</code>) and <strong>nine</strong> concrete screens: <code>MenuState</code>,
+<code>CharacterSelectState</code>, <code>WorldMapState</code>, <code>PlayingState</code>,
+<code>PauseState</code>, <code>OptionsState</code>, <code>GameOverState</code>,
+<code>VictoryState</code> and <code>EditorState</code>. Nine, not the ten the specification lists:
+there is no <code>StatisticsState</code> class, because the statistics screen is a <em>page</em> of
+<code>OptionsState</code> (<code>OptionsState::Page::Statistics</code>, alongside
+<code>Settings</code>, <code>Controls</code>, <code>HighScores</code> and <code>Achievements</code>)
+rather than a state of its own &mdash; which is the right call, since those five pages share one
+navigation model and pushing five states to get five pages would be the pattern applied for its own
+sake. <code>GameStateManager</code> holds the nine in a
+<code>std::vector</code> rather than a <code>std::stack</code> precisely so <code>render()</code> can
+walk <em>down</em> through overlays: <code>isOverlay()</code> returning true means "I do not own the
+screen, keep drawing what is beneath me". <code>IPlayerState</code> is the second axis, with five
+concrete forms (<code>SmallState</code>, <code>SuperState</code>, <code>FireState</code>,
+<code>CapeState</code>, <code>MiniState</code>).</p>
+<p><strong>What it cost.</strong> Three costs, and the third is a design criticism of our own code.
+First, nine classes and a heap allocation per transition. Second, the transitions had to become
+<em>deferred</em>: <code>pushState</code>, <code>popState</code> and <code>changeState</code> queue a
+<code>PendingOp</code> applied at a frame boundary, because a state that pops itself would otherwise be
+destroyed while its own member function was still on the stack; <code>IPlayerState::isExpired()</code>
+exists for the same reason on the player axis, so a timed state reports expiry instead of swapping itself
+out from inside <code>update()</code>. Third and most honestly: <strong>four of the five player forms
+have empty method bodies</strong>. Only <code>CapeState</code> carries behaviour &mdash; the glide, and
+the cape spin. The other four differ by their <code>getSize()</code> return value alone. The State axis
+on the player is paid for in five classes and under-used; the behaviour that <em>does</em> vary lives in
+the Decorator layer above it (&sect;7.12). It is kept because <code>CapeState</code> proves the axis is
+the right shape and because form-specific behaviour has somewhere obvious to go &mdash; but a reader
+should know that today it is mostly a size table with a virtual interface on it.</p>
+<p><strong>Not State participants.</strong> The specification lists <code>FallingPlatform</code> and
+<code>Thwomp</code> as State participants. They are not. Each drives itself through a plain
+<code>enum class</code> and switches on it: <code>FallingPlatformState</code> is
+<code>Idle</code>/<code>Shaking</code>/<code>Falling</code>/<code>Respawning</code>, and the Thwomp's
+phases live in its strategy as <code>ProximityState</code> &mdash;
+<code>Idle</code>/<code>Slamming</code>/<code>Resting</code>/<code>Rising</code>. Both are state
+<em>machines</em>, which is a technique, not the State pattern, which is a set of polymorphic objects.
+Four phases in one class do not earn four classes, and promoting an <code>enum</code> to a hierarchy to
+raise a pattern count would be the wrong trade &mdash; naming both here is the more useful answer than
+counting them. Turning the Thwomp's bare <code>int</code> into a named <code>enum class</code> did fix a
+real defect, though: it had been picking its own sprite from <code>position.y &gt; 140.0f</code> instead
+of asking the machine what it was doing.</p>
+<p><strong>Participants and figures.</strong> <code>IGameState</code> and its nine screens &mdash;
+Figure 10; <code>GameStateManager</code> (context, no figure: it holds states rather than deriving from
+anything). <code>IPlayerState</code> and its five forms &mdash; Figure 9.</p>
+
+<h3>7.5 Strategy</h3>
+<p><strong>The problem.</strong> A Koopa Troopa and a Koopa Paratroopa are the same enemy with a
+different way of moving &mdash; and a stomped Paratroopa is supposed to <em>become</em> a walking Koopa,
+at runtime, mid-frame.</p>
+<p><strong>The naive alternative.</strong> <code>switch (m_enemyType)</code> inside
+<code>Enemy::update</code>, which puts every enemy's movement in one function and makes "the same enemy
+but flying" a new subclass. Runtime conversion under that design means destroying one object and
+constructing another, at the moment something is holding a pointer to it.</p>
+<p><strong>Why this pattern.</strong> <code>Enemy</code> holds a
+<code>std::unique_ptr&lt;IMovementStrategy&gt; m_aiStrategy</code> and delegates. There are
+<strong>eight</strong> implementations &mdash; <code>PatrolStrategy</code>, <code>ChaseStrategy</code>,
+<code>FlyStrategy</code>, <code>LinearStrategy</code>, <code>TimerEmergenceStrategy</code>,
+<code>HammerThrowStrategy</code>, <code>TetheredChaseStrategy</code> and
+<code>ProximityTriggerStrategy</code> &mdash; and "flying" is a constructor argument:
+<code>KoopaParatroopa</code> takes a <code>FlyStrategy</code> and, when stomped, calls
+<code>setStrategy(std::make_unique&lt;PatrolStrategy&gt;(true, false))</code>. The object survives; only
+its behaviour is replaced. The specification also lists a <code>SwimStrategy</code>: <strong>it does not
+exist</strong>, and swimming is descoped &mdash; eight, not nine.</p>
+<p><strong>The same pattern on two more axes.</strong> <code>IDifficultyStrategy</code> has three
+implementations (<code>EasyDifficulty</code>, <code>NormalDifficulty</code>, <code>HardDifficulty</code>)
+answering four questions with different numbers: <code>enemySpeedScale</code>,
+<code>startingLives</code>, <code>levelTimeScale</code>, <code>bossHealthScale</code>. Its history is the
+argument for it: the difficulty string had been saved, persisted and edited by the options screen since
+save/load was written, and <em>read by nothing</em> &mdash; picking Hard changed a word in
+<code>config.json</code>. Turning it into a strategy turned a dead string into four consulted numbers
+without spreading a difficulty <code>switch</code> across the level loader, the player and the bosses.
+And <code>IAIPolicy::decide(const AIObservation&amp;) &rarr; AIAction</code> is the same seam for the CPU
+opponent, with <code>AIController</code> sensing and actuating around it. Reported honestly: it has
+<strong>one</strong> implementation today, <code>HeuristicPolicy</code>. A one-implementation interface
+is not yet a Strategy earning its keep; it is a seam placed where a learned policy would plug in, and
+&sect;14 says so rather than counting it as a fourth axis.</p>
+<p><strong>What it cost.</strong> Per-enemy state migrated <em>into</em> the strategy objects, and that
+leaked. A <code>PiranhaPlant</code>'s pipe mouth and a <code>ChainChomp</code>'s post are anchors held by
+the strategy, so when the endless-mode chunk translation moved an enemy, its strategy dragged it straight
+back to the old anchor on the next tick. The fix was a new virtual,
+<code>IMovementStrategy::translateAnchor(sf::Vector2f)</code>, defaulted to do nothing &mdash; asked of
+the strategy rather than cast for by the enemy, because which strategies hold an anchor is the
+strategies' own business. That is the recurring cost of delegating behaviour: the interface grows a
+method every time the outside world needs to know something the strategy is now hiding.</p>
+<p><strong>Participants and figure.</strong> <code>IMovementStrategy</code> (strategy),
+<code>Enemy</code> (context), the eight concretes &mdash; Figure 12. <code>IDifficultyStrategy</code> and
+<code>IAIPolicy</code> have no generated figure; both are association-held interfaces.</p>
+
+<h3>7.6 Template Method</h3>
+<p><strong>The problem.</strong> Two places where a sequence must not be got wrong. Every movement
+strategy has to sense, then move, then clamp &mdash; and clamping before moving produces an enemy that
+walks through walls for one frame. Every boss has to run its invulnerability frames, phase transitions
+and defeat sequence in the right order.</p>
+<p><strong>The naive alternative.</strong> Each of the eight strategies writes its own
+<code>execute()</code>, and each of the two bosses writes its own <code>update()</code> &mdash; which
+means copying <code>Bowser::update</code> into <code>BoomBoom</code> and editing the attack pattern in
+place. That is exactly how a second boss gets built without this pattern, and exactly how an i-frame
+check quietly diverges between two copies over a few edits.</p>
+<p><strong>Why this pattern.</strong> <code>IMovementStrategy::execute(Enemy&amp;, float)</code> is
+<em>non-virtual</em> and its whole body is three calls:
+<code>calculateTarget</code> &rarr; <code>applyMovement</code> &rarr; <code>checkConstraints</code>.
+Only <code>applyMovement</code> is pure virtual; the other two are protected hooks defaulted to nothing,
+so <code>LinearStrategy</code> overrides one and <code>TetheredChaseStrategy</code> overrides all three,
+and neither can reorder the phases. <code>Boss::update(float dt)</code> is declared <code>final</code>
+and calls a pure-virtual <code>updateBehaviour(float)</code>: sealing it is a compiler-enforced "do not
+copy this function", so a third boss <em>can only</em> be added by writing its attack pattern.</p>
+<p><strong>What it cost.</strong> Rigidity, which is the point and also the price. A strategy that needs
+a fourth phase &mdash; something after clamping &mdash; has nowhere to put it and must either abuse
+<code>checkConstraints</code> or change the skeleton for all eight. Sealing <code>Boss::update</code>
+has the same shape of cost: a boss that genuinely needed to run its behaviour before the i-frame check
+cannot, and would force the base class to grow a hook.</p>
+<p><strong>Participants and figures.</strong> <code>IMovementStrategy</code> with
+<code>calculateTarget</code>/<code>applyMovement</code>/<code>checkConstraints</code> &mdash; Figure 12
+shows the hooks and their visibility. <code>Boss</code> &rarr; <code>Bowser</code>,
+<code>BoomBoom</code> &mdash; Figure 8.</p>
+
+<h3>7.7 Command &mdash; player input</h3>
+<p><strong>The problem.</strong> Keys must be rebindable from the options screen, and a second player
+has to trigger the same actions from a different key.</p>
+<p><strong>The naive alternative.</strong> <code>if (sf::Keyboard::isKeyPressed(Key::W)) player.jump();</code>
+scattered through the update loop. Rebinding then means finding every literal key code in the codebase,
+and a second player means duplicating all of them.</p>
+<p><strong>Why this pattern.</strong> <code>ICommand</code> declares one operation,
+<code>execute(Character&amp;)</code>, and each action is an object: <code>JumpCommand</code>,
+<code>MoveLeftCommand</code>, <code>MoveRightCommand</code>, <code>FireCommand</code>,
+<code>RunCommand</code>, <code>CrouchCommand</code>, <code>GroundPoundCommand</code>,
+<code>WallJumpCommand</code>. <code>InputManager</code> keeps an action table
+(<code>m_commandsByAction</code>: <code>"jump"</code>, <code>"fire"</code>, <code>"left"</code> &hellip;)
+and per-player key maps, so <code>applyBindings()</code> can move a command to a different key without
+knowing how it was constructed, and player 2's map points at the very same command objects.</p>
+<p><strong>What it cost.</strong> An indirection between a key press and a jump, so a movement bug is
+now read in two files rather than one. And the interface is narrow in the wrong direction: it takes a
+whole <code>Character&amp;</code> but carries no arguments, which is why the debug console could not
+reuse it and needed a second hierarchy (&sect;7.10).</p>
+<p><strong>What this Command is <em>not</em>.</strong> Two claims in the specification are corrected
+here. <code>ICommand</code> has <strong>no <code>undo</code></strong> &mdash; input commands are fire
+and forget; undo lives in a different hierarchy, &sect;7.9. And it has <strong>no
+serialization</strong>: the replay system does not record commands, it records snapshots, which makes
+replay a Memento (&sect;7.13), not a Command. Saying so is more useful than the claim, because the
+reason is a real engineering constraint &mdash; see &sect;7.13.</p>
+<p><strong>Participants and figure.</strong> <code>ICommand</code> (command),
+<code>InputManager</code> (invoker), <code>Character</code> (receiver), the eight concretes &mdash;
+Figure 11.</p>
+
+<h3>7.8 Composite</h3>
+<p><strong>The problem.</strong> One key has to do two things. Pressing jump should perform an ordinary
+jump, or a wall jump when the player is against a wall &mdash; and which one applies is decided by the
+commands themselves, not by the input layer.</p>
+<p><strong>The naive alternative.</strong> Give <code>InputManager</code> a special case: bind jump to
+<code>JumpCommand</code> and, at the call site, also invoke <code>WallJumpCommand</code>. The input
+layer then knows that two particular commands are related, which is precisely the knowledge the Command
+pattern was introduced to remove from it.</p>
+<p><strong>Why this pattern.</strong> <code>CompositeCommand</code> derives from <code>ICommand</code>
+and holds a <code>std::vector&lt;std::shared_ptr&lt;ICommand&gt;&gt;</code>; its <code>execute</code>
+forwards to each child in order. A composite <em>is</em> a command, so the binding table stores it in
+the same slot as a leaf and <code>applyBindings()</code> cannot tell the difference. Rebinding jump
+rebinds the pair.</p>
+<p><strong>What it cost.</strong> <code>ICommand</code> had to be held by
+<code>std::shared_ptr</code> rather than <code>std::unique_ptr</code>, because the same leaf command is
+referenced by both the action table and a composite. <code>std::shared_ptr&lt;ICommand&gt;</code> in
+<code>InputManager</code> is the <em>only</em> shared ownership in the project's own code &mdash; every
+other owning pointer is a <code>std::unique_ptr</code> &mdash; so this pattern is the single exception to
+the ownership rule &sect;6.8 argues from, and it is named rather than glossed. And
+<code>CompositeCommand</code> is declared in <code>InputManager.cpp</code>, so no generated figure can
+show it.</p>
+<p><strong>Participants.</strong> <code>CompositeCommand</code> (composite), <code>JumpCommand</code> and
+<code>WallJumpCommand</code> (leaves), <code>ICommand</code> (component).</p>
+
+<h3>7.9 Command with undo &mdash; the level editor</h3>
+<p><strong>The problem.</strong> A level editor without undo is unusable, and this one has to undo two
+different kinds of change: tiles in a <code>TileMap</code> and entities in a <em>live</em>
+<code>PlayingState</code>'s entity vector.</p>
+<p><strong>The naive alternative.</strong> Snapshot the whole level before every edit and restore the
+last snapshot on <code>Ctrl+Z</code>. For a 200-tile-wide map with an entity list that is being
+simulated, that is a large copy per brush stroke &mdash; and it cannot describe what it is about to
+undo, so the editor could never show a history.</p>
+<p><strong>Why this pattern.</strong> <code>IEditorCommand</code> declares three operations &mdash;
+<code>execute()</code>, <code>undo()</code>, <code>describe()</code> &mdash; and each of the
+<strong>seven</strong> concretes stores its own inverse at construction, not the world's state:
+<code>PlaceTileCommand</code> and <code>EraseTileCommand</code> remember the
+<code>m_oldType</code> they overwrote, <code>FillRectCommand</code> the rectangle it painted over,
+<code>MoveEntityCommand</code> the position it came from, <code>SetEntityPropertyCommand</code> the
+previous value, and <code>PlaceEntityCommand</code> / <code>EraseEntityCommand</code> the entity
+identity. <code>MapEditor</code> then needs nothing clever: two vectors,
+<code>m_undoStack</code> and <code>m_redoStack</code>, with <code>undo()</code> moving the top of one to
+the other. <code>describe()</code> returns one present-tense line ("Place Goomba") which is what makes
+the editor's History panel possible &mdash; a snapshot scheme has nothing to print. Bound to
+<code>Ctrl+Z</code> and <code>Ctrl+Shift+Z</code> in <code>EditorState::handleInput</code>, and to the
+same two menu items.</p>
+<p><strong>Why this is the stronger Command.</strong> The specification claims undo for the input
+commands, where there is none. It exists here, and this is where undo is <em>worth</em> having: an editor
+is the one part of the program whose user expects to take an action back.
+<code>FillRectCommand</code> is the clearest evidence that the granularity is a design decision rather
+than an accident &mdash; painting a 20&times;10 region a tile at a time put 200 entries on the stack, so
+undoing one rectangle meant pressing <code>Ctrl+Z</code> two hundred times. One command, one rectangle,
+one undo. The same reasoning made a drag into a single <code>MoveEntityCommand</code> capturing where the
+drag began, rather than one command per frame of mouse movement.</p>
+<p><strong>What it cost.</strong> Every editing operation must be expressible as an object with an
+inverse, which rules out an edit whose inverse is not knowable &mdash; and it forced a second interface
+into existence. <code>PlaceEntityCommand</code> used to push straight into the entity vector and
+<code>EraseEntityCommand</code> destroyed whatever it was handed; both bypassed the state that owns the
+vector, which is the only thing that knows an entity needs <code>setupAnimations()</code> before it can
+draw anything but a coloured placeholder box, and that <code>PlayingState::m_player</code>,
+<code>Game::setPlayer</code> and <code>InputManager::registerPlayer</code> hold raw pointers into it.
+That is &sect;7.15.</p>
+<p><strong>Participants.</strong> <code>IEditorCommand</code> (command), the seven concretes,
+<code>MapEditor</code> (invoker and history), <code>TileMap</code> and <code>IEntityAdmitter</code>
+(receivers), <code>EditorState</code> (client). No generated figure: <code>IEditorCommand</code> is not
+yet one of the diagram tool's roots (&sect;13).</p>
+
+<h3>7.10 Command &mdash; the debug console</h3>
+<p><strong>The problem.</strong> A developer types <code>spawn bowser</code> or <code>give star</code>
+into an in-game console and expects text back, including an error message when the argument is wrong.</p>
+<p><strong>The naive alternative.</strong> One long <code>if/else</code> over the typed verb inside the
+console's own render function, with the help text written out separately &mdash; two lists to keep in
+step, which is the failure &sect;7.2 already paid for once.</p>
+<p><strong>Why a <em>separate</em> interface.</strong> <code>ICommand::execute(Character&amp;)</code>
+cannot express this: a console command takes an argument list, acts on the game as a whole rather than on
+one character, and <em>returns</em> text. So <code>IConsoleCommand</code> declares
+<code>name()</code>, <code>help()</code> and
+<code>execute(const std::vector&lt;std::string&gt;&amp;) &rarr; std::string</code>, and there are
+<strong>eleven</strong> concretes: <code>help</code>, <code>give</code>, <code>lives</code>,
+<code>teleport</code>, <code>god</code>, <code>spawn</code>, <code>difficulty</code>,
+<code>level</code>, <code>progress</code>, <code>replay</code>, <code>clear</code>. The
+<code>help</code> command is a loop over <code>DebugConsole::commandNames()</code> rather than a
+hand-written list, and a command whose arguments are wrong answers by returning its own
+<code>help()</code> line &mdash; so a command and its usage text cannot drift apart, which is the same
+one-fact-two-places failure &sect;7.2 paid for once already.</p>
+<p><strong>What it cost.</strong> A second Command hierarchy rather than one, which is the honest
+consequence of <code>ICommand</code>'s signature having been designed for exactly one use. Errors are
+returned as text rather than thrown, deliberately: a typo in a console is not exceptional. And every
+console command reaches the world through the singletons of &sect;7.3 &mdash; which is what keeps the
+console independent of whichever state is on top, and simultaneously the clearest example of the
+dependency cost in &sect;6.8.</p>
+<p><strong>Participants.</strong> <code>IConsoleCommand</code>, its eleven concretes,
+<code>DebugConsole</code> (invoker and registry). Declared inside
+<code>DebugConsole.cpp</code>, so no generated figure can reach them.</p>
+
+<h3>7.11 Observer</h3>
+<p><strong>The problem.</strong> Collecting a coin has to update the score, play a sound, advance the
+statistics counters and possibly unlock an achievement. Defeating a boss has to do a different four
+things. Neither the <code>Coin</code> nor the <code>Bowser</code> class has any business knowing what
+those systems are.</p>
+<p><strong>The naive alternative.</strong> <code>Coin::activate(Player&amp; p)</code> calling
 <code>p.addCoins(1); hud.refresh(); soundManager.play("coin"); stats.recordCoin();
-achievements.checkCoinMilestones();</code> directly &mdash; and then <code>Star::activate</code>,
+achievements.checkCoinMilestones();</code> &mdash; and then <code>Star::activate</code>,
 <code>OneUpMushroom::activate</code> and every other item repeating some subset of the same list, because
-each item's designer has to remember which systems care this time. <code>EventBus::publish</code> lets
-<code>Coin::activate</code> know only that something happened, not who is listening &mdash; and a fifth
-system (say, a future daily-challenge coin counter) subscribes without <code>Coin.cpp</code> changing at
-all.</p>
-<p><strong>State + Decorator, together.</strong> The naive alternative is not a competing pattern but the
-thing both of these replaced: a pile of booleans on <code>Player</code> &mdash;
-<code>isSuper, isFire, isCape, isMini, isStarred, isMega</code> &mdash; and an
-<code>if/else</code> chain in every place form matters (hitbox, jump height, death behaviour, rendering).
-The moment a Star is picked up as Fire Mario, that boolean pile has to encode "currently Fire, but also
-temporarily starred" as a combination no single flag names, and every one of those <code>if</code> chains
-has to be taught the combination separately. Five state objects handle the base forms; two decorators
-wrap whichever one is active without either of them needing to know what they are wrapping. The
-combination was never a special case to design for &mdash; it falls out of the two patterns being
-orthogonal to begin with.</p>
-<p><strong>Template Method.</strong> The naive alternative is copying <code>Bowser</code>'s
-<code>update()</code> into <code>BoomBoom</code> and editing the attack pattern in place &mdash; which is
-exactly how the second boss <em>would</em> have been built without this pattern, and is the standard way
-an i-frame check or a phase-transition line quietly diverges between two copies over several edits.
-Sealing <code>Boss::update()</code> as <code>final</code> is a compiler-enforced version of "do not copy
-this function": a third boss can only be added by writing <code>updateBehaviour()</code>, which is not
-capable of skipping the sequencing the base class already owns.</p>
+each item's author has to remember which systems care this time.</p>
+<p><strong>Why this pattern.</strong> <code>EventBus::publish(const GameEvent&amp;)</code> takes an
+<code>EventType</code> and a <code>std::any</code> payload; subscribers register a
+<code>std::function</code> against a type. There are <strong>29</strong> event types today. The real
+subscribers, counted from the code rather than from the specification, are
+<code>SoundManager</code> (20 subscriptions), <code>PlayingState</code> (15),
+<code>AchievementManager</code> (9), <code>Camera</code> (7), <code>StatisticsTracker</code> (4) and
+<code>Minimap</code> (1). A seventh listener &mdash; a future daily-challenge coin counter &mdash;
+subscribes without <code>Coin.cpp</code> changing at all. The bus also solved a structural problem the
+naive version cannot: an entity has no handle on the world's entity list, so
+<code>EntitySpawnRequested</code> with an <code>EntitySpawnRequest</code> payload is how Lakitu drops
+Spinies and Hammer Bro throws hammers &mdash; the requester never touches the vector.</p>
+<p><strong>Correcting the specification.</strong> <code>Hud</code> is listed as a subscriber and
+<strong>subscribes to nothing</strong>. It is push-fed instead: <code>PlayingState</code> assembles a
+<code>HudData</code> struct and hands it over through <code>Hud::sync</code> once per frame, so the HUD
+is a pure renderer of state given to it and holds no reference to a player or a bus at all. That is a
+defensible design for something which redraws unconditionally every frame &mdash; a subscription would
+buy it nothing &mdash; but it is <em>not</em> Observer and is not counted as one here.
+<code>ComboTracker</code> and <code>AchievementTracker</code> appear in the specification's participant
+list and <strong>do not exist</strong> as classes; combos are tracked inside <code>PlayingState</code>
+and achievements by <code>AchievementManager</code>.</p>
+<p><strong>What it cost.</strong> Three costs, all paid. Control flow is untraceable at the call site: a
+reader of <code>Coin::activate</code> can see that something was published and cannot see what happens
+next, which is a real loss of local reasoning in exchange for a real gain in decoupling. The
+<code>std::any</code> payload moves a type error from compile time to run time. And subscriber lifetime
+had to be engineered rather than assumed &mdash; a callback that outlives its object is a use-after-free
+the next time that event fires. Three mechanisms answer that: cancelled subscriptions are
+<em>tombstoned</em> rather than erased, so a handler that unsubscribes during delivery cannot invalidate
+the vector being walked; an <code>m_publishDepth</code> counter defers compaction while
+<code>publish()</code> is on the stack, including re-entrantly; and
+<code>EventBus::ScopedSubscription</code> is a move-only RAII handle that unsubscribes in its destructor,
+so a token cannot be forgotten. <code>PlayingState</code> holds fifteen of them, and
+<code>SoundManager</code>'s twenty &mdash; which were raw ids that never unsubscribed at all, the last
+such holdout in the codebase &mdash; are now a <code>std::vector</code> of them. That third mechanism is
+a pattern in its own right, RAII scope-bound resource management, and it is here for a reason worth
+stating: counting on thirty-five hand-written unsubscribes across two destructors is counting on a
+person, and this bus had already been given an alive-flag guard precisely because someone once did not
+write one.</p>
+<p><strong>Participants.</strong> <code>EventBus</code> (subject), <code>EventType</code> /
+<code>GameEvent</code> (the event), <code>EventBus::Callback</code> subscribers,
+<code>EventBus::ScopedSubscription</code> (lifetime). No generated figure: subscribers relate to the bus
+by association, not inheritance.</p>
+
+<h3>7.12 Decorator</h3>
+<p><strong>The problem.</strong> A Star makes the player invincible for ten seconds; a Mega Mushroom
+makes him giant for eight. Both are <em>temporary</em> and both are <em>orthogonal to form</em> &mdash;
+Fire Mario with a Star is still Fire Mario, and has to still be Fire Mario when the Star runs out.</p>
+<p><strong>The naive alternative.</strong> Add <code>StarState</code> and <code>MegaState</code> to the
+five forms of &sect;7.4. Each then has to remember which form to exit back into, and the two together are
+a cross-product: starred-and-mega-and-fire is a state nobody wrote. The cruder alternative is worse
+still &mdash; booleans on <code>Player</code> (<code>isSuper</code>, <code>isFire</code>,
+<code>isCape</code>, <code>isMini</code>, <code>isStarred</code>, <code>isMega</code>) with an
+<code>if</code> chain in every place form matters, each chain having to be taught the combination
+separately.</p>
+<p><strong>Why this pattern.</strong> <code>PlayerStateDecorator</code> derives from
+<code>IPlayerState</code> and <em>holds</em> a <code>std::unique_ptr&lt;IPlayerState&gt;</code>, forwarding
+<code>enter</code>, <code>exit</code>, <code>handleInput</code>, <code>update</code> and
+<code>getSize</code> to whatever it wraps. <code>StarDecorator</code> adds a countdown and invincibility;
+<code>MegaDecorator</code> adds a countdown and <em>scales the wrapped state's</em>
+<code>getSize()</code> rather than returning a constant, which is what makes "giant Fire Mario" fall out
+instead of being designed. When a decorator expires, <code>releaseWrappedState()</code> hands the inner
+state back and the player is exactly what he was. The combination was never a special case: it is a
+consequence of the two axes being orthogonal.</p>
+<p><strong>What it cost.</strong> The chain is only inspectable by <code>dynamic_cast</code>, and
+there are <strong>seventeen</strong> such sites across <code>Player</code>, <code>Serializer</code>,
+<code>CollisionDetector</code> and <code>DevPanel</code>. The sharpest is
+<code>Player::setBaseState</code>, which must
+<em>hand-walk</em> the chain: cast the current state to <code>PlayerStateDecorator*</code>, loop inward
+through <code>getWrappedState()</code> until the cast fails, then swap the base form underneath the
+innermost decorator &mdash; which is what lets a Fire Flower picked up during a Star survive the Star
+expiring. That is a genuine cost of the pattern, not a bug: a decorator chain deliberately hides its
+depth, so any code that needs to reach <em>through</em> it has to ask at run time. An alternative would be
+a <code>getInnermost()</code> virtual on <code>IPlayerState</code> &mdash; which widens the interface every
+implementer must satisfy in order to serve two call sites, and was rejected on that basis.</p>
+<p><strong>Honest scope note.</strong> <code>StarDecorator</code> is exercised in normal play: four
+shipped question blocks carry <code>QuestionBlock::Content::Star</code>, one each in
+<code>level_1</code>, <code>level_2</code>, <code>level_3</code> and <code>bonus_1</code>.
+<code>MegaDecorator</code> is <em>not</em>: no shipped level places a Mega Mushroom, so it is reachable
+only through the debug console's <code>give</code> command or the level editor. The same is true of
+<code>MiniState</code> from &sect;7.4 &mdash; no level's question block carries
+<code>MiniMushroom</code> either. All three are production code paths rather than harness-only ones, but
+a grader who only plays the campaign will meet the Star and neither of the other two, and the honest
+place to fix that is a level edit rather than a paragraph.</p>
+<p><strong>Participants and figure.</strong> <code>IPlayerState</code> (component),
+<code>SmallState</code>&hellip;<code>MiniState</code> (concrete components),
+<code>PlayerStateDecorator</code> (decorator), <code>StarDecorator</code> and <code>MegaDecorator</code>
+(concrete decorators) &mdash; Figure 9, which shows the wrapping member alongside the inheritance edge.</p>
+
+<h3>7.13 Memento</h3>
+<p><strong>The problem.</strong> Holding <code>R</code> rewinds the last five seconds of play. Attract
+mode replays a recorded run on the menu screen. Both need the world's past.</p>
+<p><strong>The naive alternative.</strong> Record the player's inputs and re-simulate. That is the usual
+way and it was rejected for a stated reason: it requires the simulation to be bit-for-bit deterministic,
+and this one is not &mdash; float physics, an entity list that spawns and prunes, and enemy strategies
+that read a shared <code>Game</code> singleton. Storing state costs more disk and plays back exactly what
+happened.</p>
+<p><strong>Why this pattern.</strong> <code>GameSnapshot</code> is the memento:
+<code>PlayerSnapshot</code> for each player, a <code>std::vector&lt;EntitySnapshot&gt;</code>, the level
+timer and the camera centre. <code>PlayingState</code> is the originator, building one per frame;
+<code>TimeRewindManager</code> is the caretaker, holding a <code>std::deque</code> capped at 300 frames
+&mdash; five seconds at 60&nbsp;fps. <code>ReplayRecorder</code> reuses the <em>same</em> memento rather
+than inventing a second mechanism: a replay is that snapshot stream kept for longer, thinned to every
+Nth frame, and written to disk. The load-bearing detail is that <code>EntitySnapshot</code> keys on
+<code>Entity::getId()</code> and <strong>not</strong> on a position in the entity vector, because indices
+shift whenever an entity is pruned or spawned between record and restore &mdash; which is a defect that
+actually shipped: rewind assigned positions to the wrong entities.</p>
+<p><strong>What it cost.</strong> Two things, stated plainly. First, this is a <em>partial</em> snapshot,
+not "full game state": per entity it captures id, position, velocity and active flag, and per player
+position, velocity, score, coins and lives. Anything else &mdash; an enemy's strategy phase, a block's
+broken state, a decorator's remaining time &mdash; is not rewound. That is a deliberate trade for a
+per-frame capture cost, and the report should not be read as claiming more. Second,
+<code>GameSnapshot</code> is a fully public <code>struct</code>, so the originator's internals are
+readable by anything that can see the header &mdash; the narrow-interface half of the GoF pattern is
+absent. That is the common C++ simplification (a memento as an aggregate) and it is a real encapsulation
+cost; making the fields private with <code>PlayingState</code> and <code>Player</code> as friends would
+close it and add to the friend count &sect;6.8 already argues about. Even the partial capture has been
+wrong once in a way worth recording: it captured player 1 only, so rewinding a two-player match rolled
+one player's score back and left the other's alone &mdash; silent, because nothing on screen looks wrong
+until you read the numbers. <code>hasSecondPlayer</code> and <code>secondPlayerState</code> exist because
+of it.</p>
+<p><strong>Participants.</strong> <code>GameSnapshot</code>, <code>PlayerSnapshot</code>,
+<code>EntitySnapshot</code> (mementos), <code>PlayingState</code> (originator),
+<code>TimeRewindManager</code> and <code>ReplayRecorder</code> (caretakers). No generated figure: these
+are aggregates and holders, with no inheritance among them.</p>
+
+<h3>7.14 Object Pool</h3>
+<p><strong>The problem.</strong> Fireballs, hammers and boss fireballs are created and destroyed several
+times a second during a fight, each one a heap allocation inside the frame budget.</p>
+<p><strong>The naive alternative.</strong> The textbook pool owns its objects and hands out raw
+pointers. That does not fit this game at all: <code>PlayingState</code> owns the world as
+<code>std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt;</code> and prunes inactive entries every frame, so
+a pool that kept ownership would mean rewriting how every entity in the game is stored.</p>
+<p><strong>Why this pattern, shaped this way.</strong> <code>ObjectPool&lt;T&gt;</code> trades in
+<code>std::unique_ptr&lt;T&gt;</code>: <code>acquire()</code> hands one over, <code>release()</code> takes
+it back, and in between the object is owned exactly the way an unpooled one would be. The entity list does
+not know pooling exists; the only change at the call site is that the prune step offers spent objects back
+instead of dropping them. <code>acquire()</code> forwards its arguments to <code>T</code>'s constructor on
+a miss and to <code>T::resetForPool</code> on a hit, so both paths leave the caller holding the object it
+asked for &mdash; and only <code>T</code> knows what "just-constructed again" means, which is why that
+requirement is on <code>T</code> rather than in the pool.</p>
+<p><strong>What it cost.</strong> A pool that grows without bound is a leak that never frees, so
+<code>m_maxRetained</code> caps the free list and <code>release()</code> simply lets the object die past
+the cap. The larger cost is structural and shows how a pattern leaks: recycling means the <em>owner</em>
+has to know which pool an expiring entity belongs to, even though pooling was supposed to be invisible
+to the entity list. <code>PlayingState::recycleEntity</code> answered that with three sequential
+<code>dynamic_cast</code>s &mdash; exactly the run-time type test &sect;6.8 argues against elsewhere,
+and indefensible rather than a trade-off, so it was fixed rather than written up. <code>Entity</code>
+now carries a virtual <code>poolTag()</code> returning an <code>Entity::PoolTag</code>, which
+<code>Fireball</code>, <code>Hammer</code> and <code>BossFireball</code> override; recycling switches on
+the answer. The residual cost is honest and small: <code>Entity</code>, the root of the whole hierarchy,
+now knows that pooling exists, which it did not before. That is a real widening of the base class in
+exchange for removing three RTTI walks per expiring projectile, and it is the trade this subsection
+would defend if asked.</p>
+<p><strong>Honest scope.</strong> Three types are pooled: <code>ObjectPool&lt;Fireball&gt;</code>,
+<code>ObjectPool&lt;Hammer&gt;</code> and <code>ObjectPool&lt;BossFireball&gt;</code>. The specification
+also claims particles and Bullet Bills. Neither is true: the particle system does its own recycling over
+a flag array, and no <code>ObjectPool&lt;BulletBill&gt;</code> exists. Three, not five.</p>
+<p><strong>Participants.</strong> <code>ObjectPool&lt;T&gt;</code> (pool), the three pooled projectile
+classes with their <code>resetForPool</code>, <code>PlayingState</code> (client, via
+<code>spawnProjectile</code> and <code>recycleEntity</code>). No generated figure: the pool is a template
+held by composition.</p>
+
+<h3>7.15 Adapter</h3>
+<p><strong>The problem.</strong> An editor command has to add an entity to, or remove one from, a
+<em>live</em> game state &mdash; but it must not depend on <code>PlayingState</code>, and there are two
+facts it cannot know: that an entity which has not had <code>setupAnimations()</code> called on it renders
+as a flat coloured placeholder box, and that three separate places hold raw non-owning pointers into the
+entity vector.</p>
+<p><strong>The naive alternative.</strong> What the code did: <code>PlaceEntityCommand</code> pushed
+straight into the vector, so every entity the editor placed drew as a coloured box; and
+<code>EraseEntityCommand</code> destroyed whatever it was handed, so erasing a Player left
+<code>PlayingState::m_player</code>, <code>Game::setPlayer</code> and
+<code>InputManager::registerPlayer</code> all dangling.</p>
+<p><strong>Why this pattern.</strong> <code>IEntityAdmitter</code> is a two-method port &mdash;
+<code>admit(Entity*)</code> and <code>release(Entity*)</code>, neither taking ownership &mdash; with a
+contract stated in the header: <code>admit</code> must leave the entity fully drawable,
+<code>release</code> must have dropped every observer pointer into it before it returns.
+<code>PlayingState::EditorBridge</code> implements it and is the adapter: it presents the state's own
+knowledge through an interface the editor can depend on without depending on the state.</p>
+<p><strong>What it cost.</strong> One more interface and one more indirection for what is, in the
+common case, a <code>push_back</code>. It buys back two shipped defects and, more importantly, it makes
+the requirement <em>writable</em> &mdash; the invariant now lives in a header contract rather than in a
+maintainer's memory.</p>
+<p><strong>Participants.</strong> <code>IEntityAdmitter</code> (target),
+<code>PlayingState::EditorBridge</code> (adapter), <code>PlayingState</code> (adaptee),
+<code>PlaceEntityCommand</code> / <code>EraseEntityCommand</code> (clients). No generated figure: the
+implementer is a nested class, which the diagram tool does not index.</p>
+
+<h3>7.16 Two patterns deliberately not used</h3>
+<p>These belong in a design section as much as the fifteen subsections above, because each was the
+obvious answer to a real problem in this codebase and each lost for a reason that can be stated.</p>
+<p><strong>Visitor, and double dispatch generally.</strong> <code>CollisionResolver</code> must decide what
+happens when two entities touch, which is a two-argument dispatch C++ does not give you. The textbook
+answers are Visitor &mdash; an <code>accept</code>/<code>visit</code> pair on <code>Entity</code> &mdash;
+or a chain of <code>dynamic_cast</code>s. The chain is what the code had: up to twelve sequential casts per
+colliding pair per frame. Visitor was rejected too, on two grounds. It would put a
+<code>visitPlayer</code>/<code>visitEnemy</code>/<code>visitItem</code>/<code>visitBlock</code>/<code>visitProjectile</code>
+surface on a base class that has no other reason to know those categories exist, and it makes the
+<em>entity</em> hierarchy closed instead of the operation: adding a new collision <em>rule</em> would be
+cheap, but the resolver is stable and the entity list is not, so Visitor optimises the axis that does not
+change here. What the code does instead is ask each side once: <code>Entity::getCategory()</code> returns
+an <code>EntityCategory</code>, and the resolver switches on the <em>ordered pair</em> of the two
+categories, halving the case count because <code>(Enemy, Player)</code> is handled as
+<code>(Player, Enemy)</code> with the collision normal flipped. Two virtual calls and one switch replaced
+twelve casts. The enum is deliberately a <em>category</em> and not a type id &mdash; it answers "how does
+this collide?", which is the only question the resolver asks; anything needing the concrete type is told
+to add a virtual of its own instead of widening the enum. The result is measurable: the resolver contains
+<strong>zero</strong> real <code>dynamic_cast</code>, and the four textual matches in that file are
+comments recording this decision.</p>
+<p><strong>Flyweight.</strong> It would be easy, and wrong, to call
+<code>ResourceManager</code> and <code>SpriteSheet</code> a Flyweight and claim one more pattern.
+Flyweight splits an object's intrinsic state from extrinsic state passed in at use, so that many
+fine-grained objects can share one instance. What these two do is simpler and different: they are a
+<strong>cache</strong>. <code>ResourceManager</code> holds
+<code>unordered_map</code>s of textures, fonts and sound buffers keyed by path and hands out references;
+<code>SpriteSheet</code> holds a non-owning <code>const sf::Texture*</code> into that cache plus a map of
+named frame rectangles. Sharing a texture between a hundred Goombas is what any sane resource loader does;
+there is no intrinsic/extrinsic split and no flyweight object. Calling it a cache is the accurate
+description, and one fewer claimed pattern is a better report than one more false one.</p>
+<p>Also confirmed absent, checked rather than assumed: Prototype, Builder, Null Object, Facade, Chain of
+Responsibility, a custom Iterator, Abstract Factory and Bridge. None appears in the codebase, and none is
+claimed.</p>
 
 <h2 id="impl">8 &middot; Implementation details</h2>
 

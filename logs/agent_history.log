@@ -6919,6 +6919,117 @@ STILL OPEN, in my sections: §13 asserts "no sanitizer job in CI" and
   them for whether the CODE THEY CITE exists on the branch named, not for
   whether the horizon is achievable. The two side branches are stale relative
   to d013442 and I did not rebase them; I read them read-only via `git show`.
+[2026-09-02 20:45:00] Branch: dev
+Git Fingerprint: d013442 (before) → e2f0ff2 (after)
+Fetched Remotes: yes, 20:33
+Prompt: Sweep plan 2E — cheap OOP fixes (6 items from §2.3)
+Files Modified: Entity.hpp, Fireball.hpp, Hammer.hpp, BossFireball.hpp, DevPanel.cpp, PlayingState.cpp, Camera.hpp, Camera.cpp, EditorState.cpp, SoundManager.hpp, SoundManager.cpp, README.md
+Reachable From Main: yes — all changes are in production paths (DevPanel render, PlayingState prune/spawn, Camera view, SoundManager events)
+Verified By: build (0 errors) + ctest (32/32 passed)
+Summary of Changes:
+- Item 1: DevPanel.cpp — replaced 7 raw `new X(p)` with EntityFactory::create(EntityType::X, p); removed 7 concrete item includes, added EntityFactory include
+- Item 2: PlayingState::spawnProjectile — removed switch on EntityType, replaced with if-chain for pooled types + factory fallback
+- Item 3: PlayingState::recycleEntity — added virtual Entity::PoolTag enum and poolTag() method; overridden in Fireball, Hammer, BossFireball; recycleEntity now uses switch on poolTag() instead of 3 sequential dynamic_casts
+- Item 4: Camera::getView() — changed from `sf::View&` to `const sf::View&`; added setViewSize()/setViewViewport() methods; updated EditorState to use new setters
+- Item 5: SoundManager — all 21 subscriptions (20 bare bus.subscribe + 1 m_comboHitSub) now stored in std::vector<ScopedSubscription> m_subscriptions; removed separate m_comboHitSub member
+- Item 6: README.md — corrected P2 fire key (Period not M), game states (10 incl. Editor), movement strategies (8, removed Swimming/Climbing), Singleton (12 not 4), Observer subscribers (real names), Command (no replay serialization, added IEditorCommand), Object Pool (Fireball/Hammer/BossFireball not particles), State (removed FallingPlatform/Thwomp as pattern participants)
+- SPEC §2.2 corrections proposed but NOT applied (SPEC is frozen per sweep plan §4.2; user applies)
+- Worked directly on dev per user directive (no branch)
+
+[2026-09-02 20:45:00] Branch: A/docs/report-patterns-oop
+Git Fingerprint: d013442 (before) → 68bec8f (after)
+Fetched Remotes: yes, 20:45 — dev...origin/dev is 48/0 (48 local commits ahead, 0 behind; nothing to pull)
+Prompt: Phase 5A of the submission sweep — rewrite the report's design-reasoning sections. §7 as one subsection per pattern (problem → naive alternative → why → cost → participants → figure), promoting the unclaimed patterns the audit rated worth a place; add a §6 SOLID walk-through stating §2.2's trade-offs as decisions with reasons. Accuracy rules non-negotiable; nothing rated PARTIAL stated as full.
+Files Modified: reports/report_content.py (only §6 and §7), logs/agent_history.log
+Reachable From Main: n/a — not runtime code; report prose only. The generator that consumes it (reports/build_report.py) was deliberately NOT run per the lane brief (a later phase owns the build), and no generated output was committed (g-rule-19).
+Verified By: not verified by build — per lane instruction not to run the report build. Verified instead by: (a) `ast.parse` on report_content.py, (b) importing the module and calling render() with a stub FACTS dict, which exercises every f-string interpolation and produced 137,324 chars with 16 §7 subsections and §6.8 present, (c) an open/close tag balance check over the rendered output (p, strong, em, code, h3, table, tr, td all balanced), (d) every identifier and count in the new prose re-greppped against SuperMarioGame/include and src in this worktree.
+Summary of Changes:
+- §7 rewritten from a 10-row summary table + 4 "naive alternative" paragraphs
+  into 16 subsections (7.1-7.16), each with the same four labelled movements:
+  the problem in THIS codebase, the naive alternative, why this pattern, what
+  it cost. Participants named per subsection; figure pointers given where a
+  generated figure exists.
+- Promoted from unclaimed to first-class: 7.2 Registry / Type Object
+  (EntityCatalogue::Entry), 7.9 Command with undo (IEditorCommand, 7 concretes
+  each storing its inverse), 7.8 Composite (CompositeCommand), 7.15 Adapter
+  (IEntityAdmitter / PlayingState::EditorBridge). RAII ScopedSubscription
+  folded into Observer as the subscriber-lifetime mechanism.
+- 7.16 writes up two patterns REJECTED on purpose rather than claiming them:
+  Visitor / double dispatch (answered by Entity::getCategory() + the ordered
+  EntityCategory pair switch) and Flyweight (ResourceManager/SpriteSheet are
+  a cache, now called one).
+- New §6.8 "SOLID, principle by principle": one paragraph per principle, each
+  with §2.1 evidence and the documented trade-off stated as a decision with a
+  reason (PlayingState size under SRP with the extraction trend as evidence;
+  12 singletons owned under DIP with the Meyers construction-order rationale
+  and the two habit-singletons named; 12 friend classes under ISP, attributed
+  to the Strategy pattern's cost; the decorator casts under OCP).
+- §6.7 gained the two checkable tree-wide properties: no class exposes a
+  mutable data member (Camera::getView() named as the one exception), and
+  ownership is uniform (0 delete, unique_ptr throughout, the DevPanel spawners
+  and the leaked ResourceManager as the two commented exceptions).
+- Two wrong figure captions in §6 fixed: Figure 10 "Eight screens" → nine;
+  Figure 6b "three of them stateful" → two, now saying they are enum state
+  machines and not State participants.
+MISTAKES AND CORRECTIONS MADE THIS SESSION (each caught by re-verifying a
+plan claim against the code instead of copying it):
+- I first wrote DevPanel's spawn buttons as a fourth EntityFactory::create
+  caller. They are not — DevPanel still uses seven raw `new X(p)` lambdas
+  because lane 2E has NOT landed on this dev. Corrected to
+  PlayingState::spawnProjectile.
+- I first wrote the Hud as polling Player and Game every frame. It does
+  neither: PlayingState assembles a HudData and pushes it via Hud::sync once
+  per frame. The audit's "Hud subscribes to nothing" is right; my mechanism
+  was wrong. Corrected.
+- I wrote "a sixth listener" after listing six subscribers. Corrected to
+  seventh.
+- I paraphrased the Thwomp's phases as "wind-up/slam/rest/climb". The real
+  enumerators are ProximityState::Idle/Slamming/Resting/Rising, and
+  FallingPlatformState::Idle/Shaking/Falling/Respawning. Both now named.
+- I claimed "Stars are placed in shipped levels" from the plan. Verified it
+  properly: the 4 placements are QuestionBlock itemType 4 in level_1,
+  level_2, level_3 and bonus_1 — the 12 `"star"` hits in assets/levels are
+  all `star_coin`, a different entity. Rewritten with the real evidence.
+PLAN AUDIT CLAIMS I COULD NOT VERIFY, AND DID NOT REPEAT:
+- §2.2 says the Decorator chain is inspectable by cast at "10 sites". I count
+  17 (Player 11, DevPanel 3, Serializer 1, CollisionDetector 1). The report
+  says seventeen.
+- §2.1 says the R5 refactor took CollisionResolver from 28 dynamic_casts to 0.
+  Zero is correct today (4 textual hits, all comments). 28 is not verifiable
+  from that file's history — walking its last 25 commits, the peak is 20
+  textual hits (43ff0ca). The report therefore uses the figure the code's own
+  comment states — "up to twelve sequential dynamic_casts per colliding pair
+  per frame" — and does not print 28.
+- §2.2 gives PlayingState as 3,983 + 796 lines. It is 4,093 + 876 today. The
+  report says "past four thousand" and "past eight hundred".
+- §2.2 gives Game::getInstance() as 139 call sites / 37 files. I measure
+  143 / 39. The report uses my measurement.
+- §8.16 gives ctest as 26 computed / 29 real; the lane brief says 32 is now
+  real. I did not print any of the three: §6/§7 do not need a ctest count, and
+  FACTS["ctests"] is still wrong at the source (build_report.py's
+  ctest_targets() misses the three explicit add_test registrations). Flagged,
+  not worked around.
+NEW FINDINGS FOR OTHER LANES (not fixed here, outside §6/§7):
+- §16.4's index table still says "Eight screens behind one State interface"
+  (nine) and "three of them (FallingPlatform, Thwomp) State machines" (two).
+- §16.3 "Figures at a glance" still says "Design patterns | 10". The report
+  now presents 13 distinct GoF patterns across 15 subsections plus 2 rejected.
+- §16.1's build block says "# 13 verification targets", which matches neither
+  FACTS["targets"] nor FACTS["ctests"].
+- MiniMushroom is placed in no shipped level either (QuestionBlock content 5
+  appears nowhere), so MiniState is as unreachable in campaign play as
+  MegaDecorator. Recorded in §7.12; a level edit would close both.
+- §13's lane should carry the items §6/§7 now point at it for: a virtual pool
+  tag on Entity (removing recycleEntity's three casts), Camera::getView()
+  narrowing, a protected mutation API replacing nine of the twelve strategy
+  friends, IEditorCommand/IAIPolicy/IEntityAdmitter as gen_class_diagram.py
+  roots, CompositeCommand and IConsoleCommand being invisible to the header
+  scanner, and the singleton injection work.
+NOT DONE, DELIBERATELY: no push, no merge, no report build, no generated
+output committed, nothing touched outside reports/report_content.py §6/§7 and
+this log.
+---
+
 [2026-09-02 20:55:00] Branch: A/fix/moving-platform-and-spiny-egg
 Git Fingerprint: 4050965/53f6505 (before this round) → cf195cb (after)
 Fetched Remotes: yes — dev == origin/dev (0 0), unchanged since the prior entry; no fetch-affecting work happened in this round
@@ -7000,3 +7111,66 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
 
+[2026-09-02 21:05:00] Branch: A/docs/report-patterns-oop
+Git Fingerprint: 4bf6dcb (before) → 1241952 (after) — rebased onto dev @ 09ae147, so the three earlier commits were rewritten as 43dd6f5, 46ec483, 250cee8
+Fetched Remotes: yes, 20:47 — dev tip is 09ae147; d013442 (my old base) confirmed an ancestor of it, so the rebase was a clean replay
+Prompt: Coordinator correction — lane 2E has landed on dev since I branched. Rebase onto dev @ 09ae147 and update every §6/§7 statement that presents one of 2E's six fixes as a current trade-off, re-verifying each against the tree rather than trusting the hand-off table. Do not soften the trade-offs that genuinely remain.
+Files Modified: reports/report_content.py (§6.7, §6.8, §7.1, §7.4, §7.11, §7.14), logs/agent_history.log
+Reachable From Main: n/a — not runtime code; report prose only. The report build was again NOT run (a later phase owns it) and no generated output was committed (g-rule-19).
+Verified By: not verified by build, per lane instruction. Verified by: (a) re-greppping all six 2E items against this worktree's include/ and src/ before rewording any of them; (b) re-measuring every count §6/§7 asserts; (c) ast.parse plus a render() call with a stub FACTS dict — 141,090 chars, 16 §7 subsections, §6.8 present; (d) an open/close tag balance check over the rendered output; (e) a targeted grep over the §6-§7 slice for the twelve phrases that could have carried a stale claim, all clean.
+Summary of Changes:
+- REBASE: `git rebase 09ae147`. logs/agent_history.log conflicted, as it always
+  does on a shared append-only file. Resolved by UNION per AGENTS.md directive
+  3 — kept BOTH 20:45:00 entries (lane 2E's first, since its work is what I
+  rebased onto, then mine), discarded neither side. Entry count 293 after,
+  markers 0. reports/report_content.py did not conflict: 2E touched no
+  reports/ file, as the coordinator predicted.
+- §6.7: Camera::getView() rewritten from an open leak to a closed one — it is
+  now `const sf::View& getView() const` with setViewSize/setViewViewport for
+  the one caller (EditorState) that reshapes the view. Raw `new` rewritten
+  from 8 occurrences to 1 (DevPanel's seven now call EntityFactory::create).
+- §6.8 OCP: recycleEntity's three dynamic_casts rewritten as fixed — virtual
+  Entity::poolTag() with PoolTag overrides in Fireball/Hammer/BossFireball —
+  and used to sharpen the paragraph's own point: two of three remaining type
+  tests are the price of a decision, the third was a lapse, only the lapse
+  went.
+- §6.8 DIP: SoundManager's 20 raw ids → vector<ScopedSubscription>, named as
+  the last holdout. Added the honest summary for a reader who counts twelve
+  singletons: the number was not reduced, the failure modes were closed
+  individually with enforced mechanisms.
+- §7.1: DevPanel added as a fifth factory caller; the naive alternative is now
+  a five-place edit.
+- §7.11: SoundManager's 20 scoped subscriptions added beside PlayingState's 15.
+- §7.14: the pool cast rewritten as a pattern leak that was fixed, keeping the
+  NEW residual cost visible — Entity, the hierarchy root, now knows pooling
+  exists, which it did not before.
+- §7.4: added why there is no StatisticsState — the statistics screen is
+  OptionsState::Page::Statistics, one of five pages sharing one navigation
+  model. Nine states is correct.
+- NOT SOFTENED, deliberately, none being touched by 2E: PlayingState at
+  4,094 + 876 lines; 12 singletons with Game::getInstance() at 143/39; 17
+  decorator cast sites; 12 friend classes in each of Entity and Character;
+  four empty IPlayerState bodies; the public GameSnapshot aggregate.
+COUNT CHANGED BY 2E: EventBus::getInstance() is now 54 call sites / 28 files,
+  was 55/29. Updated. Everything else I assert re-measured identical.
+TWO DEFECTS FOUND IN LANE 2E's OWN WORK (README.md, not my file, NOT edited):
+- README.md:39 and :106 now say "10 Game States" and list "Statistics" as one
+  of them. There is no StatisticsState class — `grep -rn StatisticsState
+  include src` returns nothing; the statistics screen is
+  OptionsState::Page::Statistics. The real figure is 9, and this is the exact
+  error sweep plan §3.2 asked to be corrected, so 2E's README fix reintroduced
+  it. The report says nine and now explains why.
+- README.md:107 says `SoundManager` (21) subscriptions. I measure 20: 20
+  `m_subscriptions.push_back` calls and 20 `EventType::` references in
+  SoundManager.cpp. 2E's own log entry also says 21. The report says twenty.
+  Whoever owns README should re-count rather than take either document's word.
+ctest: settled per the coordinator (FACTS extracts 29, `ctest -N` reports 32,
+  the gap being three explicit add_test registrations). Neither number is
+  typed anywhere in §6 or §7. Lane 2E's log independently records "ctest
+  (32/32 passed)", which corroborates 32 as the real figure.
+NOT DONE, DELIBERATELY: no push, no merge, no report build, no generated
+output, nothing touched outside reports/report_content.py §6/§7 and this log.
+The §16.1/§16.3/§16.4 stale counts remain routed to the §8/§16 lane, and
+README.md's two errors above are for whoever owns README — I flagged rather
+than reached.
+---
