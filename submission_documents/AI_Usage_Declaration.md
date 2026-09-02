@@ -13,10 +13,11 @@ We declare that Artificial Intelligence (AI) tools were utilized during the deve
 2. **Implementation:** Assisting in writing boilerplate C++ code, engine subsystems, algorithms (e.g., AABB collision), and gameplay logic.
 3. **Debugging & Refactoring:** Identifying bugs, fixing logic flaws, and optimizing code structure for maintainability.
 4. **Documentation:** Generating report drafts, logging task history, and formatting class diagrams.
+5. **Submission Preparation:** Refreshing and extending all submission documents with complete evidence trails and scope specifications.
 
 ## Tools Used
 - **Antigravity** (Google, Gemini-based) — the primary agentic coding tool used across most of the project's history: implementing engine subsystems and design patterns, enemy/entity work, level content, weekly report drafting, and the majority of the git history's commits.
-- **Claude Code** (Anthropic) — introduced later in the project, for the final push: diagnosing and fixing the three reported gameplay defects, implementing Endless Mode and the level-solvability oracle, writing and running the `verify_*` regression test suite additions, and generating/expanding this submission's documents (report, feature list, member contributions, testing checklist) directly from the codebase, git history and weekly reports rather than from a blank page.
+- **Claude Code** (Anthropic) — introduced from 2026-08-18 onward for intensive defect remediation and submission preparation: executing the complete R1–R21 defect-batch remediation plan (Aug 31 – Sep 2), implementing subsystems shipped in that R-batch period (EntityCatalogue registry, dynamic lighting shader, real map editor with custom-level save/load, attract-mode idle replay, LOAD GAME menu with slot picker), fixing and completing Endless Mode with procedural boss arenas and the level-solvability oracle, writing and running the `verify_*` regression and guard test suite, and generating/expanding all submission documents (report, feature list, member contributions, testing checklist, AI usage declaration, demo video checklist) directly from codebase git logs and evidence trails rather than from blank pages.
 
 ## Academic Integrity
 While AI assisted in the development, we carefully reviewed, tested, and integrated all AI-generated code. We understand the underlying logic of the submitted system and take full responsibility for its correctness, architecture, and behavior. The custom game logic, level design, and system integration were actively directed, guided, and verified by the human developers.
@@ -27,4 +28,4 @@ ___________________________ (Nguyễn Đình Minh Huy)
 
 ___________________________ (Trần Gia Huy)
 
-Date: August 31, 2026
+Date: September 2, 2026
