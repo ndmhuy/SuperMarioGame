@@ -372,15 +372,24 @@ declared field sits behind <code>private</code> or <code>protected</code>, and t
 anywhere are <code>struct</code> aggregates whose whole purpose is to carry values across a boundary
 (<code>GameSnapshot</code>, <code>PlayerSnapshot</code>, <code>EntitySnapshot</code>,
 <code>EntityConfigEntry</code>, <code>EntityCatalogue::Entry</code>) &mdash; a simplification argued for
-in &sect;7.13 and charged as a cost there. One getter breaks the rule and is named rather than hidden:
-<code>Camera::getView()</code> returns a mutable <code>sf::View&amp;</code>, which hands a caller the
-camera's internals; narrowing it to a <code>const</code> reference plus the one mutating operation
-callers actually need is in &sect;13. Second, <strong>ownership is uniform</strong>. Every owning pointer
-in the project's own code is a <code>std::unique_ptr</code>, there is not a single <code>delete</code>
-anywhere in <code>src/</code> or <code>include/</code>, and the two apparent exceptions are both
-deliberate and commented: seven spawner lambdas in <code>DevPanel</code> that wrap a raw
-<code>new</code> in a <code>unique_ptr</code> on the same line, and the never-deleted
-<code>ResourceManager</code> instance of &sect;7.3. Shared ownership appears exactly once, for
+in &sect;7.13 and charged as a cost there. The one getter that broke the rule is worth recording
+because of how it was found and closed rather than because it survives:
+<code>Camera::getView()</code> used to return a mutable <code>sf::View&amp;</code>, handing any caller
+the camera's internals. The audit written for this submission sweep flagged it as the class's only
+encapsulation leak, and it is now <code>const sf::View&amp; getView() const</code>, with the single
+caller that genuinely had to reshape the view &mdash; <code>EditorState</code>, fitting the canvas
+rectangle &mdash; served by two named operations, <code>Camera::setViewSize</code> and
+<code>Camera::setViewViewport</code>. That is the shape the fix should take: not a wider getter, but the
+narrowest operation the real caller needs.</p>
+<p>Second, <strong>ownership is uniform</strong>. Every owning pointer in the project's own code is a
+<code>std::unique_ptr</code>, and there is not a single <code>delete</code> anywhere in
+<code>src/</code> or <code>include/</code> &mdash; the eight textual matches are all the word appearing
+in comments or in <code>= delete</code>. Raw <code>new</code> now occurs exactly once, in the
+deliberately never-deleted <code>ResourceManager</code> instance of &sect;7.3, whose 27-line rationale
+explains why. It had occurred eight times: the other seven were spawner lambdas in
+<code>DevPanel</code> that wrapped a raw <code>new</code> in a <code>unique_ptr</code> on the same line,
+and they now call <code>EntityFactory::create</code> instead, which closed a raw allocation and an
+open/closed violation in one edit. Shared ownership appears exactly once in the project's own code, for
 <code>ICommand</code>, and &sect;7.8 explains why.</p>
 
 <h3>6.8 SOLID, principle by principle</h3>
@@ -419,10 +428,15 @@ operation one <code>IEditorCommand</code> &mdash; and none of them requires edit
 with its reason. The decorator chain of &sect;7.12 is inspectable only by <code>dynamic_cast</code>, at
 seventeen sites, which is an inherent cost of that pattern rather than a lapse. Per-type serialization in
 <code>Serializer</code> and <code>LevelLoader</code> still branches on type, because the on-disk schema is
-a compatibility surface that deliberately does not follow the class hierarchy. And
-<code>PlayingState::recycleEntity</code> type-tests an expiring projectile to route it to the right
-<code>ObjectPool</code>; that one has no defence, a virtual pool tag on <code>Entity</code> would remove
-it, and it sits in &sect;13.</p>
+a compatibility surface that deliberately does not follow the class hierarchy. The third had no defence
+and so was fixed rather than argued for: <code>PlayingState::recycleEntity</code> used to run three
+sequential <code>dynamic_cast</code>s to decide which <code>ObjectPool</code> an expiring projectile
+belonged to. It now switches on <code>Entity::poolTag()</code>, a virtual returning an
+<code>Entity::PoolTag</code> that <code>Fireball</code>, <code>Hammer</code> and
+<code>BossFireball</code> each override &mdash; one v-table lookup instead of three RTTI walks, and a
+fourth pooled type needs an override rather than another cast block. That is the difference this section
+is trying to draw: two of the three remaining type tests are the price of a decision, and the third was
+simply a lapse, which is why only the third was removed.</p>
 
 <p><strong>Liskov substitution.</strong> The evidence is that the engine's hot paths never ask what an
 entity is. <code>PhysicsEngine::update</code> takes a
@@ -480,7 +494,7 @@ through an interface, and the examples are the load-bearing ones: <code>PhysicsE
 <code>IDifficultyStrategy</code> instead of comparing a string. Then the cost, owned rather than
 minimised. The specification says this project has four singletons. It has <strong>twelve</strong>, and
 they are reached from everywhere: <code>Game::getInstance()</code> appears at 143 call sites in 39 files,
-<code>SoundManager::getInstance()</code> at 86 in 31, <code>EventBus::getInstance()</code> at 55 in 29.
+<code>SoundManager::getInstance()</code> at 86 in 31, <code>EventBus::getInstance()</code> at 54 in 28.
 Every one of those is a dependency that does not appear in a constructor signature and cannot be
 substituted for a fake, which is the textbook DIP failure and is stated here as such. The reason it was
 chosen is real but partial: SFML's audio device, texture cache and event bus are genuinely process-wide,
@@ -493,11 +507,19 @@ twelve managers through the constructors of a class the size of <code>PlayingSta
 work carrying live regression risk, so the decision was the same as for single responsibility: document
 the number, keep the dependencies that were <em>dangerous</em> under control, and put the injection work
 in &sect;13 where a reader can see it is known rather than missed. The dangerous ones were the lifetime
-hazards, and each has a named mechanism: <code>EventBus::ScopedSubscription</code> for subscriber
-lifetime; a constant-initialised <code>g_eventBusAlive</code> flag so a <code>ScopedSubscription</code>
-destructor running after the bus is gone cannot resurrect a destroyed singleton; and the written
-rationale above <code>ResourceManager</code>'s never-deleted instance, which explains why leaking one
-fixed-size allocation at process exit is the correct answer to an undefined static destruction order.</p>
+hazards, and each now has a named mechanism: <code>EventBus::ScopedSubscription</code> for subscriber
+lifetime, which <code>SoundManager</code> was the last holdout against &mdash; its twenty subscriptions
+were raw ids that never unsubscribed, and are now a
+<code>std::vector&lt;EventBus::ScopedSubscription&gt;</code>, closing the last place where a callback
+could outlive its owner by omission rather than by design; a constant-initialised
+<code>g_eventBusAlive</code> flag so a <code>ScopedSubscription</code> destructor running after the bus
+is gone cannot resurrect a destroyed singleton; and the written rationale above
+<code>ResourceManager</code>'s never-deleted instance, which explains why leaking one fixed-size
+allocation at process exit is the correct answer to an undefined static destruction order. The pattern
+across all four of those is worth naming, because it is the honest answer to a reader who counts twelve
+singletons and stops there: the number was not reduced, and the failure modes it creates were closed one
+at a time, each with a mechanism a compiler or a destructor enforces rather than a rule someone has to
+remember.</p>
 
 <h2 id="patterns">7 &middot; Design patterns</h2>
 <p>The rubric asks for five patterns. The specification claims ten. This section takes each of the ten
@@ -547,17 +569,19 @@ Two hierarchies that do exist are also missing from the figures for a duller rea
 <code>"koopa_paratroopa"</code> out of a file a human may have hand-edited, and has to end up holding a
 <code>std::unique_ptr&lt;Entity&gt;</code> without knowing that a <code>KoopaParatroopa</code> class
 exists. So do <code>MapGenerator</code> (which builds endless chunks at runtime),
-<code>PlaceEntityCommand</code> (the editor's brush) and <code>PlayingState::spawnProjectile</code>
-(anything asked for at run time through an <code>EntitySpawnRequested</code> event): four callers, one
-question.</p>
+<code>PlaceEntityCommand</code> (the editor's brush), <code>PlayingState::spawnProjectile</code>
+(anything asked for at run time through an <code>EntitySpawnRequested</code> event) and
+<code>DevPanel</code>'s seven spawn buttons: five callers, one question.</p>
 <p><strong>The naive alternative.</strong> Each caller includes every concrete entity header and
 switches on the type: <code>if (name == "goomba") return new Goomba(pos); else if ...</code>. It is
 fine for ten types. At the
 {F['players']+F['enemies']+F['items']+F['blocks']} concrete entity classes this project ships it is a
-{F['players']+F['enemies']+F['items']+F['blocks']}-branch function that has to be edited in <em>four</em>
-places for every new entity, in files whose real job is reading a file, generating terrain, painting
-tiles and drawing a debug panel respectively. That is not hypothetical: it is what the code did, and
-&sect;7.2 records what it cost.</p>
+{F['players']+F['enemies']+F['items']+F['blocks']}-branch function that has to be edited in
+<em>five</em> places for every new entity, in files whose real job is reading a file, generating terrain,
+painting tiles, stepping a frame and drawing a debug panel respectively. That is not hypothetical: it is
+what the code did, and &sect;7.2 records what it cost. <code>DevPanel</code> was the last caller still
+doing it by hand &mdash; seven <code>new X(p)</code> lambdas naming seven concrete item classes &mdash;
+and it was routed through the factory during this submission sweep.</p>
 <p><strong>Why this pattern.</strong> <code>EntityFactory::create(EntityType, sf::Vector2f)</code> is the
 single construction point. Callers ask a question &mdash; build me this &mdash; instead of making a
 decision. And because construction is funnelled, the factory can insert a step no caller knows about:
@@ -653,7 +677,13 @@ entirely.</p>
 <code>render</code>) and <strong>nine</strong> concrete screens: <code>MenuState</code>,
 <code>CharacterSelectState</code>, <code>WorldMapState</code>, <code>PlayingState</code>,
 <code>PauseState</code>, <code>OptionsState</code>, <code>GameOverState</code>,
-<code>VictoryState</code> and <code>EditorState</code>. <code>GameStateManager</code> holds them in a
+<code>VictoryState</code> and <code>EditorState</code>. Nine, not the ten the specification lists:
+there is no <code>StatisticsState</code> class, because the statistics screen is a <em>page</em> of
+<code>OptionsState</code> (<code>OptionsState::Page::Statistics</code>, alongside
+<code>Settings</code>, <code>Controls</code>, <code>HighScores</code> and <code>Achievements</code>)
+rather than a state of its own &mdash; which is the right call, since those five pages share one
+navigation model and pushing five states to get five pages would be the pattern applied for its own
+sake. <code>GameStateManager</code> holds the nine in a
 <code>std::vector</code> rather than a <code>std::stack</code> precisely so <code>render()</code> can
 walk <em>down</em> through overlays: <code>isOverlay()</code> returning true means "I do not own the
 screen, keep drawing what is beneath me". <code>IPlayerState</code> is the second axis, with five
@@ -921,9 +951,13 @@ the next time that event fires. Three mechanisms answer that: cancelled subscrip
 the vector being walked; an <code>m_publishDepth</code> counter defers compaction while
 <code>publish()</code> is on the stack, including re-entrantly; and
 <code>EventBus::ScopedSubscription</code> is a move-only RAII handle that unsubscribes in its destructor,
-so a token cannot be forgotten. <code>PlayingState</code> holds fifteen of them. That last one is a
-pattern in its own right &mdash; RAII scope-bound resource management &mdash; adopted here because
-counting on fifteen hand-written unsubscribes in one destructor is counting on a person.</p>
+so a token cannot be forgotten. <code>PlayingState</code> holds fifteen of them, and
+<code>SoundManager</code>'s twenty &mdash; which were raw ids that never unsubscribed at all, the last
+such holdout in the codebase &mdash; are now a <code>std::vector</code> of them. That third mechanism is
+a pattern in its own right, RAII scope-bound resource management, and it is here for a reason worth
+stating: counting on thirty-five hand-written unsubscribes across two destructors is counting on a
+person, and this bus had already been given an alive-flag guard precisely because someone once did not
+write one.</p>
 <p><strong>Participants.</strong> <code>EventBus</code> (subject), <code>EventType</code> /
 <code>GameEvent</code> (the event), <code>EventBus::Callback</code> subscribers,
 <code>EventBus::ScopedSubscription</code> (lifetime). No generated figure: subscribers relate to the bus
@@ -1028,10 +1062,17 @@ asked for &mdash; and only <code>T</code> knows what "just-constructed again" me
 requirement is on <code>T</code> rather than in the pool.</p>
 <p><strong>What it cost.</strong> A pool that grows without bound is a leak that never frees, so
 <code>m_maxRetained</code> caps the free list and <code>release()</code> simply lets the object die past
-the cap. And recycling means the owner has to know which pool an expiring entity belongs to:
-<code>PlayingState::recycleEntity</code> type-tests the entity to route it, which is exactly the kind of
-run-time type test &sect;6.8 argues against elsewhere. It is named here rather than defended &mdash; a
-virtual pool tag on <code>Entity</code> would remove it, and is listed in &sect;13.</p>
+the cap. The larger cost is structural and shows how a pattern leaks: recycling means the <em>owner</em>
+has to know which pool an expiring entity belongs to, even though pooling was supposed to be invisible
+to the entity list. <code>PlayingState::recycleEntity</code> answered that with three sequential
+<code>dynamic_cast</code>s &mdash; exactly the run-time type test &sect;6.8 argues against elsewhere,
+and indefensible rather than a trade-off, so it was fixed rather than written up. <code>Entity</code>
+now carries a virtual <code>poolTag()</code> returning an <code>Entity::PoolTag</code>, which
+<code>Fireball</code>, <code>Hammer</code> and <code>BossFireball</code> override; recycling switches on
+the answer. The residual cost is honest and small: <code>Entity</code>, the root of the whole hierarchy,
+now knows that pooling exists, which it did not before. That is a real widening of the base class in
+exchange for removing three RTTI walks per expiring projectile, and it is the trade this subsection
+would defend if asked.</p>
 <p><strong>Honest scope.</strong> Three types are pooled: <code>ObjectPool&lt;Fireball&gt;</code>,
 <code>ObjectPool&lt;Hammer&gt;</code> and <code>ObjectPool&lt;BossFireball&gt;</code>. The specification
 also claims particles and Bullet Bills. Neither is true: the particle system does its own recycling over
