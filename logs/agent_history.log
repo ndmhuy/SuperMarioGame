@@ -5661,3 +5661,108 @@ STILL OPEN: main is 125+ commits behind and promoting it is the user's decision,
   pipe is still Top entry, so the down/up story is inconsistent there;
   MovingPlatform::update never calls Block::update; Spiny::isEgg unreachable.
 ---
+[2026-09-02 20:15:00] Branch: A/fix/moving-platform-and-spiny-egg
+Git Fingerprint: 6af4f8e (before) → 4050965 (after) [f80e178 MovingPlatform fix, 59d0a68 Spiny/Lakitu fix, 4050965 test + script]
+Fetched Remotes: yes — dev == origin/dev (0 0 via git rev-list --left-right --count dev...origin/dev), matching the plan doc's recorded baseline; this lane made no fetch-affecting changes
+Prompt: Phase 2 lane 2A of the 2026-09-02 submission sweep (docs/issues/submission_sweep_plan_2026-09-02.md §6): two independent gameplay defects — MovingPlatform::update() never calling Block::update() (animator frozen), and Spiny::isEgg being unreachable (Lakitu should drop an egg that hatches on landing per SPEC 6.1). Fix + mutation-tested regression case + observed in a scripted run + log entry, touching only MovingPlatform.cpp/.hpp, Spiny.cpp/.hpp, Lakitu.cpp/.hpp, the new test, CMakeLists.txt (registration only) and the new script.
+Files Modified: SuperMarioGame/src/Entities/MovingPlatform.cpp, SuperMarioGame/include/Entities/Spiny.hpp, SuperMarioGame/src/Entities/Lakitu.cpp, SuperMarioGame/tests/verify_2a_platform_anim_and_spiny_egg.cpp (new), SuperMarioGame/tests/scripts/verify_2a_platform_and_egg.txt (new), SuperMarioGame/CMakeLists.txt (test registration)
+Reachable From Main: yes for both. MovingPlatform::update() runs every frame for every placed platform in the real game (level_1/2/3 all place moving_platform entities via EntityFactory from LevelLoader, reached from PlayingState via GameStateManager from main()); observed its kinematics running and moving between two scripted screenshots 0.5s apart. Spiny's new default reaches every real construction path (EntityCatalogue::make<Spiny>, the only constructor call site in production, used by both LevelLoader and Lakitu's EntitySpawnRequested handler in PlayingState.cpp); observed a Lakitu-dropped egg (round red spiky sprite) falling and, in a later frame, an already-hatched walking Spiny (green spiky sprite) elsewhere in the same run.
+Verified By: ctest 30/30 (29 baseline + verify_2a_platform_anim_and_spiny_egg) on this branch's build; verify_regressions 584/584 unchanged; mutation-tested BOTH fixes independently — reverted each one (keeping the new test), rebuilt, and watched the corresponding checks in verify_2a_platform_anim_and_spiny_egg FAIL (MovingPlatform: "after half a second of update()s the animator has advanced..." failed with the call removed; Spiny: "starts in the egg state" and "does not hatch while still airborne" both failed with the default reverted to false), then restored each fix, rebuilt, and watched the same suite return to ALL PASS; also ran the game with --script tests/scripts/verify_2a_platform_and_egg.txt and read every screenshot with the Read tool (not just the log).
+Summary of Changes:
+- ROOT CAUSE 1: MovingPlatform::update() (MovingPlatform.cpp) fully overrides
+  Block::update() to own its own kinematic motion (parametric position along
+  the configured travel path — deliberately, since PhysicsEngine must not
+  integrate or tile-resolve it, per the existing isPhysicsDriven() comment),
+  but never called back into the base implementation, which is the only place
+  that advances m_animator (Block::update(), Block.cpp:38-40). The platform's
+  motion and player-carrying were correct; its texture animation was
+  permanently frozen on frame 0. Fix: call Block::update(dt) unconditionally
+  at the top of MovingPlatform::update(), before the early-return paths, so a
+  blocked/stationary platform still animates.
+- ROOT CAUSE 2: Spiny::Spiny(position, bool isEgg = false) (Spiny.hpp) — every
+  real spawn site (EntityCatalogue's make<Spiny>, the only construction path
+  EntityFactory::create() offers, used by both LevelLoader and Lakitu's
+  EntitySpawnRequested → PlayingState::spawnProjectile drop) calls the
+  single-argument overload, so isEgg was always false and Spiny::update()'s
+  already-implemented hatch-on-landing branch (show the egg sprite while
+  airborne, hatch to the walking sprite the frame isOnGround() first becomes
+  true) was permanently dead code. SPEC.md §6.1 describes Spiny generally as
+  walking "on the ground after hatching from egg" (not as a Lakitu-only
+  special case) and Lakitu specifically as dropping "Spiny eggs every 4s".
+  Fix: flip the constructor default to isEgg = true in Spiny.hpp. This is a
+  one-file fix that reaches every real construction path; the alternative,
+  more surgical fix (thread an egg flag through EntitySpawnRequest in
+  Core/GameSnapshot.hpp and have PlayingState.cpp's spawn handler call
+  setEgg(true) only for Lakitu's drops) needs three files this lane does not
+  own (EntitySpawnRequest, PlayingState.cpp, EntityCatalogue.cpp) — flagged
+  here per the brief rather than silently touched. Explicit isEgg=false
+  remains available and is exercised by verify_regressions.cpp's existing
+  ground-patrol/ledge case, which constructs a Spiny directly and holds it
+  grounded from frame 0 (so it hatches immediately either way and the test is
+  unaffected). Lakitu.cpp itself needed no behavioural change — only a
+  comment explaining why not, since the egg state now comes from Spiny's own
+  default rather than from anything Lakitu's spawn request carries.
+- TEST: tests/verify_2a_platform_anim_and_spiny_egg.cpp, registered in
+  CMakeLists.txt, ctest-run (not NO_CTEST). MovingPlatform's shipped animation
+  is a single, looping frame ({"half_platform_long", 0.15s}), so
+  Animator::update()'s effect cannot be observed from outside the class
+  through the real animation — Animator::getSprite() always returns the same
+  frame whether or not update() ran. Worked around with a local
+  ProbeMovingPlatform subclass that installs a one-shot (non-looping) probe
+  animation through the protected members Block already exposes to its own
+  subclasses, and reads back the public Animator::isDone(), which latches
+  true only once enough dt has actually reached Animator::update() — this is
+  what the mutation test flips. The Spiny half drives a real Spiny through a
+  real TileMap + PhysicsEngine (not asserted directly) to prove it starts as
+  an egg, stays an egg while airborne, and hatches the frame it actually
+  lands.
+- SCRIPT: tests/scripts/verify_2a_platform_and_egg.txt. First attempt flew
+  the player (NOCLIP) all the way to Lakitu's tile-175 spawn and overshot: by
+  the time the player arrived, Lakitu — FlyStrategy::FollowPlayer tracking the
+  player's position since level load at 100px/s — had already converged much
+  further west and ended up BEHIND the player, off-screen. Rewritten to stop
+  short (near the first moving platform, tile ~87) and wait for Lakitu to
+  close the rest of the gap and enter frame from the right instead of both
+  parties converging on each other at once. Screenshots read with the Read
+  tool: saves/shots/2a_02/2a_03 show the moving platform having visibly
+  shifted position 0.5s apart (its kinematics, running every frame in the
+  real game); saves/shots/2a_28..31_burst_w..z show a round red spiky sprite
+  (the egg, Spiny_ball_0/1) falling near the platform across four ~0.3s
+  frames, landing on it; saves/shots/2a_43_hatched_check_b shows, in the same
+  frame, a NEW egg still falling near the platform AND a separate, already
+  walking green spiky Spiny sprite (spiny_move_left) elsewhere on screen —
+  the earlier egg having hatched. HONEST LIMIT: the MovingPlatform animator
+  fix's specific effect (Animator::update() no longer skipped) is NOT
+  independently visible in any of these screenshots, because the shipped
+  animation has only one frame — a screenshot before and after the fix would
+  be pixel-identical for that reason alone. That half is verified by the
+  mutation-tested unit-level check instead (see Verified By above), not by a
+  screenshot; the platform's motion visible in the screenshots is the
+  already-correct kinematics, not the animator.
+- BUILD SETUP: build/_deps at this lane's build dir was an APFS clone whose
+  FetchContent subbuild CMakeCache.txt files still pointed at the absolute
+  path of wherever the clone was taken from
+  (/Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/build/_deps),
+  not this worktree's path — "CMake Error: The current CMakeCache.txt
+  directory ... is different than the directory ... where CMakeCache.txt was
+  created" on first configure. Fixed by a plain text substitution of the old
+  absolute path prefix for the new one across every file under build/_deps
+  that referenced it (453 files; a mechanical rewrite of generated cache
+  text, not a re-fetch and not a deletion) — configure then succeeded and the
+  full build reused the pre-seeded dependency tree with no network access.
+  Flagging this because it is exactly the class of shared-build-tree problem
+  the plan's build-setup notes warned about, and it is not obvious the fix is
+  "just edit some cache files" until you have hit it.
+- DISK: df -h / before build 11 GiB free, after full build + all screenshots
+  7.6 GiB free (~3.4 GB consumed materialising this lane's own build/_deps
+  contents, which the AFPS clone had not yet paged in) — stayed well above
+  the 1.5 GiB stop threshold throughout.
+- saves/config.json was temporarily set to debugMode:true (required for the
+  F-key cheats used by the verification script) and restored to false before
+  finishing; not committed (git status confirms only the six intended files
+  are modified/new on this branch).
+STILL OPEN (unrelated to this lane, left for the lanes assigned to them per
+  the plan): the third HARD axe unreachable behind the arena enclosure post;
+  MapGenerator's generated vault pipe still Top entry; and everything in
+  Phase 2 lanes 2B-2E, Phase 3 onward.
+---
