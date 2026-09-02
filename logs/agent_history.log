@@ -5661,3 +5661,112 @@ STILL OPEN: main is 125+ commits behind and promoting it is the user's decision,
   pipe is still Top entry, so the down/up story is inconsistent there;
   MovingPlatform::update never calls Block::update; Spiny::isEgg unreachable.
 ---
+[2026-09-02 19:44:00] Branch: A/docs/video-thumbnail
+Git Fingerprint: 6af4f8e (before) → 6af4f8e + pending commit (after, docs-only)
+Fetched Remotes: yes, 19:44 (git fetch --all; origin unchanged, HEAD matches dev@6af4f8e)
+Prompt: Produce a YouTube thumbnail for the CS202 SuperMarioGame demo video: capture
+  fresh hero frames from the running game and compose three 1280x720 thumbnail
+  candidates (clean, collage, technical) for the user to pick from. Mid-task the
+  user reduced scope: the thumbnail PNGs and the Pillow compositor are the only
+  wanted deliverable; the capture --script file is explicitly NOT to be
+  committed (may be deleted), and saves/shots/ stays uncommitted (gitignored).
+Files Modified:
+- reports/assets/thumbnail/make_thumbnail.py (new)
+- reports/assets/thumbnail/thumbnail_A_clean.png (new)
+- reports/assets/thumbnail/thumbnail_A_clean_320x180.png (new)
+- reports/assets/thumbnail/thumbnail_B_collage.png (new)
+- reports/assets/thumbnail/thumbnail_B_collage_320x180.png (new)
+- reports/assets/thumbnail/thumbnail_C_technical.png (new)
+- reports/assets/thumbnail/thumbnail_C_technical_320x180.png (new)
+- logs/agent_history.log
+Reachable From Main: n/a — this is a documentation/asset deliverable (a
+  YouTube thumbnail), not code; nothing here is called from main(). The
+  compositor script (make_thumbnail.py) is a standalone tool run by hand
+  (python3 reports/assets/thumbnail/make_thumbnail.py), same category as
+  scripts/render_docs.py.
+Verified By: ran the game (built SuperMarioGame Release in
+  build/, fixed a stale-absolute-path FetchContent/_deps corruption left by
+  the pre-seeded APFS clone from the main tree before it would configure —
+  see Mistakes below), then launched it under six one-off, UNCOMMITTED
+  --script fixtures (deleted after use, per the user's later scope cut) to
+  capture 15 fresh PNGs into saves/shots/ (gitignored; this worktree resolves
+  Serializer::saveDirectory() to smg-lanes/thumb/saves/, one level above
+  SuperMarioGame/, not SuperMarioGame/saves/ — see Mistakes/Findings below).
+  Opened every finished composite with the Read tool at both 1280x720 and the
+  320x180 real-world size and confirmed the title reads at both.
+Summary of Changes:
+- BUILD REPAIR (not part of the ask, but blocking): build/_deps was an APFS
+  clone of the main tree's dependency tree, so every *-subbuild/CMakeCache.txt
+  (sfml, imgui, imgui-sfml, json, flac, freetype, ogg, vorbis — 470 files
+  total) still pointed at
+  /Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/build,
+  and `cmake ..` refused to configure ("CMakeCache.txt directory ... is
+  different"). Rewrote the stale absolute prefix to this lane's own build/
+  path in place (perl -pi across the 470 matching files, not a re-fetch —
+  build/_deps was left otherwise untouched per the lane instructions), then
+  configured and built the SuperMarioGame target only (-j 2, Release).
+- SIX FRESH HERO FRAMES, all captured today off dev@6af4f8e with debug mode
+  OFF (so none carry the ImGui "Dev Tools" / cheat-panel clutter the existing
+  r21k/r21i saves/shots frames do — those were captured with debugMode:true
+  for F3 invincibility): (1) World 1-1 busy gameplay — a temporary custom
+  level (level_1.json data, spawnPoint moved into the existing
+  goomba/koopa/coin/question-block cluster around x=68-90) so the shot did
+  not depend on a long scripted walk from the real spawn, which
+  record_attract_demo.txt's own header already documents as unreliable
+  (enemies are reached faster than a script's timing expects). (2)/(4) Fire
+  Mario mid-air in the dynamic-lighting cave — a custom bonus_1.json-based
+  level with a fire_flower next to spawn and the opening enemies stripped,
+  the same recipe tests/scripts/verify_r21i_lighting_underground.txt used.
+  (3) The Bowser bridge/axe/flagpole/castle confrontation — a custom
+  level_3.json-based level with spawnPoint moved to the arena's left
+  enclosure post; deliberately NOT using F3 invincible (that needs
+  getDebugMode()==true, which also draws the DevPanel clutter), so the shot
+  was taken in the ~1s window before Bowser closes the distance. The frame
+  that landed is mid-hit (Mario knocked back next to Bowser, castle+flagpole
+  visible, radial light dome overhead) — dramatic rather than clean, and used
+  as such. (5) Level editor with a level under edit — reused
+  verify_r21e_editor.txt's proven rect-fill + Goomba/question-block/pipe
+  placement sequence. (6) Title/menu screen. All three custom-level JSON
+  fixtures and the capture --script were deleted after the captures per the
+  user's scope cut (never committed; the fixtures live under the gitignored
+  assets/levels/custom/ and were gone before this commit regardless).
+- THREE COMPOSITED THUMBNAILS (reports/assets/thumbnail/, via Pillow, HelveticaNeue
+  Condensed Black for the bold main line + Helvetica Neue Bold for sub-lines,
+  stroke-outlined + a rounded dark backing bar so text survives any
+  background): A_clean = the busy World 1-1 jump frame, title stacked
+  bottom-left in a box measured to clear Mario (his airborne bbox was
+  measured directly from the PNG's pixels: x627-660,y540-583) and the
+  right-side enemy cluster. B_collage = a 2x2 grid (busy gameplay / Bowser
+  bridge / Fire Mario in the cave / editor) under a full-width title bar;
+  each panel is a centre-biased crop (not a stretch) to the panel's own
+  aspect ratio, cropped bottom-heavy to drop each frame's redundant in-game
+  HUD row rather than slicing through it. C_technical = the dark-cave frame
+  plus a credibility line ("C++17 · SFML 3 · 110 features · 10+ design
+  patterns") verified word-for-word against README.md's own claims before
+  use. All three re-verified as legible at a real 320x180 downscale, not just
+  at full size.
+- MISTAKES / FINDINGS, recorded because the log is an audit trail: (1) I
+  nearly deleted a stray saves/ directory this worktree had already created
+  one level ABOVE SuperMarioGame/ (smg-lanes/thumb/saves/, sibling of the
+  SuperMarioGame app-code folder) — Serializer::saveDirectory()'s
+  candidate-directory search picked it over SuperMarioGame/saves/ because it
+  was the first candidate that existed at the time, the same class of bug as
+  the "duplicate untracked level assets" issue already on file for
+  assets/levels/. The auto-mode classifier blocked my `rm -rf` before it ran;
+  no data was lost, but this worktree's screenshots/config/progress/profile
+  all resolve to smg-lanes/thumb/saves/, not SuperMarioGame/saves/, worth
+  fixing at the source (Serializer.cpp's candidate order) rather than per
+  agent. (2) The debug console's `spawn`/`give`/`tp`/`level` commands looked
+  like the easy way to stage every frame, but InputScript only synthesizes
+  KeyPressed/KeyReleased events, never TextEntered, so a script cannot type
+  into DebugConsole's ImGui InputText box at all — realised this before
+  attempting it, from reading InputScript.cpp, not by trial and error; used
+  gitignored custom-level JSON fixtures instead (LevelCatalog::customLevels(),
+  no CampaignProgress/progress.json unlock hack needed, unlike the tracked
+  level_3.json spawnPoint edits verify_r21m_*.txt uses and reverts).
+STILL OPEN: the saves/ directory-resolution split above (smg-lanes/thumb/saves/
+  vs SuperMarioGame/saves/ in this worktree) was not fixed, per the "no C++
+  source" constraint on this task; flagged for whoever next touches
+  Serializer::saveDirectory(). main promotion remains the user's own decision
+  per prior entries, unaffected by this docs-only change.
+---
