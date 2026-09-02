@@ -6652,3 +6652,109 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   HARD axe unreachable behind the arena enclosure post; MapGenerator's
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
+
+================================================================================
+Session: Phase 3A screenshot catalogue (submission_sweep_plan_2026-09-02.md §6,
+lane 3A) — branch A/docs/report-screenshots, worktree smg-lanes/shots.
+Git Fingerprint: d013442 (before) → 4aaf166 (scripts) → 70e1c6b (sheet + §11
+registration, after).
+Fetched Remotes: yes — local dev fetched/tracked to 3ec20ac mid-session per
+the coordinator; this is a scoped lane task in an isolated worktree, not a
+repository-state report.
+Summary: Original scope was the full catalogue (screens, characters/forms,
+13 enemies+bosses, items, blocks, levels, modes/systems). The coordinator cut
+scope twice mid-session, citing the session's token budget ending: first to
+"main features only, do not try hard" (core screens + a couple of forms/
+enemies), then to "deliver now, stop capturing." Delivered exactly that cut,
+nothing more:
+- tests/scripts/report_core_screens.txt (new): plain menu/campaign nav, no
+  staging — Menu, Character Select, World Map, a level in play (1-1), Pause.
+  Ran clean, no retries needed.
+- tests/scripts/report_showcase_walk.txt (new) + tools/report_shots/
+  build_showcase_level.py + build_showcase_walk_script.py: a small custom
+  level (assets/levels/custom/report_showcase.json, gitignored like all of
+  assets/levels/custom/ — NOT committed, regenerate with
+  build_showcase_level.py before running the walk script) authored directly
+  as JSON, not via the in-game editor or the debug console's `spawn`
+  command: traced Game::run() (src/Core/Game.cpp) and confirmed scripted
+  --script input is fed straight to GameStateManager::handleInput and never
+  through ImGui::SFML::ProcessEvent, so neither the editor's ImGui palette
+  nor the console's text field is reachable from a script at all (not even
+  Grave to open the console — that toggle is hardcoded to the real-event
+  branch only). tests/scripts/verify_r21i_lighting_daynight.txt's header
+  documents the same direct-JSON workaround for the same reason, so this is
+  a precedented technique, not a new one.
+  One real defect found while iterating: a `pipe` placed at y=17 (intended
+  to float above the y=20 ground walk, like the other floating blocks) turned
+  out to be solid ground-level collision anyway — LevelLoader settles pipes
+  onto the floor the same way it does Flagpole (see its "settled onto the
+  floor" log line) — and blocked forward movement outright; two blind runs
+  (3s then 10s of extra `hold D`) went nowhere before I read the log
+  correctly and added a `press W` hop over it. A deliberate stomp-for-
+  achievement-toast timing attempt failed twice (blind script timing landed
+  a side-touch, not a stomp, each time, costing a life via the normal
+  power-down path rather than triggering `first_stomp`); dropped rather than
+  spending a third attempt, per the scope cut.
+  Also observed (not a defect, just flaky): enemy contact during the enemy-
+  zone walk is non-deterministic across runs of the identical script — some
+  runs get zero DebugCheats::rescueInsteadOfKill() triggers, others get six
+  or seven — Immortal absorbs all of them into a same-lives "rescue" with no
+  visible harm since the player is still Small at that point, but it means
+  this script is not bit-for-bit reproducible frame-to-frame (positions
+  drift a little), only reproducible in outcome (reaches the same waypoints,
+  eventually shows the same forms/enemies).
+- reports/assets/11_main_features.png (new, built by tools/report_shots/
+  build_main_features_sheet.py from the raw --script captures above, which
+  live in saves/shots/ and are correctly gitignored/not committed): one
+  combined contact sheet, three rows — CORE SCREENS (Main Menu, Character
+  Select, World Map, Playing 1-1, Pause), POWER-UP FORMS (Super/Cape/Fire/
+  Mini/Star/Mega — the whole chain from one continuous scripted walk), and
+  ENEMIES (Koopa Troopa, Thwomp, Piranha Plant — 3 of the roster, not all 13
+  + bosses, per the scope cut). Opened with the Read tool before committing;
+  all three rows show what their labels claim.
+  CAUGHT MID-SESSION: my own path mistake. This repo nests the app under an
+  outer git root (AGENTS.md's structure: the outer folder holds AGENTS.md,
+  docs/, reports/, logs/, and an INNER SuperMarioGame/ folder holds
+  CMakeLists.txt/src/include/assets/saves/tests — reports/ is a SIBLING of
+  the inner SuperMarioGame/, not a child of it). My sheet-builder script
+  first wrote to SuperMarioGame/reports/assets/ (wrong, an accidental new
+  untracked directory nested one level too deep) instead of the outer
+  reports/assets/ (correct, where 01_menu.png through 05_map_editor.png
+  already live). Caught via `git status` showing an unexpected untracked
+  `SuperMarioGame/reports/` directory before commit; moved the file to the
+  correct path, fixed the two path constants in build_main_features_sheet.py,
+  removed the empty wrong directory. Nothing wrong was committed.
+- reports/report_content.py: took dev's file wholesale (`git checkout dev --
+  reports/report_content.py`, tip 3ec20ac, since §6/§7/§12-14/§16 had been
+  rewritten there by sibling lanes since this branch's d013442 base) and
+  added exactly one img() line inside §11, right after Figure 5's
+  05_map_editor.png and before the §12 heading — verified with
+  `git diff --stat` showing a 1-line diff against dev before committing.
+  Figure 6: the main-features sheet, captioned with what it shows and how
+  (scripted --script capture, custom-level JSON authorship and why).
+DROPPED, per the two scope cuts (said honestly, not implied otherwise): full
+  screen set (Options subpages, Records, Statistics, Victory, Editor, Custom
+  Levels page — captured a "Custom Levels" page shot during iteration but it
+  never made the final cut); the other 10 of 13 enemy types plus Boom Boom
+  and Bowser; all 13 items and all 10 blocks as a family (a few appear
+  incidentally inside raw captures but were not sheeted); pipe entry modes;
+  bridge/axe; all shipped levels + sub-vault + Bonus + Endless + the custom
+  level as its own "levels" family; Versus/Co-op/Shadow Chase/Endless/
+  Attract mode; rewind banner, lighting cave, minimap, debug console (traced
+  and confirmed genuinely unreachable from a script — see above — not just
+  skipped for time), achievement toast (attempted, timing unreliable, see
+  above). Per-family sheets (one PNG per family) were also dropped in favor
+  of the single combined "main features" sheet the second scope cut asked
+  for.
+Reachable From Main: n/a for the screenshot/tooling deliverables themselves
+  (docs/test-tooling, not production code). The features they photograph are
+  all reached the ordinary way — real menu navigation, a real custom level
+  loaded through MenuState's Custom Levels page and PlayingState, real
+  power-up pickups through Player::takeDamage/powerDown and the item pickup
+  path — nothing routed through a verify_* harness.
+Verified By: ran the game with --script for both committed scripts this
+  session (several iterations for report_showcase_walk.txt while chasing the
+  pipe-collision and stomp-timing issues above); opened the final contact
+  sheet with the Read tool and read what every cell shows before committing,
+  per g-rule-11. Did NOT re-verify ctest/verify_regressions this session —
+  no C++ source was touched (docs/test-scripts/tools/report-assets only).
