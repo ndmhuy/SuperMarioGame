@@ -879,13 +879,15 @@ outside the process is touched, so a verification run is reproducible.</p>
 {img('05_map_editor.png', 'Map editor', 'Figure 5 &mdash; The in-game level editor (F1). The entity palette is generated from the single catalogue and grouped into Players, Enemies, Items, Blocks and Scenery, with a filter box and the serialised name on hover. Edits go through Command objects, so undo and redo come for free.')}
 
 <h2 id="process">12 &middot; Process and project history</h2>
-<p>The project ran from 29 May to 22 August 2026 across {F['weeklies']} weekly reporting periods
-(<code>docs/Group52_04/</code> through <code>Group52_10/</code>), {F['commits']} commits and
-{F['sessions']} recorded working sessions in <code>logs/agent_history.log</code>. That log is not a changelog: each entry records the
-commit before and after, whether the remotes were fetched, whether the work is reachable from
-<code>main()</code>, and how it was verified. Several sections of this report are drawn from it,
-including the failures below.</p>
+<p>The project ran from 29 May to 2 September 2026 across {F['weeklies']} weekly reporting periods
+(<code>docs/Group52_04/</code> through <code>Group52_13/</code>), {F['commits']} commits and
+{F['sessions']} recorded working sessions in <code>logs/agent_history.log</code>. This section is
+about the third of those numbers rather than the first two: <strong>how the project checked itself,
+what the checking produced, and why its engineering rules read the way they do</strong>. The
+individual defects are deliberately not restated here &mdash; the five worth reading are worked
+through in &sect;10, and the full ledgers live in the audit documents named below.</p>
 
+<h3>12.1 Timeline</h3>
 <div class="tbl"><table>
 <thead><tr><th>Period</th><th>Dates</th><th>What landed</th></tr></thead>
 <tbody>
@@ -910,119 +912,440 @@ including the failures below.</p>
 <tr><td><strong>W10</strong></td><td>9 &ndash; 15 Aug</td>
  <td>The three-world campaign with warp-pipe sub-levels, physics normalisation for static bodies, and
  hitbox tuning.</td></tr>
-<tr><td><strong>Delivery</strong></td><td>16 &ndash; 22 Aug</td>
- <td>The audit and its remediation, the first green CI, the boss fights, multiplayer and the CPU
- opponent, and the Windows-playtest defects in &sect;10.</td></tr>
+<tr><td><strong>W11</strong></td><td>16 &ndash; 22 Aug</td>
+ <td>The first checkpoint audit and its remediation, the first green CI, the boss fights, multiplayer
+ and the CPU opponent, and the Windows crash root-cause in &sect;10.1. The heaviest week of the
+ project.</td></tr>
+<tr><td><strong>W12</strong></td><td>23 &ndash; 29 Aug</td>
+ <td>One commit, on every branch. Reported as a quiet week rather than padded with the adjacent
+ weeks' work.</td></tr>
+<tr><td><strong>W13</strong></td><td>30 Aug &ndash; 5 Sep<br><em>reported to 2 Sep</em></td>
+ <td>The specification audit, its remediation batches, and the submission sweep: pipe entry
+ modes, save-slot selection, the lighting renderer, the level editor's custom levels, the entity
+ registry, and the documents this report is part of.</td></tr>
 </tbody></table></div>
 
-<h3>12.1 The audit, and what it cost</h3>
-<p>On 18 August a full review of both domains produced <strong>37 findings, 7 of them critical</strong>
-(<code>docs/issues/code_audit_2026-08-18.md</code>, GitHub issue #11). It is the hinge of the project,
-and three things about it are worth more than the findings themselves.</p>
-<blockquote><strong>The audit's first revision was wrong, and had to be retracted publicly.</strong>
-It was written against a local <code>dev</code> that was nine commits stale, and on that basis declared
-the entire audio system missing. The audio system was implemented and merged on
-<code>origin/dev</code>. The finding was withdrawn on issue #11.</blockquote>
-<blockquote><strong>About 3,100 lines of finished work were sitting uncommitted.</strong> Three
-sub-level maps, the tools directory and a week's report were in the working tree with no commit, one
-careless <code>git clean</code> from being lost. They were committed before anything else
-happened.</blockquote>
-<blockquote><strong>Six subsystems were "complete" and inert.</strong> The minimap, particle system,
-death effects and screen transitions all compiled, all had passing harnesses, and none were
-constructed by the game. They were wired in the same session &mdash; and the menu music, which had
-been silently failing at startup for weeks, was found by <em>running the game for six seconds</em>,
-not by any test.</blockquote>
-<p>Each of those became a rule rather than a patch, recorded in <code>AGENTS.md</code> with the
-incident that motivates it: fetch before describing repository state; never discard uncommitted work
-to unblock a git operation; and "complete" means reachable from <code>main()</code> and observed
-running, not that a file exists and compiles. The report you are reading is written to that third
-rule, which is why &sect;4 says how each capability was confirmed and &sect;13 says what is not done.</p>
+<h3>12.2 The procedure: checkpoint audits, repeated</h3>
+<p>The project's verification is not one final review. <strong>Four times, work stopped and the tree
+was audited against something outside itself</strong> &mdash; the specification, the reports' own
+claims, or a reader who had written none of it. Each audit produced a numbered defect ledger; each
+ledger was worked off in batches; each batch left a test behind.</p>
+<p><strong>18 August &mdash; code audit.</strong> A full read of both members' domains against the
+code reachable from <code>main()</code>. It produced <strong>37 findings, 7 of them critical</strong>
+(GitHub issue #11), and it is the hinge of the project: three of the rules in
+<code>AGENTS.md</code> exist because of what it found, not because of what it fixed
+(&sect;12.4).</p>
+<p><strong>31 August &mdash; specification and claim audit.</strong> Three parallel read-only passes
+reconciled <code>SPEC.md</code> v2.0's frozen 110-feature specification against the code, and
+&mdash; the part that matters for a report &mdash; against <em>every claim the project's own
+documents made</em>: the features list, this report's prose, both task checklists. Twenty-eight
+defects were raised. On re-verification <strong>four were struck</strong>: one refuted by live
+evidence in the same session that recorded it, one describing an animation that does not exist in
+the codebase, one already fixed twelve days earlier, and one whose stated mechanism is absent from
+the code (&sect;13). The audit recorded its own methodological failure &mdash; observations had been
+folded in without re-verification against the commit being audited &mdash; and made
+re-verification-before-recording a standing requirement.</p>
+<p><strong>2 September &mdash; submission sweep.</strong> The audit this report was written inside.
+It re-derived the tree's facts from the tree, rebuilt every stale document, and ran five defect
+lanes in isolated worktrees off one frozen baseline. Its own execution record is
+<code>docs/issues/submission_sweep_plan_2026-09-02.md</code> &sect;8, written as the work happened
+rather than afterwards.</p>
+<p><strong>The sweep's own per-lane review round.</strong> The fourth audit is the one inside the
+third. No lane's report was accepted on its word: <strong>the reviewer re-ran the lane's own
+measurement</strong> &mdash; its <code>ctest</code> run, its commit range count, its build &mdash;
+before accepting the branch. Several lanes were sent back for rework, one of them three times over
+counts it had typed but could not measure. Several others came back having <em>corrected the plan
+that briefed them</em>: one lane was told to archive a document that turned out to be cited by
+section number from seven live engine sources, and refused; another was told to fix a defect that
+did not exist, and proved it (&sect;12.4). That is the outcome a review round exists to
+produce.</p>
+<p><strong>Remediation in numbered batches.</strong> Every defect got a number and its own small
+project: a branch, a fix, a guard that fails without the fix, and a log entry recording what was
+actually run. The two audits' remediation ran as numbered batches <strong>R1 through R21</strong>
+(one of which, R18, was cancelled after the defect it targeted was struck). The numbering is the
+useful part &mdash; a defect that is cited by number in a commit
+message, a test name (<code>verify_r21_flagpole_softlock</code>), a code comment and a log entry
+cannot quietly become "probably fixed".</p>
+<p><strong>A guard does not count until it has been watched failing.</strong> Every new test is
+mutation-tested: the fix is reverted, the guard is observed to <em>fail</em>, the fix is restored,
+and the guard is observed to pass again. This catches the failure mode a green suite cannot &mdash;
+a test that passes for the wrong reason. The clearest instance in the sweep: a guard for a
+<code>Spiny</code> that must hatch from an egg before it walks. The obvious mutation, reverting the
+constructor default, would have left the guard <strong>passing vacuously</strong>, because a Spiny
+that was never an egg satisfies "ends up walking" from its first frame. The lane recognised that and
+mutated the hatch trigger itself instead. Honesty runs the other way too: of one lane's seven
+mutation attempts, <strong>one survived</strong> &mdash; the estimate it targeted already floored to
+the same value &mdash; and it is recorded as a surviving mutation in the log rather than quietly
+replaced with a luckier one.</p>
+<p><strong>"Complete" means reachable from <code>main()</code> and observed running.</strong> Not
+that a file exists, compiles, and has a passing harness. This is the project's most expensive lesson
+priced in advance: the 18 August audit found <strong>six subsystems that were "complete" and
+inert</strong> &mdash; compiled, harnessed, green, and constructed by nothing the game ever
+reached. Every claim in &sect;4 of this report is graded against the stronger definition, and where
+only the weaker one holds, &sect;13 says so.</p>
+<p><strong>The log is the audit trail.</strong> <code>logs/agent_history.log</code> holds
+{F['sessions']} entries, and it is not a changelog. Each records the commit before and after,
+whether the remotes were fetched, whether the work is reachable from <code>main()</code>, how it was
+verified, and &mdash; required, not optional &mdash; the mistakes made getting there. It is
+append-only and <strong>union-merged</strong>: when two branches both appended, the resolution is to
+keep both entries, never to pick a side, because a deletion destroys evidence while a duplicate
+merely wastes a line. Several passages of this report, including &sect;12.4, are drawn from it.</p>
+<p><strong>CI is the part that does not depend on anyone remembering.</strong> GitHub Actions builds
+the game and runs the registered test suite on every push to the integration branches
+(<code>.github/workflows/ci.yml</code>), inside a virtual framebuffer and against a dummy audio
+device so that a harness needing a display or a sound card still runs on a headless runner. A rule
+only a human applies is not enforced; CI is what makes "reachable and observed" checkable by
+something other than good intentions.</p>
 
-<h3>12.2 What the history actually shows</h3>
-<p>The defect record has a shape. Of the five problems in &sect;10, three are the same failure wearing
-different clothes &mdash; <strong>one fact stored in two places, drifting apart, with nothing
-comparing them</strong>. The entity list in the factory, the parser and the editor palette. The tile
-name-to-enum mapping duplicated in the loader, which silently dropped every coin tile in all seven
-level files. The flagpole's collision height (300) against its sprite height (168). None of these
-produced a compiler error; all of them produced wrong behaviour that looked like a design choice.</p>
-<p>The project's answer, now standing practice, is that <strong>the commit which creates the second
-copy also creates the test that fails when the copies disagree</strong>. The entity catalogue's parity
-test (&sect;8.3) is the model. The counterexample is instructive too: this very report is generated by
-a script that counts what it claims, and doing so caught two wrong figures before they were
+<h3>12.3 What the audits produced</h3>
+<div class="tbl"><table>
+<thead><tr><th>Mechanism</th><th>What it produced</th><th>Standing effect</th></tr></thead>
+<tbody>
+<tr><td><strong>Code audit</strong><br>18 Aug</td>
+ <td>37 findings, 7 critical. Six subsystems complete and inert. About 3,100 lines of finished work
+ sitting uncommitted. The audit's own first revision retracted.</td>
+ <td>Three <code>AGENTS.md</code> rules, each naming its incident. The first green CI.</td></tr>
+<tr><td><strong>Specification and claim audit</strong><br>31 Aug</td>
+ <td>110 spec features reconciled against code and against every document claim. 28 defects raised,
+ 4 struck on re-verification.</td>
+ <td>Batches R1&ndash;R20. An observation must be re-verified against the audited commit before it
+ is recorded.</td></tr>
+<tr><td><strong>Submission sweep</strong><br>2 Sep</td>
+ <td>Five defect lanes off one frozen baseline; every stale document rebuilt from the tree; one
+ claimed defect withdrawn; a defect found in this report's own fact extractor.</td>
+ <td>Counts in the generated documents come from the tree, never from prose. The sweep's execution
+ record is itself a document.</td></tr>
+<tr><td><strong>Per-lane review round</strong><br>within the sweep</td>
+ <td>Every lane's measurement re-run rather than trusted. Several lanes reworked; several came back
+ having corrected the plan that briefed them.</td>
+ <td>A lane with no way to measure a number will still write one down. Review re-measures.</td></tr>
+<tr><td><strong>Mutation testing</strong></td>
+ <td>Every guard observed failing with its fix reverted. One vacuous guard caught before it shipped;
+ one surviving mutation recorded rather than dropped.</td>
+ <td>A green test is evidence only once it has been seen to go red.</td></tr>
+<tr><td><strong>Reachable-and-observed rule</strong></td>
+ <td>Six inert subsystems wired in one session; the menu music, silently failing for weeks, found by
+ running the game for six seconds.</td>
+ <td>&sect;4 grades every capability by how it was confirmed; &sect;13 lists what only compiles.</td></tr>
+<tr><td><strong>The log</strong></td>
+ <td>{F['sessions']} entries carrying fingerprints, fetch status, reachability, verification and
+ mistakes.</td>
+ <td>Union on merge conflict &mdash; keep both entries, never choose a side.</td></tr>
+<tr><td><strong>CI</strong></td>
+ <td>Build plus the registered suite on every push to the integration branches.</td>
+ <td>The rules stop depending on whoever is at the keyboard.</td></tr>
+</tbody></table></div>
+
+<h3>12.4 The rules came out of the failures</h3>
+<p>This is the part of the process worth defending, because none of the project's engineering rules
+were adopted on principle. Each is a scar, and <code>AGENTS.md</code> records the incident beside
+the rule so a later reader can judge whether it still applies.</p>
+<blockquote><strong>A <code>git reset --hard &amp;&amp; git clean -fd</code> destroyed a week's
+progress report.</strong> It was run to unblock a git operation. The Week 8 report in
+<code>docs/Group52_08/</code> was uncommitted, and it did not come back. A later session then found
+about 3,100 lines of finished work &mdash; three sub-level maps, the tools directory, a week's
+report &mdash; one careless clean from the same fate. <em>Rule:</em> never discard uncommitted work
+to unblock a git operation; commit it, because committing is reversible and discarding is not. Only
+<code>imgui.ini</code>, which the UI regenerates, is exempt.</blockquote>
+<blockquote><strong>An audit was written against a stale local branch and had to be retracted in
+public.</strong> The 18 August audit's first revision was written against a local <code>dev</code>
+nine commits behind, and on that basis declared the entire audio system missing. The audio system
+was implemented and merged on <code>origin/dev</code>. The finding was withdrawn on issue #11.
+<em>Rule:</em> <code>git fetch --all</code> before any task whose output describes repository state,
+and record in the log that it was done. Every audit and weekly report in this project since carries
+that line.</blockquote>
+<blockquote><strong>The same defect kept arriving in different clothes.</strong> Three of the five
+problems in &sect;10 are one failure: <strong>a fact stored in two places, drifting apart, with
+nothing comparing them.</strong> The entity list in the factory, the parser and the editor palette.
+The tile name-to-enum mapping duplicated in the loader, which silently dropped every coin tile in
+all seven level files. The flagpole's collision height against its sprite height. None produced a
+compiler error; all produced wrong behaviour that looked like a design choice. <em>Rule:</em> the
+commit that creates the second copy also creates the test that fails when the copies disagree. The
+entity catalogue's registry walk (&sect;8) is the model.</blockquote>
+<p>The last of those rules caught this report. The document you are reading is generated by a script
+that counts what it claims, and the counting has already found two wrong figures before they were
 printed &mdash; a class count inflated by a substring match, and "23 test files" reported as if it
-meant "23 things CI runs".</p>
-<p>The second pattern is thinner: <strong>86 test harnesses written across the project's logged
-sessions against 4 recorded playtests</strong> at the time of the audit ({F['harnesses']} harnesses
-survive in the tree today after consolidation). Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was invisible to the test
-suite and obvious within seconds of looking at the running game. The suite is not the problem &mdash;
-it is what makes the fixes stick &mdash; but it verifies what someone already thought to doubt.</p>
+meant "23 things CI runs". The sweep found a third: the extractor that counts registered test cases
+could not see the guards registered through a second CMake mechanism, so the report was
+<em>understating</em> its own verification. A number that is computed can still be computed wrongly;
+what a parity check buys is that the error surfaces as a failure rather than as prose.</p>
+<h4>The audit corrects itself</h4>
+<p>The strongest evidence that this procedure works is not a defect it fixed but a defect it
+<strong>withdrew</strong>. The submission sweep's own plan asserted that the third axe in the Hard
+Bowser fight stood behind the arena enclosure, unreachable by ordinary movement, making that fight
+unwinnable &mdash; a critical, plausible, level-data defect with an obvious remedy. Told to fix it,
+the lane instead <strong>tried to reproduce it</strong>: it confirmed in code that the Hard
+difficulty really does require all three axes, then drove a real <code>Player</code> through real
+<code>PlayingState::update()</code> frames and reached the axe cleanly on the unmodified level file.
+It also tried the remedy the plan proposed &mdash; removing the enclosure's solid tile &mdash; and
+found it changed nothing. <strong>No level data was edited.</strong> The claim was withdrawn, and a
+mutation-tested reachability guard was left in its place, one that fails if the axe is ever moved
+outside the arena's boundary. A procedure that only ever confirms its own findings is not an audit;
+this one is allowed to say it was wrong, and did.</p>
 
 <h2 id="verify">13 &middot; Verification, CI and known gaps</h2>
-<p>The tree holds {F['harnesses']} verification harnesses. {F['targets']} are built by CMake and
-{F['ctests']} of those are registered as CTest cases and run by GitHub Actions on every push to the
-integration branches &mdash; the difference is the harnesses that open a window and cannot run on a
-headless runner, which are compiled but not executed there. The registered suite is currently
-{F['ctests']}/{F['ctests']} green, with 504 individual checks in the regression binary alone at the last logged run. Cases are added whenever a defect escapes to the audit stage, so the suite is a
-record of every bug the project has shipped.</p>
-<p>The suite is hermetic (R11, docs/issues/spec_feature_audit_2026-08-31.md): every harness's
-<code>main()</code> opens a <code>TestSaveSandbox</code> (<code>tests/TestSaveSandbox.hpp</code>) that
-points <code>Serializer::setSaveDirectory()</code> at a throwaway per-process temp directory before any
-other code runs, so nothing under test can reach the developer's real <code>saves/</code>. That the seam
-exists is not proof every harness uses it correctly, so <code>guard_saves_hermeticity</code>
-(<code>tests/guard_saves_hermeticity.cpp</code>) checks it empirically: a CTest fixture named
-<code>saves_hermeticity</code> snapshots the content of the real <code>saves/</code> directory before any
-verify_* case runs and re-snapshots it after every one has finished, failing the run if a single byte
-differs or a file was added or removed. Verified by mutation, not merely by a green run: disabling one
-harness's sandbox line reproduced the original incident &mdash; the guard caught both a rewritten
-<code>config.json</code> and a newly created <code>profile.json</code> &mdash; and re-enabling it turned
-the guard green again on the next run.</p>
-<h3>What is not done</h3>
+<p>The tree holds {F['harnesses']} verification harnesses; {F['targets']} of them are built by CMake,
+and the {F['ctests']} registered as CTest cases are run by GitHub Actions on every push to the
+integration branches. Not every harness is registered: those that open a window cannot run on a
+headless runner, so they are compiled but not executed there &mdash; "number of test files" and
+"number of things CI runs" are different figures, and reporting the first as the second would
+overstate what is verified automatically. Alongside the harnesses, CMake registers the standalone
+hygiene guards <code>guard_saves_hermeticity</code> and <code>guard_asset_single_source</code>,
+which check the repository rather than the gameplay. Cases are added whenever a defect escapes to an
+audit, so the suite is a record of every bug the project has shipped rather than a plan someone
+wrote in advance.</p>
+<p>The suite is hermetic (R11, <code>docs/issues/spec_feature_audit_2026-08-31.md</code>): every
+harness's <code>main()</code> opens a <code>TestSaveSandbox</code>
+(<code>tests/TestSaveSandbox.hpp</code>) that points <code>Serializer::setSaveDirectory()</code> at
+a throwaway per-process temp directory before any other code runs, so nothing under test can reach
+the developer's real <code>saves/</code>. That the seam exists is not proof every harness uses it
+correctly, so <code>guard_saves_hermeticity</code>
+(<code>tests/guard_saves_hermeticity.cpp</code>) checks it empirically: a CTest fixture snapshots
+the content of the real <code>saves/</code> directory before any <code>verify_*</code> case runs and
+re-snapshots it after every one has finished, failing the run if a single byte differs or a file was
+added or removed. Verified by mutation, not merely by a green run: disabling one harness's sandbox
+line reproduced the original incident &mdash; the guard caught both a rewritten
+<code>config.json</code> and a newly created <code>profile.json</code> &mdash; and re-enabling it
+turned the guard green again on the next run.</p>
+
+<h3>13.1 Known gaps</h3>
+<p>What follows is the honest state of the project on the day it was submitted, grouped by the kind
+of gap rather than by severity. It is written to the project's own definition of complete
+(&sect;12.2): reasoning about code is not observation of it, so anything verified only by reasoning
+is listed here even where the reasoning is sound.</p>
+
+<h4>Claims this project cannot verify with the environments it has</h4>
 <ul>
-<li><strong>No 3D renderer.</strong> The 5-point rubric line is forfeited, deliberately (&sect;4).</li>
-<li><strong>The Windows crash fix is not confirmed on Windows.</strong> Both verification runs were on
-macOS, where the bug was already invisible. They show the fix breaks nothing; the argument that it cures
-the crash is the analysis in &sect;10.1. A Windows playtest of 1-3 is the outstanding confirmation.</li>
-<li><strong>The rebalanced Bowser fight is unplaytested.</strong> The stagger cost (four fireballs) and
-its duration (three seconds) are reasoned, not measured against a player.</li>
-<li><strong>Playtest coverage is thin.</strong> 4 recorded playtests against {F['harnesses']} test
-harnesses in the tree (86 written over the project's history) is the project's standing imbalance, and
-the reason several of the defects in &sect;10 survived as long as they did.</li>
-<li><strong>World 1-3 plays the wrong background music.</strong> <code>SoundManager::playLevelBGM</code>
-maps catalog index 2 to the underwater theme, but index 2 is Bowser's Castle &mdash; the registered
-castle track is never played as level BGM. Found by the August 31 documentation audit; open.</li>
-<li><strong>One graphics subsystem is still inert.</strong> <code>AnimationManager</code> compiles and
-passes its harness but is constructed by nothing reachable from <code>main()</code> &mdash; the last
-survivor of the six-inert-subsystems finding (&sect;10.5).</li>
-<li><strong>The solvability oracle does not gate shipping.</strong> If all bounded reseed attempts fail,
-<code>MapGenerator::generateSolvable</code> keeps the last unverified layout and logs the failure; both
-call sites discard the return value. "Checked with retries" is true; "verified before shipping" is not.</li>
-<li><strong>Six implemented enemy types never appear in the shipped campaign.</strong> Koopa Paratroopa,
-Boo, Bullet Bill, Thwomp, Chain Chomp and Lakitu are fully functional and editor-placeable, but no
-campaign level file uses them &mdash; and no shipped level places a hidden block, which also leaves the
-<code>secret_finder</code> achievement unreachable in the campaign.</li></ul>
+<li><strong>No 3D renderer.</strong> The rubric's 5-point line is forfeited, deliberately and with
+the trade-off argued in &sect;4.</li>
+<li><strong>The Windows platform claim is unconfirmed, and will stay that way.</strong> CI runs on
+<code>ubuntu-latest</code> only (<code>.github/workflows/ci.yml</code>), and no session in this
+project's history has had a Windows or MSVC environment. The crash's <em>fix</em> is independently
+verified: the undefined-behaviour analysis in
+<code>docs/learning/mid-frame-entity-spawn-crash.html</code> plus scripted runs that hold World 1-3
+through Bowser's fireballs without a crash on macOS. What is unconfirmed is specifically the claim
+that a Windows build was produced and run &mdash; a log entry asserting one was struck as
+unsubstantiated during the 31 August audit, because it modified no source and no build
+configuration and there has never been Windows CI that could have produced it. The honest status is
+the earlier entry's: not confirmed on Windows.</li>
+</ul>
+
+<h4>A defect neither fixed nor dismissed</h4>
+<ul>
+<li><strong>The death-sound complaint is not demonstrable as worded.</strong> The playtest
+observation was that the death SFX is cut off by the respawn transition. Investigated:
+<code>lost_life.wav</code> runs 3.267&nbsp;s, longer than any fall-plus-respawn window; no code
+stops it; the channel pool only reuses channels that have already stopped; and it plays on over the
+resumed BGM. So the stated mechanism is absent from the code, while the observation itself came from
+someone who was listening. It is recorded as <em>neither fixed nor invalid</em>, and it needs
+someone with working audio to characterise what was actually heard. Quietly closing it as "cannot
+reproduce" would have been the dishonest option.</li>
+</ul>
+
+<h4>Verification that stops short of observation</h4>
+<ul>
+<li><strong>Four level-placed Spiny hatches are unit-tested, not observed.</strong> A
+<code>Spiny</code> now starts as an egg by default, which was necessary because every production
+construction path used the one-argument constructor and so produced a Spiny already walking in
+mid-air. That default also changes behaviour for four placements in the shipped campaign &mdash;
+three in <code>level_2.json</code>, one in <code>level_3.json</code> &mdash; and those four were
+<em>not</em> watched in a live run. They are covered by a mutation-tested post-condition (a Spiny
+built the way <code>LevelLoader</code> builds one must reach the walking state once grounded, which
+asserts the outcome rather than the default, so the test cannot license the bug it guards). Reading
+<code>Spiny::update()</code> shows an egg resting on ground hatches on its first grounded update
+&mdash; but that is reasoning, and this project's rule is explicit that reasoning is not
+observation.</li>
+<li><strong>The Bowser stagger is observed but not tuned.</strong> Four fireballs and a three-second
+window (<code>Bowser::FIRE_HITS_PER_STAGGER</code>, <code>STAGGER_SECONDS</code>) were watched
+firing live &mdash; the counter running 1 to 4, the HUD switching to the stomp prompt, contact
+refused while he guards. What no run measures is whether those two numbers are <em>right</em> for a
+human player. They are reasoned and observed, not balanced.</li>
+<li><strong>Playtest coverage still lags harness coverage.</strong> The 18 August audit named this
+imbalance and it has narrowed rather than closed: the log now records live scripted runs across
+every shipped world, driven by committed input scripts, but the harnesses still outnumber the
+recorded sessions by a wide margin. Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was
+invisible to the test suite and obvious within seconds of watching the game run. The suite is not
+the problem &mdash; it is what makes the fixes stick &mdash; but it only verifies what someone
+already thought to doubt.</li>
+<li><strong>No sanitizer job in CI.</strong> AddressSanitizer would have found &sect;10.1 on its
+first run. The suite is now hermetic, which is the precondition for adding one; nothing else blocks
+it.</li>
+</ul>
+
+<h4>Performance left on the table, measured rather than guessed</h4>
+<ul>
+<li><strong><code>PhysicsEngine::update()</code> is not distance-gated.</strong> It runs five loops
+over every entity, every frame, however far behind the camera that entity is. The off-camera freeze
+that Endless Mode needed landed on the game-state side of the update instead, and its own
+measurements are the reason this entry exists: at the third appended chunk, 23 of 90 entities were
+frozen while the deliberate exemptions accounted for 43 &mdash; a real but modest win whose
+dominant term is the exemption list, not the gate. <code>PhysicsEngine.cpp</code> sat outside that
+lane's file budget and is the larger remaining cost. Deferred with the census counters left in
+place, so whoever takes it can measure the result instead of asserting one.</li>
+</ul>
+
+<h4>Design trade-offs accepted rather than fixed</h4>
+<p>These are decisions, not oversights, and &sect;6 argues each one on its merits with the code that
+motivates it. They are repeated here because a known cost belongs in the list of known gaps.</p>
+<ul>
+<li><strong><code>PlayingState</code> is a god class</strong> &mdash; the largest file in the
+project by a wide margin, carrying level load, spawning, physics orchestration, camera, HUD sync,
+boss arenas, two-player, rewind, pipes, cheats, the editor bridge and endless chunk extension. Five
+subsystems have already been extracted from it; the remaining decomposition was not attempted in
+submission week, because a refactor of the file every other lane was editing is the wrong change to
+make under a deadline.</li>
+<li><strong>Twelve singletons, not four.</strong> The specification claims four; the code has twelve
+reached from across the tree. &sect;6 owns the real number and argues the construction-order
+rationale rather than restating the claim.</li>
+<li><strong>Friend sprawl.</strong> <code>Entity</code> and <code>Character</code> each grant twelve
+friend declarations, giving the physics engine, the collision resolver, <code>PlayingState</code>
+and the movement strategies direct write access to protected state. Formally accepted as a
+deliberate trade-off in <code>SPEC.md</code> &sect;22 with its rationale; the alternative was a
+mutator interface wide enough to be equivalent.</li>
+<li><strong>The <code>IPlayerState</code> axis is paid for and under-used.</strong> Four of its five
+forms have empty bodies and the forms differ only by the size they report; only the cape form
+carries behaviour. Real per-form behaviour lives in the Decorator layer instead. Two axes were
+built; one of them does most of the work.</li>
+<li><strong><code>GameSnapshot</code> is a fully public aggregate.</strong> A C++ Memento written as
+a plain <code>struct</code> has no narrow interface, so the Originator's internals are readable
+anywhere the type is. A common simplification, and still a weakened encapsulation boundary.</li>
+</ul>
+
+<h4>Specification items that were not built</h4>
+<ul>
+<li><strong>The descope list is explicit and dated.</strong> <code>SPEC.md</code> &sect;21 carries a
+"Descope Addendum (2026-08-31)" naming every specified feature that will not be implemented, each
+with a reason: dynamic music layers, autoscroll sections, timed bonus rooms, climbing, swimming as a
+distinct state, the skid and hover-pause mechanics, knockback input-lock, red enemy variants, the
+cape swoop, the Mini form's abilities, the character-switch hotkey, floating score text, extra
+object pools, A* pathfinding and split-screen speedrun. The addendum exists because the audit found
+the alternative in progress: features quietly missing from the code while the documents still
+claimed them. One entry has since been <em>un</em>-descoped &mdash; the GLSL lighting and weather
+line, because the shader was subsequently built for real (weather remains out of scope) &mdash;
+which is worth more than the list itself, since it shows the addendum is maintained rather than
+written once.</li>
+<li><strong>The solvability oracle records its own failure but does not gate on it.</strong> If
+every bounded reseed attempt fails, <code>MapGenerator::generateSolvable</code> keeps the last
+unverified layout and returns <code>false</code>. All three call sites do consume that result: they
+set an <code>m_lastLevelUnverified</code> flag, warn on standard error, and the dev panel reports
+"layout unverified" in its generator section. What no caller does is <em>refuse to play the
+level</em>. "Checked with retries, and told when the check failed" is true; "verified before
+shipping" is not.</li>
+</ul>
 
 <h2 id="conclusion">14 &middot; Conclusion and future work</h2>
 <p>The project delivers a complete, playable platformer whose value as coursework lies in its
 architecture: ten design patterns, each introduced because a concrete problem demanded it, over a
-four-level abstract hierarchy that the engine drives without ever asking what an object is. Adding a new
-enemy means one class and one catalogue row; adding a new level means a JSON file.</p>
-<p>The more useful outcome is what the defects taught. Three of the five problems in &sect;10 were the
-same failure in different clothes &mdash; a fact duplicated in two places, drifting apart, with nothing
-comparing them. The project's answer, now a standing rule, is that the commit which creates the second
-copy also creates the test that fails when the copies disagree. The fourth, the Windows crash, is a
-reminder that "it works on my machine" is exactly the evidence undefined behaviour is best at
-manufacturing.</p>
-<h3>Future work</h3>
+four-level abstract hierarchy that the engine drives without ever asking what an object is. Adding a
+new enemy means one class and one catalogue row; adding a new level means a JSON file.</p>
+<p>The more useful outcome is what the defects taught, and it is a single lesson repeated: a fact
+stored in two places drifts apart, and nothing notices unless something compares them. The standing
+answer &mdash; the commit that creates the second copy also creates the test that fails when the
+copies disagree &mdash; is now the project's most-used rule, and &sect;12.4 traces it back to the
+three defects that bought it. The Windows crash taught the other half: "it works on my machine" is
+exactly the evidence undefined behaviour is best at manufacturing.</p>
+
+<h3>14.1 Future work: the far horizons</h3>
+<blockquote><strong>None of what follows is part of this submission.</strong> Two of the three exist
+as real branches that are <em>deliberately</em> kept off <code>dev</code>; the third is a direction
+with no branch at all. The game on <code>dev</code> ships the hand-authored campaign and the
+heuristic AI opponent, and plays identically with every branch below dropped &mdash; which is the
+property that lets them be experiments rather than liabilities. Nothing here should be read as a
+feature that nearly landed. What is <em>missing</em> from this submission, as opposed to beyond it,
+is in &sect;13.</blockquote>
+
+<h4>Learned agents: a trained policy behind the seam that already exists</h4>
+<p><span class="tag no">Not delivered</span> &mdash; <strong>branch
+<code>A/rl-neural-policy</code>, deliberately unmerged.</strong></p>
+<p>The shipped game already draws the line a learning agent would need. <code>AIController</code>
+does the sensing and the actuating &mdash; it reads the tilemap and the entity list into an
+<code>AIObservation</code>, and it turns an <code>AIAction</code> back into calls on a real
+<code>Player</code>. What it does not do is decide. That sits behind one virtual function,
+<code>IAIPolicy::decide(const AIObservation&amp;)</code>, returning an <code>AIAction</code>
+(<code>include/Entities/IAIPolicy.hpp</code>), with the shipped <code>HeuristicPolicy</code> as the
+baseline any trained policy would have to beat. Four properties of that seam were chosen for this
+horizon specifically, because each is cheap now and expensive to retrofit: the observation is
+<strong>fixed-size and normalised</strong>, so an easy opponent sees <code>Unknown</code> outside
+its vision radius rather than a smaller grid and one network accepts every difficulty;
+<code>AIAction</code> is <strong>the same seven buttons a human presses</strong> and that
+<code>PlayerFramePacket</code> already records for Shadow Mario, so a recorded human match is
+imitation-learning data without a conversion step; the exploration noise lives in the controller
+rather than the policy, so it applies identically to both implementations; and
+<code>decide()</code> is synchronous and allocation-free on the hot path.</p>
+<p>What a trained policy would still need from the engine is the honest part of this horizon, and it
+is three things, none of them small:</p>
 <ul>
-<li>Add an AddressSanitizer job to CI now that the suite is hermetic (&sect;13) &mdash; the tool that would
-have found &sect;10.1 on its first run.</li>
-<li>Wrap the entity list in a type whose <code>push_back</code> only the flush step can reach, so the
-&sect;10.1 invariant is impossible to break rather than merely easy to keep.</li>
-<li>Playtest and tune the Bowser fight, and record enough playtests to correct the harness-to-playtest
-imbalance.</li>
-<li>Populate the campaign levels with the six implemented-but-unplaced enemy types, and place at least
-one hidden block so the <code>secret_finder</code> achievement is reachable without the editor.</li>
+<li><strong>Headless, accelerated stepping.</strong> Training wants thousands of episodes; the game
+runs at 60&nbsp;fps with a window open. This needs a loop that steps the simulation without
+rendering and without sleeping, and <code>PlayingState</code> assumes a render target exists in
+several places.</li>
+<li><strong>Determinism, or an explicit decision to live without it.</strong>
+<code>ReplayRecorder</code>'s own header documents why the simulation is not reproducible from
+inputs alone: float physics, an entity list that spawns and prunes mid-frame, and strategies that
+read a shared singleton. Model-free learning survives that, because it only needs transitions &mdash;
+but anything that must replay a trajectory exactly is ruled out until the sources of divergence are
+removed one at a time.</li>
+<li><strong>A reward log.</strong> The branch's <code>RewardTracker</code> shows the shape this
+should take: it subscribes to events the game <em>already publishes</em>, so no gameplay code knows
+a reward exists, and it writes one row per <em>decision</em> rather than per frame, because logging
+idle frames fills the file with duplicates of the same state.</li>
 </ul>
+<p>The branch carries <code>NeuralPolicy</code>, <code>RewardTracker</code>,
+<code>ExperienceLog</code>, a verification harness and a design document
+(<code>docs/rl_training.md</code>). One detail there is worth repeating as engineering, whatever
+happens to the learning: the observation layout is treated as a <em>versioned contract</em>, and
+loading a weight file whose version does not match is refused rather than guessed, because a
+silently misaligned input layer produces a policy that acts confidently and arbitrarily &mdash; the
+hardest failure to diagnose from outside.</p>
+
+<h4>Learned level generation, with the game as the oracle</h4>
+<p><span class="tag no">Not delivered</span> &mdash; <strong>branch
+<code>A/mapgen-gan-plan</code>, stacked on the RL branch and equally unmerged.</strong></p>
+<p>The shipped <code>MapGenerator</code> is a single left-to-right pass of <em>independent</em>
+probability rolls: an elevation profile, a per-column pit roll, uniform decoration and enemy rates.
+That structure cannot express what makes a Mario level good, and the limitation is architectural
+rather than a matter of tuning: independent rolls produce no rhythm or phrasing, no difficulty curve
+across the level's length, and almost never a <em>composed</em> challenge where a pit and an enemy
+and a moving platform are one obstacle rather than three coincidences. A learned generator attacks
+exactly those three, because it learns tile <em>neighbourhoods</em> from levels a designer actually
+made. The direction is a DCGAN over the public VGLC <em>Super Mario Bros.</em> corpus, with levels
+authored in this project's own editor as a second corpus, generating chunks that are stitched,
+repaired and filtered rather than played raw.</p>
+<p>The interesting half is the loop between the two horizons, and it has a name in the literature
+&mdash; agent-in-the-loop generation, and adversarial curriculum generation after it. Each side
+supplies what the other cannot: the generator gives an agent unlimited varied levels so it does not
+overfit three hand-made maps, and the agent gives the generator a <strong>playability
+oracle</strong>. A GAN learns what levels look like; only something that plays them knows what they
+play like. In this project's plan the cheap half of that oracle runs first, before any agent:
+<code>LevelSolvability::isPathReachable</code> certifies that walking and jumping can connect the
+start column to the goal, so an unplayable candidate is rejected without spending an episode on
+it.</p>
+<p>That oracle is also the one piece of this side project that has already paid rent on the main
+line, and it is the model for how the rest should behave if it ever does. The original branch built
+a full oracle &mdash; per-frame ballistic simulation plus a bottleneck-cost search that grades
+difficulty. What came back to <code>dev</code> is a deliberately simplified, dependency-free
+reimplementation: a column-reachability search bounded by the game's own walk, run and jump
+constants, keeping the question the project actually needs answered ("is a required move impossible
+at all?") and dropping the one it does not ("how hard is the hardest required move?"). The header
+says so in as many words. Cherry-picking one honest reimplementation is the whole of what these
+branches owe the submission; the rest stays where it is.</p>
+
+<h4>One engine horizon: two players over a network</h4>
+<p><span class="tag no">Not delivered</span> &mdash; <strong>a direction, with no branch.</strong></p>
+<p>Two-player is local today: both players share one process, one keyboard and one camera. Putting
+them on two machines is a genuine horizon rather than a task, and the reason is a decision the
+project already made for other purposes. <code>ReplayRecorder</code> records a stream of
+<code>GameSnapshot</code> <em>state</em>, not a stream of inputs, and the header explains why: the
+simulation is not deterministic, so re-running the inputs would not reproduce the run. That single
+fact rules out the cheap netcode &mdash; lockstep input exchange, which is what a deterministic
+simulation buys you &mdash; and points at authoritative state replication instead, which is the
+shape the existing snapshot stream already has. What is missing is a transport, a decision about who
+simulates authoritatively, delta encoding (a snapshot is a whole entity list, sent whole), and
+client-side reconciliation for the latency that remains. Each of those is a project, and naming them
+is more useful than promising the feature.</p>
+<p>Which is the point of listing only three horizons. Everything here is a direction with its first
+real obstacle named, on the reasoning that a future-work section whose items have no known obstacles
+has not been thought about yet.</p>
 
 <h2 id="refs">15 &middot; References</h2>
 <ul>
