@@ -4,7 +4,7 @@
 
 * **Owner**: Member A (Engine, Physics, Player/Item Entities, Levels, Save/Load)
 * **Baseline**: `dev` @ `1602516` — builds clean, game launches, no startup errors
-* **Source audit**: [code_audit_2026-08-18.md](code_audit_2026-08-18.md) · issue [#11](https://github.com/ndmhuy/SuperMarioGame/issues/11)
+* **Source audit**: [code_audit_2026-08-18.md](2026-09-02_code_audit_2026-08-18.md) · issue [#11](https://github.com/ndmhuy/SuperMarioGame/issues/11)
 * **Already closed by the `enemies-behavior` merge**: A-2 (damage/power-down)
 * **Remaining**: 12 findings — 2 critical, 5 high, 5 medium
 * **Estimated total**: ~11 hours, of which the first 65 minutes clears both criticals
