@@ -7000,3 +7000,112 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
 
+[2026-09-02 20:58:50] Branch: A/docs/facts-and-index-counts
+Git Fingerprint: 87469f9 (before, branch point off dev) → c6bcca3 (after, +2 commits)
+Fetched Remotes: yes, 20:57 — `git fetch --all`. dev...origin/dev is `65 0`:
+  local dev is 65 commits ahead of origin/dev and 0 behind, expected under the
+  sweep's local-merge/user-pushes convention (g-rule-7). This branch is off
+  dev @ 87469f9, unrelated to origin/dev's position.
+Prompt: Submission sweep lane A/docs/facts-and-index-counts — two report
+  accuracy defects, C++ source and CMakeLists.txt frozen. Defect 1
+  (plan §8.16/§8.20): reports/build_report.py's ctest_targets() only counts
+  add_verify_test() macro calls and so undercounts FACTS["ctests"] against
+  what `ctest -N` actually registers, because three guards
+  (guard_saves_hermeticity_setup/check, guard_asset_single_source) are
+  registered through a second mechanism (explicit add_test(NAME ...)) the
+  regex cannot see. Fix the extractor and add a parity check per g-rule-17.
+  Defect 2: three hand-typed/stale numbers in reports/report_content.py's §16
+  (13 verification targets matching no FACTS key; "Design patterns | 10" stale
+  against §7; "Eight screens" stale since EditorState brought IGameState to
+  nine concretes) — replace with FACTS keys or a qualitative rephrase, never
+  a new hand-typed number (g-rule-22).
+Files Modified:
+  reports/build_report.py     - ctest_targets() now also matches explicit
+                               add_test(NAME <literal> COMMAND ...) calls
+                               (regex excludes the macro's own internal
+                               add_test(NAME ${name} ...) since `$`/`{`/`}`
+                               fall outside [a-z_0-9]+); added
+                               verify_ctest_parity() asserting FACTS["ctests"]
+                               == `ctest -N`'s "Total Tests" count, called at
+                               the top of __main__, sys.exit(1) on mismatch or
+                               on ctest failing to run, and an explicit SKIP
+                               (stderr, no exception) when no build dir exists
+                               — never a silent pass; generalised
+                               subclasses_of() to take an optional
+                               search_root and added FACTS["states"] (count
+                               of concrete IGameState subclasses under
+                               include/Core) for §16.4's fix.
+  reports/report_content.py   - §16 only (verified by `git diff dev -U0`,
+                               first/last changed lines both inside §16):
+                               §16.1's "13 verification targets" comment now
+                               interpolates {F['ctests']}; §16.3's hand-typed
+                               "Design patterns | 10" row rephrased to point
+                               at §7 instead of asserting an unbacked number
+                               (§7's own pattern count is being rewritten
+                               concurrently by another lane, so a regex over
+                               its current table would just encode a
+                               different, still-fragile hand-sync); §16.4's
+                               index-table cell now interpolates
+                               {F['states']} instead of the stale "Eight".
+  logs/agent_history.log      (this entry)
+Reachable From Main: n/a — report-generator lane, no C++ source or
+  CMakeLists.txt touched (both frozen per the prompt). The generator itself
+  was exercised (see Verified By) but not built into the final PDF or HTML,
+  per g-rule-19 (no generated output committed).
+Verified By:
+  - Defect 1: printed FACTS["ctests"] before the fix (29) and after (32, +3
+    for the explicit add_test registrations) via a plain module import.
+    Verified the parity check three ways: (a) against the REAL build dir at
+    /Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/build
+    (main tree, read-only — `ctest -N` there reports "Total Tests: 32",
+    matching FACTS["ctests"]==32) -> prints OK and returns normally;
+    (b) with no build_dir argument in this worktree, which has no build/ of
+    its own -> prints an explicit SKIP to stderr and returns normally (does
+    not raise, does not print a false pass); (c) against a throwaway fake
+    build dir (empty CTestTestfile.cmake, `ctest -N` reports 0 there) ->
+    raises SystemExit(1) with a message naming the mismatch. All three paths
+    behave as specified: no vacuous pass.
+  - Defect 2: ran `report_content.render(FACTS, img, uml, arch)` in-process
+    (real subprocess calls into SuperMarioGame/tools/gen_class_diagram.py for
+    the UML SVGs, all to stdout/memory, nothing written to disk — `git
+    status` after is clean apart from the two files above) and grepped the
+    output for the three fixed lines: the build block reads "32 verification
+    targets registered as CTest cases", the §16.3 row reads "see §7 for the
+    full list...", and the §16.4 cell reads "9 screens behind one State
+    interface." Did not run build_latex() or build.sh — no PDF, no
+    report_body.tex, no HTML produced or committed (g-rule-19).
+Summary of Changes:
+  - Fixed the FACTS undercount the plan itself flagged twice (§8.16, then
+    re-measured stale in §8.20): the report was printing fewer verified ctest
+    cases than actually run, the mirror image of typing a number too high.
+    The new verify_ctest_parity() is the g-rule-17 parity test the plan asked
+    for, and it fails loudly (sys.exit(1)) rather than warning, matching how
+    Report/SuperMarioGame/build.sh's own Overfull-hbox guard already fails
+    the build on a real mismatch. It degrades to an explicit, visible skip
+    rather than a pass when it cannot check anything, per g-rule-17's
+    warning that a vacuous pass is worse than no check.
+  - Removed three hand-typed appendix numbers. Two became genuine FACTS
+    lookups (ctest count, game-screen count); the third (design-pattern
+    count) was deliberately NOT turned into a new regex over §7's current
+    prose, because that prose is mid-rewrite on a concurrent lane and any
+    count I derived from today's table would just be a different flavor of
+    the same staleness risk the moment that lane lands. Rephrased instead so
+    the sentence carries no number that can go stale.
+  - One thing this lane explicitly did NOT do, stated honestly: the prompt's
+    description of §7 ("13 distinct GoF patterns across 15 subsections plus
+    2 rejected") does not match what §7 actually contains in this worktree
+    at branch point 87469f9 — it currently has one 10-row pattern table plus
+    a §7.1 with 4 alternatives-considered, not the described later state.
+    Read §7 before writing the §16.3 fix (per the prompt's own instruction)
+    rather than trusting that description, and the qualitative rephrase
+    above is a direct consequence: it stays correct whichever of the two
+    versions of §7 the rebasing lane's merge produces.
+STILL OPEN (unrelated to this lane): the §7 design-pattern rewrite itself
+  (lanes 5A/5B or successors) and its rebase into §6/§7 — out of this lane's
+  scope by the prompt's own constraints; the §16.4 Block-hierarchy row's
+  "three of them (FallingPlatform, Thwomp) State machines" names two classes
+  while claiming three, noticed in passing while reading the same table but
+  left untouched since it was not part of this lane's assignment and
+  resolving it would require a judgment call (which third Block subclass, if
+  any, counts as a state machine) this lane was not asked to make.
+---
