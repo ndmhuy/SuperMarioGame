@@ -55,16 +55,21 @@ def git(*args):
                           text=True, check=True).stdout.strip()
 
 
-def subclasses_of(base):
+def subclasses_of(base, search_root=None):
     """Concrete classes deriving from `base`, counted from the headers.
 
     The word boundary matters: a plain substring test for ": public Player"
     also matches ": public PlayerStateDecorator", which inflated the player
     count by one.
+
+    `search_root` defaults to include/Entities (every existing caller's tree);
+    pass a different directory (e.g. include/Core, for IGameState) to reuse
+    the same counted-not-typed approach elsewhere.
     """
     pattern = re.compile(r":\s*public\s+" + re.escape(base) + r"\b")
     names = []
-    for p in (GAME / "include" / "Entities").rglob("*.hpp"):
+    root = search_root if search_root is not None else (GAME / "include" / "Entities")
+    for p in root.rglob("*.hpp"):
         text = p.read_text(encoding="utf-8", errors="ignore")
         if pattern.search(text):
             names.append(p.stem)
@@ -152,6 +157,12 @@ FACTS = {
     "items":     len(subclasses_of("Item")),
     "blocks":    len(subclasses_of("Block")),
     "players":   len(subclasses_of("Player")),
+    # Concrete IGameState screens, counted from include/Core rather than
+    # hand-typed — §16.4's index table said "Eight screens" after EditorState
+    # (added later) pushed the real count to nine (plan §0/§4.2 "8 screens"
+    # (9 with EditorState)"). Counting it keeps the appendix from repeating
+    # that drift.
+    "states":    len(subclasses_of("IGameState", GAME / "include" / "Core")),
 }
 FACTS["targets"], FACTS["ctests"] = ctest_targets()
 
