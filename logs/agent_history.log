@@ -5766,3 +5766,83 @@ STILL OPEN (unrelated to this lane, left for the lanes assigned to them per
   MapGenerator's generated vault pipe still Top entry; and everything in
   Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
+[2026-09-02 20:55:00] Branch: A/fix/moving-platform-and-spiny-egg
+Git Fingerprint: 4050965/53f6505 (before this round) → cf195cb (after)
+Fetched Remotes: yes — dev == origin/dev (0 0), unchanged since the prior entry; no fetch-affecting work happened in this round
+Prompt: Coordinator review of the lane-2A submission raised that flipping Spiny's constructor default to isEgg=true changes behaviour for the 4 shipped level placements (3 in assets/levels/level_2.json, 1 in level_3.json), which my original verification (World 1-1 only) never touched. Asked for (1) a post-condition regression check that a LevelLoader-shaped Spiny reaches the hatched state once grounded, mutation-tested; (2) observing the 4 real placements live via a scripted run of World 1-2/1-3; (3) reporting honestly if any placement could not be reached. A follow-up message then cut scope: do only (1), skip (2)/(3) — record the 4 placements as unit-tested only, not observed live, and say why.
+Files Modified: SuperMarioGame/tests/verify_2a_platform_anim_and_spiny_egg.cpp
+Reachable From Main: yes for the code under test (LevelLoader really does construct Spiny via the single-argument EntityFactory::create() path for all 4 level placements — confirmed by reading LevelLoader.cpp's entity-parsing loop, which falls through to EntityFactory::create(eType, position) for any type without a special case, "spiny" included). BUT: the 4 real placements themselves were NOT observed running in a live game this session — see below.
+Verified By: ctest 30/30 (29 baseline + 1 new check in verify_2a_platform_anim_and_spiny_egg, now 3 test functions); verify_regressions 584/584 unchanged; mutation-tested the NEW check specifically (not the same mutation as the original Spiny fix — see Summary) in both directions.
+Summary of Changes:
+- GEOMETRY CHECK (read-only, informs the test but is not itself the guard):
+  read assets/levels/level_2.json and level_3.json directly. Spiny placements:
+  level_2 (45,19), (115,20), (157,20); level_3 (162,20). For all four, the
+  entity's own tile is empty and the tile immediately below it is solid
+  (three on Ice in level_2's "Ice Cavern Path", one on Ground in level_3) —
+  i.e. LevelLoader spawns each one flush against the ground with ZERO gap,
+  never falling into contact the way Lakitu's toss (and my original test)
+  does. LevelLoader.cpp confirmed to apply no ground-snap for enemies (only
+  Flagpole gets a "settled onto the floor" correction); Spiny's own
+  boundingBox is exactly one tile (32x32, Spiny.cpp), so tile-below-solid at
+  spawn really is a zero-gap resting placement, not an approximation.
+- NEW TEST: testLevelPlacedSpinyHatchesWhenRestingOnGroundAtSpawn (added to
+  the existing verify_2a_platform_anim_and_spiny_egg.cpp, now registered as
+  ctest's only home for this check — no new binary). Constructs a Spiny with
+  the single-argument constructor (LevelLoader's exact call shape) positioned
+  flush against a real TileMap's ground tile with zero gap, runs it through
+  Enemy::update() + PhysicsEngine for up to 60 frames (1s, generous), and
+  asserts the POST-CONDITION isOnGround() && !isEgg() is reached — not the
+  default value. Per the coordinator's own framing: a test that only checked
+  isEgg()==true after construction would pass even if the hatch transition
+  were completely broken, licensing the exact "stuck as an egg forever" bug
+  under review.
+- MUTATION TEST for the new check specifically (deliberately NOT the same
+  mutation as the original Spiny.hpp default-value fix, because reverting
+  that default to false would make THIS check pass trivially and
+  immediately — !isEgg() is already true from frame 0 with no transition
+  needed, so it would not exercise the thing this check actually guards).
+  Instead commented out `m_isEgg = false;` inside Spiny::update()'s
+  `if (onGround)` branch (Spiny.cpp) — simulating "the hatch trigger itself
+  is broken" — rebuilt, and watched BOTH the new check and the pre-existing
+  drop-from-height check fail (the Spiny sits on the ground forever still
+  reading isEgg()==true, so neither reaches its post-condition within its
+  time bound). Restored the line, rebuilt, watched all 30 ctest cases and
+  verify_regressions (584/584) return to green.
+- WHAT WAS NOT DONE, per the session's scope cut (recorded honestly rather
+  than implied otherwise): the coordinator's items 2 and 3 — a scripted run
+  of World 1-2 and World 1-3 photographing the 4 real placements — were
+  explicitly skipped by a follow-up instruction citing token budget. THE 4
+  SHIPPED LEVEL PLACEMENTS (level_2.json x3, level_3.json x1) WERE NOT
+  OBSERVED RUNNING IN A LIVE GAME THIS SESSION. Reasoning (Spiny::update()'s
+  onGround-gated hatch, unconditional on placement) plus the geometry check
+  above plus the new unit-level post-condition test together make it very
+  likely all four hatch correctly and promptly, but g-rule-11 is explicit
+  that reasoning is not observation, and I am recording it as such:
+  Reachable From Main for the 4 real placements specifically: no — unit
+  harness only, not observed running. If a future session has budget, the
+  cheapest way to close this is CampaignProgress::isUnlocked() via a
+  temporary saves/progress.json (levels[0].completed=true unlocks 1-2 on the
+  world map's auto-select-highest-unlocked node; also levels[1].completed=true
+  unlocks 1-3 the same way) — NOT by touching assets/levels/*.json, which
+  belong to lanes 2B (level_3) and nobody yet (level_2) this wave. That file
+  does not currently exist in this worktree (confirmed before/after this
+  session — nothing to restore) and must not be left behind marking levels
+  complete for the real user, per the standing mistake recorded in a prior
+  session's log entry.
+- _DEPS FINDING ATTRIBUTION: the coordinator confirmed the stale-absolute-
+  path problem in the pre-seeded build/_deps APFS clones (logged in the
+  previous entry) is on THEM, not this lane — they pre-seeded all five
+  concurrent lanes' dependency trees with `cp -Rc` without accounting for
+  FetchContent's subbuild CMakeCache.txt files baking in the absolute path
+  they were generated at. Re-flagging here per their explicit request, since
+  three sibling lanes share the same seeded clone and may hit the identical
+  "CMake Error: The current CMakeCache.txt directory ... is different than
+  the directory ... where CMakeCache.txt was created" — the fix is a plain
+  text substitution of the old absolute path prefix for the new one across
+  every file under build/_deps that references it (453 files in this lane's
+  case), never a deletion or a re-fetch.
+STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
+  unit-tested only, not observed live (see above, budget-gated); the third
+  HARD axe unreachable behind the arena enclosure post; MapGenerator's
+  generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
+---
