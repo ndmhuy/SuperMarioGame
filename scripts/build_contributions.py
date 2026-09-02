@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -271,6 +272,18 @@ def count_git_commits(repo_root: Path) -> dict[str, int]:
     return counts
 
 
+def get_git_sha(repo_root: Path) -> str:
+    """Return the short HEAD sha, the same way count_git_commits() shells out."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 def build_summary(tasks, git_counts):
     """Compute per-member and total stats from TASKS and measured git counts."""
     per_member = {}
@@ -321,7 +334,7 @@ def gap_note(summary) -> str:
     )
 
 
-def render_markdown(summary, tasks) -> str:
+def render_markdown(summary, tasks, measured_at: str) -> str:
     lines = []
     lines.append("# Member Contributions — Group 52 (Super Mario Game)")
     lines.append("")
@@ -347,6 +360,8 @@ def render_markdown(summary, tasks) -> str:
     lines.append(f"| Number of Git commits | {summary['total_git']} |")
     lines.append(f"| Max student percentage | {summary['max_percent']:g} |")
     lines.append(f"| Project score | {PROJECT_SCORE} |")
+    lines.append("")
+    lines.append(f"*{measured_at}*")
     lines.append("")
     percent_convention = "/".join(f"{v['percent']:g}" for v in summary["members"])
     lines.append(
@@ -395,7 +410,7 @@ def render_markdown(summary, tasks) -> str:
     return "\n".join(lines)
 
 
-def render_xlsx(summary, tasks) -> Workbook:
+def render_xlsx(summary, tasks, measured_at: str) -> Workbook:
     wb = Workbook()
     bold = Font(bold=True)
     header_fill = PatternFill(start_color="00DDDDDD", end_color="00DDDDDD", fill_type="solid")
@@ -420,33 +435,40 @@ def render_xlsx(summary, tasks) -> Workbook:
         ("Max student percentage", summary["max_percent"]),
         ("Project score", PROJECT_SCORE),
     ]
+    info_start = 5
     for offset, (label, value) in enumerate(info_rows):
-        r = 5 + offset
+        r = info_start + offset
         ws[f"C{r}"] = label
         ws[f"D{r}"] = value
 
-    ws["A11"] = (
+    stamp_row = info_start + len(info_rows)
+    ws[f"A{stamp_row}"] = measured_at
+
+    instr1_row = stamp_row + 1
+    instr2_row = instr1_row + 1
+    ws[f"A{instr1_row}"] = (
         "Do not edit the grey cells. TAs will enter the score of all PAs in "
         "the project score and get the individual scores. Students can enter "
         "an estimated project score to see how percentages affects your scores"
     )
-    ws["A12"] = (
+    ws[f"A{instr2_row}"] = (
         "Use columns Tasks - Percent, Task Hours - Percent, Git - Percent as "
         "references for column Percent"
     )
 
+    header_row = instr2_row + 1
     headers = [
         "No", "Student ID", "Full name", "Tasks", "Tasks - Percent",
         "Task Hours", "Task Hours - Percent", "Git Commits", "Git - Percent",
         "Percent", "Score - Student", "Score - TA",
     ]
     for col, h in enumerate(headers, start=1):
-        c = ws.cell(row=13, column=col, value=h)
+        c = ws.cell(row=header_row, column=col, value=h)
         c.font = bold
         c.fill = header_fill
 
     for i, v in enumerate(summary["members"], start=1):
-        r = 13 + i
+        r = header_row + i
         ws.cell(row=r, column=1, value=i)
         ws.cell(row=r, column=2, value=v["student_id"])
         ws.cell(row=r, column=3, value=v["full_name"])
@@ -501,12 +523,20 @@ def main() -> int:
     git_counts = count_git_commits(REPO_ROOT)
     summary = build_summary(TASKS, git_counts)
 
-    md = render_markdown(summary, TASKS)
+    # The git figures above are a live measurement, not a timeless fact: they
+    # will already be stale by the commit that adds this run's output (see
+    # the coordinator note that caught this). Stamp the sha and date they
+    # were measured at instead of pretending they hold forever.
+    sha = get_git_sha(REPO_ROOT)
+    measured_at = f"Git commit counts measured at {sha} on {date.today().isoformat()}."
+
+    md = render_markdown(summary, TASKS, measured_at)
     MD_PATH.write_text(md, encoding="utf-8")
     print(f"Wrote {MD_PATH.relative_to(REPO_ROOT)} ({len(TASKS)} tasks, "
-          f"{summary['total_hours']:g} hours, {summary['total_git']} commits)")
+          f"{summary['total_hours']:g} hours, {summary['total_git']} commits, "
+          f"{measured_at})")
 
-    wb = render_xlsx(summary, TASKS)
+    wb = render_xlsx(summary, TASKS, measured_at)
     wb.save(XLSX_PATH)
     print(f"Wrote {XLSX_PATH.relative_to(REPO_ROOT)}")
 

@@ -13,18 +13,20 @@ This document is the same data as `Member_Contributions.xlsx` (the TA-facing spr
 | Number of students | 2 |
 | Number of tasks | 157 |
 | Number of task hours | 321 |
-| Number of Git commits | 478 |
+| Number of Git commits | 480 |
 | Max student percentage | 0.5 |
 | Project score | 10 |
+
+*Git commit counts measured at 30f00d8 on 2026-09-02.*
 
 > Do not edit the grey cells in the spreadsheet edition. TAs enter the score of all PAs in the project score and get the individual scores; students may enter an estimated project score to see how percentages affect it. `Percent` is set to 0.5/0.5 for both members — the raw Tasks/Hours/Git percentages below inform that judgment rather than dictate it, the same convention the reference spreadsheet uses.
 
 | No | Student ID | Full name | Tasks | Tasks % | Task Hours | Hours % | Git Commits | Git % | Percent | Score (Student) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 25125083 | Nguyễn Đình Minh Huy | 112 | 71.3% | 241 | 75.1% | 417 | 87.2% | 0.5 | 10 |
-| 2 | 25125084 | Trần Gia Huy | 45 | 28.7% | 80 | 24.9% | 61 | 12.8% | 0.5 | 10 |
+| 1 | 25125083 | Nguyễn Đình Minh Huy | 112 | 71.3% | 241 | 75.1% | 419 | 87.3% | 0.5 | 10 |
+| 2 | 25125084 | Trần Gia Huy | 45 | 28.7% | 80 | 24.9% | 61 | 12.7% | 0.5 | 10 |
 
-Note on the gap between the Git % column and the Tasks/Hours % columns: Nguyễn Đình Minh Huy's git identity carries a large share of small fix/doc/log commits (417 of 478) accumulated across the whole session history, while task count and estimated hours — a better proxy for actual design/implementation effort — split closer to 71/29. Both are shown rather than only the more flattering one.
+Note on the gap between the Git % column and the Tasks/Hours % columns: Nguyễn Đình Minh Huy's git identity carries a large share of small fix/doc/log commits (419 of 480) accumulated across the whole session history, while task count and estimated hours — a better proxy for actual design/implementation effort — split closer to 71/29. Both are shown rather than only the more flattering one.
 
 ---
 
