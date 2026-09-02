@@ -5661,3 +5661,129 @@ STILL OPEN: main is 125+ commits behind and promoting it is the user's decision,
   pipe is still Top entry, so the down/up story is inconsistent there;
   MovingPlatform::update never calls Block::update; Spiny::isEgg unreachable.
 ---
+[2026-09-02 19:13:00] Branch: A/chore/archive-2026-09-02
+Git Fingerprint: 6af4f8e (origin/dev tip, before) → 9b83c9a (after, this branch only — dev untouched)
+Fetched Remotes: yes, 19:13 — dev...origin/dev = 0/0, no drift; this branch is 8/0 ahead of origin/dev (its own 8 commits, not yet merged/pushed)
+Prompt: Lane "Phase 1 — Archive older artifacts" of the submission sweep
+  (docs/issues/submission_sweep_plan_2026-09-02.md §5.1/§6 Phase 1), plus two
+  mid-task corrections from the coordinator on saves/profile.json and
+  saves/config.json (see below). Work confined to worktree
+  /Users/huynguyen/Documents/CS202-Cpp/smg-lanes/archive, branch
+  A/chore/archive-2026-09-02 off dev@6af4f8e. No git commands run in the main
+  SuperMarioGame tree (another lane owns it); the one file write outside this
+  worktree — saves/profile.json in the main tree — was an explicit, narrow
+  exception the coordinator authorized for untracked user data, not a git
+  operation.
+Files Modified:
+- git mv (archived to docs/archive/2026-09-02_<name>): test-1.svg..test-6.svg,
+  test_escaping.html, scratch_all_frame_keys.txt, class_diagram.html,
+  class_diagram_slides.pdf, SuperMarioGame_ClassDiagram.pdf,
+  SuperMarioGame_ClassDiagram_Horizontal.pdf, 25125083.md,
+  two_member_workflow.md, sprites_list.md, implementation_plan.md,
+  docs/issues/{code_audit_2026-08-18,member_a_fix_plan,member_b_input_sync,
+  completion_plan}.md
+- git rm --cached (untracked, left on disk, gitignored): TASKS.pdf,
+  TASK_DIVISION.pdf, SPEC.pdf, implementation_plan.pdf,
+  submission_documents.zip, docs/Group52_{04,05,09,10}.zip,
+  saves/config.json
+- Edited: .gitignore (added root `/*.pdf`, unanchored `*.zip`; documented
+  that Report/SuperMarioGame/main.{aux,log,out,toc} and __pycache__/ were
+  ALREADY covered by existing rules — no duplicate added), AGENTS.md (Key
+  Files pointer, project-structure tree, g-rule-6 text x2 — implementation_
+  plan.md removed from the plan-file list), README.md (project-structure
+  tree), docs/SPRITE_AGENT.md (repointed sprites_list.md reference),
+  docs/issues/spec_feature_audit_2026-08-31.md (added archive pointer note),
+  scripts/combine_docs.py (added a comment, no logic change), the four
+  archived docs/issues files (updated same-directory cross-links to new
+  filenames)
+- Created: docs/archive/README.md
+- Main tree (NOT this worktree, NOT a git operation): saves/profile.json
+  overwritten with zeroed fresh-install content
+Reachable From Main: n/a for a docs-only archive lane — nothing here is
+  program logic. All edited docs are reachable by any reader following
+  AGENTS.md/README.md from the repo root; docs/archive/README.md is linked
+  from nothing yet (new file) but is the plan's required index, findable at
+  its conventional path.
+Verified By: grep sweep over the whole tree for every moved basename/path —
+  CMakeLists.txt (both root-search and SuperMarioGame/CMakeLists.txt), every
+  .cpp/.hpp, every .py under scripts/reports/tools, every .md/.json/.sh/.yml
+  — zero hits in any CMakeLists.txt or C++ source; remaining hits (SPEC.md's
+  frozen provenance line, 25125083.md's own archived-snapshot content,
+  docs/Group52_04/52.md's historical weekly report, four report-pipeline
+  files, scripts/combine_docs.py's new comment) are either intentionally
+  left as historical/frozen or explicitly flagged below as out-of-scope. NOT
+  built — no C++ source was moved or edited, and the build dir is owned by
+  the Phase 0 lane; build only. python3 -m py_compile scripts/combine_docs.py
+  passed. `git status --short` clean and `git ls-files -i -c
+  --exclude-standard` empty after every commit in this lane (confirmed no
+  tracked file contradicts .gitignore). Confirmed via
+  SuperMarioGame/src/Utils/Serializer.cpp:470-521 and
+  SuperMarioGame/src/Core/Game.cpp:30-31 that an absent saves/config.json
+  does not crash or lose settings (loadSettings() branches on
+  !std::filesystem::exists(path) and fills full hard-coded defaults) before
+  committing its untrack.
+NOT DONE, and why:
+- docs/two_player_ai_plan.md was listed in plan §5.1 alongside the four
+  closed docs/issues files for archiving, but grep shows it is actively
+  cited by section number (§2A, §2B, §3.2, §6) as design rationale in seven
+  live source files: SuperMarioGame/include/Core/{GameMode,DevPanel}.hpp,
+  SuperMarioGame/include/Entities/{HeuristicPolicy,AIController,IAIPolicy,
+  ShadowMario}.hpp, SuperMarioGame/tests/verify_multiplayer_ai.cpp.
+  Archiving it would orphan those citations, and fixing engine-source
+  comments is outside this lane's scope. Left in place; flagged in
+  docs/archive/README.md for the user to decide (g-rule-6: deviation
+  requires informing the user, which this entry and the README do).
+- Cross-references to the four archived docs/issues files from
+  submission_documents/Group52_SuperMarioGame_Report.md,
+  reports/report_content.py, reports/{Group52_SuperMarioGame_FinalReport,
+  artifact_final_report}.html, and a comment in reports/html_to_latex.py
+  (explicitly protected) were left untouched — these are prose citations in
+  generated/authored report content, owned by the report phase, not broken
+  links this lane should hand-edit.
+SAVES CORRECTIONS (coordinator-directed, superseding the original Q3
+  instruction mid-task):
+- The original Q3 instruction assumed saves/profile.json was tracked and
+  asked for `git rm --cached` + reset to "the earliest committed snapshot".
+  Verified with `git log --all --oneline -- '*profile.json'` in this
+  worktree: it has NEVER been tracked (only .member_profile.json matched,
+  a different file already untracked in 38f0efc). No git action was taken
+  on it on that basis; backed it up regardless
+  (/Users/huynguyen/Documents/CS202-Cpp/smg-lanes/profile.json.backup-20260902185829)
+  and reported the discrepancy before making any change.
+- Coordinator then verified independently that the file holds live user
+  data with a real conflict (current: 7 achievements, highestCombo 2; a
+  14:48 backup: 9 achievements incl. 100_coins/combo_king, highestCombo 8)
+  and took the choice to the user rather than letting a lane guess.
+- User decided: zero it to fresh-install state. Backed up the pre-reset
+  content again
+  (/Users/huynguyen/Documents/CS202-Cpp/smg-lanes/profile.json.pre-reset-20260902190543,
+  the 14:48 backup at /Users/huynguyen/Documents/CS202-Cpp/saves_backup_lane_n/profile.json
+  left untouched — it is the only copy of the lost achievements/combo
+  record) and wrote saves/profile.json in the MAIN tree (the one authorized
+  exception to this lane's worktree-only rule) to
+  `{"achievements": [], "statistics": {"highestCombo": 0,
+  "totalCoinsCollected": 0, "totalDeaths": 0, "totalEnemiesDefeated": 0,
+  "totalTimePlayed": 0.0}}`, matching the exact key order, 4-space indent
+  and int/float typing that Serializer::saveProfile()
+  (SuperMarioGame/src/Utils/Serializer.cpp:534-558, nlohmann::json's default
+  alphabetical key order) produces. Verified with
+  `python3 -c "import json;print(json.load(open(...)))"`. Not a git
+  operation — the file is untracked and saves/ is already gitignored; not
+  committed.
+- saves/config.json: untracked per user decision (see Files Modified). Also
+  investigated and reported: it was force-added in 7be4b83 (2026-08-08), 11
+  days after the blanket `saves/` .gitignore rule already existed (c7d4fd4,
+  2026-07-28) — this reads as deliberate (git refuses a plain `add` on an
+  ignored path without -f), most likely to ship default key-bindings/volume
+  settings distinct from profile.json/progress.json's player-generated
+  runtime state. Recommendation only, no action taken beyond the untrack:
+  saves/progress.json is untracked already (git ls-files saves/ showed only
+  config.json tracked before this change) and looks like the same
+  per-installation category as profile.json if the user wants to formalize
+  that pattern later.
+STILL OPEN: whether to archive docs/two_player_ai_plan.md despite its live
+  source citations (user decision needed); the four report-pipeline
+  cross-references to the archived docs/issues files (report-phase lane's
+  scope); this branch has not been pushed or merged (per g-rule-7, human
+  integration only).
+---
