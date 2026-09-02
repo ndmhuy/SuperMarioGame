@@ -19,7 +19,7 @@ The **Sprite Creating Agent** (`sprite_artist`) is an automated subagent special
 
 ## 2. Dimensional & Aesthetic Standards
 
-As specified in `SPEC.md` and `sprites_list.md`:
+As specified in `SPEC.md` and [`sprites_list.md`](archive/2026-09-02_sprites_list.md) (archived 2026-09-02 — the asset list it documents is already sourced and integrated; kept for reference):
 
 | Asset Category | Base Grid Dimensions | Notes & Animation States |
 | :--- | :--- | :--- |

@@ -4,8 +4,8 @@
 
 * **Date**: 2026-08-19
 * **Baseline**: `dev` @ `80ea8e8` — builds warning-clean, 76/76 regression checks, application runs
-* **Supersedes**: [member_a_fix_plan.md](member_a_fix_plan.md) (all 12 packages complete)
-* **Audit**: [code_audit_2026-08-18.md](code_audit_2026-08-18.md) — 38 findings, 37 resolved, 1 retracted
+* **Supersedes**: [member_a_fix_plan.md](2026-09-02_member_a_fix_plan.md) (all 12 packages complete)
+* **Audit**: [code_audit_2026-08-18.md](2026-09-02_code_audit_2026-08-18.md) — 38 findings, 37 resolved, 1 retracted
 
 ---
 

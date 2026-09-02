@@ -1,5 +1,14 @@
 # SPEC / Feature / Report Audit — 2026-08-31
 
+> **Archive note (2026-09-02)**: this document cites four other `docs/issues/`
+> files below by their old paths — `code_audit_2026-08-18.md`,
+> `member_a_fix_plan.md`, `member_b_input_sync.md`, `completion_plan.md`. All
+> four are closed (every item resolved or retracted) and were archived to
+> `docs/archive/2026-09-02_<name>` in the 2026-09-02 submission sweep
+> (see `docs/archive/README.md`). Citations below are left as written — they
+> describe the paths as they were at the time of this audit — and should be
+> read as pointing to the archived copies.
+
 **What this is**: the reconciliation of `SPEC.md` v2.0 (the frozen 110-feature
 specification), the code on `main`, and every claim the reports make
 (`submission_documents/features_list.md`, `reports/report_content.py` and its

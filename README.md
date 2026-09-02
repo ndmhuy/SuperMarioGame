@@ -131,7 +131,6 @@ SuperMarioGame/              # Git root
 ├── AGENTS.md                # Agent instructions and pre-instructions
 ├── SPEC.md                  # Specification v2.0 (110 features)
 ├── FEATURE_PROPOSAL.md      # TA feature expansion justification
-├── implementation_plan.md   # Architecture diagrams + user answers
 ├── TASKS.md                 # Global sequential tasks file (11 phases)
 ├── README.md                # Project documentation (this file)
 ├── .gitignore

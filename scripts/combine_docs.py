@@ -1,5 +1,13 @@
 import os
 
+# One-time generator for the 2026-06-03 TA proposal submission (25125083.md).
+# 25125083.md was archived to docs/archive/2026-09-02_25125083.md on 2026-09-02
+# (submission_sweep_plan_2026-09-02.md §5.1) — it is a superseded planning
+# snapshot, not a live document. Do not re-run this script as-is: the
+# "implementation_plan.md" entry below has since been repurposed (its content
+# is now a Standalone Enemy Behavior Test Suite plan, not the architecture
+# content this script's section title and 25125083.md's Part 5 describe), so
+# a fresh run would silently combine the wrong content under that heading.
 files_to_read = [
     ("FEATURE_PROPOSAL.md", "Part 2: Feature Expansion Proposal"),
     ("CS202_FinalProject_SuperMario_Spec.md", "Part 3: Original Assignment Specification"),

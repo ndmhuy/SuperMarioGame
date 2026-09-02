@@ -17,7 +17,7 @@
 > **Key Files**:
 > - `SPEC.md` — **Frozen specification v2.0** (constants, behaviors, schemas). Read before implementing.
 > - `FEATURE_PROPOSAL.md` — TA justification for expanded scope.
-> - `implementation_plan.md` — Architecture diagrams and user answers.
+> - ~~`implementation_plan.md`~~ — archived 2026-09-02 (`docs/archive/2026-09-02_implementation_plan.md`; see `docs/archive/README.md`). Its content had been repurposed to an unrelated test-suite design doc and no longer matched this description; `SPEC.md` above is the architecture/behaviour source of truth.
 > - `TASKS.md` — **Sequential task checklist** with checkboxes for keeping track of progress.
 > - `logs/agent_history.log` — Append your work summary after every task.
 
@@ -222,7 +222,6 @@ If `.member_profile.json` is missing, the agent must gracefully fall back to git
 SuperMarioGame/              # Git root
 ├── AGENTS.md                # Agent instructions (this file)
 ├── SPEC.md                  # Frozen specification (source of truth)
-├── implementation_plan.md   # Architecture diagrams + user answers
 ├── TASKS.md                 # Global sequential tasks file
 ├── README.md                # Project documentation
 ├── .gitignore
