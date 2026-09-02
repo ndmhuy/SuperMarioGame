@@ -5770,3 +5770,72 @@ STILL OPEN: the saves/ directory-resolution split above (smg-lanes/thumb/saves/
   Serializer::saveDirectory(). main promotion remains the user's own decision
   per prior entries, unaffected by this docs-only change.
 ---
+[2026-09-02 20:05:00] Branch: A/docs/video-thumbnail
+Git Fingerprint: daddc4f (before) → pending commit (after)
+Fetched Remotes: yes, 19:44 (unchanged since the prior entry this session)
+Prompt: Two follow-up scope changes on the thumbnail task from the coordinator.
+  First: all three candidates failed review because Mario is a ~30px speck at
+  native resolution (no focal point); asked for 2-3 revised candidates
+  cropped-and-zoomed with NEAREST resampling, plus a factual fix (candidate
+  C's "110 features" is SPEC's scope figure, not a verified delivered count —
+  submission_documents/features_list.md has 97). Second message, before the
+  first was finished: scope cut to ship ONE thumbnail only (candidate C),
+  with exactly two changes — drop "110 features" from the credibility line,
+  and crop+zoom Mario/the fire flower with Image.NEAREST (never
+  LANCZOS/BICUBIC, which would blur pixel art) so he reads at 320x180;
+  brighten the cropped game layer only if still too dark. Explicitly: no new
+  captures, no A/B/C comparison, stop after one good-enough result.
+Files Modified:
+- reports/assets/thumbnail/make_thumbnail.py (rewritten: now produces only
+  candidate C; A/B compositing code removed)
+- reports/assets/thumbnail/thumbnail_C_technical.png (replaced)
+- reports/assets/thumbnail/thumbnail_C_technical_320x180.png (replaced)
+- reports/assets/thumbnail/thumbnail_A_clean.png (deleted)
+- reports/assets/thumbnail/thumbnail_A_clean_320x180.png (deleted)
+- reports/assets/thumbnail/thumbnail_B_collage.png (deleted)
+- reports/assets/thumbnail/thumbnail_B_collage_320x180.png (deleted)
+- logs/agent_history.log
+Reachable From Main: n/a — documentation/asset deliverable, not code (see
+  the prior entry this session for the same reasoning).
+Verified By: opened the new thumbnail_C_technical.png with the Read tool at
+  full size and at a real 320x180 downscale. At 320x180: Mario and the fire
+  flower are both identifiable (crisp, not blurred — NEAREST held every
+  pixel-art edge through the ~3.6x upscale), and all three text lines (title,
+  sub-line, credibility line) stay legible. No further iteration attempted,
+  per the explicit "stop after one good-enough result" instruction, even
+  though the brightened ground tiles read a little blown-out at full
+  resolution — that trade-off was accepted on purpose (visible Mario over
+  cosmetic polish) and is a fair target for a later pass if anyone wants one.
+Summary of Changes:
+- CROP MATH: measured Mario's actual bounding box in
+  thumb_cave_00_dark_with_light.png directly from pixel data (blue-overalls
+  detection) rather than eyeballing — x99-116/y626-655 for the overalls,
+  full sprite roughly x95-125/y608-655. Cropped a 355x200 region (exact 16:9)
+  at (0,520)-(355,720) containing Mario and the fire flower with the dark
+  cave ceiling above them (where the title sits), then Image.NEAREST-scaled
+  it up to the full 1280x720 canvas — a ~3.6x integer-ish upscale that keeps
+  pixel-art edges crisp, unlike the LANCZOS used for the (now-deleted)
+  candidates' final downscales, which is the opposite direction and does not
+  blur anything.
+- BRIGHTNESS: ImageEnhance.Brightness(1.4) applied to the cropped game layer
+  only, after the NEAREST resize and before the title is drawn on top, so
+  the title layer's own contrast/stroke is untouched.
+- CREDIBILITY LINE: "C++17 · SFML 3 · 110 features · 10+ design patterns" →
+  "C++17 · SFML 3 · 10+ design patterns". Took the coordinator's explicit
+  "plain removal is fine and faster" option rather than substituting the
+  offered "29/29 tests · 584/584 checks" figure, since this task had no
+  independent way to re-verify that number itself this session and the
+  coordinator said either was acceptable.
+- SCOPE: candidates A (clean) and B (collage) — and their crop-and-zoom
+  rework — were abandoned mid-flight per the second message and their PNGs
+  deleted from reports/assets/thumbnail/. A short-lived extra capture
+  (assets/levels/custom/thumb_big_mario.json + a matching --script, built to
+  get a large Super-Mario frame for the abandoned candidate A rework) was
+  deleted along with everything else in that abandoned branch of work; it is
+  not referenced by anything committed.
+STILL OPEN: the same items as the prior entry this session (saves/
+  directory-resolution split, main promotion). Candidates A/B's "Mario is too
+  small" defect is fixed in spirit by this entry's crop technique but was
+  never re-applied to A/B themselves, since they are no longer part of the
+  deliverable.
+---
