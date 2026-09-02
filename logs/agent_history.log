@@ -6652,3 +6652,190 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   HARD axe unreachable behind the arena enclosure post; MapGenerator's
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
+[2026-09-02 20:45:00] Branch: A/docs/report-process-gaps-future
+Git Fingerprint: d013442 (before) → 238eb4e (after, +4 commits before this log entry)
+Fetched Remotes: yes, 20:42 — `git fetch --all`. dev...origin/dev is `48 0`: the
+  merged dev this lane branched from is 48 commits ahead of origin/dev and 0
+  behind, which is expected (the sweep's merges are local and the user owns the
+  push, g-rule-7). This branch is off dev @ d013442.
+Prompt: Submission sweep Phase 5, lane 5C — rewrite the report's §12 (process),
+  §13 (known gaps) and §14 (future work) in reports/report_content.py, and
+  nothing else in that file. Answers the user's report findings #3 (future work
+  = far AI goals, not un-built SPEC items) and #4 (describe the audit PROCEDURE
+  and its main outcomes, not the finding lists). Sources: AGENTS.md, plan §§2,
+  3, 5.3, 5.4, 6 (Phase 5C) and §8 (the sweep's own execution record).
+Files Modified:
+  reports/report_content.py   (§12, §13, §14 only — verified by `git diff dev -U0`,
+                               whose first changed line is §12's opening paragraph
+                               and whose last is §14's closing one)
+  logs/agent_history.log      (this entry)
+Reachable From Main: n/a — documentation lane. No C++ source touched, no build
+  configuration touched. `reports/html_to_latex.py` and `reports/build_report.py`
+  were READ but not modified, as instructed.
+Verified By: build only, and deliberately so — g-rule-19 forbids committing
+  generated output, so no PDF, no report_body.tex and no HTML were produced.
+  What was actually run:
+    - `ast.parse()` on reports/report_content.py — the f-string still parses.
+    - `report_content.render()` with a stub FACTS dict — the page renders, and
+      the three section anchors are present.
+    - `html_to_latex.convert()` on that rendered string, IN MEMORY — this is the
+      strict converter that raises SystemExit on an unhandled tag or an
+      unmapped Unicode codepoint, so it is the real markup gate. It accepts the
+      new prose. `convert()` is pure (it takes html_text + figure_map and
+      returns a string), so running it wrote nothing to disk.
+    - A plain-text render of §12–§14 read end to end; three inconsistencies it
+      surfaced are fixed in 238eb4e.
+  NOT run: the LaTeX build itself. Lane 5D's Overfull-hbox guard, not my
+  one-time inspection, is what protects the final PDF from this new prose —
+  5D said so explicitly and Phase 6 must re-inspect.
+Summary of Changes:
+  - §12 IS NOW THE PROCEDURE, NOT THE FINDINGS (user finding #4). Four
+    checkpoint audits described as a repeated practice: 18 Aug code audit
+    (37 findings, 7 critical), 31 Aug specification-and-claim audit (110 SPEC
+    features against code AND against every claim the project's own documents
+    made), 2 Sep submission sweep, and the fourth one that sits inside the
+    third — the sweep's per-lane review round, where the reviewer re-ran each
+    lane's own measurement rather than trusting its report. Then the
+    mechanisms: R-numbered batches R1–R21 (R18 cancelled), mutation-tested
+    guards, "complete" = reachable from main() and observed, the log as audit
+    trail, CI. §12.3 puts the main outcomes in ONE table (mechanism → what it
+    produced → standing effect). There is no list of individual defects
+    anywhere in the section.
+  - THE MUTATION-TESTING EXAMPLES ARE THE REAL ONES, both directions of
+    honesty. Lane 2A's Spiny guard: the obvious mutation (reverting the
+    constructor default) would have passed VACUOUSLY, because a non-egg Spiny
+    satisfies "ends up walking" from frame 0, so the lane mutated the hatch
+    trigger in Spiny::update() instead. And lane 2D's seventh mutation
+    SURVIVED and was recorded rather than swapped for a luckier one. A section
+    that only reported the first would be advertising, not process.
+  - §12.4 KEEPS THE SCARS. Every rule in AGENTS.md is presented with the
+    incident that bought it: the `git reset --hard && git clean -fd` that
+    destroyed the Week 8 report (→ commit uncommitted work, never discard it);
+    the audit written against a 9-commit-stale local dev that declared the
+    audio system missing and had to be retracted on issue #11 (→ `git fetch
+    --all` before describing repository state); and the one-fact-in-two-places
+    family (→ the commit that creates the second copy creates the parity test).
+    It closes on the sweep WITHDRAWING its own "third HARD axe is unreachable"
+    claim after lane 2B drove a real Player through real PlayingState::update()
+    frames and reached the axe on the unmodified level_3.json. No level data
+    was changed. That withdrawal is the strongest evidence in the section that
+    the procedure works, so it is presented as such rather than buried.
+  - §13 GAPS RE-VERIFIED AGAINST MERGED dev, AND FOUR WERE STALE. A gap list
+    that lists fixed things is worse than no gap list, so each old bullet was
+    checked against d013442 (delegated to a read-only search agent, then the
+    load-bearing ones re-checked by hand):
+      * "six implemented enemy types never appear in the shipped campaign" —
+        FALSE now: koopa_paratroopa (level_1.json:205,210,215), lakitu (:220),
+        boo (level_2.json:214,219), thwomp (level_3.json:222,227),
+        chain_chomp (:232), bullet_bill (:253,258,263). REMOVED.
+      * "no shipped level places a hidden block, so secret_finder is
+        unreachable" — FALSE now: 12 `hidden_block` placements across five
+        level files, and level_1_sub.json alone carries the 5 that
+        AchievementManager.cpp:139-143 requires. REMOVED.
+      * "one graphics subsystem is still inert (AnimationManager)" — FALSE:
+        AnimationManager does not exist in the tree at all any more; it was
+        deleted as dead code. REMOVED.
+      * "World 1-3 plays the wrong background music" — FALSE:
+        SoundManager::playLevelBGM maps catalog index 2 to "castle". REMOVED.
+      * "the rebalanced Bowser fight is unplaytested" — now overstated: the
+        4-fireball / 3-second stagger WAS observed firing live (log entry
+        2026-09-02 17:40, script tests/scripts/verify_r21k_bowser_fight.txt).
+        RESTATED as what is actually still true: observed, but never tuned
+        against a human player.
+      * the hand-typed "504 individual checks in the regression binary" —
+        stale (the measured figure is 584) and not available from FACTS.
+        DELETED rather than re-typed, following lane 4D's precedent: a count
+        that cannot be computed should not be guessed.
+  - §13 GAPS ADDED, from this sweep's own evidence: PhysicsEngine::update() is
+    not distance-gated (five loops over every entity every frame — lane 2D's
+    finding, with 2D's own census as the measurement: 23 of 90 entities frozen
+    at chunk 3 with exemptions the dominant term at 43, so the honest reading
+    is "real but modest"); the four level-placed Spiny hatches covered by a
+    mutation-tested unit post-condition but NOT observed live; and no
+    sanitizer job in CI. The five documented architecture trade-offs
+    (PlayingState size, 12 singletons vs the spec's 4, friend sprawl,
+    the under-used IPlayerState axis, the public GameSnapshot aggregate) are
+    stated as known costs that cross-reference §6 rather than re-arguing them
+    there — lane 5A owns that argument.
+  - UN-BUILT SPEC ITEMS ARE IN §13, NOT §14 (plan §5.3). §13 points at
+    SPEC.md §21's dated "Descope Addendum (2026-08-31)" instead of copying it,
+    and names the one entry that was later UN-descoped (the GLSL lighting
+    line, once R21 actually built the shader), because a maintained addendum
+    is worth more than a list.
+  - §14 IS FAR HORIZONS ONLY (user finding #3). The old §14 future-work list
+    was the exact thing the user objected to — an ASan CI job, wrapping the
+    entity list, tuning Bowser, populating levels with unplaced enemies. Three
+    of those four are gaps and moved to §13; the fourth was already done. The
+    three horizons now are: (a) learned agents behind the IAIPolicy seam
+    ALREADY IN dev, with the four seam properties that were chosen for this
+    purpose and the three things a trained policy would still need — headless
+    accelerated stepping (PlayingState assumes a render target in several
+    places), determinism (ReplayRecorder's header documents why the sim is not
+    reproducible from inputs alone), and a reward log; work on
+    A/rl-neural-policy. (b) learned level generation — why the shipped
+    MapGenerator's independent per-column rolls structurally cannot produce
+    rhythm, a difficulty curve or composed challenges; DCGAN over the VGLC
+    corpus on A/mapgen-gan-plan; LevelSolvability as the cheap oracle in the
+    loop. (c) ONE engine horizon — networked 2P over the snapshot stream.
+  - I CHOSE THE NETCODE HORIZON OVER GAMEPAD, and the reason is the interesting
+    one: ReplayRecorder deliberately records GameSnapshot STATE rather than
+    inputs, because the simulation is NOT deterministic (float physics, an
+    entity list that mutates mid-frame, strategies reading a singleton). That
+    single fact rules out lockstep input netcode and points at authoritative
+    state replication, which is the shape the existing stream already has. A
+    horizon whose first real obstacle is already named is worth more than one
+    that isn't, and it also ties back to the determinism the RL horizon needs.
+  - NON-DELIVERY IS STATED THREE WAYS so a grader cannot misread §14 as
+    shipped work: a leading blockquote ("None of what follows is part of this
+    submission"), a "Not delivered" tag plus the branch name on each item (or
+    "a direction, with no branch" for the third), and the standing property
+    that dev plays identically with every one of those branches dropped. The
+    mapgen entry also records the one thing that side project has already paid
+    back to the main line — LevelSolvability as a deliberately simplified,
+    dependency-free reimplementation of that branch's full oracle — which is
+    the honest model for what an unmerged experiment owes the submission.
+  - COUNTS COME FROM FACTS, never typed: F['weeklies'], F['commits'],
+    F['sessions'], F['harnesses'], F['targets'], F['ctests']. The stale
+    parenthetical "docs/Group52_04/ through Group52_10/" is now _13, and the
+    §12 timeline table — which stopped at "Delivery, 16–22 Aug" — now runs to
+    W13, since W11/W12/W13 exist and ~180 commits happened after 22 August.
+  - MISTAKES I MADE:
+      a. First draft of §13's opening paragraph asserted that the gap between
+         F['targets'] and F['ctests'] is explained by the windowed harnesses
+         AND the standalone hygiene guards. That arithmetic is wrong under the
+         current extractor (which cannot see the guards at all) and would
+         become wrong in the other direction once 5B fixes it. Rewritten to
+         assert no arithmetic relation between the two figures, so the sentence
+         is true before and after that fix.
+      b. Put a stray `</p>` before a `</blockquote>` in the §14 draft. Caught
+         by a tag-balance check before splicing, not by the converter.
+      c. Wrote `IAIPolicy::decide(const AIObservation&) → AIAction` with the
+         arrow INSIDE a <code> span. ESCAPES maps U+2192 to `$\rightarrow$`,
+         which would have put math mode inside \texttt. Moved the arrow out.
+      d. Used `<span class="note">` for the W13 date qualifier before checking
+         the CSS: `.note` is only defined as `figcaption .note`, so it would
+         have been unstyled. Replaced with <em>.
+  - DEFECT CONFIRMED AND UPDATED — plan §8.16 is now understated. §8.16 says
+    ctest_targets() returns 26 against a real 29. On merged dev @ d013442 the
+    extractor returns **29** (38 `add_verify_test` calls minus 9 carrying
+    NO_CTEST) while `CMakeLists.txt` registers **32** cases, because three
+    guards go in through explicit `add_test(NAME …)` at lines 262, 268 and 288
+    that the regex cannot see: guard_saves_hermeticity_setup,
+    guard_saves_hermeticity_check, guard_asset_single_source. So the report
+    still understates its own verification, by 3 rather than by 3-from-26.
+    Neither number is typed into the prose — §13 uses F['ctests'] and phrases
+    the surrounding sentence so it stays true after the fix. The fix belongs
+    to 5B per §8.16, together with the parity assertion that F['ctests'] must
+    equal what `ctest -N` reports.
+  - SCOPE HELD: §6/§7 (lane 5A), §8/§11 (lane 5B) and
+    reports/html_to_latex.py + build_report.py (lane 5D) were not touched.
+    Four commits, one per section plus a polish commit (g-rule-12). No push,
+    no merge.
+STILL OPEN, in my sections: §13 asserts "no sanitizer job in CI" and
+  "PhysicsEngine::update() is not distance-gated" as gaps rather than fixing
+  them — correct for this lane, but both are real work someone should take.
+  §14's three horizons are unverifiable by construction (they describe
+  unmerged branches and one branchless direction), so Phase 6 should audit
+  them for whether the CODE THEY CITE exists on the branch named, not for
+  whether the horizon is achievable. The two side branches are stale relative
+  to d013442 and I did not rebase them; I read them read-only via `git show`.
