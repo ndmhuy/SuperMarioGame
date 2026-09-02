@@ -6763,3 +6763,67 @@ NOT DONE, DELIBERATELY: no push, no merge, no report build, no generated
 output committed, nothing touched outside reports/report_content.py §6/§7 and
 this log.
 ---
+
+[2026-09-02 21:05:00] Branch: A/docs/report-patterns-oop
+Git Fingerprint: 4bf6dcb (before) → 1241952 (after) — rebased onto dev @ 09ae147, so the three earlier commits were rewritten as 43dd6f5, 46ec483, 250cee8
+Fetched Remotes: yes, 20:47 — dev tip is 09ae147; d013442 (my old base) confirmed an ancestor of it, so the rebase was a clean replay
+Prompt: Coordinator correction — lane 2E has landed on dev since I branched. Rebase onto dev @ 09ae147 and update every §6/§7 statement that presents one of 2E's six fixes as a current trade-off, re-verifying each against the tree rather than trusting the hand-off table. Do not soften the trade-offs that genuinely remain.
+Files Modified: reports/report_content.py (§6.7, §6.8, §7.1, §7.4, §7.11, §7.14), logs/agent_history.log
+Reachable From Main: n/a — not runtime code; report prose only. The report build was again NOT run (a later phase owns it) and no generated output was committed (g-rule-19).
+Verified By: not verified by build, per lane instruction. Verified by: (a) re-greppping all six 2E items against this worktree's include/ and src/ before rewording any of them; (b) re-measuring every count §6/§7 asserts; (c) ast.parse plus a render() call with a stub FACTS dict — 141,090 chars, 16 §7 subsections, §6.8 present; (d) an open/close tag balance check over the rendered output; (e) a targeted grep over the §6-§7 slice for the twelve phrases that could have carried a stale claim, all clean.
+Summary of Changes:
+- REBASE: `git rebase 09ae147`. logs/agent_history.log conflicted, as it always
+  does on a shared append-only file. Resolved by UNION per AGENTS.md directive
+  3 — kept BOTH 20:45:00 entries (lane 2E's first, since its work is what I
+  rebased onto, then mine), discarded neither side. Entry count 293 after,
+  markers 0. reports/report_content.py did not conflict: 2E touched no
+  reports/ file, as the coordinator predicted.
+- §6.7: Camera::getView() rewritten from an open leak to a closed one — it is
+  now `const sf::View& getView() const` with setViewSize/setViewViewport for
+  the one caller (EditorState) that reshapes the view. Raw `new` rewritten
+  from 8 occurrences to 1 (DevPanel's seven now call EntityFactory::create).
+- §6.8 OCP: recycleEntity's three dynamic_casts rewritten as fixed — virtual
+  Entity::poolTag() with PoolTag overrides in Fireball/Hammer/BossFireball —
+  and used to sharpen the paragraph's own point: two of three remaining type
+  tests are the price of a decision, the third was a lapse, only the lapse
+  went.
+- §6.8 DIP: SoundManager's 20 raw ids → vector<ScopedSubscription>, named as
+  the last holdout. Added the honest summary for a reader who counts twelve
+  singletons: the number was not reduced, the failure modes were closed
+  individually with enforced mechanisms.
+- §7.1: DevPanel added as a fifth factory caller; the naive alternative is now
+  a five-place edit.
+- §7.11: SoundManager's 20 scoped subscriptions added beside PlayingState's 15.
+- §7.14: the pool cast rewritten as a pattern leak that was fixed, keeping the
+  NEW residual cost visible — Entity, the hierarchy root, now knows pooling
+  exists, which it did not before.
+- §7.4: added why there is no StatisticsState — the statistics screen is
+  OptionsState::Page::Statistics, one of five pages sharing one navigation
+  model. Nine states is correct.
+- NOT SOFTENED, deliberately, none being touched by 2E: PlayingState at
+  4,094 + 876 lines; 12 singletons with Game::getInstance() at 143/39; 17
+  decorator cast sites; 12 friend classes in each of Entity and Character;
+  four empty IPlayerState bodies; the public GameSnapshot aggregate.
+COUNT CHANGED BY 2E: EventBus::getInstance() is now 54 call sites / 28 files,
+  was 55/29. Updated. Everything else I assert re-measured identical.
+TWO DEFECTS FOUND IN LANE 2E's OWN WORK (README.md, not my file, NOT edited):
+- README.md:39 and :106 now say "10 Game States" and list "Statistics" as one
+  of them. There is no StatisticsState class — `grep -rn StatisticsState
+  include src` returns nothing; the statistics screen is
+  OptionsState::Page::Statistics. The real figure is 9, and this is the exact
+  error sweep plan §3.2 asked to be corrected, so 2E's README fix reintroduced
+  it. The report says nine and now explains why.
+- README.md:107 says `SoundManager` (21) subscriptions. I measure 20: 20
+  `m_subscriptions.push_back` calls and 20 `EventType::` references in
+  SoundManager.cpp. 2E's own log entry also says 21. The report says twenty.
+  Whoever owns README should re-count rather than take either document's word.
+ctest: settled per the coordinator (FACTS extracts 29, `ctest -N` reports 32,
+  the gap being three explicit add_test registrations). Neither number is
+  typed anywhere in §6 or §7. Lane 2E's log independently records "ctest
+  (32/32 passed)", which corroborates 32 as the real figure.
+NOT DONE, DELIBERATELY: no push, no merge, no report build, no generated
+output, nothing touched outside reports/report_content.py §6/§7 and this log.
+The §16.1/§16.3/§16.4 stale counts remain routed to the §8/§16 lane, and
+README.md's two errors above are for whoever owns README — I flagged rather
+than reached.
+---
