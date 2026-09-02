@@ -256,18 +256,7 @@ def build_latex(content):
         target.write_bytes((HERE / "assets" / name).read_bytes())
         figure_map["img"][i] = f"img/{name}"
 
-    # UML: the SVG is regenerated as PDF, so the diagrams stay vector in print
-    # and still come from the headers rather than a checked-in picture.
-    for i, (root, depth, detailed) in enumerate(UML_CALLS):
-        if root == "__ARCH__":
-            svg = architecture_svg_raw()
-        else:
-            cmd = [sys.executable, str(GAME / "tools" / "gen_class_diagram.py"), "--svg", root]
-            if depth is not None:
-                cmd += ["--depth", str(depth)]
-            if detailed:
-                cmd += ["--detailed"]
-            svg = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True, check=True).stdout
+    def _themed(svg):
         # The SVG styles itself from the report's CSS variables, which mean
         # nothing to a rasteriser; substitute the light-theme literals.
         for var, lit in (("var(--surface,#fff)", "#ffffff"),
@@ -279,14 +268,75 @@ def build_latex(content):
                          ("var(--ui,sans-serif)", "Helvetica,Arial,sans-serif"),
                          ("var(--mono,monospace)", "monospace")):
             svg = svg.replace(var, lit)
-        depth_tag = depth if depth is not None else "full"
-        file_tag = "arch_layers" if root == "__ARCH__" else f"uml_{root.lower()}_{depth_tag}{'_detailed' if detailed else ''}"
+        return svg
+
+    def _svg_to_pdf(svg, file_tag):
         svg_path = img_dir / f"{file_tag}.svg"
         pdf_path = img_dir / f"{file_tag}.pdf"
         svg_path.write_text(svg, encoding="utf-8")
         subprocess.run(["rsvg-convert", "-f", "pdf", "-o", str(pdf_path), str(svg_path)],
                        check=True)
         svg_path.unlink()
+        return pdf_path
+
+    # A detailed diagram this tall, even shrunk to 0.78 textheight on its own
+    # portrait page, sets its member text at 5-6pt - illegible (plan section
+    # 4.1). The next-tallest detailed diagram in this report today (Block,
+    # ~1126pt) still reads fine at its own shrink, which is why this is a
+    # measured threshold rather than a list of root names: whichever root(s)
+    # 5A/5B/5C's new prose points --detailed at next, tall enough to cross
+    # this line gets the same landscape split automatically.
+    SPLIT_MIN_HEIGHT_PT = 1200.0
+    GROUP_TARGET_PT = 500.0
+    SVG_PX_TO_PT = 0.75  # rsvg-convert renders SVG user units as CSS px
+
+    # UML: the SVG is regenerated as PDF, so the diagrams stay vector in print
+    # and still come from the headers rather than a checked-in picture.
+    gen_script = str(GAME / "tools" / "gen_class_diagram.py")
+    for i, (root, depth, detailed) in enumerate(UML_CALLS):
+        if root == "__ARCH__":
+            svg = _themed(architecture_svg_raw())
+            pdf_path = _svg_to_pdf(svg, "arch_layers")
+            figure_map["svg"][i] = f"img/{pdf_path.name}"
+            continue
+
+        cmd = [sys.executable, gen_script, "--svg", root]
+        if depth is not None:
+            cmd += ["--depth", str(depth)]
+        if detailed:
+            cmd += ["--detailed"]
+        svg = subprocess.run(cmd, cwd=GAME, capture_output=True, text=True, check=True).stdout
+        height_pt = 0.0
+        m = re.search(r'viewBox="0 0 [\d.]+ ([\d.]+)"', svg)
+        if m:
+            height_pt = float(m.group(1)) * SVG_PX_TO_PT
+
+        depth_tag = depth if depth is not None else "full"
+        file_tag = f"uml_{root.lower()}_{depth_tag}{'_detailed' if detailed else ''}"
+
+        if detailed and height_pt > SPLIT_MIN_HEIGHT_PT:
+            # Too tall for one portrait page at any legible scale - split
+            # into balanced landscape-page groups instead (see
+            # gen_class_diagram.py's _group_children_for_pages docstring for
+            # why this measures rather than guesses group boundaries).
+            count_cmd = [sys.executable, gen_script, "--svg", root, "--detailed",
+                         "--group-count", "--group-target", str(GROUP_TARGET_PT)]
+            n_groups = int(subprocess.run(
+                count_cmd, cwd=GAME, capture_output=True, text=True, check=True
+            ).stdout.strip())
+            part_paths = []
+            for k in range(n_groups):
+                group_cmd = [sys.executable, gen_script, "--svg", root, "--detailed",
+                             "--group", str(k), "--group-target", str(GROUP_TARGET_PT)]
+                part_svg = _themed(subprocess.run(
+                    group_cmd, cwd=GAME, capture_output=True, text=True, check=True
+                ).stdout)
+                pdf_path = _svg_to_pdf(part_svg, f"{file_tag}_part{k + 1}")
+                part_paths.append(f"img/{pdf_path.name}")
+            figure_map["svg"][i] = {"landscape_parts": part_paths}
+            continue
+
+        pdf_path = _svg_to_pdf(_themed(svg), file_tag)
         figure_map["svg"][i] = f"img/{pdf_path.name}"
 
     body = html_to_latex.convert(content, figure_map)

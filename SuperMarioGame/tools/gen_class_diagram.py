@@ -500,10 +500,111 @@ def _member_lines(members, header):
     return rows
 
 
-def emit_svg_detailed(classes, root, title, max_depth=None):
+# rsvg-convert (build_report.py's SVG->PDF step) renders the SVG's user
+# units as CSS px; 1px = 0.75pt is what turns a viewBox height into the pt
+# figure the report's page geometry actually has to fit (see plan section
+# 4.1 / docs/issues/submission_sweep_plan_2026-09-02.md).
+SVG_PX_TO_PT = 0.75
+
+
+def _group_children_for_pages(classes, root, target_h=520.0):
+    """Bin-pack root's direct children into groups whose rendered detailed
+    SVG height stays under target_h pt each.
+
+    Two trees (Enemy/Boss, IGameState) are tall enough that even shrunk to
+    fit one portrait page (0.78 textheight) their member text becomes
+    5-6pt - illegible. Splitting across several landscape pages, each near
+    the diagram's native scale, was one of the two fixes plan section 4.1
+    proposed (the other - dropping the detailed variant - is report prose
+    this lane does not own).
+
+    A group's height is NOT the sum of its members' individual heights:
+    place()'s leaf packing above stacks same-level leaves into 2-3 columns,
+    so nine short leaf classes take roughly a third of their summed height,
+    not all of it. So this measures candidate groups by actually rendering
+    them with emit_svg_detailed's own top_children restriction and reading
+    the resulting viewBox back, rather than estimating analytically and
+    getting the column packing wrong (the first version of this function
+    did exactly that and produced a "520pt" group that rendered at 1200pt).
+
+    Group 0 is rendered with include_root=True (root drawn once, for
+    context) and costs root's own box height before a single child is
+    added - Enemy alone is 411pt. Every later group is include_root=False
+    (see emit_svg_detailed's docstring); the caller must use the same
+    convention (group index 0 -> include_root=True, else False) when it
+    actually draws each group, or the height budget below is meaningless.
+    """
+    kids = _children_map(classes)
+    children = sorted(kids.get(root, []))
+    if not children:
+        return [[]]
+
+    def height_of(members, include_root):
+        svg = emit_svg_detailed(classes, root, root, top_children=members,
+                                 include_root=include_root)
+        m = re.search(r'viewBox="0 0 [\d.]+ ([\d.]+)"', svg)
+        return float(m.group(1)) * SVG_PX_TO_PT if m else 0.0
+
+    # Group 0 pays for root's own box before a single child is added (Enemy
+    # alone: 411pt of a 500pt budget), so it is packed CHEAPEST-child-first:
+    # try the least expensive additions and stop at the first one that would
+    # blow the budget, since group height only grows as members are added -
+    # nothing bigger fits once that happens either. An earlier version
+    # sorted this group biggest-first like the others below and it
+    # immediately committed root+Boss (Boss carries BoomBoom and Bowser) at
+    # 1200pt against the same 500pt target - rendering at a shrink not
+    # meaningfully better than the single-page original this split replaces.
+    ascending = sorted(children, key=lambda c: height_of([c], False))
+    remaining = list(ascending)
+    group0 = []
+    for c in list(remaining):
+        if height_of(group0 + [c], True) <= target_h:
+            group0.append(c)
+            remaining.remove(c)
+        else:
+            break
+    groups = [group0]
+
+    # Every later group has no root box to pay for (include_root=False, see
+    # emit_svg_detailed's docstring), so it packs the normal
+    # best-fit-decreasing way: biggest remaining subtree first, so a lone
+    # heavy branch claims its own page before smaller leaves fill in
+    # around it.
+    remaining.sort(key=lambda c: -height_of([c], False))
+    while remaining:
+        current = []
+        for c in list(remaining):
+            trial = current + [c]
+            if not current or height_of(trial, False) <= target_h:
+                current.append(c)
+                remaining.remove(c)
+        groups.append(current)
+
+    idx = {c: i for i, c in enumerate(children)}
+    return [sorted(g, key=idx.get) for g in groups]
+
+
+def emit_svg_detailed(classes, root, title, max_depth=None, top_children=None,
+                       include_root=True):
+    """`top_children`, if given, restricts root's direct children to this
+    subset for the top-level call only (deeper recursion is unaffected) -
+    used by _group_children_for_pages's split to draw one balanced group
+    per landscape page instead of the whole (too tall) tree at once.
+
+    `include_root=False` skips drawing root's own box and lays its direct
+    children out as their own top-level trees instead. Root's box is not
+    free: Enemy alone (7 attributes, 30 methods) is 411pt tall, and a split
+    that repeats it on every continuation page pays that 411pt again each
+    time, leaving almost no room for the children it was meant to show.
+    Root is drawn once (the first group, include_root=True) for context;
+    later groups pass include_root=False.
+    """
     if root not in classes:
         raise SystemExit(f"unknown root: {root}")
     kids = _children_map(classes)
+    if top_children is not None:
+        kids = dict(kids)
+        kids[root] = [c for c in top_children if c in kids.get(root, [])]
 
     boxes = []
     edges = []
@@ -569,7 +670,31 @@ def emit_svg_detailed(classes, root, title, max_depth=None):
             cursor["y"] = max(col_tops)
         return box
 
-    place(root, 0)
+    if include_root:
+        place(root, 0)
+    else:
+        # Continuation page: root was already drawn on an earlier page (see
+        # the docstring), so lay its remaining children out as their own
+        # top-level trees - no root box, no edges to one - reusing place()'s
+        # branch/leaf split at depth 0.
+        members = sorted(kids.get(root, []))
+        branches = [c for c in members if kids.get(c)]
+        leaves = [c for c in members if not kids.get(c)]
+        for child in branches:
+            place(child, 0)
+        if leaves:
+            leaf_boxes = {c: measure(c) for c in leaves}
+            col_w = max(b["w"] for b in leaf_boxes.values()) + H_GAP
+            n_cols = 2 if len(leaves) <= 8 else 3
+            col_tops = [cursor["y"]] * n_cols
+            for child in leaves:
+                col = min(range(n_cols), key=lambda i: col_tops[i])
+                lb = leaf_boxes[child]
+                lb["x"] = col * col_w
+                lb["y"] = col_tops[col]
+                boxes.append(lb)
+                col_tops[col] += lb["h"] + D_ROW_GAP
+            cursor["y"] = max(col_tops)
 
     by_name = {b["name"]: b for b in boxes}
     width = max(b["x"] + b["w"] for b in boxes) + 16
@@ -646,6 +771,17 @@ def main():
                     help="stop descending past this depth below the root")
     ap.add_argument("--detailed", action="store_true",
                     help="with --svg, draw full attribute/method compartments instead of name-only boxes")
+    ap.add_argument("--group-count", action="store_true",
+                    help="with --svg ROOT --detailed, print how many landscape-page "
+                         "groups the split from plan section 4.1 needs (see --group) "
+                         "instead of drawing anything")
+    ap.add_argument("--group", type=int, default=None,
+                    help="with --svg ROOT --detailed, draw only this 0-indexed group "
+                         "from --group-count's split")
+    ap.add_argument("--group-target", type=float, default=520.0,
+                    help="max rendered height per group in pt for --group-count/"
+                         "--group (default 520pt: a landscape page's usable height "
+                         "under hcmus-report-template's margins)")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args()
 
@@ -658,6 +794,18 @@ def main():
         print(f"\n{len(classes)} classes", file=sys.stderr)
     elif args.mermaid:
         sys.stdout.write(emit_mermaid(classes))
+    elif args.svg and args.detailed and (args.group_count or args.group is not None):
+        if args.svg not in classes:
+            raise SystemExit(f"unknown root: {args.svg}")
+        groups = _group_children_for_pages(classes, args.svg, args.group_target)
+        if args.group_count:
+            print(len(groups))
+        else:
+            if not (0 <= args.group < len(groups)):
+                raise SystemExit(f"--group {args.group} out of range (0..{len(groups) - 1})")
+            sys.stdout.write(emit_svg_detailed(
+                classes, args.svg, args.svg, args.depth, top_children=groups[args.group],
+                include_root=(args.group == 0)))
     elif args.svg:
         emit = emit_svg_detailed if args.detailed else emit_svg
         sys.stdout.write(emit(classes, args.svg, args.svg, args.depth))
