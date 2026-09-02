@@ -86,11 +86,11 @@ private:
     bool m_soundsLoaded = false;
     bool m_eventsSubscribed = false;
 
-    // ComboHit escalation (SPEC 11.1's combo_1..combo_4 SFX). Kept as a
-    // ScopedSubscription (audit X-7 / R4) rather than the raw ids the dozen
-    // subscriptions in setupEventSubscriptions() still use, since this one is
-    // set up separately from that block.
-    EventBus::ScopedSubscription m_comboHitSub;
+    // All EventBus subscriptions, held as ScopedSubscription so they are
+    // automatically unsubscribed on destruction. Before 2E, only ComboHit was
+    // scoped (audit X-7 / R4) while the other 20 relied on the EventBus
+    // outliving SoundManager and the g_eventBusAlive tombstone.
+    std::vector<EventBus::ScopedSubscription> m_subscriptions;
 
     // A playMusic() request deferred because it arrived while the currently
     // playing track was a still-running one-shot jingle (see update()). Only

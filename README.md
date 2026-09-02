@@ -21,7 +21,7 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 | **Jump / Double Jump** | `W` or `↑` or `Space` | `Up Arrow` |
 | **Crouch / Ground Pound** | `S` or `↓` | `Down Arrow` |
 | **Run (Hold)** | `Left Shift` | `Right Shift` |
-| **Fireball** | `F` or `J` | `M` |
+| **Fireball** | `F` or `J` | `.` (Period) |
 | **Special Action** | `E` | `N` |
 | **Switch Character** | `Tab` (Toggle characters) | - |
 | **Minimap Toggle** | `M` | - |
@@ -36,7 +36,7 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 ### Core Engine
 * **Layered Engine Architecture**: Core → Entities → Physics → Graphics → Infrastructure
 * **Fixed-Timestep Game Loop**: 1/60s updates with frame-interpolated rendering
-* **9 Game States**: Menu, World Map, Character Select, Playing, Pause, Game Over, Victory, Options, Statistics
+* **10 Game States**: Menu, World Map, Character Select, Playing, Pause, Game Over, Victory, Options, Statistics, Editor
 
 ### Characters (4 Playable)
 * **Mario**: Standard platforming physics
@@ -46,8 +46,8 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 * **5 Power-Up States**: Small → Super → Fire/Cape, Mini (half-size)
 * **2 Decorators**: Star (10s invincible), Mega (8s giant)
 
-### Gameplay Mechanics (10 Movement Types)
-* Walk, Run, Jump, Wall Jump/Slide, Ground Pound, Crouch/Slide, Swimming, Climbing, Combo System, Momentum/Skidding
+### Gameplay Mechanics (8 Movement Strategies)
+* Walk, Run, Jump, Wall Jump/Slide, Ground Pound, Crouch/Slide, Combo System, Momentum/Skidding
 * **Coyote Time** (6 frames) & **Jump Buffering** (6 frames) for polished game feel
 * **Damage Knockback** with stun frames
 
@@ -101,15 +101,15 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 
 | Pattern | Class / Component | Description |
 | :--- | :--- | :--- |
-| **Factory** | `EntityFactory` | Creates 25+ entity types. Lakitu uses Factory to spawn Spinies at runtime. |
-| **Singleton** | `Game`, `ResourceManager`, `SoundManager`, `AchievementManager` | Global instances with lazy initialization. |
-| **State** | `GameStateManager`, `IPlayerState`, `FallingPlatform`, `Thwomp` | 9 game states, 5 base player states, entity lifecycles. |
-| **Observer** | `EventBus` | 15+ event types. HUD, Sound, Combo, Achievement, Statistics trackers all subscribe. |
-| **Strategy** | `IMovementStrategy` | 7+ enemy AI strategies (Patrol, Chase, Fly, Swim, Tethered, HammerThrow, Proximity). Difficulty modes. |
-| **Command** | `InputManager` / `ICommand` | 8+ game commands. Key rebinding. Debug console text→command. Replay serialization. |
+| **Factory** | `EntityFactory` + `EntityCatalogue` | Creates 25+ entity types via a single registry table. Lakitu spawns Spinies via `EntitySpawnRequested` event. |
+| **Singleton** | `Game`, `ResourceManager`, `SoundManager`, + 9 others | 12 Meyers singletons with deliberate construction order. |
+| **State** | `GameStateManager`, `IPlayerState` | 10 game states (incl. `EditorState`), 5 base player states. |
+| **Observer** | `EventBus` | 29 event types. `SoundManager` (21), `PlayingState` (15), `AchievementManager` (9), `Camera` (7) subscribe. |
+| **Strategy** | `IMovementStrategy` | 8 enemy AI strategies (Patrol, Chase, Fly, Tethered, HammerThrow, Proximity, TimerEmergence, Linear). `IDifficultyStrategy` ×3. |
+| **Command** | `InputManager` / `ICommand`, `IEditorCommand` | 8+ game commands with key rebinding. Editor has undo/redo (`IEditorCommand`, 7 concretes). Debug console: 11 `IConsoleCommand` concretes. |
 | **Decorator** | `StarDecorator`, `MegaDecorator` | Temporary power-up overlays wrapping active `IPlayerState`. |
-| **Memento** | `GameSnapshot` | Time rewind and replay system state capture. |
-| **Object Pool** | `ObjectPool<T>` | Pre-allocated pools for fireballs, particles, projectiles. |
+| **Memento** | `GameSnapshot` | Time rewind and attract-mode replay from partial state snapshots. |
+| **Object Pool** | `ObjectPool<T>` | Pre-allocated pools for `Fireball`, `Hammer`, `BossFireball`. |
 | **Template Method** | `IMovementStrategy::execute()` | Base skeleton: `calculateTarget() → applyMovement() → checkConstraints()`. Concrete strategies override hooks. |
 
 ---

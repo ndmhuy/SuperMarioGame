@@ -115,6 +115,16 @@ public:
     // KoopaTroopa before KoopaParatroopa, so every Paratroopa was written out as
     // a plain "koopa_troopa".
     virtual std::string getTypeName() const { return "unknown"; }
+
+    // Which object pool, if any, owns instances of this concrete type.
+    //
+    // recycleEntity() used to run three sequential dynamic_casts to figure out
+    // whether a dead entity was a Fireball, Hammer or BossFireball. Asking the
+    // object directly is one virtual call instead of three RTTI lookups, and
+    // adding a fourth pooled type needs only an override, not a new cast chain.
+    enum class PoolTag { None, Fireball, Hammer, BossFireball };
+    virtual PoolTag poolTag() const { return PoolTag::None; }
+
     virtual bool collidesWithTiles() const { return true; }
 
     // Answer a collision with the tile map on this entity's own terms.

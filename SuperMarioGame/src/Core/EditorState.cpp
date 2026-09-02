@@ -65,9 +65,8 @@ void EditorState::enter() {
     // leaving the size at 1280x720 would squeeze the level into the smaller rect
     // and every "click that tile" would land somewhere else.
     const sf::FloatRect canvas = canvasRect();
-    sf::View& view = m_camera.getView();
-    view.setSize(canvas.size);
-    view.setViewport(sf::FloatRect(
+    m_camera.setViewSize(canvas.size);
+    m_camera.setViewViewport(sf::FloatRect(
         {canvas.position.x / static_cast<float>(Constants::WINDOW_WIDTH),
          canvas.position.y / static_cast<float>(Constants::WINDOW_HEIGHT)},
         {canvas.size.x / static_cast<float>(Constants::WINDOW_WIDTH),

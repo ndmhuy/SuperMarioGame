@@ -3921,38 +3921,39 @@ void PlayingState::spawnSelectedPlayer(const sf::Vector2f& pos) {
 
 std::unique_ptr<Entity> PlayingState::spawnProjectile(int entityType, sf::Vector2f position,
                                                       sf::Vector2f velocity) {
-    switch (static_cast<EntityType>(entityType)) {
-        case EntityType::Hammer:
-            return m_hammerPool.acquire(position, velocity);
-        case EntityType::BossFireball:
-            return m_bossFireballPool.acquire(position, velocity);
-        default:
-            // Not a pooled type — the factory stays the single construction
-            // point for everything else.
-            return EntityFactory::create(static_cast<EntityType>(entityType), position);
-    }
+    // Pool acquisition for the three projectile types that churn. The mapping
+    // from EntityType to pool lives here rather than in a switch because only
+    // three types are pooled and the factory is the fallback for everything else.
+    const auto et = static_cast<EntityType>(entityType);
+    if (et == EntityType::Hammer)
+        return m_hammerPool.acquire(position, velocity);
+    if (et == EntityType::BossFireball)
+        return m_bossFireballPool.acquire(position, velocity);
+
+    // Not a pooled type — the factory stays the single construction point.
+    return EntityFactory::create(et, position);
 }
 
 void PlayingState::recycleEntity(std::unique_ptr<Entity> entity) {
     if (!entity) return;
 
-    // The cast has to happen before release(), and the raw pointer has to be
-    // re-wrapped in a typed unique_ptr: the pool stores concrete types so it can
-    // call resetForPool on them.
-    if (dynamic_cast<Fireball*>(entity.get())) {
-        m_fireballPool.release(std::unique_ptr<Fireball>(static_cast<Fireball*>(entity.release())));
-        return;
+    // The pool-tag virtual replaces the three sequential dynamic_casts that used
+    // to live here. One v-table lookup instead of three RTTI walks, and a new
+    // pooled type only needs a PoolTag override, not another cast block.
+    switch (entity->poolTag()) {
+        case Entity::PoolTag::Fireball:
+            m_fireballPool.release(std::unique_ptr<Fireball>(static_cast<Fireball*>(entity.release())));
+            return;
+        case Entity::PoolTag::Hammer:
+            m_hammerPool.release(std::unique_ptr<Hammer>(static_cast<Hammer*>(entity.release())));
+            return;
+        case Entity::PoolTag::BossFireball:
+            m_bossFireballPool.release(
+                std::unique_ptr<BossFireball>(static_cast<BossFireball*>(entity.release())));
+            return;
+        case Entity::PoolTag::None:
+            break; // Everything else dies here, exactly as before pooling existed.
     }
-    if (dynamic_cast<Hammer*>(entity.get())) {
-        m_hammerPool.release(std::unique_ptr<Hammer>(static_cast<Hammer*>(entity.release())));
-        return;
-    }
-    if (dynamic_cast<BossFireball*>(entity.get())) {
-        m_bossFireballPool.release(
-            std::unique_ptr<BossFireball>(static_cast<BossFireball*>(entity.release())));
-        return;
-    }
-    // Everything else dies here, exactly as it did before pooling existed.
 }
 
 void PlayingState::queueSpawn(std::unique_ptr<Entity> entity) {

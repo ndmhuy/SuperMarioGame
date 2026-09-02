@@ -93,8 +93,16 @@ const AABB& Camera::getBounds() const {
     return m_bounds;
 }
 
-sf::View& Camera::getView() {
+const sf::View& Camera::getView() const {
     return m_view;
+}
+
+void Camera::setViewSize(sf::Vector2f size) {
+    m_view.setSize(size);
+}
+
+void Camera::setViewViewport(const sf::FloatRect& viewport) {
+    m_view.setViewport(viewport);
 }
 
 AABB Camera::getVisibleBounds() const {

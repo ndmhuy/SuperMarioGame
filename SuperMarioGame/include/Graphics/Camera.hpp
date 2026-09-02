@@ -66,7 +66,7 @@ public:
     const AABB& getBounds() const;
 
     // View & bounds accessors
-    sf::View& getView();
+    const sf::View& getView() const;
     AABB getVisibleBounds() const;
 
     // Position & Bounds Control
@@ -80,6 +80,12 @@ public:
     // loads and rewind restores — writing getView().setCenter() directly leaves
     // m_position stale and the next update() undoes it (audit C-4).
     void snapTo(const sf::Vector2f& target);
+
+    // Mutation-through-getter was the only encapsulation leak in Camera (audit
+    // 2E). These two setters cover the one caller (EditorState) that needs to
+    // reshape the view for the canvas rectangle.
+    void setViewSize(sf::Vector2f size);
+    void setViewViewport(const sf::FloatRect& viewport);
 
     // Where the view centre would sit for a given target, after clamping.
     // Exposed so tests can assert the clamp without driving a frame.

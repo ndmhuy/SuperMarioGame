@@ -29,6 +29,7 @@ public:
     ~Hammer() override = default;
 
     std::string getTypeName() const override { return "hammer"; }
+    PoolTag poolTag() const override { return PoolTag::Hammer; }
 
     // Damages the player only. It used to kill other enemies as well, because
     // the resolver treated it as a Fireball.

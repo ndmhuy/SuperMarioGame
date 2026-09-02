@@ -12,13 +12,7 @@
 #include "Entities/ShadowMario.hpp"
 #include "Entities/AIController.hpp"
 #include "Entities/Pipe.hpp"
-#include "Entities/Mushroom.hpp"
-#include "Entities/FireFlower.hpp"
-#include "Entities/Coin.hpp"
-#include "Entities/Star.hpp"
-#include "Entities/CapeFeather.hpp"
-#include "Entities/MegaMushroom.hpp"
-#include "Entities/MiniMushroom.hpp"
+#include "Entities/EntityFactory.hpp"
 #include "Entities/IPlayerState.hpp"
 #include "Entities/Enemy.hpp"
 #include "Entities/Boss.hpp"
@@ -736,25 +730,25 @@ void DevPanel::drawPlaygroundPanel(PlayingState& state) {
         };
 
         if (ImGui::Button("Spawn Mushroom"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new Mushroom(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::Mushroom, p); });
         ImGui::SameLine();
         if (ImGui::Button("Spawn Fire Flower"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new FireFlower(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::FireFlower, p); });
         ImGui::SameLine();
         if (ImGui::Button("Spawn Coin"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new Coin(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::Coin, p); });
 
         if (ImGui::Button("Spawn Star"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new Star(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::Star, p); });
         ImGui::SameLine();
         if (ImGui::Button("Spawn Cape Feather"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new CapeFeather(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::CapeFeather, p); });
         ImGui::SameLine();
         if (ImGui::Button("Spawn Mega Mushroom"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new MegaMushroom(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::MegaMushroom, p); });
 
         if (ImGui::Button("Spawn Mini Mushroom"))
-            spawner([](sf::Vector2f p) { return std::unique_ptr<Entity>(new MiniMushroom(p)); });
+            spawner([](sf::Vector2f p) { return EntityFactory::create(EntityType::MiniMushroom, p); });
     }
 
     ImGui::Separator();

@@ -22,6 +22,7 @@ public:
     ~Fireball() override = default;
 
     std::string getTypeName() const override { return "fireball"; }
+    PoolTag poolTag() const override { return PoolTag::Fireball; }
 
     void update(float dt) override;
     void render(sf::RenderTarget& target) override;

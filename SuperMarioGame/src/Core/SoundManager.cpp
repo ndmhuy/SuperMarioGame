@@ -102,21 +102,25 @@ void SoundManager::setupEventSubscriptions() {
     if (m_eventsSubscribed) return;
     m_eventsSubscribed = true;
 
-    EventBus& bus = EventBus::getInstance();
+    // Every subscription is now held as ScopedSubscription in m_subscriptions,
+    // so they are automatically unsubscribed when SoundManager is destroyed.
+    // Before 2E, only ComboHit was scoped while the other 20 relied on the
+    // EventBus outliving SoundManager and the g_eventBusAlive tombstone.
+    m_subscriptions.reserve(21);
 
-    bus.subscribe(EventType::CoinCollected, [this](const GameEvent&) { playSound("coin"); });
+    m_subscriptions.emplace_back(EventType::CoinCollected, [this](const GameEvent&) { playSound("coin"); });
     // Task 11.4, audio cues: a star coin is one of three in a level and used to
     // sound exactly like an ordinary coin, so a player relying on sound could
     // not tell a major pickup from a trivial one. A checkpoint was silent
     // altogether — the only feedback was visual.
-    bus.subscribe(EventType::StarCoinCollected, [this](const GameEvent&) { playSound("one_up"); });
-    bus.subscribe(EventType::CheckpointActivated, [this](const GameEvent&) { playSound("vine_grow"); });
+    m_subscriptions.emplace_back(EventType::StarCoinCollected, [this](const GameEvent&) { playSound("one_up"); });
+    m_subscriptions.emplace_back(EventType::CheckpointActivated, [this](const GameEvent&) { playSound("vine_grow"); });
     // "boing" is the trampoline's cue, and the P-Switch was borrowing it — so
     // pressing the switch sounded exactly like bouncing off a spring and read as
     // a bug rather than an effect. "kick" is the short percussive thunk of the
     // switch going down, and is used by nothing else.
-    bus.subscribe(EventType::PSwitchActivated, [this](const GameEvent&) { playSound("kick"); });
-    bus.subscribe(EventType::EnemyDefeated, [this](const GameEvent&) { playSound("stomp"); });
+    m_subscriptions.emplace_back(EventType::PSwitchActivated, [this](const GameEvent&) { playSound("kick"); });
+    m_subscriptions.emplace_back(EventType::EnemyDefeated, [this](const GameEvent&) { playSound("stomp"); });
     // A death takes the level music down with it, and respawnPlayer's
     // playLevelBGM brings it back. That is right for one player, whose run has
     // genuinely stopped -- and wrong for a two-player match, where it silenced
@@ -135,11 +139,11 @@ void SoundManager::setupEventSubscriptions() {
     //
     // Both players being out is not this handler's problem: that publishes
     // GameOver, whose subscription below switches to the game-over track.
-    bus.subscribe(EventType::PlayerDied, [this](const GameEvent&) {
+    m_subscriptions.emplace_back(EventType::PlayerDied, [this](const GameEvent&) {
         if (!Game::getInstance().matchConfig().hasSecondPlayer()) stopMusic();
         playSound("lost_life");
     });
-    bus.subscribe(EventType::PowerUpCollected, [this](const GameEvent&) { playSound("power_up"); });
+    m_subscriptions.emplace_back(EventType::PowerUpCollected, [this](const GameEvent&) { playSound("power_up"); });
     // One owner for the level-clear cue, and one play of it.
     //
     // This handler used to fire BOTH playMusic("level_complete") AND
@@ -152,26 +156,26 @@ void SoundManager::setupEventSubscriptions() {
     // Now: the jingle is music, it plays once, and VictoryState leaves it alone.
     // The latch is the one in PlayingState's own LevelComplete handler, which
     // already ignores a repeat publish from a second flagpole.
-    bus.subscribe(EventType::LevelComplete, [this](const GameEvent&) {
+    m_subscriptions.emplace_back(EventType::LevelComplete, [this](const GameEvent&) {
         playMusic("level_complete", /*loop=*/false);
     });
-    bus.subscribe(EventType::BossDefeated, [this](const GameEvent&) {
+    m_subscriptions.emplace_back(EventType::BossDefeated, [this](const GameEvent&) {
         playMusic("castle_complete", /*loop=*/false);
     });
-    bus.subscribe(EventType::GameOver, [this](const GameEvent&) {
+    m_subscriptions.emplace_back(EventType::GameOver, [this](const GameEvent&) {
         playMusic("game_over", /*loop=*/false);
     });
-    bus.subscribe(EventType::PlayerDamaged, [this](const GameEvent&) { playSound("damage"); });
-    bus.subscribe(EventType::BlockBroken, [this](const GameEvent&) { playSound("break_brick_block"); });
-    bus.subscribe(EventType::PlayerShotFireball, [this](const GameEvent&) { playSound("fireball"); });
-    bus.subscribe(EventType::POWBlockHit, [this](const GameEvent&) { playSound("thwomp"); });
-    bus.subscribe(EventType::ThwompSlam, [this](const GameEvent&) { playSound("thwomp"); });
-    bus.subscribe(EventType::GroundPoundSlam, [this](const GameEvent&) { playSound("stomp"); });
-    bus.subscribe(EventType::TimeWarning, [this](const GameEvent&) { playSound("time_warning"); });
-    bus.subscribe(EventType::PauseToggled, [this](const GameEvent&) { playSound("pause"); });
+    m_subscriptions.emplace_back(EventType::PlayerDamaged, [this](const GameEvent&) { playSound("damage"); });
+    m_subscriptions.emplace_back(EventType::BlockBroken, [this](const GameEvent&) { playSound("break_brick_block"); });
+    m_subscriptions.emplace_back(EventType::PlayerShotFireball, [this](const GameEvent&) { playSound("fireball"); });
+    m_subscriptions.emplace_back(EventType::POWBlockHit, [this](const GameEvent&) { playSound("thwomp"); });
+    m_subscriptions.emplace_back(EventType::ThwompSlam, [this](const GameEvent&) { playSound("thwomp"); });
+    m_subscriptions.emplace_back(EventType::GroundPoundSlam, [this](const GameEvent&) { playSound("stomp"); });
+    m_subscriptions.emplace_back(EventType::TimeWarning, [this](const GameEvent&) { playSound("time_warning"); });
+    m_subscriptions.emplace_back(EventType::PauseToggled, [this](const GameEvent&) { playSound("pause"); });
     // An achievement unlocking was completely silent; the only feedback was an
     // ImGui window that normal play never shows.
-    bus.subscribe(EventType::AchievementUnlocked, [this](const GameEvent&) { playSound("one_up"); });
+    m_subscriptions.emplace_back(EventType::AchievementUnlocked, [this](const GameEvent&) { playSound("one_up"); });
 
     // SPEC 11.1 names dedicated combo_1..combo_4 SFX files, but only the 29
     // names in loadAllSounds() above actually ship in assets/sfx — there is no
@@ -179,7 +183,7 @@ void SoundManager::setupEventSubscriptions() {
     // instead (R7 audit): each chained kill (Player::incrementCombo(),
     // Player.cpp) escalates the pitch a step further, capped so a long combo
     // does not end up an inaudible chipmunk squeak.
-    m_comboHitSub = EventBus::ScopedSubscription(EventType::ComboHit, [this](const GameEvent& ev) {
+    m_subscriptions.emplace_back(EventType::ComboHit, [this](const GameEvent& ev) {
         int combo = 1;
         if (const int* asInt = std::any_cast<int>(&ev.data)) combo = *asInt;
         const float pitch = 1.0f + 0.12f * static_cast<float>(std::min(combo - 1, 6));
