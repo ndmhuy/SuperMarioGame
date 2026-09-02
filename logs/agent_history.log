@@ -5570,3 +5570,94 @@ STILL OPEN (recorded in docs/issues/release_batch_r21_2026-09-02.md §5): main i
   Game Over does not pop back to the editor; no distance gate on entity updates
   in long endless runs; no ImGui sliders for the lighting tunables.
 ---
+
+[2026-09-02 17:40:00] Branch: dev
+Git Fingerprint: d6727d5 (before) → 1649618 (four lanes) → e97b7da (after Lane M merge); Lane M's own tip 8a7cd15 on A/fix/versus-camera-and-axes
+Fetched Remotes: yes, 14:01 — origin/dev unchanged since the R21 merge; NOT yet pushed at time of writing
+Prompt: A second wave of user-reported defects after the R21 push: warp-pipe hitbox/art and side-vs-top entry (plus "the underground pipe should visually show that it leads upward or downward"), pipe entry animation, 2-3 bridge axes by difficulty with EVERY axe required, Bowser falling into lava and draining instead of vanishing, Lakitu dropping a Fire Flower so the fight stays winnable, 2P camera focusing the survivor and eliminated HUD badges showing death, Bowser's fireball stun not registering while he was still stompable, save-slot choice on SAVE GAME, and delete-save in LOAD GAME. Then: fix two defects in tests/verify_frontend_states.cpp.
+Files Modified: see commits 1649618, 8a7cd15 and the merge e97b7da. New: Graphics/LightingRenderer aside, this wave added tests/verify_r21_{pipes,boss_combat,lakitu_flower,save_slots,versus_and_axes}.cpp, Pipe::EntryMode, PipeRenderer::cellArt, Boss::beginLavaDeath, PlayingState::{activeParticipant,configureBridgeAxes,rememberEliminatedIdentity,applyEliminatedBadges}, PauseState/MenuState slot pages, and five tests/scripts/verify_r21{j,k,l,m,n}_*.txt.
+Reachable From Main: yes for every item in this wave. The previous entry's exception (UiRenderer::wrapText, harness-only) still stands. Bowser's lava death was harness-only at commit 1649618 and is reachable as of e97b7da, which is why it was NOT ticked until the merge.
+Verified By: ran the game (post-merge, scripted) + ctest 28/28 on merged dev + verify_regressions 584/584.
+  OBSERVED RUNNING this wave: a rimmed 2-wide top-entry pipe entered with Down
+  and the entry slide drawn behind it; an L-bend entered by walking into its
+  ground-level mouth; fireballs 1→2→3→4 staggering Bowser with the HUD counting
+  down to "STUNNED - STOMP NOW", and contact refused while he is guarded; a Fire
+  Flower drop evidenced by TIME 260→259 with score 000100→001100 and Small→Fire;
+  MARIO's badge dimmed with a red OUT while P2 plays on and the terrain scrolls
+  behind the survivor; AXES 1/3 then 2/3 with the bridge intact on HARD and the
+  chop landing on EASY; a save written to slot 2 and loaded back, and a delete
+  freeing it to EMPTY; and the merged build's menu clean with debugMode false.
+  NOT OBSERVED, stated plainly: the third HARD axe being reached in play (it
+  stands behind the arena's enclosure post at (189,19) — walking stalls on the
+  post and a jump clearing the post also clears the axe; pre-existing geometry,
+  covered by the harness through the real activate() path); the Fire Flower
+  sprite mid-air (~0.4s fall, collected instantly); and the multiplayer music
+  fix from the previous wave, which still needs two players and audible output.
+Summary of Changes:
+- PIPES. The atlas `_l` suffix means L-BEND, not "left" — settled by cropping the
+  sheet. `long_l` is a shaft with a horizontal mouth and NO top rim, `short_l`
+  the same L with one. So the earlier 2x2→2x4 collider change swapped a rimmed
+  frame for an unrimmed one: the hitbox was correct and the art had no opening,
+  which is why the player read as floating. The user diagnosed it from the art
+  before the code was read. There is no 2-wide top-entry whole sprite, so the
+  rimmed pipe is assembled from quarters — and rather than write a second
+  row-tiler, the entity and tilemap paths now share one PipeRenderer::cellArt.
+  EntryMode now carries meaning: down through a rimmed mouth, up out of an
+  L-bend whose shaft leaves through the ceiling.
+- BOWSER. Neither half of "does not receive fireball but can be stomped" had the
+  cause I guessed; my enclosure-post hypothesis was refuted geometrically AND
+  empirically (a fireball registers on frame 0). The real bug was the INVERSE of
+  the report: a bursting fireball stayed collidable through its 0.24s explosion,
+  so one shot scored three hits — invisible on an ordinary enemy, which dies to
+  the first. And the reason it plays as "nothing happens" is that Bowser closes
+  in ~1s and every contact costs a form, so Fire→Super kills the fire button
+  with the last flower 114 tiles back. onTookHit() also zeroed the fire count,
+  so stomping wiped the player's own progress. Stomping is now stagger-gated via
+  a virtual on Boss, not a dynamic_cast in the resolver.
+- The fight was therefore unwinnable by its designed route and winnable by the
+  undesigned one. The user's Fire Flower request was not cosmetic; it is the
+  only guaranteed route to the fireballs the stagger needs.
+- 2P. The camera FROZE after an elimination, not merely failed to follow: the
+  dispatch chose updateVersusCamera on m_player2 alone and that method returns
+  without both players. The lone-player tether had the mirror bug, so the
+  survivor got neither. updateBossArena/releaseBossArena also read m_player
+  directly, so arena lock, escape clamp and battle music were dead for a 2P boss
+  fight survivor. P1's badge went stale showing setupTestScene's MOCK 102520/57/9
+  in a real run; P2's vanished. Both now dim and stamp OUT, which needed the
+  eliminated player's identity retained before destroy() since the pointer is
+  null by HUD-sync time.
+- SAVE SLOTS. SAVE GAME wrote getActiveSlot() and nothing could change it, so
+  three slots meant one. Serializer::deleteSlot already existed with no
+  player-reachable caller. Both destructive actions confirm, defaulting to KEEP.
+- MISTAKES MADE, recorded because the log is an audit trail: (1) I shared
+  build/_deps across concurrent lane builds via FETCHCONTENT_BASE_DIR. That
+  directory holds the *-build trees, not just sources, so concurrent
+  reconfigures corrupted it — one lane hit a 96-byte libImGui-SFML.a, another
+  hit makefiles pointing at a foreign build dir. Both lost time to my
+  optimisation. Per-lane deps dirs next time. (2) I told Lane J it was the only
+  agent in the tree and then added four more without telling it. (3) I "corrected"
+  a lane's correct diagnosis with a grep that tested the wrong thing — the
+  debugMode toggle reaches Game one indirection away through OptionsState, so
+  the symbol never appears in the harness. The lane was right. (4) I asserted
+  chopBridge takes the defeat before clearing tiles; it is the reverse.
+- PROCESS GAP CLOSED (flagged in the previous entry): guard_saves_hermeticity
+  watched saves/shots/, so any ordinary playtest failed it. That false positive
+  did real damage — two investigations blamed a test harness for writing saves/
+  on its evidence and the harness was clean, measured byte-identical across a
+  full run. Narrowed to skip that one output directory, by path prefix so a new
+  kind of save file is watched by default; mutation-tested three ways.
+  verify_frontend_states now also restores the settings it changes, because
+  setDebugMode arms DebugCheats and the flag leaked into later cases in the same
+  binary regardless of the save sandbox.
+- USER DATA: the user's saves/progress.json had been left with Worlds 1-1 and
+  1-2 marked complete by a lane's playtest. Restored and verified byte-identical
+  to the earliest snapshot. profile.json's cumulative counters remain inflated
+  by agent playtests and were deliberately NOT rolled back, since that would
+  discard real deltas too; flagged to the user.
+STILL OPEN: main is 125+ commits behind and promoting it is the user's decision,
+  explicitly reserved by them (see the memory note and docs/issues/
+  release_batch_r21_2026-09-02.md §5); the third HARD axe is unreachable by
+  ordinary movement because of the enclosure post; MapGenerator's generated vault
+  pipe is still Top entry, so the down/up story is inconsistent there;
+  MovingPlatform::update never calls Block::update; Spiny::isEgg unreachable.
+---
