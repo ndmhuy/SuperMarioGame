@@ -61,7 +61,7 @@ never discard uncommitted work), and the user approved the deletion explicitly.
 | Bonus D dynamic lighting | Build it for real with `sf::Shader` | Faking it with the existing vertex ring, or leaving it descoped. `SPEC.md`'s 110/115 rubric credits "GLSL shader effects" that did not exist; building it makes the claim true rather than correcting it downward |
 | P2 fire key | `Period` | `M` — which is the minimap toggle, the collision `1a7a6db` was fixing |
 | Phase 2 order | Editor → cheats → procedural → lighting | Parallel worktrees. All three touch `PlayingState` (3,251 lines); serialising cost wall-clock and avoided a three-way merge in the largest file in the codebase |
-| `main` branch | Fast-forward and tag | Leaving it 125 behind. See §5 |
+| `main` branch | **Not touched — the user's alone** | Fast-forwarding it. Reversed by the user mid-batch: "main is my responsibility" |
 | Endless bosses | A real arena every N chunks | No bosses, or one finale boss. See §5 |
 
 ### Taken by the agent, worth a second opinion
@@ -163,10 +163,12 @@ now does, with a comment saying why.
 ## 5. Open items and follow-ups
 
 - **`main` is 125 commits behind** and still carries the truncated `castle_end`
-  sprite (112×176, left shoulder sliced off). Defect 3 is only half-delivered by
-  pushing `dev`: the *code* fix for the castle already landed on dev as
-  `384250f`, and the remaining half was `level_1.json`'s legacy fake-castle slab,
-  fixed here. Decision: fast-forward `main` and tag the milestone.
+  sprite (112×176, left shoulder sliced off). Defect 3 is therefore only
+  half-delivered by pushing `dev`: the *code* fix landed on dev as `384250f`,
+  and the remaining half — `level_1.json`'s legacy fake-castle slab — is fixed
+  here. **Promoting `main` is the user's decision and nobody else's**, stated
+  during this batch; it is recorded here as an observation, not a
+  recommendation, so the state of `main` is at least not a surprise later.
 - **`SPEC.md` rubric** scores 110/115 citing "compensated by GLSL shader
   effects", and descopes those same shaders ~15 lines later. Building Bonus D
   for real resolves this. **If Bonus D does not land, this doc must be corrected
