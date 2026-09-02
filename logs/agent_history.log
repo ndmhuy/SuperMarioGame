@@ -6572,6 +6572,133 @@ STILL OPEN (unrelated to this lane, left for the lanes assigned to them per
   MapGenerator's generated vault pipe still Top entry; and everything in
   Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
+[2026-09-02 20:45:00] Branch: dev
+Git Fingerprint: d013442 (before) → e2f0ff2 (after)
+Fetched Remotes: yes, 20:33
+Prompt: Sweep plan 2E — cheap OOP fixes (6 items from §2.3)
+Files Modified: Entity.hpp, Fireball.hpp, Hammer.hpp, BossFireball.hpp, DevPanel.cpp, PlayingState.cpp, Camera.hpp, Camera.cpp, EditorState.cpp, SoundManager.hpp, SoundManager.cpp, README.md
+Reachable From Main: yes — all changes are in production paths (DevPanel render, PlayingState prune/spawn, Camera view, SoundManager events)
+Verified By: build (0 errors) + ctest (32/32 passed)
+Summary of Changes:
+- Item 1: DevPanel.cpp — replaced 7 raw `new X(p)` with EntityFactory::create(EntityType::X, p); removed 7 concrete item includes, added EntityFactory include
+- Item 2: PlayingState::spawnProjectile — removed switch on EntityType, replaced with if-chain for pooled types + factory fallback
+- Item 3: PlayingState::recycleEntity — added virtual Entity::PoolTag enum and poolTag() method; overridden in Fireball, Hammer, BossFireball; recycleEntity now uses switch on poolTag() instead of 3 sequential dynamic_casts
+- Item 4: Camera::getView() — changed from `sf::View&` to `const sf::View&`; added setViewSize()/setViewViewport() methods; updated EditorState to use new setters
+- Item 5: SoundManager — all 21 subscriptions (20 bare bus.subscribe + 1 m_comboHitSub) now stored in std::vector<ScopedSubscription> m_subscriptions; removed separate m_comboHitSub member
+- Item 6: README.md — corrected P2 fire key (Period not M), game states (10 incl. Editor), movement strategies (8, removed Swimming/Climbing), Singleton (12 not 4), Observer subscribers (real names), Command (no replay serialization, added IEditorCommand), Object Pool (Fireball/Hammer/BossFireball not particles), State (removed FallingPlatform/Thwomp as pattern participants)
+- SPEC §2.2 corrections proposed but NOT applied (SPEC is frozen per sweep plan §4.2; user applies)
+- Worked directly on dev per user directive (no branch)
+---
+[2026-09-02 20:45:00] Branch: A/docs/features-list-v3
+Git Fingerprint: d013442 (before) → 2836b3c (after; this entry adds a third commit)
+Fetched Remotes: yes, 20:23 — dev == origin/dev per `git rev-list --left-right --count dev...origin/dev` = "48 0" at the time of fetch (48 ahead of the last-pushed origin/dev, 0 behind; nothing to pull). Worktree branched off the merged dev @ d013442.
+Prompt: Phase 4B of the submission sweep — make submission_documents/features_list.md exhaustive and truthful. For every shipped-but-unlisted candidate in the sweep plan §4.2, find the production call path from main() BEFORE adding it; add nothing that resolves only to a verify_* harness; correct existing items the code contradicts (notably #64's F1 editor, #68's minimap key, #2's "8 screens", the save-slot items, and the preamble's now-false lighting exclusion); then extend testing_tasks.md with a manual test row per new item. No build slot.
+Files Modified: submission_documents/features_list.md, submission_documents/testing_tasks.md, logs/agent_history.log
+Reachable From Main: n/a for the files I edited — they are documents, not runtime code. But the whole deliverable is a claim ABOUT reachability, so per item class, for the 30 features added:
+  - 26 of 30 reach main() through Game::run → GameStateManager → the state that
+    runs them, traced by reading the call sites: PlayingState::render →
+    renderLightPass (PlayingState.cpp:2011 → :2790) for #98/#99;
+    PlayingState::update's entity loop (:906-923) for #119;
+    MenuState::update's idle gate (MenuState.cpp:669-688) for #120;
+    MenuState::confirm rows (:456 MAP EDITOR → EditorState, :460/:487-501
+    CUSTOM LEVELS) for #64/#102; EditorState::handleInput (:350-407) for
+    #101/#103; EditorState::playtest (:266-294) + GameOverState.cpp:94
+    (DismissAction::ReturnToEditor) for #103; PlayingState::update's warp check
+    (:1115-1155) → beginPipeEntry (:1382) for #111; Pipe::EntryMode read by
+    LevelLoader.cpp:53/191 and written by MapGenerator.cpp:649 for #110;
+    PlayingState.cpp:1764 → Boss::beginLavaDeath for #112;
+    findActiveBoss → configureBridgeAxes (:3099, quota at :3102) for #113;
+    MapGenerator.cpp:60 for #114; Lakitu::update (:98-139) for #115/#116;
+    PlayingState.cpp:1241-1275 for #117 and :1230-1256 + applyEliminatedBadges
+    (:1342) for #118; updateFootstep (:1020 → :3175) for #121;
+    MenuState::moveSelection for #122; SoundManager.cpp:182 for #123;
+    the EnemyDefeated subscription (:335-360) for #124;
+    PlayingState.cpp:992-1011 for #125; MenuState::performSlotDelete for #126;
+    extendEndlessLevelIfNeeded (:2445-2454) and the countdown gate (:1181)
+    for #127.
+  - 4 of 30 (#100 lighting tunables, #105 debug cheats, #107 tainted-run rule,
+    #108 free camera) are reachable from main() but ONLY behind
+    Options > DEBUG MODE — DevPanel is drawn from PlayingState::render
+    (:2115) and the F2-F11 handler is inside a `if
+    (Game::getInstance().getDebugMode())` block (:624). They are production
+    code on a production path, not harness code, and the features list and the
+    new testing rows both state the gate rather than implying the panel is
+    always there. #107's five readers (AchievementManager, StatisticsTracker,
+    GameOverState, VictoryState, DevPanel) are unconditional.
+  - #106 (immortality rescues rather than suppresses) is the same class: gated
+    on debug mode, but its two call sites (PlayingState.cpp:1085 void plane,
+    :3408 the single killPlayer door) are ordinary production code.
+Verified By: code reading and git history, no build slot. I did not compile, did not run ctest, and did not launch the game this session — the lane was assigned without a build slot and I am not claiming otherwise. What each claim rests on instead: (a) direct reads of the call sites listed above; (b) parsing SuperMarioGame/assets/levels/*.json with python3 to establish which entity types and QuestionBlock content ids the shipped levels actually place; (c) grep-computed counts (9 IGameState headers, 12 getInstance() singletons, 29 EventType enumerators, 11 registerCommand calls, 42 EntityCatalogue rows); (d) the merge history of dev @ d013442, which contains the Phase 2 lanes 86c90a5 (2A), c92d9f8 (2B), 21d0ece (2C) and 76f2fca (2D); (e) the lane logs of those merges for whether the behaviour was observed live — 53f6505 records the MovingPlatform animator and a Lakitu-dropped Spiny egg observed in a scripted run with screenshots read, which is the strongest evidence behind #55 and #116.
+Summary of Changes:
+- features_list.md: 97 → 127 items, numbering continuous (verified by parsing
+  the file, not by counting by eye). 30 added in ten new categories 17-26.
+- REJECTED as unverifiable, and recorded as rejected in the document's own
+  scope note rather than silently omitted:
+  * DeathEffectType::PlayerDeathHop, the floating player-death overlay —
+    spawnDeathEffect is called from exactly two places, PlayingState.cpp:357
+    (which passes StarKillSpin or EnemyFlip, never PlayerDeathHop) and
+    tests/verify_graphics_visual.cpp:494. Harness only. #86's existing claim
+    about the player's death arc is a DIFFERENT mechanism (Player::m_dying
+    plus PlayingState's death-fall phase) and stands.
+  * UiRenderer::wrapText — deleted by lane 2D in 69c5f46, so not listed.
+  * The `noclip`/`kill_all`/`stats` console commands the old preamble
+    excluded: DebugConsole registers 11 commands and none of the three is
+    among them. noclip DOES exist, as a Debug > Cheats switch, so the
+    preamble now says exactly that instead of excluding it outright; kill_all
+    and stats stay excluded.
+  * guard_asset_single_source and verify_r21_entity_registry — build/test
+    guards, not gameplay reachable from main(). Named in the scope note as
+    belonging to the report's process section.
+- NOT CLAIMED, per the lane brief: the third HARD axe. level_3.json contains
+  three bridge_axe entries, matching #113's Hard quota; the defect did not
+  reproduce and no level data changed, so nothing in this document says it
+  was unreachable or fixed. (The stale "STILL OPEN" note in my predecessor's
+  log entry above is superseded on all three counts — axe, vault pipe, and
+  lanes 2B-2E — by the merges in dev @ d013442.)
+- Existing items corrected (15): preamble ×2 (lighting exclusion now false;
+  the editor-authored marker recomputed from the level JSONs in both
+  directions), #2 (8→9 screens, EditorState), #3 (13→12 singletons), #4
+  (28→29 events, and the real six subscribers — the HUD polls a HudData
+  struct and subscribes to nothing, contrary to the old text), #9 (count
+  sourced), #30/#47 (Mini and Mega Mushroom marked editor-authored: content
+  ids 5 and 6 appear in no shipped level), #31 (P2 fire is Period/RControl,
+  not M, which collides with the minimap), #35/#38/#39/#40/#41 (the
+  editor-authored marker REMOVED — Paratroopa ×3 and Lakitu ×1 in level_1,
+  Boo ×2 in level_2, Thwomp ×2, Bullet Bill ×3, Chain Chomp ×1 in level_3),
+  #43 (Bowser's four-fireball, three-second stagger), #55 (the MovingPlatform
+  animator, lane 2A), #64 (rewritten: EditorState from a menu row, six tools,
+  Ctrl+N/O/S/Shift+S — the old text described an F1 overlay that no longer
+  exists), #65 (tenth menu row CUSTOM LEVELS, plus the five live status
+  labels), #68 (minimap is M or Tab), #77 (cross-referenced to the picker and
+  the new delete), #79 (cross-referenced to elimination), #85/#86
+  (cross-references), #96 (the Endless countdown is suspended), scope note
+  (97 → 127 plus the rejection list and the two recounted numbers).
+- NOTE on one plan claim I could not confirm: §4.2 says #9's console command
+  count is stale because "noclip added". It is not — DebugConsole still
+  registers exactly 11 commands and there is no NoclipCommand. I left the
+  count at 11 and added where the number comes from.
+- testing_tasks.md: 11 new rows (15-20 Member A, 21-25 Member B) in the
+  existing row format. Coverage recomputed by parsing both tables: the row
+  ranges cover features 1-127 with no gap, the only repeat being the
+  unnumbered accessibility cross-reference row, which now says so. Two stale
+  keys inside PRE-EXISTING rows also fixed: row 4 sent the tester to the F1
+  editor overlay, row 11 named Tab as the only minimap key.
+- Commits: e2c9aa3 (features list), 2836b3c (testing tasks), this log entry.
+  No push, no merge, no PDF regenerated (Phase 7 packaging owns that).
+- MISTAKES MADE THIS SESSION: (1) I drafted the new sections, committed
+  nothing, and only then noticed I had dropped attract mode from my own
+  candidate list — it went in as #120 and six later items had to be
+  renumbered, with four cross-references chased by script. Had I committed
+  the sections before the cross-references, the renumber would have been a
+  clean diff instead of an in-place shuffle. (2) My first pass at the
+  testing_tasks preamble asserted the row ranges had "no overlap", which was
+  false — the accessibility row deliberately re-tests #95. Caught it by
+  running the coverage parser rather than by re-reading, which is the only
+  reason it did not ship as a confident wrong sentence.
+- SCOPE HONOURED: only the two submission documents and this log were
+  touched. reports/, Report/, docs/, Member_Contributions.* and all C++
+  sources are untouched (`git show --stat` on both commits confirms).
+---
 [2026-09-02 20:55:00] Branch: A/fix/moving-platform-and-spiny-egg
 Git Fingerprint: 4050965/53f6505 (before this round) → cf195cb (after)
 Fetched Remotes: yes — dev == origin/dev (0 0), unchanged since the prior entry; no fetch-affecting work happened in this round
@@ -6653,20 +6780,3 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
 
-[2026-09-02 20:45:00] Branch: dev
-Git Fingerprint: d013442 (before) → e2f0ff2 (after)
-Fetched Remotes: yes, 20:33
-Prompt: Sweep plan 2E — cheap OOP fixes (6 items from §2.3)
-Files Modified: Entity.hpp, Fireball.hpp, Hammer.hpp, BossFireball.hpp, DevPanel.cpp, PlayingState.cpp, Camera.hpp, Camera.cpp, EditorState.cpp, SoundManager.hpp, SoundManager.cpp, README.md
-Reachable From Main: yes — all changes are in production paths (DevPanel render, PlayingState prune/spawn, Camera view, SoundManager events)
-Verified By: build (0 errors) + ctest (32/32 passed)
-Summary of Changes:
-- Item 1: DevPanel.cpp — replaced 7 raw `new X(p)` with EntityFactory::create(EntityType::X, p); removed 7 concrete item includes, added EntityFactory include
-- Item 2: PlayingState::spawnProjectile — removed switch on EntityType, replaced with if-chain for pooled types + factory fallback
-- Item 3: PlayingState::recycleEntity — added virtual Entity::PoolTag enum and poolTag() method; overridden in Fireball, Hammer, BossFireball; recycleEntity now uses switch on poolTag() instead of 3 sequential dynamic_casts
-- Item 4: Camera::getView() — changed from `sf::View&` to `const sf::View&`; added setViewSize()/setViewViewport() methods; updated EditorState to use new setters
-- Item 5: SoundManager — all 21 subscriptions (20 bare bus.subscribe + 1 m_comboHitSub) now stored in std::vector<ScopedSubscription> m_subscriptions; removed separate m_comboHitSub member
-- Item 6: README.md — corrected P2 fire key (Period not M), game states (10 incl. Editor), movement strategies (8, removed Swimming/Climbing), Singleton (12 not 4), Observer subscribers (real names), Command (no replay serialization, added IEditorCommand), Object Pool (Fireball/Hammer/BossFireball not particles), State (removed FallingPlatform/Thwomp as pattern participants)
-- SPEC §2.2 corrections proposed but NOT applied (SPEC is frozen per sweep plan §4.2; user applies)
-- Worked directly on dev per user directive (no branch)
----
