@@ -1,0 +1,134 @@
+# R21 Lane G - Debug > Cheats, observed in the running game (directives 9 & 10).
+#
+# What this proves, in order:
+#   1. OPTIONS > DEBUG MODE is what arms the cheats at all.
+#   2. CONTROL: walking into World 1-1's first pit (tile columns 30-31) with no
+#      cheats costs a life - 3 becomes 2.
+#   3. IMMORTAL (F2): the identical walk into the identical pit RESCUES the
+#      player instead, with the life count untouched at 2. This is the user's
+#      correction made observable: "if void don't kill, then it will fall
+#      forever, so a respawn might not be that bad".
+#   4. HIDE HUD (F7) on and off again.
+#   5. The time scale (F11 steps 1x - 0.5x - 0.25x - 0.1x): the HUD clock is
+#      driven by the simulation, so four real seconds at 1x take ~4 off it and
+#      four real seconds at 0.25x take ~1.
+#   6. FREEZE TIMER (F6): the clock stops moving entirely.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_r21_lane_g/SuperMarioGame --script tests/scripts/verify_r21g_debug_cheats.txt
+#
+# NOTE: this run turns DEBUG MODE on, which Game::shutdown() persists into
+# saves/config.json. Back that file up before running and put it back after.
+
+# --- 1. DEBUG MODE must already be on -------------------------------------
+# Set "debugMode": true in saves/config.json before running (the same
+# precondition tests/scripts/verify_r9_fortress_garrison.txt states), or turn on
+# OPTIONS > DEBUG MODE once by hand. Driving the Options screen from here and
+# then walking the cursor back up the main menu is not reliable: the main menu
+# skips its unselectable rows, so a fixed number of Ups does not land on START
+# GAME.
+wait 2.0
+shot r21g_00_menu_with_debug_mode_on
+
+# --- START GAME -> character select -> level select -------------------------
+press Enter
+wait 2.5
+press Enter
+wait 2.5
+press Enter
+wait 4.0
+shot r21g_01_level_start
+
+# --- 2. IMMORTAL (F2), then leave the level through the floor ---------------
+# NOCLIP (F8) plus a held crouch is the deterministic way to put the player
+# below the world: hunting World 1-1's pits by walking depends on where the
+# jumps land. Switching NOCLIP back off underneath the floor restores gravity,
+# the player falls past the void plane, and IMMORTAL has to catch them.
+#
+# The rescue must put them back on solid ground in the COLUMN they fell from,
+# with the LIVES field unchanged - the user's correction made visible.
+press F2
+wait 0.5
+press F8
+wait 0.3
+hold S 1.6
+wait 2.0
+press F8
+wait 3.0
+shot r21g_02_immortal_rescued_from_the_void
+
+# --- 3. CONTROL: IMMORTAL back off, INVINCIBLE (F3) on ----------------------
+# The identical fall with invincibility instead of immortality. It still ends
+# the life - which is exactly what the old `god` command got wrong: a
+# 100000-second invincibility timer guards the damage path only, so a pit, a
+# crush and the clock all still killed you. LIVES drops from 3 to 2.
+press F2
+press F3
+wait 0.5
+press F8
+wait 0.3
+hold S 1.6
+wait 2.0
+press F8
+wait 4.0
+shot r21g_03_control_invincible_still_dies
+
+# --- 4. HIDE HUD ------------------------------------------------------------
+press F7
+wait 0.8
+shot r21g_04_hud_hidden
+press F7
+wait 0.8
+shot r21g_05_hud_back
+
+# --- 5. Time scale. Two four-second samples of the same HUD clock. ----------
+shot r21g_06_clock_1x_before
+wait 4.0
+shot r21g_07_clock_1x_after
+press F11
+press F11
+wait 0.6
+shot r21g_08_clock_quarter_before
+wait 4.0
+shot r21g_09_clock_quarter_after
+
+# Back to full speed for the last check.
+press F11
+press F11
+
+# --- 6. FREEZE TIMER --------------------------------------------------------
+press F6
+wait 0.5
+shot r21g_10_frozen_before
+wait 4.0
+shot r21g_11_frozen_after
+
+press F6
+wait 0.5
+
+# --- 7. FREE CAMERA ---------------------------------------------------------
+# While it is on, D pans the camera instead of walking the player: compare where
+# Mario sits in the frame before and after.
+shot r21g_12_freecam_before
+press F9
+wait 0.5
+hold D 1.5
+wait 2.0
+shot r21g_13_freecam_panned
+press F9
+wait 1.0
+shot r21g_14_freecam_off_recentred
+
+# --- 8. NOCLIP: walk straight through the brick step ------------------------
+press F8
+wait 0.5
+hold D 4.0
+wait 4.5
+shot r21g_15_noclip_through_solids
+press F8
+wait 1.5
+
+# Game::shutdown() persists DEBUG MODE = ON. Restore saves/config.json from a
+# backup after the run rather than navigating back through the menus to turn it
+# off, which depends on which screen the run happens to end on.
+quit

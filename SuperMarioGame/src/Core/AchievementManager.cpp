@@ -1,4 +1,5 @@
 #include "Core/AchievementManager.hpp"
+#include "Core/Game.hpp"
 #include "Core/StatisticsTracker.hpp"
 #include "Utils/Serializer.hpp"
 #include <any>
@@ -50,6 +51,13 @@ void AchievementManager::reset() {
 }
 
 void AchievementManager::unlockAchievement(const std::string& id) {
+    // A run recorded with Debug > Cheats on unlocks nothing, permanently — this
+    // writes straight into the profile (Serializer::saveProfile below) and
+    // gates the Toad and Peach unlocks, so an immortal demo pass would earn the
+    // characters an honest player has to work for. The single chokepoint every
+    // rule in this file already funnels through, so no rule can miss it.
+    if (Game::getInstance().debugCheats().tainted()) return;
+
     auto it = std::find_if(m_achievements.begin(), m_achievements.end(),
         [&id](const Achievement& a) { return a.id == id; });
 

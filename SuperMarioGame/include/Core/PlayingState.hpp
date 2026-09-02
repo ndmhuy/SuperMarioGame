@@ -110,6 +110,13 @@ private:
     // ever call, the same tradeoff DevPanel's friendship above already makes.
     friend class LevelCompletionCameraTestHooks;
 
+    // tests/verify_r21_debug_cheats.cpp reaches the void plane, the level clock,
+    // the camera and rescueDestination() to prove Debug > Cheats' IMMORTAL
+    // rescues a player out of a pit instead of killing them — the same tradeoff
+    // as the friend above, and for the same reason: none of it is worth a public
+    // getter that only a test would ever call.
+    friend class DebugCheatsTestHooks;
+
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
     void regenerateProceduralLevel();
@@ -293,6 +300,37 @@ private:
     // null is treated as Player 1 so the debug key and the older callers keep
     // meaning what they always meant.
     void killPlayer(Player* who, const char* reason);
+
+    // --- Debug > Cheats: IMMORTAL --------------------------------------------
+    //
+    // What killPlayer() does instead when the run may not end. Suppressing the
+    // kill on its own would be WORSE than the death it replaces: the player
+    // drops through the floor and keeps falling forever with nothing to catch
+    // them. So the lethal event is converted into a rescue.
+    //
+    // This is the same shape commit 95521a8 gave bosses for the identical
+    // problem — Entity::onLeftLevel() -> Boss::returnToArenaSpawn() exists
+    // because a boss that left the level fell forever. The player simply never
+    // had the equivalent.
+    void rescuePlayer(Player* who, const char* reason);
+
+    // Where a rescue puts `who`, in preference order: solid ground in the column
+    // they fell from (so they keep their place in the level, which is what
+    // matters mid-take), then the last checkpoint, then the level spawn. Only
+    // positions isSpawnUsable() accepts are offered.
+    sf::Vector2f rescueDestination(const Player* who) const;
+
+    // --- Debug > Cheats: FREE CAMERA -----------------------------------------
+    //
+    // Pans the detached camera with WASD/arrows, the same keys and speed
+    // MapEditor::handlePanning() uses — the editor's free camera is the
+    // behaviour a recorder already knows.
+    void updateFreeCamera(float dt);
+
+    // Debug > Cheats' "Kill all enemies on screen" button. Routed through the
+    // same onStomped() the POW block uses, so the enemies play their real defeat
+    // rather than blinking out of existence.
+    void clearOnScreenEnemies();
     // Clear enemies sitting on a respawn point and grant landing invincibility,
     // so coming back to life is not immediately fatal.
     void makeSpawnSafe(Player* who, sf::Vector2f respawn);

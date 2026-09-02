@@ -1869,11 +1869,25 @@ void testDebugConsoleDispatchesCommands() {
     console.submit("tp 640 320");
     check(mario.getPosition().x == 640.0f && mario.getPosition().y == 320.0f, "tp moves the player");
 
+    // R21: `god` used to set invincibilityTimer to 100000. That guarded only
+    // Player::takeDamage's i-frame check — a pit, the level clock and a crush
+    // all still ended the run — and it borrowed the field that drives the hurt
+    // animation. It now flips the same IMMORTAL and INVINCIBLE switches the
+    // Debug > Cheats panel does, so panel and console cannot disagree.
+    DebugCheats& cheats = Game::getInstance().debugCheats();
+    check(console.submit("god").find("DEBUG MODE") != std::string::npos,
+          "god says why it did nothing when cheats are disarmed");
+    cheats.arm(true);
     const std::string godOn = console.submit("god");
-    check(godOn.find("on") != std::string::npos && mario.getInvincibilityTimer() > 9000.0f,
-          "god toggles invincibility on");
+    check(godOn.find("on") != std::string::npos &&
+          cheats.rescueInsteadOfKill() && cheats.blocksDamage(),
+          "god toggles IMMORTAL and INVINCIBLE on together");
+    check(mario.getInvincibilityTimer() <= 0.0f,
+          "and does so without faking a 100000-second hurt timer");
     console.submit("god");
-    check(mario.getInvincibilityTimer() <= 0.0f, "and off again");
+    check(!cheats.rescueInsteadOfKill() && !cheats.blocksDamage(), "and off again");
+    cheats.resetForNewRun();
+    cheats.arm(false);
 
     // parseEntityTypeName falls back to Goomba, so an unrecognised name would
     // otherwise silently spawn one.

@@ -9,6 +9,7 @@
 #include <string>
 #include "Core/GameStateManager.hpp"
 #include "Core/DifficultyStrategy.hpp"
+#include "Core/DebugCheats.hpp"
 #include "Core/GameMode.hpp"
 #include "Utils/InputScript.hpp"
 
@@ -140,7 +141,21 @@ public:
     // console (backtick): the editor is a shipped feature and the console owns
     // its own visibility flag.
     bool getDebugMode() const { return m_debugMode; }
-    void setDebugMode(bool enabled) { m_debugMode = enabled; }
+    // Arms or disarms the cheats with the flag, so turning debug mode off in
+    // Options cannot leave an immortal player behind in the level underneath it.
+    void setDebugMode(bool enabled);
+
+    // The Debug > Cheats switches — immortality, slow motion, hidden HUD.
+    //
+    // Handed out as a reference rather than proxied through nine pairs of
+    // delegating accessors on Game (directive 5's "avoid unnecessary, trivial
+    // getters/setters"). DebugCheats is the encapsulation here: it owns its own
+    // armed gate and taint rule, and its methods are named for the decisions
+    // callers make rather than for the bools behind them. The non-const form
+    // exists for the two surfaces that legitimately flip switches — the ImGui
+    // panel and the console's `god` command; everything else asks the const one.
+    DebugCheats& debugCheats() { return m_cheats; }
+    const DebugCheats& debugCheats() const { return m_cheats; }
 
     // What match is being played. PlayingState publishes this when it sets a
     // level up, so systems too deep to be handed the mode — the collision
@@ -188,6 +203,10 @@ private:
     std::unordered_map<std::string, std::string> m_keyBindings2;
     bool m_colorblindMode = false;
     bool m_debugMode = false;
+    // Deliberately NOT persisted alongside the settings above: a cheat is a
+    // per-take aid, and a config.json that remembered immortality would make
+    // the next ordinary launch a cheated one.
+    DebugCheats m_cheats;
     MatchConfig m_matchConfig;
 
     // Scripted input for verification runs. Inactive unless loadInputScript()

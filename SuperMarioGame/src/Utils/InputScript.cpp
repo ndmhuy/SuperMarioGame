@@ -58,6 +58,21 @@ bool InputScript::parseKey(const std::string& name, sf::Keyboard::Key& out) {
     if (name == "F1")        { out = sf::Keyboard::Key::F1;        return true; }
     // F5 is attract mode from the menu and Playtest from the level editor.
     if (name == "F5")        { out = sf::Keyboard::Key::F5;        return true; }
+    // The rest of the function row is Debug > Cheats' shortcuts (F2 immortal,
+    // F3 invincible, F4 infinite lives, F6 freeze timer, F7 hide HUD, F8
+    // noclip, F9 free camera, F10 infinite fireballs). A script must be able to
+    // reach them: the cheats' other surface is an ImGui panel, and ImGui takes
+    // its mouse from the real pointer rather than from this script's, so a
+    // checkbox is the one control a verification run cannot click.
+    if (name == "F2")        { out = sf::Keyboard::Key::F2;        return true; }
+    if (name == "F3")        { out = sf::Keyboard::Key::F3;        return true; }
+    if (name == "F4")        { out = sf::Keyboard::Key::F4;        return true; }
+    if (name == "F6")        { out = sf::Keyboard::Key::F6;        return true; }
+    if (name == "F7")        { out = sf::Keyboard::Key::F7;        return true; }
+    if (name == "F8")        { out = sf::Keyboard::Key::F8;        return true; }
+    if (name == "F9")        { out = sf::Keyboard::Key::F9;        return true; }
+    if (name == "F10")       { out = sf::Keyboard::Key::F10;       return true; }
+    if (name == "F11")       { out = sf::Keyboard::Key::F11;       return true; }
     return false;
 }
 

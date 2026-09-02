@@ -52,6 +52,12 @@ private:
     void drawPersistencePanel(PlayingState& state);
     // Task 9.1's AI debug overlay: what every live enemy is doing and why.
     void drawAiOverlay(PlayingState& state);
+    // Debug > Cheats: the recording aids — immortality, invincibility, slow
+    // motion, a hidden HUD, a free camera, a power-state picker. Toggles rather
+    // than console commands because they are used mid-take, with one hand on the
+    // controls and no time to type; the console's equivalents stay for scripting.
+    void drawCheatPanel(PlayingState& state);
+
     // Live tunables for the two-player modes: the shadow's delay and drift
     // correction, and the CPU opponent's skill, style, reaction and noise. These
     // are the numbers docs/two_player_ai_plan.md picks values for, and picking

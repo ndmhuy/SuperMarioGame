@@ -416,6 +416,7 @@ add_verify_test(verify_regressions "tests/verify_regressions.cpp")
 add_verify_test(verify_r21_entity_guards "tests/verify_r21_entity_guards.cpp")
 add_verify_test(verify_r21_level_data "tests/verify_r21_level_data.cpp")
 add_verify_test(verify_r21_ui_layout "tests/verify_r21_ui_layout.cpp")
+add_verify_test(verify_r21_debug_cheats "tests/verify_r21_debug_cheats.cpp")
 add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 
 # Two-player modes, the CPU opponent and Shadow Mario. Headless: it drives the

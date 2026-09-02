@@ -35,6 +35,10 @@ void Game::run() {
     // persisted setting stayed a string nothing consumed (task 9.4).
     setDifficulty(m_difficulty);
 
+    // The cheats follow the persisted debug flag. loadSettings() writes
+    // m_debugMode directly, so nothing has armed them yet at this point.
+    m_cheats.arm(m_debugMode);
+
     // Apply loaded volumes to SoundManager
     SoundManager::getInstance().setSFXVolume(m_sfxVolume);
     SoundManager::getInstance().setMusicVolume(m_musicVolume);
@@ -92,7 +96,14 @@ void Game::run() {
 
     while (m_isRunning && m_window && m_window->isOpen()) {
         sf::Time elapsed = clock.restart();
-        lag += elapsed.asSeconds();
+        // The time scale is applied to the accumulator and nowhere else, which is
+        // what keeps slow motion a SIMULATION effect. Everything below this line
+        // that is handed `elapsed` — event polling, the input script's own clock,
+        // ImGui::SFML::Update — keeps real time, so the cheat panel stays
+        // responsive at 0.1x and a scripted `wait 2` still means two seconds.
+        // Scaling the fixed timestep itself would have been the other option and
+        // is wrong: the physics constants in SPEC are quoted per 1/60s step.
+        lag += elapsed.asSeconds() * m_cheats.simulationTimeScale();
 
         // 1. Handle Events (SFML 3.0 style)
         while (const std::optional<sf::Event> event = m_window->pollEvent()) {
@@ -453,6 +464,15 @@ void Game::setSfxVolume(float volume) {
 void Game::setMusicVolume(float volume) {
     m_musicVolume = volume;
     SoundManager::getInstance().setMusicVolume(volume);
+}
+
+void Game::setDebugMode(bool enabled) {
+    m_debugMode = enabled;
+    // The cheats are armed by the same switch that shows the panel. Without
+    // this, turning DEBUG MODE off from the Options screen would hide the
+    // controls while leaving whatever they had set still acting on the level
+    // underneath — an immortal player with no visible way to stop being one.
+    m_cheats.arm(enabled);
 }
 
 void Game::setDifficulty(const std::string& diff) {

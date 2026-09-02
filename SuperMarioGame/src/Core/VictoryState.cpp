@@ -40,7 +40,10 @@ void VictoryState::enter() {
 
     // Finishing the campaign ends the run, so that is a final score worth
     // recording. Clearing a single level is not — the run continues.
-    if (m_summary.isFinalLevel) {
+    // ... and not at all if Debug > Cheats was used during the run: a campaign
+    // finished immortal is a demo, not a score. Same rule and same reason as
+    // GameOverState's.
+    if (m_summary.isFinalLevel && !Game::getInstance().debugCheats().tainted()) {
         HighScoreEntry entry;
         entry.score     = m_summary.finalScore;
         entry.coins     = m_summary.coins;

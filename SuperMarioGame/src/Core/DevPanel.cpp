@@ -67,6 +67,7 @@ void DevPanel::draw(PlayingState& state) {
     }
 
     if (!state.m_mapEditor.isActive()) {
+        drawCheatPanel(state);
         drawPlaygroundPanel(state);
         drawPersistencePanel(state);
         // Achievement toasts are NOT drawn here. UiRenderer::drawAchievementToasts,
@@ -141,6 +142,128 @@ void DevPanel::drawAiOverlay(PlayingState& state) {
         if (shown == 0) {
             ImGui::TextDisabled("No live enemies in this level.");
         }
+    }
+
+    ImGui::End();
+}
+
+void DevPanel::drawCheatPanel(PlayingState& state) {
+    // (912, 8) is the slot the old floating map-editor window used, and this
+    // panel is only ever drawn while the editor is NOT active (see draw()), so
+    // the two can never be up at once. Collapsed by default, like every other
+    // dev window: a panel that covers the game is useless to someone recording
+    // the game.
+    ImGui::SetNextWindowPos(ImVec2(912.0f, 8.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 600.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
+    ImGui::Begin("Debug > Cheats (recording aids)");
+
+    DebugCheats& cheats = Game::getInstance().debugCheats();
+
+    // ImGui's TextDisabled and TextColored do not wrap, and this window is
+    // narrow on purpose (it must not cover the game while recording), so the
+    // explanatory lines below would run off the right edge and be unreadable.
+    auto wrappedText = [](ImVec4 colour, const char* text) {
+        ImGui::PushStyleColor(ImGuiCol_Text, colour);
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::PopStyleColor();
+    };
+    const ImVec4 dimmed = ImGui::GetStyle().Colors[ImGuiCol_TextDisabled];
+
+    ImGui::TextWrapped("Switches for recording an instruction video. All of them "
+                       "reset when a run starts, and a run that used any of them "
+                       "writes no high score and unlocks no achievement.");
+    ImGui::Separator();
+
+    // Written straight through rather than queued: DebugCheats holds no game
+    // state — no entity list, no tilemap — so flipping one during render()
+    // cannot upset the frame the way the queued actions in this file's other
+    // panels would. What READS the flag is already on the fixed timestep.
+    for (const DebugCheats::Cheat cheat : DebugCheats::all()) {
+        bool on = cheats.isOn(cheat);
+        if (ImGui::Checkbox(DebugCheats::label(cheat), &on)) {
+            cheats.set(cheat, on);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", DebugCheats::description(cheat));
+        }
+    }
+    wrappedText(dimmed, "Shortcuts, in this order: F2 F3 F4 F6 F7 F8 F9 F10. "
+                        "(F1 is the editor and F5 is playtest, so both are skipped.)");
+
+    ImGui::Separator();
+    ImGui::Text("Time scale (simulation only)");
+    float timeScale = cheats.simulationTimeScale();
+    if (ImGui::SliderFloat("##timescale", &timeScale,
+                           DebugCheats::MIN_TIME_SCALE, DebugCheats::MAX_TIME_SCALE,
+                           "%.2fx")) {
+        cheats.setTimeScale(timeScale);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("1x")) cheats.setTimeScale(1.0f);
+    wrappedText(dimmed, "Slow motion for showing coyote time, wall jumps and ground pounds. "
+                        "Input and this panel keep real time. "
+                        "F11 steps 1x - 0.5x - 0.25x - 0.1x without the mouse.");
+
+    ImGui::Separator();
+    ImGui::Text("Power state");
+    if (state.m_player) {
+        // Through setForm()/powerUp(), which are the State and Decorator
+        // machinery's own doors: setForm swaps the base form and leaves an
+        // active Star or Mega decorator wrapped around it (audit A-8), and
+        // powerUp() is what applies the decorators. Assigning m_currentState
+        // here would discard whichever of those was running.
+        struct FormButton { const char* label; Player::Form form; };
+        static const FormButton kForms[] = {
+            {"Small", Player::Form::Small}, {"Super", Player::Form::Super},
+            {"Fire",  Player::Form::Fire},  {"Cape",  Player::Form::Cape},
+            {"Mini",  Player::Form::Mini}
+        };
+        for (int i = 0; i < 5; ++i) {
+            if (i > 0) ImGui::SameLine();
+            if (ImGui::Button(kForms[i].label)) {
+                const Player::Form form = kForms[i].form;
+                queue([form](PlayingState& s) {
+                    if (s.m_player) s.m_player->setForm(form);
+                });
+            }
+        }
+        // The two decorators. Item type indices match Player::powerUp's switch,
+        // the same table the console's `give` command indexes.
+        if (ImGui::Button("Star (10s)")) {
+            queue([](PlayingState& s) { if (s.m_player) s.m_player->powerUp(4); });
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Mega (8s)")) {
+            queue([](PlayingState& s) { if (s.m_player) s.m_player->powerUp(5); });
+        }
+    } else {
+        ImGui::TextDisabled("No active player.");
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Staging");
+    if (ImGui::Button("Kill all enemies on screen")) {
+        queue([](PlayingState& s) { s.clearOnScreenEnemies(); });
+    }
+    if (ImGui::Button("Instant level complete")) {
+        // The same event the flagpole publishes, so the flagpole, the castle
+        // flag, the walk to the door and the summary all run exactly as they
+        // would have. A boss level deliberately refuses while its boss lives —
+        // PlayingState's LevelComplete handler enforces SPEC 6.4 and a cheat
+        // must not be the one way around a rule the level data can already get
+        // wrong.
+        queue([](PlayingState&) {
+            EventBus::getInstance().publish({EventType::LevelComplete, 0});
+        });
+    }
+
+    if (cheats.tainted()) {
+        ImGui::Separator();
+        wrappedText(ImVec4(1.0f, 0.75f, 0.2f, 1.0f),
+                    "This run is a demo: no high score, no achievements.");
     }
 
     ImGui::End();

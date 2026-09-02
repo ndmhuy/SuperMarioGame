@@ -110,6 +110,18 @@ PlayingState::~PlayingState() {
 void PlayingState::enter() {
     std::cout << "Entering PlayingState (startInEditor: " << m_startInEditor << ", isProcedural: " << m_isProcedural << ")" << std::endl;
 
+    // Every run starts honest. Cheats are a per-take recording aid, so they are
+    // reset at the one boundary that is unambiguously "a new run has begun"
+    // rather than left to be turned off by hand — the alternative is a player
+    // who tried immortality once and then spends the campaign wondering why
+    // nothing can kill them. This also clears the taint flag, so the next run's
+    // score is eligible for the high-score table again.
+    //
+    // A level TRANSITION (1-1 to 1-2) constructs a new PlayingState and so also
+    // resets: mildly annoying mid-recording, and the right default. Toggling a
+    // cheat back on costs one click.
+    Game::getInstance().debugCheats().resetForNewRun();
+
     // Load SFX & Start Level BGM
     SoundManager::getInstance().loadAllSounds();
     SoundManager::getInstance().playLevelBGM(m_selectedLevelIndex);
@@ -255,7 +267,11 @@ void PlayingState::enter() {
             }
         }
 
-        if (activeFireballs < 2) { // Max 2 active fireballs on screen
+        // Max 2 active fireballs on screen, unless Debug > Cheats' INFINITE
+        // FIREBALLS is on — the cap is the half of the ration that lives here;
+        // Player::canShootFireball() owns the cooldown half.
+        if (activeFireballs < 2 ||
+            Game::getInstance().debugCheats().liftsFireballCap()) {
             float dir = player->isFacingRight() ? 1.0f : -1.0f;
             sf::Vector2f spawnPos = player->getPosition() + sf::Vector2f(dir * 16.0f, 8.0f);
             sf::Vector2f vel(dir * 350.0f, 50.0f);
@@ -482,6 +498,14 @@ void PlayingState::exit() {
     m_hasExited = true;
 
     std::cout << "Exiting PlayingState" << std::endl;
+
+    // No cheat follows the player out of the level. Slow motion in particular is
+    // applied by Game::run's accumulator, which keeps running over the menus, so
+    // leaving a 0.2x take on would crawl every screen after it. The taint is
+    // deliberately kept — GameOverState and VictoryState are entered after this
+    // and still have to refuse the high-score table for a cheated run.
+    Game::getInstance().debugCheats().disengageAll();
+
     cleanupTestScene();
 
     // RAII subscription tokens (audit X-7): reset() unsubscribes immediately
@@ -575,6 +599,57 @@ void PlayingState::handleInput(const sf::Event& event) {
             // build, where Num6 finishes the level and Num4 kills the player.
             // Behind the same Options > DEBUG MODE flag as the dev panel.
             if (Game::getInstance().getDebugMode()) {
+                // Debug > Cheats on the function row, so the switches this
+                // session is most likely to flip mid-take (immortality, a hidden
+                // HUD) do not need the mouse and a collapsed panel reopened
+                // while the camera is rolling. F1 is the editor and F5 is
+                // playtest/attract, so both are skipped. The panel is the
+                // discoverable surface; these are the shortcut to it, and both
+                // read and write the one DebugCheats object.
+                DebugCheats& cheats = Game::getInstance().debugCheats();
+                // Reported on stderr as well as flipped, because the panel these
+                // shadow is collapsed by default: without a line here there is
+                // no way to tell a shortcut that landed from one that did not.
+                auto toggleAndReport = [&cheats](DebugCheats::Cheat cheat) {
+                    cheats.toggle(cheat);
+                    std::cout << "[Cheats] " << DebugCheats::label(cheat) << ": "
+                              << (cheats.isOn(cheat) ? "ON" : "off") << std::endl;
+                };
+                switch (keyPressed->code) {
+                    case sf::Keyboard::Key::F2:
+                        toggleAndReport(DebugCheats::Cheat::Immortal); break;
+                    case sf::Keyboard::Key::F3:
+                        toggleAndReport(DebugCheats::Cheat::Invincible); break;
+                    case sf::Keyboard::Key::F4:
+                        toggleAndReport(DebugCheats::Cheat::InfiniteLives); break;
+                    case sf::Keyboard::Key::F6:
+                        toggleAndReport(DebugCheats::Cheat::FreezeTimer); break;
+                    case sf::Keyboard::Key::F7:
+                        toggleAndReport(DebugCheats::Cheat::HideHud); break;
+                    case sf::Keyboard::Key::F8:
+                        toggleAndReport(DebugCheats::Cheat::Noclip); break;
+                    case sf::Keyboard::Key::F9:
+                        toggleAndReport(DebugCheats::Cheat::FreeCamera); break;
+                    case sf::Keyboard::Key::F10:
+                        toggleAndReport(DebugCheats::Cheat::InfiniteFireballs); break;
+                    case sf::Keyboard::Key::F11: {
+                        // Steps the slider's useful stops rather than nudging by
+                        // a delta: mid-take you want a named speed you can get
+                        // back out of, not to hunt for 1.0x again by ear.
+                        constexpr float kStops[] = {1.0f, 0.5f, 0.25f, 0.1f};
+                        const float now = cheats.simulationTimeScale();
+                        int next = 0;
+                        for (int i = 0; i < 4; ++i) {
+                            if (std::abs(kStops[i] - now) < 0.001f) { next = (i + 1) % 4; break; }
+                        }
+                        cheats.setTimeScale(kStops[next]);
+                        std::cout << "[Cheats] Time scale: " << kStops[next] << "x" << std::endl;
+                        break;
+                    }
+                    default:
+                        break;
+                }
+
                 EventBus& bus = EventBus::getInstance();
                 switch (keyPressed->code) {
                     case sf::Keyboard::Key::Num1: // Collect Coin
@@ -756,9 +831,14 @@ void PlayingState::update(float dt) {
     // needs gating is who the keys belong to while the window *is* focused:
     // typing "difficulty hard" in the console, or into any ImGui field, must not
     // also walk the player right on every "d".
+    // Debug > Cheats' FREE CAMERA borrows the same keys the editor's free camera
+    // uses (WASD/arrows), so while it is on the movement keys belong to the
+    // camera and the player holds still — which is the point of framing a shot
+    // without walking there.
     const bool inputBelongsToGameplay =
         !DebugConsole::getInstance().isVisible() &&
-        !ImGui::GetIO().WantCaptureKeyboard;
+        !ImGui::GetIO().WantCaptureKeyboard &&
+        !Game::getInstance().debugCheats().detachesCamera();
 
     if (inputBelongsToGameplay) {
         if (m_player)  InputManager::getInstance().update(*m_player);
@@ -942,6 +1022,14 @@ void PlayingState::update(float dt) {
         if (!who || !who->isActive()) continue;
         const sf::Vector2f at = who->getPosition();
         if (at.y > bottomVoidY || at.x < -64.0f || at.x > rightVoidX) {
+            // Debug > Cheats' IMMORTAL short-circuits ahead of the publish, not
+            // just inside killPlayer(): PlayerDied is what StatisticsTracker
+            // counts a death on, and a run nobody died in must not be reported
+            // as one full of deaths.
+            if (Game::getInstance().debugCheats().rescueInsteadOfKill()) {
+                rescuePlayer(who, "fell into the void");
+                continue;
+            }
             // Nothing else publishes for a fall, so this path does.
             EventBus::getInstance().publish({EventType::PlayerDied, who});
             killPlayer(who, "fell into the void");
@@ -1017,7 +1105,11 @@ void PlayingState::update(float dt) {
     // rewind, but never actually decremented — so there was no time pressure and
     // no time-out death, and TimeWarning was never published despite having a
     // subscriber (audit G-2).
-    if (!m_levelComplete && m_levelTimer > 0.0f) {
+    // Debug > Cheats' FREEZE TIMER holds the countdown where it is, so a take can
+    // run past the level's own clock without the countdown creeping into
+    // the shot or timing the run out mid-sentence.
+    if (!m_levelComplete && m_levelTimer > 0.0f &&
+        !Game::getInstance().debugCheats().holdsLevelTimer()) {
         m_levelTimer -= dt;
 
         if (!m_timeWarningFired && m_levelTimer <= 100.0f) {
@@ -1055,7 +1147,14 @@ void PlayingState::update(float dt) {
     updateBossArena();
 
     // 4. Update Camera & Screen Transitions
-    if (m_player2) {
+    //
+    // Debug > Cheats' FREE CAMERA takes the camera off the player entirely so a
+    // shot can be framed without walking there. It has to pre-empt every follow
+    // path below, versus included, or the follow would drag the frame straight
+    // back to the player on the same tick the pan moved it away.
+    if (Game::getInstance().debugCheats().detachesCamera()) {
+        updateFreeCamera(dt);
+    } else if (m_player2) {
         updateVersusCamera(dt);
     } else if (m_player) {
         // Velocity drives the lookahead (task 4.3): the camera leads the player
@@ -1074,7 +1173,13 @@ void PlayingState::update(float dt) {
     // plane (3c, above) is a world-space plane well below the level, and a
     // falling player must keep dropping below the visible view until that
     // check catches them rather than being arrested at the screen's bottom.
-    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying()) {
+    // Exempt under FREE CAMERA (the player is standing still somewhere the frame
+    // has deliberately been moved away from, and shoving them back into it would
+    // undo the shot) and under NOCLIP (a ghost that cannot leave the visible
+    // window is not a ghost).
+    const DebugCheats& cheatsForClamp = Game::getInstance().debugCheats();
+    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying() &&
+        !cheatsForClamp.detachesCamera() && !cheatsForClamp.passesThroughSolids()) {
         const AABB view = m_camera.getVisibleBounds();
         const AABB box = m_player->getBoundingBox();
         sf::Vector2f position = m_player->getPosition();
@@ -1519,6 +1624,61 @@ void PlayingState::detonatePOW() {
     std::cout << "[PlayingState] POW block: flipped " << flipped << " enemy(ies)." << std::endl;
 }
 
+void PlayingState::updateFreeCamera(float dt) {
+    // Bounds off while detached, so the frame can sit past the edge of the level
+    // — otherwise the pan stops dead at the last column and half the point of a
+    // free camera (framing scenery, the flagpole, the sky above a level) is
+    // lost. update() re-asserts the invariant the moment the cheat goes off, the
+    // same way it already does after the map editor unclamps it (audit C-3).
+    if (m_camera.isBoundsEnabled()) m_camera.setBoundsEnabled(false);
+
+    // Deliberately the same keys and the same 650 px/s as
+    // MapEditor::handlePanning(): the editor's free camera is the one this
+    // project already has, and a second set of pan keys to remember would be a
+    // worse tool, not a better one.
+    constexpr float PAN_SPEED = 650.0f;
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
+
+    InputManager& input = InputManager::getInstance();
+    sf::Vector2f pan{0.0f, 0.0f};
+    if (input.isHeld(sf::Keyboard::Key::A) || input.isHeld(sf::Keyboard::Key::Left))  pan.x -= 1.0f;
+    if (input.isHeld(sf::Keyboard::Key::D) || input.isHeld(sf::Keyboard::Key::Right)) pan.x += 1.0f;
+    if (input.isHeld(sf::Keyboard::Key::W) || input.isHeld(sf::Keyboard::Key::Up))    pan.y -= 1.0f;
+    if (input.isHeld(sf::Keyboard::Key::S) || input.isHeld(sf::Keyboard::Key::Down))  pan.y += 1.0f;
+    if (pan.x != 0.0f || pan.y != 0.0f) {
+        m_camera.move(pan * PAN_SPEED * dt);
+    }
+}
+
+void PlayingState::clearOnScreenEnemies() {
+    // Same on-screen test and the same "a boss is not a Goomba" carve-out as
+    // detonatePOW(), for the same reason: one button must not silently end a
+    // fight that has a health bar and a win condition attached to it.
+    const AABB view = m_camera.getVisibleBounds();
+    int cleared = 0;
+
+    for (const auto& entity : m_entities) {
+        auto* enemy = dynamic_cast<Enemy*>(entity.get());
+        if (!enemy || !enemy->isActive() || enemy->isDeadOrDying()) continue;
+        if (dynamic_cast<Boss*>(enemy)) continue;
+
+        const AABB box = enemy->getBoundingBox();
+        const bool onScreen = box.x + box.width  > view.x &&
+                              box.x              < view.x + view.width &&
+                              box.y + box.height > view.y &&
+                              box.y              < view.y + view.height;
+        if (!onScreen) continue;
+
+        // onStomped() rather than destroy(): the defeat animation, the sound and
+        // the shell-vs-Goomba difference are what a demo is being recorded to
+        // show. Unlike detonatePOW() this awards no score — a cleared frame is
+        // staging, not play.
+        enemy->onStomped();
+        ++cleared;
+    }
+    std::cout << "[Cheats] Cleared " << cleared << " on-screen enemy(ies)." << std::endl;
+}
+
 void PlayingState::syncBackdropGround() {
     // Find the top of the ground the player actually walks on, and hand it to the
     // backdrop so the hills and bushes stand on it.
@@ -1671,8 +1831,13 @@ void PlayingState::render(sf::RenderTarget& target) {
         }
     }
 
-    // Draw the screen-space HUD overlay
-    if (m_hud) {
+    // Draw the screen-space HUD overlay.
+    //
+    // Debug > Cheats' HIDE HUD takes the whole screen-space layer away — score
+    // bar, minimap, match line, the rewind vignette — rather than only the score
+    // bar, because "clean capture for b-roll" means nothing of the interface is
+    // in the frame.
+    if (m_hud && !Game::getInstance().debugCheats().hidesHud()) {
         sf::View oldView = target.getView();
         target.setView(target.getDefaultView());
         target.draw(*m_hud);
@@ -2626,11 +2791,82 @@ bool PlayingState::anyDeathInProgress() const {
     return m_death.phase != DeathPhase::None || m_death2.phase != DeathPhase::None;
 }
 
+sf::Vector2f PlayingState::rescueDestination(const Player* who) const {
+    const float mapRight = m_tileMap.getWidth() * Constants::TILE_SIZE;
+    const AABB box = who->getBoundingBox();
+
+    // (a) The column they fell from. Clamped into the map first, so a player who
+    // left sideways is put back at the nearest real column rather than dropped
+    // straight to (b) — "where I was" is still the best answer available.
+    const float columnX = std::clamp(who->getPosition().x, 0.0f,
+                                     mapRight - Constants::TILE_SIZE);
+    // From the top of the map down: the FIRST solid tile in the column is the
+    // surface they were walking on before they left it. Scanning from their
+    // current y would find whatever is under the pit instead, which is the one
+    // place they must not be put back.
+    const float floorTop = floorBelow(columnX + Constants::TILE_SIZE * 0.5f, 0.0f);
+    if (floorTop >= 0.0f &&
+        isSpawnUsable({columnX, floorTop - Constants::TILE_SIZE})) {
+        // Placed by the FEET, not by the 32px probe box: a Super or Cape player
+        // is taller than the box isSpawnUsable() tests with, and landing them by
+        // the box would bury them by the difference.
+        return {columnX, floorTop - box.height};
+    }
+
+    // (b) A genuine bottomless pit — nothing solid anywhere in that column. The
+    // last checkpoint is the next-best claim on "where they were".
+    if (m_hasCheckpoint && isSpawnUsable(m_checkpointPosition)) {
+        return m_checkpointPosition;
+    }
+
+    // (c) The level's own spawn, nudged onto something usable if the level file
+    // buried it (the same treatment every other transition into this level got).
+    return usableSpawnNear(m_levelSpawnPoint, "<immortal rescue>");
+}
+
+void PlayingState::rescuePlayer(Player* who, const char* reason) {
+    if (!who) return;
+
+    const sf::Vector2f destination = rescueDestination(who);
+    who->setPosition(destination);
+    who->setVelocity({0.0f, 0.0f});
+    who->setGrounded(false);
+
+    // Deliberately NOT touched: lives, coins, score, the power-up form, the
+    // combo and m_levelTimer. "No lost progress" is the whole point — a rescue
+    // that cost the fire flower would still ruin the take it was meant to save.
+    //
+    // A second of i-frames, because the rescue can land next to whatever was
+    // chasing them. Under 1.7s so it does not trip the hurt animation
+    // (Player::update reads the same timer to pick that frame). No enemy sweep:
+    // makeSpawnSafe() deletes enemies near a respawn, and deleting level content
+    // out from under a recording is exactly the kind of surprise this must not
+    // spring.
+    who->setInvincible(1.0f);
+
+    if (who == m_player && !Game::getInstance().debugCheats().detachesCamera()) {
+        m_camera.snapTo(destination);
+    }
+
+    std::cout << "[Cheats] IMMORTAL: rescued " << (who == m_player2 ? "Player 2" : "Player 1")
+              << " (" << reason << ") to (" << destination.x << ", " << destination.y
+              << "). Lives unchanged at " << who->getLives() << "." << std::endl;
+}
+
 void PlayingState::killPlayer(Player* who, const char* reason) {
     // Null means Player 1: the debug key and the level-timer path have no
     // particular player in mind.
     if (!who) who = m_player;
     if (!who) return;
+
+    // Debug > Cheats' IMMORTAL, checked at the single door every lethal event in
+    // the game comes through — the void plane, the level clock, lava, a crush, a
+    // hit that finishes Small Mario. Nothing downstream of here runs: no death
+    // fall, no life spent, no game over.
+    if (Game::getInstance().debugCheats().rescueInsteadOfKill()) {
+        rescuePlayer(who, reason);
+        return;
+    }
 
     DeathState* death = deathStateFor(who);
     if (!death) return;   // not a participant — the shadow cannot die
