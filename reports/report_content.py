@@ -879,13 +879,15 @@ outside the process is touched, so a verification run is reproducible.</p>
 {img('05_map_editor.png', 'Map editor', 'Figure 5 &mdash; The in-game level editor (F1). The entity palette is generated from the single catalogue and grouped into Players, Enemies, Items, Blocks and Scenery, with a filter box and the serialised name on hover. Edits go through Command objects, so undo and redo come for free.')}
 
 <h2 id="process">12 &middot; Process and project history</h2>
-<p>The project ran from 29 May to 22 August 2026 across {F['weeklies']} weekly reporting periods
-(<code>docs/Group52_04/</code> through <code>Group52_10/</code>), {F['commits']} commits and
-{F['sessions']} recorded working sessions in <code>logs/agent_history.log</code>. That log is not a changelog: each entry records the
-commit before and after, whether the remotes were fetched, whether the work is reachable from
-<code>main()</code>, and how it was verified. Several sections of this report are drawn from it,
-including the failures below.</p>
+<p>The project ran from 29 May to 2 September 2026 across {F['weeklies']} weekly reporting periods
+(<code>docs/Group52_04/</code> through <code>Group52_13/</code>), {F['commits']} commits and
+{F['sessions']} recorded working sessions in <code>logs/agent_history.log</code>. This section is
+about the third of those numbers rather than the first two: <strong>how the project checked itself,
+what the checking produced, and why its engineering rules read the way they do</strong>. The
+individual defects are deliberately not restated here &mdash; the five worth reading are worked
+through in &sect;10, and the full ledgers live in the audit documents named below.</p>
 
+<h3>12.1 Timeline</h3>
 <div class="tbl"><table>
 <thead><tr><th>Period</th><th>Dates</th><th>What landed</th></tr></thead>
 <tbody>
@@ -910,52 +912,175 @@ including the failures below.</p>
 <tr><td><strong>W10</strong></td><td>9 &ndash; 15 Aug</td>
  <td>The three-world campaign with warp-pipe sub-levels, physics normalisation for static bodies, and
  hitbox tuning.</td></tr>
-<tr><td><strong>Delivery</strong></td><td>16 &ndash; 22 Aug</td>
- <td>The audit and its remediation, the first green CI, the boss fights, multiplayer and the CPU
- opponent, and the Windows-playtest defects in &sect;10.</td></tr>
+<tr><td><strong>W11</strong></td><td>16 &ndash; 22 Aug</td>
+ <td>The first checkpoint audit and its remediation, the first green CI, the boss fights, multiplayer
+ and the CPU opponent, and the Windows crash root-cause in &sect;10.1. The heaviest week of the
+ project.</td></tr>
+<tr><td><strong>W12</strong></td><td>23 &ndash; 29 Aug</td>
+ <td>One commit, on every branch. Reported as a quiet week rather than padded with the adjacent
+ weeks' work.</td></tr>
+<tr><td><strong>W13</strong></td><td>30 Aug &ndash; 5 Sep<br><em>reported to 2 Sep</em></td>
+ <td>The specification audit, its twenty remediation batches, and the submission sweep: pipe entry
+ modes, save-slot selection, the lighting renderer, the level editor's custom levels, the entity
+ registry, and the documents this report is part of.</td></tr>
 </tbody></table></div>
 
-<h3>12.1 The audit, and what it cost</h3>
-<p>On 18 August a full review of both domains produced <strong>37 findings, 7 of them critical</strong>
-(<code>docs/issues/code_audit_2026-08-18.md</code>, GitHub issue #11). It is the hinge of the project,
-and three things about it are worth more than the findings themselves.</p>
-<blockquote><strong>The audit's first revision was wrong, and had to be retracted publicly.</strong>
-It was written against a local <code>dev</code> that was nine commits stale, and on that basis declared
-the entire audio system missing. The audio system was implemented and merged on
-<code>origin/dev</code>. The finding was withdrawn on issue #11.</blockquote>
-<blockquote><strong>About 3,100 lines of finished work were sitting uncommitted.</strong> Three
-sub-level maps, the tools directory and a week's report were in the working tree with no commit, one
-careless <code>git clean</code> from being lost. They were committed before anything else
-happened.</blockquote>
-<blockquote><strong>Six subsystems were "complete" and inert.</strong> The minimap, particle system,
-death effects and screen transitions all compiled, all had passing harnesses, and none were
-constructed by the game. They were wired in the same session &mdash; and the menu music, which had
-been silently failing at startup for weeks, was found by <em>running the game for six seconds</em>,
-not by any test.</blockquote>
-<p>Each of those became a rule rather than a patch, recorded in <code>AGENTS.md</code> with the
-incident that motivates it: fetch before describing repository state; never discard uncommitted work
-to unblock a git operation; and "complete" means reachable from <code>main()</code> and observed
-running, not that a file exists and compiles. The report you are reading is written to that third
-rule, which is why &sect;4 says how each capability was confirmed and &sect;13 says what is not done.</p>
+<h3>12.2 The procedure: checkpoint audits, repeated</h3>
+<p>The project's verification is not one final review. <strong>Four times, work stopped and the tree
+was audited against something outside itself</strong> &mdash; the specification, the reports' own
+claims, or a reader who had written none of it. Each audit produced a numbered defect ledger; each
+ledger was worked off in batches; each batch left a test behind.</p>
+<p><strong>18 August &mdash; code audit.</strong> A full read of both members' domains against the
+code reachable from <code>main()</code>. It produced <strong>37 findings, 7 of them critical</strong>
+(GitHub issue #11), and it is the hinge of the project: three of the rules in
+<code>AGENTS.md</code> exist because of what it found, not because of what it fixed
+(&sect;12.4).</p>
+<p><strong>31 August &mdash; specification and claim audit.</strong> Three parallel read-only passes
+reconciled <code>SPEC.md</code> v2.0's frozen 110-feature specification against the code, and
+&mdash; the part that matters for a report &mdash; against <em>every claim the project's own
+documents made</em>: the features list, this report's prose, both task checklists. Twenty-eight
+defects were raised. On re-verification <strong>four were struck</strong>: one refuted by live
+evidence in the same session that recorded it, one describing an animation that does not exist in
+the codebase, one already fixed twelve days earlier, and one whose stated mechanism is absent from
+the code (&sect;13). The audit recorded its own methodological failure &mdash; observations had been
+folded in without re-verification against the commit being audited &mdash; and made
+re-verification-before-recording a standing requirement.</p>
+<p><strong>2 September &mdash; submission sweep.</strong> The audit this report was written inside.
+It re-derived the tree's facts from the tree, rebuilt every stale document, and ran five defect
+lanes in isolated worktrees off one frozen baseline. Its own execution record is
+<code>docs/issues/submission_sweep_plan_2026-09-02.md</code> &sect;8, written as the work happened
+rather than afterwards.</p>
+<p><strong>The sweep's own per-lane review round.</strong> The fourth audit is the one inside the
+third. No lane's report was accepted on its word: <strong>the reviewer re-ran the lane's own
+measurement</strong> &mdash; its <code>ctest</code> run, its commit range count, its build &mdash;
+before accepting the branch. Several lanes were sent back for rework, one of them three times over
+counts it had typed but could not measure. Several others came back having <em>corrected the plan
+that briefed them</em> &mdash; a document it was told to archive turned out to be cited by section
+number from seven live engine sources, and a defect it was told to fix did not exist (&sect;12.4).
+That is the outcome a review round exists to produce.</p>
+<p><strong>Remediation in numbered batches.</strong> Every defect got a number and its own small
+project: a branch, a fix, a guard that fails without the fix, and a log entry recording what was
+actually run. The two audits' remediation ran as numbered batches <strong>R1 through R21</strong>
+(one of which, R18, was cancelled after the defect it targeted was struck). The numbering is the
+useful part &mdash; a defect that is cited by number in a commit
+message, a test name (<code>verify_r21_flagpole_softlock</code>), a code comment and a log entry
+cannot quietly become "probably fixed".</p>
+<p><strong>A guard does not count until it has been watched failing.</strong> Every new test is
+mutation-tested: the fix is reverted, the guard is observed to <em>fail</em>, the fix is restored,
+and the guard is observed to pass again. This catches the failure mode a green suite cannot &mdash;
+a test that passes for the wrong reason. The clearest instance in the sweep: a guard for a
+<code>Spiny</code> that must hatch from an egg before it walks. The obvious mutation, reverting the
+constructor default, would have left the guard <strong>passing vacuously</strong>, because a Spiny
+that was never an egg satisfies "ends up walking" from its first frame. The lane recognised that and
+mutated the hatch trigger itself instead. Honesty runs the other way too: of one lane's seven
+mutation attempts, <strong>one survived</strong> &mdash; the estimate it targeted already floored to
+the same value &mdash; and it is recorded as a surviving mutation in the log rather than quietly
+replaced with a luckier one.</p>
+<p><strong>"Complete" means reachable from <code>main()</code> and observed running.</strong> Not
+that a file exists, compiles, and has a passing harness. This is the project's most expensive lesson
+priced in advance: the 18 August audit found <strong>six subsystems that were "complete" and
+inert</strong> &mdash; compiled, harnessed, green, and constructed by nothing the game ever
+reached. Every claim in &sect;4 of this report is graded against the stronger definition, and where
+only the weaker one holds, &sect;13 says so.</p>
+<p><strong>The log is the audit trail.</strong> <code>logs/agent_history.log</code> holds
+{F['sessions']} entries, and it is not a changelog. Each records the commit before and after,
+whether the remotes were fetched, whether the work is reachable from <code>main()</code>, how it was
+verified, and &mdash; required, not optional &mdash; the mistakes made getting there. It is
+append-only and <strong>union-merged</strong>: when two branches both appended, the resolution is to
+keep both entries, never to pick a side, because a deletion destroys evidence while a duplicate
+merely wastes a line. Several passages of this report, including &sect;12.4, are drawn from it.</p>
+<p><strong>CI is the part that does not depend on anyone remembering.</strong> GitHub Actions builds
+the game and runs the registered test suite on every push to the integration branches
+(<code>.github/workflows/ci.yml</code>), inside a virtual framebuffer and against a dummy audio
+device so that a harness needing a display or a sound card still runs on a headless runner. A rule
+only a human applies is not enforced; CI is what makes "reachable and observed" checkable by
+something other than good intentions.</p>
 
-<h3>12.2 What the history actually shows</h3>
-<p>The defect record has a shape. Of the five problems in &sect;10, three are the same failure wearing
-different clothes &mdash; <strong>one fact stored in two places, drifting apart, with nothing
-comparing them</strong>. The entity list in the factory, the parser and the editor palette. The tile
-name-to-enum mapping duplicated in the loader, which silently dropped every coin tile in all seven
-level files. The flagpole's collision height (300) against its sprite height (168). None of these
-produced a compiler error; all of them produced wrong behaviour that looked like a design choice.</p>
-<p>The project's answer, now standing practice, is that <strong>the commit which creates the second
-copy also creates the test that fails when the copies disagree</strong>. The entity catalogue's parity
-test (&sect;8.3) is the model. The counterexample is instructive too: this very report is generated by
-a script that counts what it claims, and doing so caught two wrong figures before they were
+<h3>12.3 What the audits produced</h3>
+<div class="tbl"><table>
+<thead><tr><th>Mechanism</th><th>What it produced</th><th>Standing effect</th></tr></thead>
+<tbody>
+<tr><td><strong>Code audit</strong><br>18 Aug</td>
+ <td>37 findings, 7 critical. Six subsystems complete and inert. About 3,100 lines of finished work
+ sitting uncommitted. The audit's own first revision retracted.</td>
+ <td>Three <code>AGENTS.md</code> rules, each naming its incident. The first green CI.</td></tr>
+<tr><td><strong>Specification and claim audit</strong><br>31 Aug</td>
+ <td>110 spec features reconciled against code and against every document claim. 28 defects raised,
+ 4 struck on re-verification.</td>
+ <td>Batches R1&ndash;R20. An observation must be re-verified against the audited commit before it
+ is recorded.</td></tr>
+<tr><td><strong>Submission sweep</strong><br>2 Sep</td>
+ <td>Five defect lanes off one frozen baseline; every stale document rebuilt from the tree; one
+ claimed defect withdrawn; a defect found in this report's own fact extractor.</td>
+ <td>Counts in the generated documents come from the tree, never from prose. The sweep's execution
+ record is itself a document.</td></tr>
+<tr><td><strong>Per-lane review round</strong><br>within the sweep</td>
+ <td>Every lane's measurement re-run rather than trusted. Three lanes reworked; two lanes proved the
+ plan wrong.</td>
+ <td>A lane with no way to measure a number will still write one down. Review re-measures.</td></tr>
+<tr><td><strong>Mutation testing</strong></td>
+ <td>Every guard observed failing with its fix reverted. One vacuous guard caught before it shipped;
+ one surviving mutation recorded rather than dropped.</td>
+ <td>A green test is evidence only once it has been seen to go red.</td></tr>
+<tr><td><strong>Reachable-and-observed rule</strong></td>
+ <td>Six inert subsystems wired in one session; the menu music, silently failing for weeks, found by
+ running the game for six seconds.</td>
+ <td>&sect;4 grades every capability by how it was confirmed; &sect;13 lists what only compiles.</td></tr>
+<tr><td><strong>The log</strong></td>
+ <td>{F['sessions']} entries carrying fingerprints, fetch status, reachability, verification and
+ mistakes.</td>
+ <td>Union on merge conflict &mdash; keep both entries, never choose a side.</td></tr>
+<tr><td><strong>CI</strong></td>
+ <td>Build plus the registered suite on every push to the integration branches.</td>
+ <td>The rules stop depending on whoever is at the keyboard.</td></tr>
+</tbody></table></div>
+
+<h3>12.4 The rules came out of the failures</h3>
+<p>This is the part of the process worth defending, because none of the project's engineering rules
+were adopted on principle. Each is a scar, and <code>AGENTS.md</code> records the incident beside
+the rule so a later reader can judge whether it still applies.</p>
+<blockquote><strong>A <code>git reset --hard &amp;&amp; git clean -fd</code> destroyed a week's
+progress report.</strong> It was run to unblock a git operation. The Week 8 report in
+<code>docs/Group52_08/</code> was uncommitted, and it did not come back. A later session then found
+about 3,100 lines of finished work &mdash; three sub-level maps, the tools directory, a week's
+report &mdash; one careless clean from the same fate. <em>Rule:</em> never discard uncommitted work
+to unblock a git operation; commit it, because committing is reversible and discarding is not. Only
+<code>imgui.ini</code>, which the UI regenerates, is exempt.</blockquote>
+<blockquote><strong>An audit was written against a stale local branch and had to be retracted in
+public.</strong> The 18 August audit's first revision was written against a local <code>dev</code>
+nine commits behind, and on that basis declared the entire audio system missing. The audio system
+was implemented and merged on <code>origin/dev</code>. The finding was withdrawn on issue #11.
+<em>Rule:</em> <code>git fetch --all</code> before any task whose output describes repository state,
+and record in the log that it was done. Every audit and weekly report in this project since carries
+that line.</blockquote>
+<blockquote><strong>The same defect kept arriving in different clothes.</strong> Three of the five
+problems in &sect;10 are one failure: <strong>a fact stored in two places, drifting apart, with
+nothing comparing them.</strong> The entity list in the factory, the parser and the editor palette.
+The tile name-to-enum mapping duplicated in the loader, which silently dropped every coin tile in
+all seven level files. The flagpole's collision height against its sprite height. None produced a
+compiler error; all produced wrong behaviour that looked like a design choice. <em>Rule:</em> the
+commit that creates the second copy also creates the test that fails when the copies disagree. The
+entity catalogue's registry walk (&sect;8) is the model.</blockquote>
+<p>The last of those rules caught this report. The document you are reading is generated by a script
+that counts what it claims, and the counting has already found two wrong figures before they were
 printed &mdash; a class count inflated by a substring match, and "23 test files" reported as if it
-meant "23 things CI runs".</p>
-<p>The second pattern is thinner: <strong>86 test harnesses written across the project's logged
-sessions against 4 recorded playtests</strong> at the time of the audit ({F['harnesses']} harnesses
-survive in the tree today after consolidation). Every defect in &sect;10.1, &sect;10.4 and &sect;10.5 was invisible to the test
-suite and obvious within seconds of looking at the running game. The suite is not the problem &mdash;
-it is what makes the fixes stick &mdash; but it verifies what someone already thought to doubt.</p>
+meant "23 things CI runs". The sweep found a third: the extractor that counts registered test cases
+could not see the guards registered through a second CMake mechanism, so the report was
+<em>understating</em> its own verification. A number that is computed can still be computed wrongly;
+what a parity check buys is that the error surfaces as a failure rather than as prose.</p>
+<h4>The audit corrects itself</h4>
+<p>The strongest evidence that this procedure works is not a defect it fixed but a defect it
+<strong>withdrew</strong>. The submission sweep's own plan asserted that the third axe in the Hard
+Bowser fight stood behind the arena enclosure, unreachable by ordinary movement, making that fight
+unwinnable &mdash; a critical, plausible, level-data defect with an obvious remedy. Told to fix it,
+the lane instead <strong>tried to reproduce it</strong>: it confirmed in code that the Hard
+difficulty really does require all three axes, then drove a real <code>Player</code> through real
+<code>PlayingState::update()</code> frames and reached the axe cleanly on the unmodified level file.
+It also tried the remedy the plan proposed &mdash; removing the enclosure's solid tile &mdash; and
+found it changed nothing. <strong>No level data was edited.</strong> The claim was withdrawn, and a
+mutation-tested reachability guard was left in its place, one that fails if the axe is ever moved
+outside the arena's boundary. A procedure that only ever confirms its own findings is not an audit;
+this one is allowed to say it was wrong, and did.</p>
 
 <h2 id="verify">13 &middot; Verification, CI and known gaps</h2>
 <p>The tree holds {F['harnesses']} verification harnesses. {F['targets']} are built by CMake and
