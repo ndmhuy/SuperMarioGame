@@ -31,7 +31,9 @@ SuperMarioGame/corpus/
 
 # LaTeX intermediates. The report PDF itself is committed (the weekly reports
 # are too), but everything pdflatex writes alongside it is a build output and
-# is reproducible with Report/SuperMarioGame/build.sh (g-rule-19).
+# is reproducible with Report/SuperMarioGame/build.sh (g-rule-19). This already
+# covers Report/SuperMarioGame/main.{aux,log,out,toc} (unanchored *.aux/*.out/
+# *.toc below, plus Report/**/main.log) — no separate rule needed for that path.
 *.aux
 *.lof
 *.lot
@@ -67,3 +69,16 @@ SuperMarioGame/build_*/
 # something one developer's scratch level should arrive in another's checkout.
 # The directory is recreated on demand by LevelCatalog::resolvedCustomDirectory.
 SuperMarioGame/assets/levels/custom/
+
+# Root-level PDFs are stale renders of tracked markdown (SPEC.pdf, TASKS.pdf,
+# TASK_DIVISION.pdf, implementation_plan.pdf) — regenerate on demand rather
+# than committing a copy that drifts from its .md source (g-rule-19, g-rule-22).
+# Anchored to the repo root only: submission_documents/*.pdf and
+# Report/SuperMarioGame/*.pdf are real deliverables, not renders, and stay
+# tracked untouched by this rule since they are not at the root.
+/*.pdf
+
+# Zip archives are build outputs of tracked directories (submission_documents/,
+# docs/Group52_XX/) — reproducible on demand, never a second copy to keep in
+# sync (g-rule-19).
+*.zip
