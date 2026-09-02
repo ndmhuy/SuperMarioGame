@@ -122,6 +122,13 @@ void Lakitu::update(float dt) {
         m_eggTimer = 0.0f;
         m_spawnCount++;
 
+        // This request carries no egg flag — EntitySpawnRequest
+        // (Core/GameSnapshot.hpp) has none, and PlayingState's handler builds
+        // whatever EntityFactory::create(EntityType::Spiny, position) returns
+        // with no per-spawn override. That construction now defaults to the
+        // egg state on its own (Spiny::Spiny's isEgg = true default,
+        // Spiny.hpp), so the sideways toss below plus gravity is what makes
+        // this land and hatch instead of touching down already walking.
         EntitySpawnRequest request;
         request.type = static_cast<int>(EntityType::Spiny);
         request.position = position + sf::Vector2f(0.0f, Constants::TILE_SIZE);

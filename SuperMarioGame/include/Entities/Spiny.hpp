@@ -7,7 +7,29 @@
 
 class Spiny : public Enemy {
 public:
-    explicit Spiny(sf::Vector2f position, bool isEgg = false);
+    // Default is true, not false.
+    //
+    // Every real spawn site — EntityCatalogue's make<Spiny> (used by both
+    // LevelLoader and Lakitu's drop, since EntityFactory::create() takes only
+    // a type and a position) and MapGenerator's procedural placement — calls
+    // this single-argument overload. Nothing in production ever passed `true`
+    // or called setEgg(true), so per SPEC §6.1 ("walks on ground after
+    // hatching from egg") the egg state existed in the class and was
+    // permanently dead code: a Lakitu-dropped Spiny appeared already hatched
+    // and walking in mid-air instead of falling as an egg and hatching on
+    // ground contact.
+    //
+    // The correct wire is one line deeper than this file reaches: Lakitu
+    // publishes an EntitySpawnRequested event (EntitySpawnRequest has no egg
+    // flag) that PlayingState's handler turns into a Spiny via
+    // EntityFactory::create(); neither EntitySpawnRequest (Core/GameSnapshot.hpp)
+    // nor PlayingState.cpp nor EntityCatalogue.cpp is a file this lane owns.
+    // Flipping the default here reaches every real construction path without
+    // touching any of them, and matches SPEC's roster entry, which describes
+    // hatching-from-egg as how a Spiny comes into being at all, not as a
+    // Lakitu-only special case. Explicit `false` remains available for a
+    // caller that deliberately wants an already-hatched Spiny.
+    explicit Spiny(sf::Vector2f position, bool isEgg = true);
     ~Spiny() override;
 
     // How many Spinies are alive in the world right now.
