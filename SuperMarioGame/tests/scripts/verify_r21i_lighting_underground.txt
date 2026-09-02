@@ -1,0 +1,135 @@
+# R21 Lane I — Bonus D dynamic lighting, observed underground (directives 9 & 10).
+#
+# What this proves, in order:
+#   1. An UNDERGROUND level renders visibly dark, with a radial light following
+#      the player, produced by assets/shaders/radial_light.frag.
+#   2. The HUD is NOT darkened: the light pass sits between the world pass and
+#      the screen-space HUD pass in PlayingState::render, on purpose.
+#   3. A FIREBALL is a second, moving light source, warm-tinted, separate from
+#      the player's.
+#
+# Precondition — the level this drives:
+#   The campaign's underground levels are sub-levels reached through a warp
+#   pipe, which is not reachable reliably under a script, and World 1-3 (castle)
+#   is locked behind World 1-2 in saves/progress.json. So this run uses the
+#   MAIN MENU > CUSTOM LEVELS path, which addresses a level by PATH and takes the
+#   same LevelLoader -> BackgroundRenderer::setTheme route every level takes.
+#
+#   Before running, put a copy of assets/levels/bonus_1.json (theme
+#   "underground") at assets/levels/custom/r21i_dark_cave.json -- a gitignored
+#   directory, so this is a local fixture and not shipped content -- with a fire
+#   flower next to the spawn and the enemies in the opening stretch removed. A
+#   fire flower takes Small straight to Fire (Player::powerUp case 1), so no
+#   mushroom is needed, and an enemy hit costs Fire Mario his fireballs and with
+#   them the whole point of the take:
+#
+#     python3 - <<'PY'
+#     import json
+#     d = json.load(open('assets/levels/bonus_1.json'))
+#     d['name'] = 'R21I Dark Cave'
+#     enemies = {'goomba','koopa_troopa','koopa_paratroopa','boo','piranha_plant',
+#                'spiny','lakitu','hammer_bro','bullet_bill','thwomp',
+#                'chain_chomp','bowser','boom_boom'}
+#     d['entities'] = [{'type':'fire_flower','x':5,'y':20}] + [
+#         e for e in d['entities'] if not (e['type'] in enemies and e['x'] < 40)]
+#     json.dump(d, open('assets/levels/custom/r21i_dark_cave.json','w'), indent=2)
+#     PY
+#
+# Run with (from SuperMarioGame/):
+#   ./build_r21_lane_i/SuperMarioGame --script tests/scripts/verify_r21i_lighting_underground.txt
+#
+# Needs no debug mode and no cheats.
+
+wait 4.0
+shot r21i_00_menu
+
+# MAIN MENU: START GAME, LOAD GAME, VERSUS, DAILY, EDITOR, CUSTOM LEVELS, ...
+# Five Downs land on CUSTOM LEVELS. The main page has no unselectable rows, so a
+# fixed count is safe here (unlike the multiplayer page, which skips).
+# NOTE on the navigation below: the opening wait is long and every Down has a
+# wait after it. Both are load-bearing. A run with `wait 2.5` and five bare
+# Downs on one frame was observed landing on START GAME instead of CUSTOM
+# LEVELS -- ScreenTransitionManager was still covering the menu and swallowed
+# every press, so the cursor never moved at all. A script that silently
+# verifies a different screen is worse than one that fails.
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.6
+shot r21i_01_custom_levels_row
+
+press Enter
+wait 1.2
+shot r21i_02_custom_level_list
+
+press Enter
+wait 3.5
+# The money shot: an underground level, dark, with the lamp on the player and a
+# fully lit HUD above it.
+shot r21i_03_underground_dark_with_player_light
+
+# Walk right onto the fire flower.
+hold D 1.0
+wait 2.5
+shot r21i_04_fire_mario_underground
+
+# Throw. The fireball is an ordinary entity in m_entities; renderLightPass reads
+# the same list, so its light exists exactly as long as it does.
+#
+# Sampled at four delays on purpose. Fired, the fireball is still inside the
+# player's own halo and proves nothing; the interesting frames are the ones
+# where it has travelled clear of it and is carrying its own warm pool of light
+# through the dark.
+# A thrown fireball crosses the screen in about a third of a second and then
+# burns out on its fourth bounce, so this is sampled every 0.08s rather than at
+# one guessed delay. Frame (b) onward is the one that matters: by then the
+# fireball is clear of the player's own halo and is the only thing lighting the
+# floor under it.
+press F
+wait 0.04
+shot r21i_05_fireball_light_a
+wait 0.04
+shot r21i_06_fireball_light_b
+wait 0.04
+shot r21i_07_fireball_light_c
+wait 0.04
+shot r21i_08_fireball_light_d
+wait 0.04
+shot r21i_09_fireball_light_e
+wait 0.04
+shot r21i_10_fireball_light_f
+wait 0.04
+shot r21i_11_fireball_light_g
+wait 0.04
+shot r21i_12_fireball_light_h
+
+# Move on and throw again further into the cave, so the light is seen against
+# different geometry.
+hold D 1.2
+wait 1.4
+press F
+wait 0.16
+shot r21i_13_fireball_light_deeper
+wait 2.0
+shot r21i_14_underground_settled
+
+# --- The level editor must not be darkened ----------------------------------
+# F1 opens MapEditor over the live level. renderLightPass() returns before it
+# collects a single lamp while the editor is active, so an author placing tiles
+# in an underground level can see what they are doing. (EditorState, the
+# standalone editor, never calls PlayingState::render at all, so it is covered
+# from the other direction by construction.)
+press F1
+wait 1.2
+shot r21i_15_editor_open_undarkened
+press F1
+wait 1.2
+shot r21i_16_editor_closed_dark_again
+
+quit

@@ -942,7 +942,7 @@ The following features, named in the SPEC but not built, have been formally desc
 
 - **F7 Dynamic music layers** (§11.5) — Current single `sf::Music` playback architecture is documented and sufficient; layering adds substantial implementation cost with low grading value.
 
-- **§19.4 Dynamic Lighting & Weather (SFML Shaders)** — Advanced graphics feature requiring shader programming and visual effect tuning; deferred beyond scope.
+- ~~**§19.4 Dynamic Lighting & Weather (SFML Shaders)**~~ — **NO LONGER DESCOPED (R21, 2026-09-02).** Built for real: `assets/shaders/radial_light.frag` is a GLSL 1.20 fragment shader driven by `Graphics/LightingRenderer`, giving underground/castle darkness with a player-centred light, fireballs as moving light sources, and a 100-second day/night cycle. This entry mattered because the rubric line above (110/115, "compensated by GLSL shader effects") rested on it: for a while the same document both claimed the shader credit and descoped the shader. It no longer does. Weather/rain remains unbuilt and out of scope. Falls back to normal rendering when `sf::Shader::isAvailable()` is false.
 
 - **§9.5 Autoscroll sections** — Vertical scrolling level sections would require additional level design and camera state management; deferred.
 

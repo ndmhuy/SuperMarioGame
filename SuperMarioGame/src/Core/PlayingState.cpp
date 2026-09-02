@@ -1821,6 +1821,21 @@ void PlayingState::render(sf::RenderTarget& target) {
     EntityDeathEffect::getInstance().render(target);
     target.draw(ParticleSystem::getInstance());
 
+    // 3b. Bonus D — the dynamic light pass.
+    //
+    // This seam is the whole reason the effect works: everything drawn so far is
+    // the world, and everything after it is either a developer overlay or the
+    // screen-space HUD. Darkening here dims the cave without dimming the score
+    // bar, the minimap or the pause menu, which is what a darkness overlay drawn
+    // last would have done. It sits ahead of the AABB overlay deliberately too —
+    // a debug outline you cannot see is not a debug tool.
+    //
+    // Outside the HUD block on purpose: Debug > Cheats' HIDE HUD takes the
+    // interface away for clean capture, and the lighting is world, not
+    // interface. Hiding the HUD to film a cave must not switch the cave's
+    // lighting off with it.
+    renderLightPass(target);
+
     // 4. Draw AABB overlays (dev toggle)
     if (m_devPanel.showAABB()) {
         // Tile grid AABBs — culled to the same visible window as the tile pass.
@@ -2574,6 +2589,86 @@ bool PlayingState::allPlayersOut() const {
     const bool oneOut = !m_player || m_player->getLives() <= 0;
     const bool twoOut = !m_player2 || m_player2->getLives() <= 0;
     return oneOut && twoOut;
+}
+
+void PlayingState::renderLightPass(sf::RenderTarget& target) {
+    // The level editor paints its own overlay over this same world and its
+    // author needs to see what they are placing. Darkening the level being
+    // edited would be a tool regression dressed up as an effect. EditorState is
+    // a separate state that never calls this render(), so the editor is covered
+    // from both directions.
+    if (m_mapEditor.isActive()) return;
+
+    // Sizes in world px. A ~9-tile lamp leaves a cave readable while still
+    // hiding what is coming; a fireball is a thrown ember, not a torch.
+    constexpr float kPlayerLightRadius   = 290.0f;
+    constexpr float kFireballLightRadius = 210.0f;
+    constexpr float kFreeCameraRadius    = 460.0f;
+
+    std::vector<LightingRenderer::Light> lights;
+    lights.reserve(LightingRenderer::MAX_LIGHTS);
+
+    auto addPlayerLight = [&](Player* who) {
+        if (!who || !who->isActive()) return;
+        const AABB bb = who->getBoundingBox();
+        LightingRenderer::Light light;
+        light.worldPosition = {bb.x + bb.width * 0.5f, bb.y + bb.height * 0.5f};
+        // A perfectly steady disc reads as a vignette bug. A slow 5% breathe
+        // reads as a carried lamp. Driven off m_runElapsed rather than a render
+        // clock so a replay lights the same way it was recorded.
+        light.radius    = kPlayerLightRadius * (1.0f + 0.05f * std::sin(m_runElapsed * 3.7f));
+        light.intensity = 1.0f;
+        // A warm near-neutral SHADOW colour, not a lamp colour -- see
+        // LightingRenderer::Light::shadowTint. Anything brighter than the scene
+        // here draws a bright ring instead of a lamp.
+        light.shadowTint = sf::Color(58, 56, 48);
+        lights.push_back(light);
+    };
+    addPlayerLight(m_player);
+    addPlayerLight(m_player2);
+
+    // Free camera (F9) detaches the view from the player, who can then be
+    // anywhere — including off-screen, leaving the operator panning a black
+    // rectangle. A lamp on the camera itself keeps the cheat usable in exactly
+    // the levels it is most useful for.
+    if (Game::getInstance().debugCheats().detachesCamera()) {
+        LightingRenderer::Light light;
+        light.worldPosition = m_camera.getView().getCenter();
+        light.radius        = kFreeCameraRadius;
+        light.intensity     = 1.0f;
+        light.shadowTint    = sf::Color(44, 50, 62);
+        lights.push_back(light);
+    }
+
+    // Fireballs are already ordinary entities in m_entities with their own
+    // lifetimes and their own pool. Reading them here means no second registry
+    // to keep in sync and no way for a light to outlive the thing casting it —
+    // a released fireball is inactive on the very next frame.
+    for (const auto& entity : m_entities) {
+        if (lights.size() >= LightingRenderer::MAX_LIGHTS) break;
+        if (!entity || !entity->isActive()) continue;
+
+        const bool isPlayerShot = dynamic_cast<Fireball*>(entity.get()) != nullptr;
+        const bool isBossShot   = dynamic_cast<BossFireball*>(entity.get()) != nullptr;
+        if (!isPlayerShot && !isBossShot) continue;
+
+        const AABB bb = entity->getBoundingBox();
+        LightingRenderer::Light light;
+        light.worldPosition = {bb.x + bb.width * 0.5f, bb.y + bb.height * 0.5f};
+        light.radius        = kFireballLightRadius;
+        // Short of 1.0 on purpose: a fireball that cleared the darkness
+        // completely would be a hole indistinguishable from the player's, and
+        // the tint below only shows in shadow the lamp has NOT cleared.
+        light.intensity     = 0.85f;
+        // Ember, not flame: the shadow a fireball fails to clear goes warm, and
+        // that warmth is what separates its pool of light from the player's.
+        light.shadowTint    = isBossShot ? sf::Color(104, 34, 10)
+                                         : sf::Color(96, 44, 14);
+        lights.push_back(light);
+    }
+
+    m_lighting.render(target, m_camera.getView(), lights,
+                      m_background.getTheme(), m_runElapsed);
 }
 
 void PlayingState::renderMatchHud(sf::RenderTarget& target) const {

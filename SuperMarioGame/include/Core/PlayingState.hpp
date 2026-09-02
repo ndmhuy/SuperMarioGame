@@ -13,6 +13,7 @@
 #include "Graphics/Minimap.hpp"
 #include "Graphics/ParticleEmitter.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/LightingRenderer.hpp"
 #include "Graphics/TileMapRenderer.hpp"
 #include "Graphics/EntityArtBinder.hpp"
 #include "Core/TimeRewindManager.hpp"
@@ -261,6 +262,10 @@ private:
     // scores and the lead in versus, a shared pool in co-op, the delay gauge in
     // Shadow Chase.
     void renderMatchHud(sf::RenderTarget& target) const;
+    // Bonus D. Collects this frame's lamps -- the players, every live fireball --
+    // and hands them to the shader pass. Called between the world and the HUD so
+    // an underground level goes dark without the score bar going with it.
+    void renderLightPass(sf::RenderTarget& target);
     int m_selectedCharIndex = 0; // 0: Mario, 1: Luigi, 2: Toad, 3: Peach
     int m_selectedLevelIndex = 0; // 0: Level 1, 1: Level 2, 2: Level 3, 3: Bonus 1
     Camera m_camera;
@@ -483,6 +488,12 @@ private:
     // Parallax backdrop (task 5.5). Before this the window was cleared to a flat
     // cornflower blue and every level looked identical behind the geometry.
     BackgroundRenderer m_background;
+
+    // Bonus D -- the GLSL darkness pass (SPEC §19.4). Owns its shader and
+    // latches "this machine has no GLSL" so a driver without it costs one
+    // stderr line, not one per frame. The theme it darkens for comes from
+    // m_background, so the level file's "theme" field drives both.
+    LightingRenderer m_lighting;
 
     // How a TileType becomes a sprite. Mutable because render() is where the
     // sheet and theme are pushed into it and render() is const-correct about

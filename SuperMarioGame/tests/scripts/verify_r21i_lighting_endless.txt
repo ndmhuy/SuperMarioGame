@@ -1,0 +1,97 @@
+# R21 Lane I — Bonus D day/night in ENDLESS, plus the free-camera lamp.
+#
+# What this proves:
+#   1. Endless Mode has no level countdown (another lane landed that this
+#      session — the HUD reads "---"), so day/night is what carries the passage
+#      of time there. This is the user's brief: "in endless and turn off its
+#      timer (since it's overworld)". The timer is NOT re-disabled here; the
+#      cycle simply runs off m_runElapsed, which keeps advancing whether or not
+#      the countdown does.
+#
+# PRECONDITION: OPTIONS > DEBUG MODE must be ON before the run, i.e.
+# "debugMode": true in saves/config.json — the F-key cheats used below (F2/F3,
+# so a hundred seconds of standing still survives to be photographed) are gated
+# behind it (PlayingState.cpp, `if (Game::getInstance().getDebugMode())`). Back
+# that file up first and restore it afterwards: Game::shutdown() persists the
+# flag.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_r21_lane_i/SuperMarioGame --script tests/scripts/verify_r21i_lighting_endless.txt
+
+wait 4.0
+
+# MAIN MENU > PROCEDURAL LEVEL is row 6 (START, LOAD, MULTIPLAYER, DAILY,
+# EDITOR, CUSTOM, PROCEDURAL).
+# NOTE on the navigation below: the opening wait is long and every Down has a
+# wait after it. Both are load-bearing. A run with `wait 2.5` and five bare
+# Downs on one frame was observed landing on START GAME instead of CUSTOM
+# LEVELS -- ScreenTransitionManager was still covering the menu and swallowed
+# every press, so the cursor never moved at all. A script that silently
+# verifies a different screen is worse than one that fails.
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.6
+shot r21i_40_procedural_row
+press Enter
+wait 1.2
+
+# GENERATOR page: Theme, Difficulty, Pit, Pipe, Enemy, Coin, GENERATE+PLAY,
+# GENERATE+EDIT, PLAY ENDLESS, Back. Eight Downs land on PLAY ENDLESS. The Theme
+# row is left at its default (Overworld), which is the point — Endless is the
+# outdoor mode, so it is the one the cycle acts on.
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.6
+shot r21i_41_play_endless_row
+press Enter
+wait 3.5
+
+# Immortal + invincible, so a hundred seconds of standing still in a procedural
+# level survives to be photographed. Neither cheat touches the lighting; they
+# are here only so the clock is what changes between the frames below.
+press F2
+press F3
+wait 0.5
+
+# t ~ 1s. Phase ~0.01: the pass declines to draw. Note the HUD clock reads "---"
+# — Endless has no countdown, which is why day/night carries time here.
+shot r21i_42_endless_day
+
+wait 24.0
+shot r21i_43_endless_dusk
+
+wait 24.0
+# t ~ 49s. Phase ~0.49, near midnight.
+shot r21i_44_endless_night
+
+# NOTE on FREE CAMERA: it is deliberately NOT exercised here. Endless advances
+# through generated segments, and a segment change runs
+# DebugCheats::resetForNewRun() -> disengageAll(), so the cheats switched on
+# above are off again by the time a 50-second script would reach F9 (observed:
+# "[Cheats] FREE CAMERA" never printed on this run while IMMORTAL and INVINCIBLE
+# did at t=0.5s). The camera lamp has its own take instead, in
+# tests/scripts/verify_r21i_lighting_freecamera.txt.
+
+quit

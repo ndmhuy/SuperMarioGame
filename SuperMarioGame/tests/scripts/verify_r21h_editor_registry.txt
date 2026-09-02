@@ -1,0 +1,130 @@
+# R21 Lane H - the map editor palette after the entity REGISTRY replaced the
+# factory's parallel switch. Everything placed below is built by
+# EntityCatalogue::Entry::create via EntityFactory, so this is the observation
+# that the registry actually feeds the editor, not just the tests.
+#
+# Canvas geometry (same as verify_r21e_editor.txt): the canvas is screen
+# (300,24)-(980,560) at 1 world pixel per screen pixel, framed on the BOTTOM-left
+# of the blank 60x22 level, so screen = (300 + 32*tileX, 24 + 32*tileY - 168).
+#
+#   ./build_r21_lane_h/SuperMarioGame --script tests/scripts/verify_r21h_editor_registry.txt
+
+wait 1.5
+shot r21h_00_menu
+
+# MAP EDITOR is the fifth main-menu row.
+press Down
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 1.5
+shot r21h_01_editor_blank
+
+# --- A floor to stand the entities on: tiles (0,18) to (19,21) -----------
+press R
+wait 0.3
+mouse 316 448
+wait 0.2
+mousedown left
+wait 0.3
+mouse 924 544
+wait 0.3
+mouseup left
+wait 0.5
+shot r21h_02_floor
+
+# The Select tool flips the palette to the entity layer; B returns to Paint.
+press V
+wait 0.2
+press B
+wait 0.3
+
+# --- ITEM: Coin is the palette's default selection, placed as-is ---------
+mouse 460 416
+wait 0.15
+mousedown left
+wait 0.2
+mouseup left
+wait 0.4
+shot r21h_03_item_coin
+
+# --- ENEMY: 13 steps back from Coin is Goomba, the first enemy ----------
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+press Q
+wait 0.3
+mouse 556 416
+wait 0.15
+mousedown left
+wait 0.2
+mouseup left
+wait 0.4
+shot r21h_04_enemy_goomba
+
+# --- BLOCK: 27 steps forward from Goomba is the Question Block ----------
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+press T
+wait 0.3
+mouse 652 320
+wait 0.15
+mousedown left
+wait 0.2
+mouseup left
+wait 0.6
+shot r21h_05_block_question
+
+# --- One more block that used to be unplaceable: the Pipe ---------------
+press T
+press T
+press T
+wait 0.3
+mouse 748 384
+wait 0.15
+mousedown left
+wait 0.2
+mouseup left
+wait 0.8
+shot r21h_06_block_pipe
+
+# All three kinds on screen together, so one image carries the whole claim.
+wait 0.5
+shot r21h_07_all_three
+
+quit

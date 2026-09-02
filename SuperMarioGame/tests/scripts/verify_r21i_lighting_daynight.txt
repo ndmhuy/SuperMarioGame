@@ -1,0 +1,87 @@
+# R21 Lane I — Bonus D day/night cycle, observed running (directives 9 & 10).
+#
+# What this proves:
+#   An OVERWORLD level starts undarkened (the light pass draws nothing at all at
+#   phase 0) and then visibly darkens to night and back, on a 100-second period,
+#   without the HUD dimming with it.
+#
+# The model: LightingRenderer::dayNightPhase(m_runElapsed) with
+# DAY_NIGHT_PERIOD = 100s, and nightFactor() = 0.5 - 0.5*cos(2*pi*phase). So
+# phase 0 is noon, 0.5 is midnight, and the turn is smooth at both ends. The
+# user's brief: "in main map, 100sec horizon is okay" — Constants::LEVEL_TIME is
+# 300s, so a campaign level sees three whole cycles, and Endless (no countdown
+# since R21) gets its passage of time from this instead.
+#
+# The shots are timed against m_runElapsed, which starts at 0 when the level
+# loads, so the waits below are cumulative from the level-start shot.
+#
+# Precondition — the level this drives:
+#   MAIN MENU > CUSTOM LEVELS > "R21I Day Night", which is World 1-1's data with
+#   the enemies stripped out so a player standing still for 100 seconds survives
+#   to be photographed. Theme, geometry and backdrop are World 1-1's own.
+#
+#     python3 - <<'PY'
+#     import json
+#     d = json.load(open('assets/levels/level_1.json'))
+#     keep = {'question_block','hidden_block','pipe','flagpole','castle',
+#             'star_coin','moving_platform','falling_platform','trampoline'}
+#     d['name'] = 'R21I Day Night'
+#     d['entities'] = [e for e in d['entities'] if e['type'] in keep]
+#     json.dump(d, open('assets/levels/custom/r21i_day_night.json','w'), indent=2)
+#     PY
+#
+# Run with (from SuperMarioGame/):
+#   ./build_r21_lane_i/SuperMarioGame --script tests/scripts/verify_r21i_lighting_daynight.txt
+
+wait 4.0
+
+# MAIN MENU > CUSTOM LEVELS (five Downs; the main page skips no rows).
+# NOTE on the navigation below: the opening wait is long and every Down has a
+# wait after it. Both are load-bearing. A run with `wait 2.5` and five bare
+# Downs on one frame was observed landing on START GAME instead of CUSTOM
+# LEVELS -- ScreenTransitionManager was still covering the menu and swallowed
+# every press, so the cursor never moved at all. A script that silently
+# verifies a different screen is worse than one that fails.
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.6
+press Enter
+wait 1.2
+shot r21i_20_custom_level_list
+
+# Second entry: "R21I Day Night" sorts after "R21I Dark Cave".
+press Down
+wait 0.4
+press Enter
+wait 3.0
+
+# t ~ 0.5s. Phase ~0.005, nightFactor ~0.0002 -> darknessFor() returns
+# essentially zero and render() declines to draw at all. This frame must look
+# exactly like the game did before Bonus D existed.
+shot r21i_21_overworld_noon
+
+wait 22.0
+# t ~ 23s. Phase ~0.23, dusk.
+shot r21i_22_overworld_dusk
+
+wait 25.0
+# t ~ 48s. Phase ~0.48, all but midnight — the darkest frame of the cycle.
+shot r21i_23_overworld_midnight
+
+wait 25.0
+# t ~ 73s. Phase ~0.73, dawn: the same brightness as dusk, on the way back up.
+shot r21i_24_overworld_dawn
+
+wait 24.0
+# t ~ 97s. Phase ~0.97, back to daylight. Proves the cycle wrapped rather than
+# saturating at night.
+shot r21i_25_overworld_noon_again
+
+quit

@@ -797,9 +797,25 @@
       refactor for letterboxing. Still deliberately unbuilt.)*
 
 ### Bonus D — Dynamic Lighting (`feature/dynamic-lighting`)
-- [ ] GLSL fragment shader for radial light
-- [ ] Underground darkness, fireball illumination
-- [ ] Optional day/night cycle
+- [x] GLSL fragment shader for radial light — `assets/shaders/radial_light.frag`,
+      GLSL 1.20, up to 8 lights, alpha-is-darkness so a fully lit pixel writes
+      alpha 0 and the pass costs one draw call. Deliberately a real `sf::Shader`
+      and not the vertex-ring fake that `ScreenTransitionManager` would have
+      allowed: the rubric claims GPU programming, so the claim had to become true.
+- [x] Underground darkness, fireball illumination — driven by the level file's
+      existing `theme` (Underground 0.84, Castle 0.72, outdoor themes take their
+      darkness from the cycle instead); fireballs are read out of `m_entities`
+      as moving warm lights. No new schema field was needed.
+- [x] Day/night cycle — 100s period, raised-cosine so it is continuous at both
+      noon and midnight and exactly periodic. *(Listed as "optional"; built.)*
+      Campaign levels see three cycles; Endless, whose countdown is now
+      disabled, gets its passage of time from this instead of a clock.
+- [x] Observed running: [r21i_03](../saves/shots/r21i_03.png) cave with the
+      player lamp and an undimmed HUD, `r21i_05_fireball_light_a` the fireball's
+      separate warm pool, `r21i_21`/`r21i_23` noon vs midnight, `r21i_44`
+      endless at night, `r21i_30` the no-shader fallback rendering normally.
+      *(Screenshots are gitignored; regenerate with
+      `tests/scripts/verify_r21i_lighting_*.txt`.)*
 
 ### Bonus E — Procedural Generation (`feature/procedural-levels`)
 - [x] "Endless Mode" menu option

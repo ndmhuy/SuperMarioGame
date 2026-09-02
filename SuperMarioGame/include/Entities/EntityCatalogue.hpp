@@ -1,31 +1,43 @@
 #pragma once
 
-#include "Entities/EntityFactory.hpp"
+#include "Entities/EntityFactory.hpp"   // EntityType, and the Entity forward declaration
 
+#include <memory>
 #include <string>
 #include <vector>
 
-// The one table that knows every entity type by name.
+#include <SFML/System/Vector2.hpp>
+
+// The registry: one declaration per entity type, carrying everything the rest
+// of the game needs to know about that type — including how to build it.
 //
 // Why this exists
 // ---------------
-// The same list of entity types was written out by hand in three places, and
+// The same list of entity types was written out by hand in four places, and
 // they had all drifted from each other:
 //
 //   - EntityFactory::create()          knew 40 types
 //   - SerializationUtils::parse...()   knew 40 names
 //   - MapEditor's palette              knew 16, none of them enemies
+//   - PlaceEntityCommand's if-chain    knew 16 name strings, and built nothing
 //
 // So the level editor — the feature whose entire purpose is placing entities —
 // could not place a Goomba, a Koopa, a pipe, a question block or a flagpole,
-// and nothing anywhere failed to say so. Adding a type meant remembering three
-// files, and forgetting the third was silent.
+// and nothing anywhere failed to say so. Adding a type meant remembering four
+// files, and forgetting one was silent.
+//
+// The first three of those drifts were closed by making the palette and the
+// parser read this table. That still left TWO hand-maintained lists — this one
+// and EntityFactory's 42-case switch — kept in step only by a regression test.
+// A test that catches a drift is a guard on a hazard, not the removal of it, so
+// the construction step now lives here too, in Entry::create: the factory
+// switch is gone and the table below is the single declaration of a type.
 //
 // g-rule-22: a list the code already contains must be derived, not hand-synced.
-// This is that list. The parser and the palette both read it, and
-// verify_regressions asserts that every entry is creatable by the factory and
-// round-trips through its own name — so a type added here and nowhere else
-// fails the build rather than quietly disappearing from the editor.
+// The parser, the palette and the factory all read this one, and
+// verify_r21_entity_registry walks every EntityType enumerator and fails the
+// suite for any that has no entry here — so a type added to the enum and
+// forgotten cannot become a palette button that silently places nothing.
 namespace EntityCatalogue {
 
 // Which drawer of the palette a type belongs in. Ordered as the editor shows
@@ -41,6 +53,18 @@ enum class Category {
     Projectile
 };
 
+// Builds one entity of a given type at a position, before any tuning from
+// assets/config/entities.json is applied — EntityFactory::create() owns that
+// step, so that construction and configuration stay separable.
+//
+// A plain function pointer rather than std::function: every creator here is a
+// capture-less lambda, so this costs nothing to store or call, and it cannot be
+// left in a moved-from or empty state that would fail only at the call site.
+// The three constructors that need more than a position — a moving platform's
+// travel range, and the launch velocity of the two projectiles — supply it
+// inside their own lambda; see the table in EntityCatalogue.cpp.
+using Creator = std::unique_ptr<Entity> (*)(sf::Vector2f position);
+
 struct Entry {
     EntityType  type;
     // The canonical serialised name. MUST match the class's getTypeName(), or
@@ -49,6 +73,9 @@ struct Entry {
     // What the editor shows a human.
     std::string label;
     Category    category;
+    // Never null. This is the field that makes the table a registry rather than
+    // a description of one: there is no second list of types to keep in step.
+    Creator     create;
 };
 
 // Every type the game can construct, in palette order.

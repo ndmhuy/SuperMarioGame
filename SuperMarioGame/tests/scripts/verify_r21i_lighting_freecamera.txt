@@ -1,0 +1,60 @@
+# R21 Lane I — Bonus D and Debug > Cheats' FREE CAMERA (F9), observed running.
+#
+# What this proves:
+#   1. FREE CAMERA detaches the view from the player AND zooms it out. The
+#      player's lamp goes with the player, so renderLightPass adds a second lamp
+#      at the camera's own centre — otherwise the operator would be panning a
+#      black rectangle through an underground level.
+#   2. Lamp radii are authored in WORLD units and scaled to screen pixels by the
+#      view's own mapping (LightingRenderer::render's pixelsPerWorldUnit). This
+#      is the run that caught the bug: before the scaling, a lamp kept its pixel
+#      size under the zoom and so covered several times its world footprint.
+#
+# PRECONDITION: OPTIONS > DEBUG MODE must be ON before the run ("debugMode":
+# true in saves/config.json) — F9 is gated behind it. Back that file up first
+# and restore it afterwards: Game::shutdown() persists the flag.
+#
+# Also needs the same assets/levels/custom/r21i_dark_cave.json fixture that
+# tests/scripts/verify_r21i_lighting_underground.txt documents how to build.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_r21_lane_i/SuperMarioGame --script tests/scripts/verify_r21i_lighting_freecamera.txt
+
+wait 4.0
+
+# MAIN MENU > CUSTOM LEVELS > first entry ("R21I Dark Cave").
+# NOTE on the navigation below: the opening wait is long and every Down has a
+# wait after it. Both are load-bearing. A run with `wait 2.5` and five bare
+# Downs on one frame was observed landing on START GAME instead of CUSTOM
+# LEVELS -- ScreenTransitionManager was still covering the menu and swallowed
+# every press, so the cursor never moved at all. A script that silently
+# verifies a different screen is worse than one that fails.
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.15
+press Down
+wait 0.6
+press Enter
+wait 1.2
+press Enter
+wait 3.0
+shot r21i_50_cave_freecam_off
+
+press F9
+wait 0.5
+hold D 2.5
+wait 3.0
+# The camera has panned right and taken its lamp with it. The player's own,
+# smaller lamp is still on the player, back to the left.
+shot r21i_51_cave_freecam_panned
+
+press F9
+wait 1.5
+shot r21i_52_cave_freecam_back
+
+quit

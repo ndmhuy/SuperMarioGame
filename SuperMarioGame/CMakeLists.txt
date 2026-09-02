@@ -176,6 +176,15 @@ list(FILTER APP_SOURCES EXCLUDE REGEX ".*main\\.cpp$")
 #     the tests need them live. A single shared OBJECT library cannot serve
 #     both, since it compiles each source once with one set of flags — hence
 #     two libraries, not one.
+#
+# Keep both of these OBJECT libraries. Converting either to a static archive
+# (add_library(... STATIC ...)) would change link semantics, not just packaging:
+# an archive contributes only the members whose symbols something already
+# references, so any translation unit that registers itself at static-init time
+# rather than being called by name would be dropped, silently and only in some
+# link configurations. EntityCatalogue's registry is written as one explicit
+# table for exactly that reason (see the comment on all()) — this note is here
+# so the constraint is visible from the build file too.
 add_library(AppObjectsRelease OBJECT ${APP_SOURCES})
 target_include_directories(AppObjectsRelease PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -417,12 +426,23 @@ add_verify_test(verify_r21_entity_guards "tests/verify_r21_entity_guards.cpp")
 add_verify_test(verify_r21_level_data "tests/verify_r21_level_data.cpp")
 add_verify_test(verify_r21_ui_layout "tests/verify_r21_ui_layout.cpp")
 add_verify_test(verify_r21_debug_cheats "tests/verify_r21_debug_cheats.cpp")
+# entity_registry: walks the EntityType ENUM (0..Count), not the catalogue, and
+#                  fails if any enumerator has no registration whose creator
+#                  builds an entity — the check that turns "someone forgot to
+#                  register a type" from a dead palette button into a red suite.
+add_verify_test(verify_r21_entity_registry "tests/verify_r21_entity_registry.cpp")
 add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 
 # Two-player modes, the CPU opponent and Shadow Mario. Headless: it drives the
 # policy and the controller directly against a hand-built TileMap, so it needs
 # no window and no assets.
 add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
+
+# Bonus D dynamic lighting. Headless by design: the day/night model, the
+# theme->darkness mapping and the C++/GLSL uniform contract are all checked
+# without a GPU, and the handful of genuinely GPU-dependent checks announce a
+# SKIP when sf::Shader::isAvailable() is false rather than failing the run.
+add_verify_test(verify_r21_lighting "tests/verify_r21_lighting.cpp")
 
 # ---------------------------------------------------------
 # 19. Asset synchronisation
@@ -435,8 +455,14 @@ add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
 # and textureless.
 #
 # Copying after every build keeps one source of truth in the source tree.
+#
+# Bonus D's GLSL lives at assets/shaders/radial_light.frag, so it is carried by
+# this step already and deliberately does NOT get a second copy_directory of its
+# own: a shader synced by two rules is a shader that can be stale by one of them.
+# What guards it instead is verify_r21_lighting, which resolves the .frag through
+# the same ResourceManager::resolvePath the game uses and fails if it is missing.
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_CURRENT_SOURCE_DIR}/assets"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    COMMENT "Syncing assets/ into the build directory")
+    COMMENT "Syncing assets/ (levels, textures, audio, shaders) into the build directory")
