@@ -1,0 +1,261 @@
+# Phase 3A screenshot catalogue -- the showcase walkthrough.
+#
+# Drives a single custom level (assets/levels/custom/report_showcase.json)
+# end to end: 11 of the 13 catalogue enemy types, the full Small->Super->
+# Fire and Super->Cape power-up chain plus Mini/Star/Mega, the remaining
+# items and every block type, the minimap toggle, a Memento time-rewind,
+# an achievement toast (stomp), and the flagpole+castle ending in
+# VictoryState. The level is authored directly as JSON, not built in the
+# in-game editor: scripted mouse/key events never reach
+# ImGui::SFML::ProcessEvent (Game::run(), src/Core/Game.cpp), so neither the
+# editor's ImGui palette nor the debug console's `spawn` command is
+# reachable from a --script file. tests/scripts/verify_r21i_lighting_daynight.txt's
+# header documents the same direct-JSON-authorship workaround for the same
+# reason.
+#
+# Precondition -- build the level once, from SuperMarioGame/, before
+# running this script (regenerates assets/levels/custom/report_showcase.json):
+#   python3 tools/report_shots/build_showcase_level.py
+#
+# Precondition -- saves/config.json must have "debugMode": true so the
+# Immortal cheat (F2) is armed: it turns a would-be-fatal hit into a life-1
+# Small-state rescue instead of Game Over (Player::loseLife), while leaving
+# ordinary Fire/Cape/Super power-downs (not deaths) completely alone -- see
+# Player::takeDamage/powerDown -- which is exactly what lets one continuous
+# walk demonstrate every power-up form without ever restarting.
+#
+#   ./build/SuperMarioGame --script tests/scripts/report_showcase_walk.txt
+#
+# Screenshots land in saves/shots/.
+
+wait 2.0
+shot showcase_menu_custom_levels_before
+# MAIN MENU > CUSTOM LEVELS (row 5 of 0..9: Start,Load,Multiplayer,Daily,Editor,Custom)
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Enter
+wait 0.5
+shot showcase_menu_custom_levels_page
+# "Report Showcase" is the only entry in assets/levels/custom/ -- Enter plays it.
+press Enter
+wait 2.5
+shot showcase_00_spawn
+
+# Arm Immortal (F2) so the deliberate power-down touches below never end the
+# run, and the enemy-zone stops (one tile short) are cheap insurance rather
+# than the only thing standing between this script and Game Over.
+press F2
+wait 0.3
+
+# Jump right at the goomba's edge and let residual momentum (not a held D)
+# carry the fall onto it, so the descent lands on top (stomp) rather than
+# the side.
+hold D 0.5
+wait 0.53
+press W
+wait 0.8
+shot showcase_01_first_stomp_achievement
+
+press M
+wait 0.3
+shot showcase_02_minimap_on
+
+# --- Enemy zone: stop one tile short of each so nothing is stomped/bumped
+#     before the shot (this is a display walk, not a fight).
+# toward koopa_troopa
+hold D 0.43
+wait 0.78
+shot showcase_enemy_koopa_troopa
+
+# toward koopa_paratroopa
+hold D 1.28
+wait 1.63
+shot showcase_enemy_koopa_paratroopa
+
+# toward spiny
+hold D 1.28
+wait 1.63
+shot showcase_enemy_spiny
+
+# toward boo
+hold D 1.28
+wait 1.63
+shot showcase_enemy_boo
+
+# toward piranha_plant
+hold D 1.28
+wait 1.63
+shot showcase_enemy_piranha_plant
+
+# toward bullet_bill
+hold D 1.28
+wait 1.63
+shot showcase_enemy_bullet_bill
+
+# toward hammer_bro
+hold D 1.28
+wait 1.63
+shot showcase_enemy_hammer_bro
+
+# toward thwomp
+hold D 1.28
+wait 1.63
+shot showcase_enemy_thwomp
+
+# toward chain_chomp
+hold D 1.28
+wait 1.63
+shot showcase_enemy_chain_chomp
+
+# toward lakitu
+hold D 1.28
+wait 1.63
+shot showcase_enemy_lakitu
+
+# toward goomba
+hold D 1.28
+wait 1.63
+shot showcase_enemy_goomba
+
+# --- Power-up ladder: Small -> Super -> Cape -> (hit) Super -> Fire ->
+#     (hit) Super -> (hit) Small -> Mini -> Star -> Mega.
+# toward mushroom (Small->Super)
+hold D 2.13
+wait 2.48
+shot showcase_power_mushroom
+
+# toward cape_feather (Super->Cape)
+hold D 1.28
+wait 1.63
+shot showcase_power_cape_feather
+
+# toward goomba touch (Cape->Super)
+hold D 1.28
+wait 1.63
+shot showcase_power_hit1
+
+# toward fire_flower (Super->Fire)
+hold D 1.28
+wait 1.63
+shot showcase_power_fire_flower
+
+# toward goomba touch (Fire->Super)
+hold D 1.28
+wait 1.63
+shot showcase_power_hit2
+
+# toward goomba touch (Super->Small)
+hold D 1.28
+wait 1.63
+shot showcase_power_hit3
+
+# toward mini_mushroom (Small->Mini)
+hold D 1.28
+wait 1.63
+shot showcase_power_mini_mushroom
+
+# toward star (decorator)
+hold D 1.28
+wait 1.63
+shot showcase_power_star
+
+# toward mega_mushroom (decorator)
+hold D 1.28
+wait 1.63
+shot showcase_power_mega_mushroom
+
+# --- Items & blocks: the floating ones sit at y=17 so the y=20 ground walk
+#     never collides with them. The pipe is the one exception: pipes settle
+#     onto the floor the same way Flagpole does (see LevelLoader's
+#     "settled onto the floor" log line), so it is a real ground-level solid
+#     here and needs a hop over it, not a walk-through.
+# toward coin
+hold D 1.71
+wait 2.06
+shot showcase_block_coin
+
+# toward star_coin
+hold D 1.28
+wait 1.63
+shot showcase_block_star_coin
+
+# toward oneup_mushroom
+hold D 1.28
+wait 1.63
+shot showcase_block_oneup_mushroom
+
+# toward pow_block
+hold D 1.28
+wait 1.63
+shot showcase_block_pow_block
+
+# toward pswitch
+hold D 1.28
+wait 1.63
+shot showcase_block_pswitch
+
+# toward trampoline
+hold D 1.28
+wait 1.63
+shot showcase_block_trampoline
+
+# toward brick_block
+hold D 1.28
+wait 1.63
+shot showcase_block_brick_block
+
+# toward question_block
+hold D 0.85
+wait 1.2
+shot showcase_block_question_block
+
+# toward hidden_block
+hold D 0.85
+wait 1.2
+shot showcase_block_hidden_block
+
+# toward ice_block
+hold D 0.85
+wait 1.2
+shot showcase_block_ice_block
+
+# toward moving_platform
+hold D 0.85
+wait 1.2
+shot showcase_block_moving_platform
+
+# toward falling_platform
+hold D 0.85
+wait 1.2
+shot showcase_block_falling_platform
+
+# toward conveyor_belt
+hold D 0.85
+wait 1.2
+shot showcase_block_conveyor_belt
+
+# toward pipe
+hold D 0.21
+wait 0.56
+press W
+hold D 1.5
+wait 1.85
+shot showcase_block_pipe
+
+# Time-rewind is demonstrated separately (report_rewind_demo.txt): holding R
+# here would snap this walk's position backward (PlayingState.cpp's rewind
+# path restores position only) and make the flagpole distance below
+# unpredictable, so it is deliberately not exercised in this long chain.
+hold D 4.0
+wait 4.4
+shot showcase_04_victory
+wait 1.5
+quit

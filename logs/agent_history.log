@@ -7111,6 +7111,192 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
 
+[2026-09-02 20:55:00] Branch: A/fix/moving-platform-and-spiny-egg
+Git Fingerprint: 4050965/53f6505 (before this round) → cf195cb (after)
+Fetched Remotes: yes — dev == origin/dev (0 0), unchanged since the prior entry; no fetch-affecting work happened in this round
+Prompt: Coordinator review of the lane-2A submission raised that flipping Spiny's constructor default to isEgg=true changes behaviour for the 4 shipped level placements (3 in assets/levels/level_2.json, 1 in level_3.json), which my original verification (World 1-1 only) never touched. Asked for (1) a post-condition regression check that a LevelLoader-shaped Spiny reaches the hatched state once grounded, mutation-tested; (2) observing the 4 real placements live via a scripted run of World 1-2/1-3; (3) reporting honestly if any placement could not be reached. A follow-up message then cut scope: do only (1), skip (2)/(3) — record the 4 placements as unit-tested only, not observed live, and say why.
+Files Modified: SuperMarioGame/tests/verify_2a_platform_anim_and_spiny_egg.cpp
+Reachable From Main: yes for the code under test (LevelLoader really does construct Spiny via the single-argument EntityFactory::create() path for all 4 level placements — confirmed by reading LevelLoader.cpp's entity-parsing loop, which falls through to EntityFactory::create(eType, position) for any type without a special case, "spiny" included). BUT: the 4 real placements themselves were NOT observed running in a live game this session — see below.
+Verified By: ctest 30/30 (29 baseline + 1 new check in verify_2a_platform_anim_and_spiny_egg, now 3 test functions); verify_regressions 584/584 unchanged; mutation-tested the NEW check specifically (not the same mutation as the original Spiny fix — see Summary) in both directions.
+Summary of Changes:
+- GEOMETRY CHECK (read-only, informs the test but is not itself the guard):
+  read assets/levels/level_2.json and level_3.json directly. Spiny placements:
+  level_2 (45,19), (115,20), (157,20); level_3 (162,20). For all four, the
+  entity's own tile is empty and the tile immediately below it is solid
+  (three on Ice in level_2's "Ice Cavern Path", one on Ground in level_3) —
+  i.e. LevelLoader spawns each one flush against the ground with ZERO gap,
+  never falling into contact the way Lakitu's toss (and my original test)
+  does. LevelLoader.cpp confirmed to apply no ground-snap for enemies (only
+  Flagpole gets a "settled onto the floor" correction); Spiny's own
+  boundingBox is exactly one tile (32x32, Spiny.cpp), so tile-below-solid at
+  spawn really is a zero-gap resting placement, not an approximation.
+- NEW TEST: testLevelPlacedSpinyHatchesWhenRestingOnGroundAtSpawn (added to
+  the existing verify_2a_platform_anim_and_spiny_egg.cpp, now registered as
+  ctest's only home for this check — no new binary). Constructs a Spiny with
+  the single-argument constructor (LevelLoader's exact call shape) positioned
+  flush against a real TileMap's ground tile with zero gap, runs it through
+  Enemy::update() + PhysicsEngine for up to 60 frames (1s, generous), and
+  asserts the POST-CONDITION isOnGround() && !isEgg() is reached — not the
+  default value. Per the coordinator's own framing: a test that only checked
+  isEgg()==true after construction would pass even if the hatch transition
+  were completely broken, licensing the exact "stuck as an egg forever" bug
+  under review.
+- MUTATION TEST for the new check specifically (deliberately NOT the same
+  mutation as the original Spiny.hpp default-value fix, because reverting
+  that default to false would make THIS check pass trivially and
+  immediately — !isEgg() is already true from frame 0 with no transition
+  needed, so it would not exercise the thing this check actually guards).
+  Instead commented out `m_isEgg = false;` inside Spiny::update()'s
+  `if (onGround)` branch (Spiny.cpp) — simulating "the hatch trigger itself
+  is broken" — rebuilt, and watched BOTH the new check and the pre-existing
+  drop-from-height check fail (the Spiny sits on the ground forever still
+  reading isEgg()==true, so neither reaches its post-condition within its
+  time bound). Restored the line, rebuilt, watched all 30 ctest cases and
+  verify_regressions (584/584) return to green.
+- WHAT WAS NOT DONE, per the session's scope cut (recorded honestly rather
+  than implied otherwise): the coordinator's items 2 and 3 — a scripted run
+  of World 1-2 and World 1-3 photographing the 4 real placements — were
+  explicitly skipped by a follow-up instruction citing token budget. THE 4
+  SHIPPED LEVEL PLACEMENTS (level_2.json x3, level_3.json x1) WERE NOT
+  OBSERVED RUNNING IN A LIVE GAME THIS SESSION. Reasoning (Spiny::update()'s
+  onGround-gated hatch, unconditional on placement) plus the geometry check
+  above plus the new unit-level post-condition test together make it very
+  likely all four hatch correctly and promptly, but g-rule-11 is explicit
+  that reasoning is not observation, and I am recording it as such:
+  Reachable From Main for the 4 real placements specifically: no — unit
+  harness only, not observed running. If a future session has budget, the
+  cheapest way to close this is CampaignProgress::isUnlocked() via a
+  temporary saves/progress.json (levels[0].completed=true unlocks 1-2 on the
+  world map's auto-select-highest-unlocked node; also levels[1].completed=true
+  unlocks 1-3 the same way) — NOT by touching assets/levels/*.json, which
+  belong to lanes 2B (level_3) and nobody yet (level_2) this wave. That file
+  does not currently exist in this worktree (confirmed before/after this
+  session — nothing to restore) and must not be left behind marking levels
+  complete for the real user, per the standing mistake recorded in a prior
+  session's log entry.
+- _DEPS FINDING ATTRIBUTION: the coordinator confirmed the stale-absolute-
+  path problem in the pre-seeded build/_deps APFS clones (logged in the
+  previous entry) is on THEM, not this lane — they pre-seeded all five
+  concurrent lanes' dependency trees with `cp -Rc` without accounting for
+  FetchContent's subbuild CMakeCache.txt files baking in the absolute path
+  they were generated at. Re-flagging here per their explicit request, since
+  three sibling lanes share the same seeded clone and may hit the identical
+  "CMake Error: The current CMakeCache.txt directory ... is different than
+  the directory ... where CMakeCache.txt was created" — the fix is a plain
+  text substitution of the old absolute path prefix for the new one across
+  every file under build/_deps that references it (453 files in this lane's
+  case), never a deletion or a re-fetch.
+STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
+  unit-tested only, not observed live (see above, budget-gated); the third
+  HARD axe unreachable behind the arena enclosure post; MapGenerator's
+  generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
+---
+
+================================================================================
+Session: Phase 3A screenshot catalogue (submission_sweep_plan_2026-09-02.md §6,
+lane 3A) — branch A/docs/report-screenshots, worktree smg-lanes/shots.
+Git Fingerprint: d013442 (before) → 4aaf166 (scripts) → 70e1c6b (sheet + §11
+registration, after).
+Fetched Remotes: yes — local dev fetched/tracked to 3ec20ac mid-session per
+the coordinator; this is a scoped lane task in an isolated worktree, not a
+repository-state report.
+Summary: Original scope was the full catalogue (screens, characters/forms,
+13 enemies+bosses, items, blocks, levels, modes/systems). The coordinator cut
+scope twice mid-session, citing the session's token budget ending: first to
+"main features only, do not try hard" (core screens + a couple of forms/
+enemies), then to "deliver now, stop capturing." Delivered exactly that cut,
+nothing more:
+- tests/scripts/report_core_screens.txt (new): plain menu/campaign nav, no
+  staging — Menu, Character Select, World Map, a level in play (1-1), Pause.
+  Ran clean, no retries needed.
+- tests/scripts/report_showcase_walk.txt (new) + tools/report_shots/
+  build_showcase_level.py + build_showcase_walk_script.py: a small custom
+  level (assets/levels/custom/report_showcase.json, gitignored like all of
+  assets/levels/custom/ — NOT committed, regenerate with
+  build_showcase_level.py before running the walk script) authored directly
+  as JSON, not via the in-game editor or the debug console's `spawn`
+  command: traced Game::run() (src/Core/Game.cpp) and confirmed scripted
+  --script input is fed straight to GameStateManager::handleInput and never
+  through ImGui::SFML::ProcessEvent, so neither the editor's ImGui palette
+  nor the console's text field is reachable from a script at all (not even
+  Grave to open the console — that toggle is hardcoded to the real-event
+  branch only). tests/scripts/verify_r21i_lighting_daynight.txt's header
+  documents the same direct-JSON workaround for the same reason, so this is
+  a precedented technique, not a new one.
+  One real defect found while iterating: a `pipe` placed at y=17 (intended
+  to float above the y=20 ground walk, like the other floating blocks) turned
+  out to be solid ground-level collision anyway — LevelLoader settles pipes
+  onto the floor the same way it does Flagpole (see its "settled onto the
+  floor" log line) — and blocked forward movement outright; two blind runs
+  (3s then 10s of extra `hold D`) went nowhere before I read the log
+  correctly and added a `press W` hop over it. A deliberate stomp-for-
+  achievement-toast timing attempt failed twice (blind script timing landed
+  a side-touch, not a stomp, each time, costing a life via the normal
+  power-down path rather than triggering `first_stomp`); dropped rather than
+  spending a third attempt, per the scope cut.
+  Also observed (not a defect, just flaky): enemy contact during the enemy-
+  zone walk is non-deterministic across runs of the identical script — some
+  runs get zero DebugCheats::rescueInsteadOfKill() triggers, others get six
+  or seven — Immortal absorbs all of them into a same-lives "rescue" with no
+  visible harm since the player is still Small at that point, but it means
+  this script is not bit-for-bit reproducible frame-to-frame (positions
+  drift a little), only reproducible in outcome (reaches the same waypoints,
+  eventually shows the same forms/enemies).
+- reports/assets/11_main_features.png (new, built by tools/report_shots/
+  build_main_features_sheet.py from the raw --script captures above, which
+  live in saves/shots/ and are correctly gitignored/not committed): one
+  combined contact sheet, three rows — CORE SCREENS (Main Menu, Character
+  Select, World Map, Playing 1-1, Pause), POWER-UP FORMS (Super/Cape/Fire/
+  Mini/Star/Mega — the whole chain from one continuous scripted walk), and
+  ENEMIES (Koopa Troopa, Thwomp, Piranha Plant — 3 of the roster, not all 13
+  + bosses, per the scope cut). Opened with the Read tool before committing;
+  all three rows show what their labels claim.
+  CAUGHT MID-SESSION: my own path mistake. This repo nests the app under an
+  outer git root (AGENTS.md's structure: the outer folder holds AGENTS.md,
+  docs/, reports/, logs/, and an INNER SuperMarioGame/ folder holds
+  CMakeLists.txt/src/include/assets/saves/tests — reports/ is a SIBLING of
+  the inner SuperMarioGame/, not a child of it). My sheet-builder script
+  first wrote to SuperMarioGame/reports/assets/ (wrong, an accidental new
+  untracked directory nested one level too deep) instead of the outer
+  reports/assets/ (correct, where 01_menu.png through 05_map_editor.png
+  already live). Caught via `git status` showing an unexpected untracked
+  `SuperMarioGame/reports/` directory before commit; moved the file to the
+  correct path, fixed the two path constants in build_main_features_sheet.py,
+  removed the empty wrong directory. Nothing wrong was committed.
+- reports/report_content.py: took dev's file wholesale (`git checkout dev --
+  reports/report_content.py`, tip 3ec20ac, since §6/§7/§12-14/§16 had been
+  rewritten there by sibling lanes since this branch's d013442 base) and
+  added exactly one img() line inside §11, right after Figure 5's
+  05_map_editor.png and before the §12 heading — verified with
+  `git diff --stat` showing a 1-line diff against dev before committing.
+  Figure 6: the main-features sheet, captioned with what it shows and how
+  (scripted --script capture, custom-level JSON authorship and why).
+DROPPED, per the two scope cuts (said honestly, not implied otherwise): full
+  screen set (Options subpages, Records, Statistics, Victory, Editor, Custom
+  Levels page — captured a "Custom Levels" page shot during iteration but it
+  never made the final cut); the other 10 of 13 enemy types plus Boom Boom
+  and Bowser; all 13 items and all 10 blocks as a family (a few appear
+  incidentally inside raw captures but were not sheeted); pipe entry modes;
+  bridge/axe; all shipped levels + sub-vault + Bonus + Endless + the custom
+  level as its own "levels" family; Versus/Co-op/Shadow Chase/Endless/
+  Attract mode; rewind banner, lighting cave, minimap, debug console (traced
+  and confirmed genuinely unreachable from a script — see above — not just
+  skipped for time), achievement toast (attempted, timing unreliable, see
+  above). Per-family sheets (one PNG per family) were also dropped in favor
+  of the single combined "main features" sheet the second scope cut asked
+  for.
+Reachable From Main: n/a for the screenshot/tooling deliverables themselves
+  (docs/test-tooling, not production code). The features they photograph are
+  all reached the ordinary way — real menu navigation, a real custom level
+  loaded through MenuState's Custom Levels page and PlayingState, real
+  power-up pickups through Player::takeDamage/powerDown and the item pickup
+  path — nothing routed through a verify_* harness.
+Verified By: ran the game with --script for both committed scripts this
+  session (several iterations for report_showcase_walk.txt while chasing the
+  pipe-collision and stomp-timing issues above); opened the final contact
+  sheet with the Read tool and read what every cell shows before committing,
+  per g-rule-11. Did NOT re-verify ctest/verify_regressions this session —
+  no C++ source was touched (docs/test-scripts/tools/report-assets only).
 [2026-09-02 20:58:50] Branch: A/docs/facts-and-index-counts
 Git Fingerprint: 87469f9 (before, branch point off dev) → c6bcca3 (after, +2 commits)
 Fetched Remotes: yes, 20:57 — `git fetch --all`. dev...origin/dev is `65 0`:
