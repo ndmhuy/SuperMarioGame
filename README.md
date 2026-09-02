@@ -66,7 +66,7 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 ### Levels & World
 * **3 Themed Levels**: Overworld, Underground, Castle (200 tiles each)
 * **World Map**: SMB3-style overhead navigation with level nodes and star coin tracking
-* **Special Sections**: Swimming, vertical scrolling, autoscroll
+* **Special Sections**: vertical scrolling, autoscroll (swimming was descoped — SPEC §21)
 * **Bonus Rooms**: Hidden warp pipe destinations with timed coin collection
 * **3 Star Coins per level** for completionism and unlockables
 

@@ -79,7 +79,7 @@ footer{max-width:74ch;margin:56px auto 0;padding-top:18px;border-top:1px solid v
   <p class="sub" style="margin-top:14px">
     Nguy&#7877;n &#272;&#236;nh Minh Huy (25125083) &middot; Tr&#7847;n Gia Huy (25125084)</p>
   <p class="meta">C++17 &middot; SFML 3.0.2 &middot; ImGui-SFML &middot; CMake<br>
-  Verified against commit d39eed0 &middot; 2026-08-31</p>
+  Verified against commit c1368a4 &middot; 2026-08-31</p>
 </div>
 
 <div class="toc"><ol>
@@ -120,7 +120,7 @@ rubric line the project deliberately forfeits.</p>
 <div><b>279</b><span>files</span></div>
 <div><b>10</b><span>patterns</span></div>
 <div><b>32</b><span>CI tests</span></div>
-<div><b>507</b><span>commits</span></div>
+<div><b>510</b><span>commits</span></div>
 </div>
 
 <h2 id="intro">2 &middot; Introduction and objectives</h2>
@@ -192,7 +192,7 @@ run and the behaviour seen; "test" means a CTest case exercises it.</p>
  sub-levels. All are JSON, loaded through <code>LevelLoader</code>; 1-3 ends in a boss fight. Observed
  end to end.</td></tr>
 <tr><td>Sound <em>(10)</em></td><td><span class="tag yes">Done</span></td>
- <td>29 effects and 12 music tracks. <code>SoundManager</code> subscribes to 19 event types, so audio is
+ <td>29 effects and 12 music tracks. <code>SoundManager</code> subscribes to 20 event types, so audio is
  wired by the Observer bus rather than called from gameplay code. Observed; <code>verify_sound_visual</code>.</td></tr>
 <tr><td>Object-oriented design <em>(10)</em></td><td><span class="tag yes">Done</span></td>
  <td>&sect;6. Four-level abstract hierarchy, private state with action-oriented methods rather than
@@ -217,7 +217,7 @@ run and the behaviour seen; "test" means a CTest case exercises it.</p>
  <td><code>Serializer</code>, JSON, three slots plus auto-save at checkpoints; separate files for
  settings, high scores and campaign progress. <code>verify_save_load</code>.</td></tr>
 <tr><td>Game state management <em>(requirement)</em></td><td><span class="tag yes">Done</span></td>
- <td>Eight <code>IGameState</code> implementations on a stack-capable
+ <td>Nine <code>IGameState</code> implementations on a stack-capable
  <code>GameStateManager</code>. <code>verify_frontend_states</code>.</td></tr>
 <tr><td>Level editor <em>(bonus)</em></td><td><span class="tag yes">Done</span></td>
  <td>In-game ImGui editor (F1): full tile and entity palette, free camera, undo/redo via Command
@@ -328,11 +328,11 @@ the hollow triangle is UML generalization, pointing at the base.</p>
 <path class="uml-edge" d="M 33 598 V 622.0 H 164.4"/>
 <path class="uml-edge" d="M 33 598 V 622.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 584.0 H 22"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
-<polygon class="uml-tri" points="29,604 37,604 33,598"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
-<polygon class="uml-tri" points="29,376 37,376 33,370"/>
 <polygon class="uml-tri" points="29,262 37,262 33,256"/>
+<polygon class="uml-tri" points="29,376 37,376 33,370"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,604 37,604 33,598"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -532,9 +532,9 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 33 294 V 356.0 H 44.0"/>
 <path class="uml-edge" d="M 33 294 V 356.0 H 157.2"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 22"/>
-<polygon class="uml-tri" points="29,300 37,300 33,294"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="29,300 37,300 33,294"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
 <rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
@@ -647,8 +647,8 @@ charge. Neither can forget the rest, because neither is given the chance.</p>
 <path class="uml-edge" d="M 11 28 V 128.0 H 234.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 128.0"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="166" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">IPlayerState</text>
 <text class="uml-st" x="154" y="18" text-anchor="end">&#171;interface&#187;</text>
@@ -1999,8 +1999,8 @@ outside the process is touched, so a verification run is reproducible.</p>
 
 <h2 id="process">12 &middot; Process and project history</h2>
 <p>The project ran from 29 May to 2 September 2026 across 10 weekly reporting periods
-(<code>docs/Group52_04/</code> through <code>Group52_13/</code>), 507 commits and
-300 recorded working sessions in <code>logs/agent_history.log</code>. This section is
+(<code>docs/Group52_04/</code> through <code>Group52_13/</code>), 510 commits and
+301 recorded working sessions in <code>logs/agent_history.log</code>. This section is
 about the third of those numbers rather than the first two: <strong>how the project checked itself,
 what the checking produced, and why its engineering rules read the way they do</strong>. The
 individual defects are deliberately not restated here &mdash; the five worth reading are worked
@@ -2103,7 +2103,7 @@ inert</strong> &mdash; compiled, harnessed, green, and constructed by nothing th
 reached. Every claim in &sect;4 of this report is graded against the stronger definition, and where
 only the weaker one holds, &sect;13 says so.</p>
 <p><strong>The log is the audit trail.</strong> <code>logs/agent_history.log</code> holds
-300 entries, and it is not a changelog. Each records the commit before and after,
+301 entries, and it is not a changelog. Each records the commit before and after,
 whether the remotes were fetched, whether the work is reachable from <code>main()</code>, how it was
 verified, and &mdash; required, not optional &mdash; the mistakes made getting there. It is
 append-only and <strong>union-merged</strong>: when two branches both appended, the resolution is to
@@ -2147,7 +2147,7 @@ something other than good intentions.</p>
  running the game for six seconds.</td>
  <td>&sect;4 grades every capability by how it was confirmed; &sect;13 lists what only compiles.</td></tr>
 <tr><td><strong>The log</strong></td>
- <td>300 entries carrying fingerprints, fetch status, reachability, verification and
+ <td>301 entries carrying fingerprints, fetch status, reachability, verification and
  mistakes.</td>
  <td>Union on merge conflict &mdash; keep both entries, never choose a side.</td></tr>
 <tr><td><strong>CI</strong></td>
@@ -2516,7 +2516,7 @@ ctest --output-on-failure # 32 verification targets registered as CTest cases
 <tr><td>Design patterns</td><td>see &sect;7 for the full list, each with the problem it solves</td></tr>
 <tr><td>Verification harnesses</td><td>40 source files, 38 built,
     32 registered as CTest cases</td></tr>
-<tr><td>Commits on the integration branch</td><td>507</td></tr>
+<tr><td>Commits on the integration branch</td><td>510</td></tr>
 <tr><td>Sound effects / music tracks</td><td>29 / 12</td></tr>
 <tr><td>Achievements</td><td>12</td></tr>
 </tbody></table></div>
@@ -2608,15 +2608,15 @@ inside it) are the very next diagrams, each in full detail.</p>
 <path class="uml-edge" d="M 33 940 V 964.0 H 164.4"/>
 <path class="uml-edge" d="M 33 940 V 964.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 926.0 H 22"/>
+<polygon class="uml-tri" points="51,604 59,604 55,598"/>
+<polygon class="uml-tri" points="51,300 59,300 55,294"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,718 37,718 33,712"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="73,414 81,414 77,408"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,262 37,262 33,256"/>
 <polygon class="uml-tri" points="73,338 81,338 77,332"/>
 <polygon class="uml-tri" points="29,946 37,946 33,940"/>
-<polygon class="uml-tri" points="51,300 59,300 55,294"/>
-<polygon class="uml-tri" points="29,718 37,718 33,712"/>
-<polygon class="uml-tri" points="51,604 59,604 55,598"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -3244,11 +3244,11 @@ inside it) are the very next diagrams, each in full detail.</p>
 <path class="uml-edge" d="M 33 370 V 432.0 H 44.0"/>
 <path class="uml-edge" d="M 33 370 V 432.0 H 157.2"/>
 <path class="uml-edge" d="M 11 28 V 356.0 H 22"/>
-<polygon class="uml-tri" points="29,376 37,376 33,370"/>
 <polygon class="uml-tri" points="51,110 59,110 55,104"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
-<polygon class="uml-tri" points="51,186 59,186 55,180"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="29,376 37,376 33,370"/>
+<polygon class="uml-tri" points="51,186 59,186 55,180"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
 <rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
@@ -4393,7 +4393,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 </svg></div><figcaption>Figure 12 (full detail) — The complete Strategy hierarchy, every attribute and method.</figcaption></figure>
 
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>
-Generated by <code>reports/build_report.py</code> from the repository at commit d39eed0.
+Generated by <code>reports/build_report.py</code> from the repository at commit c1368a4.
 Self-contained: opens from disk, no network, prints to PDF.</footer>
 
 </main>

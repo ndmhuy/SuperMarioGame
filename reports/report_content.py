@@ -209,7 +209,7 @@ run and the behaviour seen; "test" means a CTest case exercises it.</p>
  sub-levels. All are JSON, loaded through <code>LevelLoader</code>; 1-3 ends in a boss fight. Observed
  end to end.</td></tr>
 <tr><td>Sound <em>(10)</em></td><td><span class="tag yes">Done</span></td>
- <td>29 effects and 12 music tracks. <code>SoundManager</code> subscribes to 19 event types, so audio is
+ <td>29 effects and 12 music tracks. <code>SoundManager</code> subscribes to 20 event types, so audio is
  wired by the Observer bus rather than called from gameplay code. Observed; <code>verify_sound_visual</code>.</td></tr>
 <tr><td>Object-oriented design <em>(10)</em></td><td><span class="tag yes">Done</span></td>
  <td>&sect;6. Four-level abstract hierarchy, private state with action-oriented methods rather than
@@ -234,7 +234,7 @@ run and the behaviour seen; "test" means a CTest case exercises it.</p>
  <td><code>Serializer</code>, JSON, three slots plus auto-save at checkpoints; separate files for
  settings, high scores and campaign progress. <code>verify_save_load</code>.</td></tr>
 <tr><td>Game state management <em>(requirement)</em></td><td><span class="tag yes">Done</span></td>
- <td>Eight <code>IGameState</code> implementations on a stack-capable
+ <td>Nine <code>IGameState</code> implementations on a stack-capable
  <code>GameStateManager</code>. <code>verify_frontend_states</code>.</td></tr>
 <tr><td>Level editor <em>(bonus)</em></td><td><span class="tag yes">Done</span></td>
  <td>In-game ImGui editor (F1): full tile and entity palette, free camera, undo/redo via Command
