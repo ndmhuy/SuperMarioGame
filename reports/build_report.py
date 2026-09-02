@@ -55,16 +55,21 @@ def git(*args):
                           text=True, check=True).stdout.strip()
 
 
-def subclasses_of(base):
+def subclasses_of(base, search_root=None):
     """Concrete classes deriving from `base`, counted from the headers.
 
     The word boundary matters: a plain substring test for ": public Player"
     also matches ": public PlayerStateDecorator", which inflated the player
     count by one.
+
+    `search_root` defaults to include/Entities (every existing caller's tree);
+    pass a different directory (e.g. include/Core, for IGameState) to reuse
+    the same counted-not-typed approach elsewhere.
     """
     pattern = re.compile(r":\s*public\s+" + re.escape(base) + r"\b")
     names = []
-    for p in (GAME / "include" / "Entities").rglob("*.hpp"):
+    root = search_root if search_root is not None else (GAME / "include" / "Entities")
+    for p in root.rglob("*.hpp"):
         text = p.read_text(encoding="utf-8", errors="ignore")
         if pattern.search(text):
             names.append(p.stem)
@@ -78,11 +83,67 @@ def ctest_targets():
     open a window and cannot run headless, so "number of test .cpp files" and
     "number of things CI runs" are different figures. Reporting the first as the
     second would overstate what is verified automatically.
+
+    That macro is not the only registration path, though (plan §8.16/§8.20):
+    three guards — guard_saves_hermeticity_setup, guard_saves_hermeticity_check,
+    guard_asset_single_source — are registered through explicit
+    `add_test(NAME <literal> COMMAND ...)` calls, which the macro-call regex
+    above cannot see. The pattern below only matches a literal name, not the
+    macro's own internal `add_test(NAME ${name} COMMAND ${name})` (the `$`/`{`/
+    `}` characters fall outside `[a-z_0-9]+`), so it picks up exactly the
+    explicit registrations and not the macro definition itself.
     """
     text = (GAME / "CMakeLists.txt").read_text(encoding="utf-8")
     calls = re.findall(r"add_verify_test\(([a-z_0-9]+)[^)]*\)", text)
     headless = re.findall(r"add_verify_test\(([a-z_0-9]+)(?![^)]*NO_CTEST)[^)]*\)", text)
-    return len(calls), len(headless)
+    explicit = re.findall(r"add_test\(\s*NAME\s+([a-z_0-9]+)\s+COMMAND\b", text)
+    return len(calls), len(headless) + len(explicit)
+
+
+def verify_ctest_parity(build_dir=None):
+    """Parity check (g-rule-17): FACTS["ctests"] must equal what `ctest -N`
+    actually registers, not just what the extractor's regexes can see.
+
+    Two facts about "how many ctest cases exist" live in two places — the
+    CMakeLists.txt registrations this file parses, and CTest's own runtime
+    view of the same build — so without a check they can silently drift again
+    exactly the way §8.16/§8.20 describe. This asserts they agree instead of
+    trusting the regex.
+
+    If no build directory exists to ask, this SKIPS EXPLICITLY and says so on
+    stderr — it must never pass silently, because a vacuous pass here would
+    hide a real regression the next time someone adds a test through either
+    mechanism (the exact failure mode g-rule-17 calls out).
+    """
+    if build_dir is None:
+        build_dir = GAME / "build"
+    if not (build_dir / "CTestTestfile.cmake").exists():
+        print(f"SKIP: ctest parity check — no build directory at {build_dir} "
+              "(configure the project to enable this check; a missing build "
+              "dir is reported explicitly, never treated as a pass).",
+              file=sys.stderr)
+        return
+    proc = subprocess.run(["ctest", "-N"], cwd=build_dir,
+                           capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"FAIL: `ctest -N` exited {proc.returncode} in {build_dir}:\n"
+              f"{proc.stderr}", file=sys.stderr)
+        sys.exit(1)
+    m = re.search(r"Total Tests:\s*(\d+)", proc.stdout)
+    if not m:
+        print("FAIL: could not find 'Total Tests: N' in `ctest -N` output — "
+              "cannot verify FACTS['ctests'] against reality:\n"
+              f"{proc.stdout}", file=sys.stderr)
+        sys.exit(1)
+    real = int(m.group(1))
+    if FACTS["ctests"] != real:
+        print(f"FAIL: FACTS['ctests'] = {FACTS['ctests']} but `ctest -N` in "
+              f"{build_dir} reports {real} registered cases. The extractor "
+              "in ctest_targets() has drifted from CMakeLists.txt again "
+              "(plan §8.16/§8.20) — fix the extractor, don't paper over the "
+              "mismatch.", file=sys.stderr)
+        sys.exit(1)
+    print(f"OK: ctest parity — FACTS['ctests'] == `ctest -N` == {real}")
 
 
 FACTS = {
@@ -96,6 +157,12 @@ FACTS = {
     "items":     len(subclasses_of("Item")),
     "blocks":    len(subclasses_of("Block")),
     "players":   len(subclasses_of("Player")),
+    # Concrete IGameState screens, counted from include/Core rather than
+    # hand-typed — §16.4's index table said "Eight screens" after EditorState
+    # (added later) pushed the real count to nine (plan §0/§4.2 "8 screens"
+    # (9 with EditorState)"). Counting it keeps the appendix from repeating
+    # that drift.
+    "states":    len(subclasses_of("IGameState", GAME / "include" / "Core")),
 }
 FACTS["targets"], FACTS["ctests"] = ctest_targets()
 
@@ -352,6 +419,8 @@ def build_latex(content):
 
 
 if __name__ == "__main__":
+    verify_ctest_parity()
+
     from report_content import render
     content = render(FACTS, img, uml, arch)
 

@@ -2058,7 +2058,7 @@ has not been thought about yet.</p>
 mkdir -p build &amp;&amp; cd build
 cmake ..                 # fetches SFML, ImGui-SFML and nlohmann/json
 cmake --build . -j8
-ctest --output-on-failure # 13 verification targets
+ctest --output-on-failure # {F['ctests']} verification targets registered as CTest cases
 ./SuperMarioGame
 </code></pre>
 <h3>16.2 Controls</h3>
@@ -2083,7 +2083,7 @@ ctest --output-on-failure # 13 verification targets
 <tr><td>Lines of C++ (excluding third-party)</td><td>{F['loc']:,}</td></tr>
 <tr><td>Concrete entity classes</td><td>{F['players']} players, {F['enemies']} enemies,
     {F['items']} items, {F['blocks']} blocks</td></tr>
-<tr><td>Design patterns</td><td>10</td></tr>
+<tr><td>Design patterns</td><td>see &sect;7 for the full list, each with the problem it solves</td></tr>
 <tr><td>Verification harnesses</td><td>{F['harnesses']} source files, {F['targets']} built,
     {F['ctests']} registered as CTest cases</td></tr>
 <tr><td>Commits on the integration branch</td><td>{F['commits']}</td></tr>
@@ -2120,7 +2120,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>compact</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
 <tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>full</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>
 <tr><td>9</td><td><code>IPlayerState</code></td><td>&sect;6.4</td><td>full</td><td>Five player forms plus the two Decorators that wrap them.</td></tr>
-<tr><td>10</td><td><code>IGameState</code></td><td>&sect;6.5</td><td>full</td><td>Eight screens behind one State interface.</td></tr>
+<tr><td>10</td><td><code>IGameState</code></td><td>&sect;6.5</td><td>full</td><td>{F['states']} screens behind one State interface.</td></tr>
 <tr><td>11</td><td><code>ICommand</code></td><td>&sect;6.5</td><td>full</td><td>Input as objects — the Command pattern's own hierarchy.</td></tr>
 <tr><td>12</td><td><code>IMovementStrategy</code></td><td>&sect;6.5</td><td>full</td><td>Eight interchangeable enemy movements — the Strategy pattern's own hierarchy.</td></tr>
 </tbody></table></div>
