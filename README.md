@@ -36,7 +36,8 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 ### Core Engine
 * **Layered Engine Architecture**: Core → Entities → Physics → Graphics → Infrastructure
 * **Fixed-Timestep Game Loop**: 1/60s updates with frame-interpolated rendering
-* **10 Game States**: Menu, World Map, Character Select, Playing, Pause, Game Over, Victory, Options, Statistics, Editor
+* **9 Game States**: Menu, World Map, Character Select, Playing, Pause, Game Over, Victory, Options, Editor
+  (the statistics screen is `OptionsState::Page::Statistics`, one of five Options pages — there is no `StatisticsState`)
 
 ### Characters (4 Playable)
 * **Mario**: Standard platforming physics
@@ -104,7 +105,7 @@ This project is developed as the CS202 Final Project, with an emphasis on Object
 | **Factory** | `EntityFactory` + `EntityCatalogue` | Creates 25+ entity types via a single registry table. Lakitu spawns Spinies via `EntitySpawnRequested` event. |
 | **Singleton** | `Game`, `ResourceManager`, `SoundManager`, + 9 others | 12 Meyers singletons with deliberate construction order. |
 | **State** | `GameStateManager`, `IPlayerState` | 10 game states (incl. `EditorState`), 5 base player states. |
-| **Observer** | `EventBus` | 29 event types. `SoundManager` (21), `PlayingState` (15), `AchievementManager` (9), `Camera` (7) subscribe. |
+| **Observer** | `EventBus` | 29 event types. `SoundManager` (20), `PlayingState` (15), `AchievementManager` (9), `Camera` (7) subscribe. |
 | **Strategy** | `IMovementStrategy` | 8 enemy AI strategies (Patrol, Chase, Fly, Tethered, HammerThrow, Proximity, TimerEmergence, Linear). `IDifficultyStrategy` ×3. |
 | **Command** | `InputManager` / `ICommand`, `IEditorCommand` | 8+ game commands with key rebinding. Editor has undo/redo (`IEditorCommand`, 7 concretes). Debug console: 11 `IConsoleCommand` concretes. |
 | **Decorator** | `StarDecorator`, `MegaDecorator` | Temporary power-up overlays wrapping active `IPlayerState`. |
