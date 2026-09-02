@@ -1,5 +1,6 @@
 #include "Utils/TileMap.hpp"
 #include "Utils/EditorCommands.hpp"
+#include "Entities/EntityFactory.hpp"
 #include "Utils/LevelLoader.hpp"
 #include "Utils/Serializer.hpp"
 #include "Entities/Entity.hpp"
@@ -68,8 +69,10 @@ void testEntityCommands() {
 
     std::vector<std::unique_ptr<Entity>> entities;
 
-    // Spawn a Mushroom
-    PlaceEntityCommand cmd1(entities, "mushroom", 64.0f, 96.0f);
+    // Spawn a Mushroom. An EntityType, not a name: the command builds through
+    // EntityFactory now, so a type the factory does not know is a compile
+    // error rather than a placement that silently does nothing.
+    PlaceEntityCommand cmd1(entities, EntityType::Mushroom, 64.0f, 96.0f);
     cmd1.execute();
     assert(entities.size() == 1);
     assert(entities[0]->getPosition().x == 64.0f);

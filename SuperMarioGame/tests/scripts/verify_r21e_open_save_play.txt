@@ -1,0 +1,59 @@
+# R21 Lane E - the second half of the user's report: which map am I editing,
+# where did my level go, and how do I play it.
+#
+# Opens a REAL shipped level in the editor, shows what it is in the chrome,
+# saves a copy (the built-in is protected), shows the resolved absolute path,
+# and then plays that authored level from the main menu's CUSTOM LEVELS row -
+# a route that did not exist at all before: the editor wrote to saves/ and
+# LevelCatalog only ever listed the four shipped files.
+#
+#   ./build_r21_lane_e/SuperMarioGame --script tests/scripts/verify_r21e_open_save_play.txt
+
+wait 1.5
+
+# MAP EDITOR is the fifth main-menu row.
+press Down
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 1.5
+
+# Ctrl+O, then Enter on the first row: World 1-1, a real campaign map.
+press O ctrl
+wait 0.8
+shot r21e_10_open_dialog
+press Enter
+wait 1.5
+shot r21e_11_opened_world_1_1
+
+# Ctrl+S on a built-in refuses to overwrite and offers Save As instead.
+press S ctrl
+wait 0.8
+shot r21e_12_builtin_protected
+press Enter
+wait 1.0
+shot r21e_13_saved_path
+
+# Back to the menu, then CUSTOM LEVELS (the sixth row).
+press Escape
+wait 1.2
+press Down
+press Down
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 0.8
+shot r21e_14_custom_levels_menu
+
+# Play it.
+press Enter
+wait 2.5
+shot r21e_15_playing_custom_level
+hold D 1.5
+wait 2.0
+shot r21e_16_playing_custom_level_moving
+quit

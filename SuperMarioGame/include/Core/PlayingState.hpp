@@ -13,6 +13,8 @@
 #include "Graphics/Minimap.hpp"
 #include "Graphics/ParticleEmitter.hpp"
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/TileMapRenderer.hpp"
+#include "Graphics/EntityArtBinder.hpp"
 #include "Core/TimeRewindManager.hpp"
 #include "Core/DevPanel.hpp"
 #include "Utils/Constants.hpp"
@@ -61,11 +63,23 @@ public:
     // site. It is always constructed with plain defaults for everything else
     // (SinglePlayer, not endless) by MenuState's idle timer, so it can never be
     // an Endless or versus run.
+    // `customLevelPath` plays a level that is not part of the campaign — one
+    // authored in the editor, listed by LevelCatalog::customLevels(). When it is
+    // set, setupTestScene() loads THAT file instead of pathFor(levelIndex), and
+    // advanceToNextLevel() treats the run as a one-off rather than walking into
+    // World 1-2. Without it an authored level could be saved and never played,
+    // because PlayingState only ever knew how to load a campaign index.
+    // `isPlaytest` says this run was PUSHED over an editor rather than started
+    // from a menu, so leaving it must pop back to the editor. Quitting with
+    // changeState() would replace this state and leave the editor stranded
+    // underneath a main menu with the author's unsaved level still in it.
     explicit PlayingState(bool startInEditor = false, bool isProcedural = false,
                           const MapGeneratorConfig& genConfig = MapGeneratorConfig(),
                           int characterIndex = 0, int levelIndex = 0,
                           MatchConfig match = MatchConfig{}, bool isEndless = false,
-                          int pendingLoadSlot = 0, bool isAttractDemo = false);
+                          int pendingLoadSlot = 0, bool isAttractDemo = false,
+                          std::string customLevelPath = std::string(),
+                          bool isPlaytest = false);
     ~PlayingState() override;
 
     void enter() override;
@@ -343,6 +357,14 @@ private:
 
     bool m_startInEditor = false;
     bool m_isProcedural = false;
+    // Set only for a one-off custom level; empty for every campaign run.
+    std::string m_customLevelPath;
+    // True when an EditorState pushed this run; see the constructor's doc.
+    bool m_isPlaytest = false;
+
+    // Leave this run the way it was entered: pop back to the editor for a
+    // playtest, replace with the main menu otherwise.
+    void leaveToCallingScreen();
     MapGeneratorConfig m_genConfig;
 
     // Guards exit() against running twice per transition: GameStateManager
@@ -414,6 +436,15 @@ private:
     // cornflower blue and every level looked identical behind the geometry.
     BackgroundRenderer m_background;
 
+    // How a TileType becomes a sprite. Mutable because render() is where the
+    // sheet and theme are pushed into it and render() is const-correct about
+    // nothing else it touches either; keeping it a member rather than a local
+    // avoids rebuilding it 60 times a second.
+    mutable TileMapRenderer m_tileMapRenderer;
+
+    // Which atlas each entity class draws from. Shared with EditorState.
+    mutable EntityArtBinder m_artBinder;
+
     std::array<bool, 3> m_starCoinsCollected = {false, false, false};
     EventBus::ScopedSubscription m_starCoinSub;
 
@@ -471,24 +502,6 @@ private:
     // advancing to the next level, level select, and LOAD GAME.
     sf::Vector2f usableSpawnNear(sf::Vector2f desired, const std::string& levelPath) const;
 
-    // Which atlas art one column of a tilemap pipe run is drawn from.
-    //
-    // `frame` is an atlas frame name. `sliceHeight` of 0 means "draw the whole
-    // frame"; otherwise only the `sliceHeight` source rows starting at
-    // `sliceTop` are drawn, which is how a 32x64 whole narrow pipe is split
-    // into a rim tile and however many body tiles a run needs.
-    struct PipeTileArt {
-        std::string frame;
-        int sliceTop = 0;
-        int sliceHeight = 0;
-    };
-
-    // The art for the pipe tile at (tileX, tileY).
-    //
-    // Guarantees that no tile is ever drawn from half a rim: see the comment at
-    // the definition for why the run's own extent, not the left neighbour,
-    // decides this.
-    PipeTileArt pipeTileArtAt(int tileX, int tileY) const;
 
     // Somewhere the given player can come back that is on screen and on solid
     // ground.
@@ -588,5 +601,24 @@ private:
 
     // Polymorphic animation dispatcher: routes entity to its matching sprite sheet
     void wireEntityAnimations(Entity* entity);
+
+    // The way MapEditor reaches this state's own bookkeeping.
+    //
+    // A nested adapter rather than making PlayingState itself an
+    // IEntityAdmitter: admitEntity() and forgetEntity() stay private, and
+    // nothing outside this class gains the ability to call them. The editor
+    // mutates m_entities directly, so without this an entity it placed never
+    // had setupAnimations() run (it drew as a flat placeholder box) and an
+    // entity it erased left m_player, InputManager and Game holding freed
+    // memory.
+    class EditorBridge : public IEntityAdmitter {
+    public:
+        explicit EditorBridge(PlayingState& owner) : m_owner(owner) {}
+        void admit(Entity* entity) override { m_owner.admitEntity(entity); }
+        void release(Entity* entity) override { m_owner.forgetEntity(entity); }
+    private:
+        PlayingState& m_owner;
+    };
+    EditorBridge m_editorBridge{*this};
 };
 

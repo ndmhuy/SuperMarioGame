@@ -16,6 +16,14 @@ void Pipe::onHitFromBelow(Player& player) {
     // Solid block, does nothing from below except play normal bump sound if necessary
 }
 
+void Pipe::configureWarp(int pipeId, bool isEntrance, std::string targetLevel,
+                         sf::Vector2f exitPosition) {
+    m_pipeId = pipeId;
+    m_isEntrance = isEntrance;
+    m_targetLevel = std::move(targetLevel);
+    m_exitPosition = exitPosition;
+}
+
 bool Pipe::checkWarp(const Player& player) const {
     // Deliberately side-effect free.
     //

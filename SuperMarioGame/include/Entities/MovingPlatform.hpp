@@ -29,6 +29,17 @@ public:
     // (R21 D5).
     bool isPhysicsDriven() const override { return false; }
 
+    // The travel this platform was CONFIGURED with, in world pixels, measured
+    // from its start position — not the sweep it has since shortened itself to
+    // after finding terrain (m_minProgress/m_maxProgress).
+    //
+    // Exists so LevelLoader::saveLevel can write "rangeX"/"rangeY" back. Without
+    // it, saving a level silently reset every platform in it to the loader's
+    // four-tile default, which is the D5 defect the range field was added to
+    // fix. The configured value is the right one to persist: re-loading the file
+    // re-probes the terrain and re-derives the clamp.
+    sf::Vector2f getTravelRange() const { return m_travelRange; }
+
 private:
     // The platform's footprint if it stood at `pos`, for probing a destination
     // before committing to it.

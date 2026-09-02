@@ -52,6 +52,19 @@ public:
     void setRotationDegrees(float deg) { m_rotationDegrees = deg; }
     const std::string& getColor() const { return m_color; }
 
+    // Re-author where this pipe goes, for the level editor's Inspector.
+    //
+    // One call rather than four setters because the four fields are only
+    // meaningful together: an entrance with no destination warps into nothing,
+    // and a destination on a pipe that is not an entrance is never read. All
+    // four have been in the level schema since it was written and none of them
+    // could be authored anywhere but a text editor.
+    //
+    // `exitPosition` is in WORLD pixels, like getExitPosition(); the level JSON
+    // stores the same value in tiles.
+    void configureWarp(int pipeId, bool isEntrance, std::string targetLevel,
+                       sf::Vector2f exitPosition);
+
 private:
     int m_pipeId = 0;
     sf::Vector2f m_exitPosition;

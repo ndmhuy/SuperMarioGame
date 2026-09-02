@@ -255,6 +255,13 @@ void Game::saveScreenshot(const std::string& name) {
     }
 }
 
+bool Game::isMouseButtonDown(sf::Mouse::Button button) const {
+    if (m_inputScript.active() && m_inputScript.hasPointer()) {
+        return m_inputScript.buttonDown(button);
+    }
+    return sf::Mouse::isButtonPressed(button);
+}
+
 sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
     // mapPixelToCoords divides by the viewport size, so it asserts on a window
     // that has not been created yet. Head-less harnesses drive the map editor
@@ -263,7 +270,20 @@ sf::Vector2f Game::getMouseWorldPosition(const sf::View& view) const {
     if (!m_window) return {0.0f, 0.0f};
     const sf::Vector2u windowSize = m_window->getSize();
     if (windowSize.x == 0 || windowSize.y == 0) return {0.0f, 0.0f};
-    return m_window->mapPixelToCoords(sf::Mouse::getPosition(*m_window), view);
+    const sf::Vector2i pixel = (m_inputScript.active() && m_inputScript.hasPointer())
+                                   ? m_inputScript.pointerPixel()
+                                   : sf::Mouse::getPosition(*m_window);
+    return m_window->mapPixelToCoords(pixel, view);
+}
+
+sf::Vector2f Game::getMousePixelPosition() const {
+    // Off-screen sentinel rather than (0,0): a headless harness must not read as
+    // "the pointer is in the top-left corner of the canvas".
+    if (!m_window) return {-1.0f, -1.0f};
+    const sf::Vector2i pixel = (m_inputScript.active() && m_inputScript.hasPointer())
+                                   ? m_inputScript.pointerPixel()
+                                   : sf::Mouse::getPosition(*m_window);
+    return {static_cast<float>(pixel.x), static_cast<float>(pixel.y)};
 }
 
 void Game::pushState(std::unique_ptr<IGameState> state) {
@@ -313,13 +333,18 @@ void Game::initImGui() {
     // effect, users can still drag windows and have that remembered, and bumping
     // the version when the default layout changes retires the old file instead
     // of fighting it.
-    static const char* const kIniFile = "imgui_layout_v2.ini";
+        // v3: the level editor's panels are a fixed full-screen layout now
+    // (EditorState), and a v2 file pinned from the old floating windows would
+    // put them back where they used to be. Bumping the name retires the old
+    // file rather than fighting it - which is the whole reason it is versioned.
+    static const char* const kIniFile = "imgui_layout_v3.ini";
     ImGui::GetIO().IniFilename = kIniFile;
 
     // Retire the unversioned file so it stops being written and stops shadowing
     // the defaults. Best-effort: failing to remove it is cosmetic.
     std::error_code ignored;
     std::filesystem::remove("imgui.ini", ignored);
+    std::filesystem::remove("imgui_layout_v2.ini", ignored);
 }
 
 void Game::shutdown() {

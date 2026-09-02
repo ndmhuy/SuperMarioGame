@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SFML/Window/Mouse.hpp>
+
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <memory>
 #include <optional>
@@ -36,6 +38,24 @@ public:
 
     // Map mouse position to coordinates safely (Encapsulation)
     sf::Vector2f getMouseWorldPosition(const sf::View& view) const;
+
+    // Mouse position in WINDOW pixels, or (-1,-1) when there is no window.
+    //
+    // The editor needs this as well as the world position: whether a click is
+    // over the canvas or over a panel is a screen-space question, and asking
+    // ImGui instead (io.WantCaptureMouse) reads a frame stale here — the state
+    // machine updates before ImGui::SFML::Update does.
+    sf::Vector2f getMousePixelPosition() const;
+
+    // Whether `button` is down, from the SCRIPT's pointer when one is driving
+    // and from the real mouse otherwise.
+    //
+    // The level editor is the only mouse-driven screen in the game, so it was
+    // the only one a --script verification run could not exercise at all
+    // (directive 10). Polling through here rather than sf::Mouse directly is
+    // what lets a script place a Goomba; nothing else in the game polls the
+    // mouse, so nothing else is affected.
+    bool isMouseButtonDown(sf::Mouse::Button button) const;
 
     // Game State stack wrappers (Encapsulation of GameStateManager)
     void pushState(std::unique_ptr<IGameState> state);

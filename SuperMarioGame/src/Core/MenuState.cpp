@@ -2,12 +2,14 @@
 #include "Core/AchievementManager.hpp"
 #include "Core/CharacterSelectState.hpp"
 #include "Core/DebugConsole.hpp"
+#include "Core/EditorState.hpp"
 #include "Core/OptionsState.hpp"
 #include "Core/PlayingState.hpp"
 #include "Core/Game.hpp"
 #include "Core/InputManager.hpp"
 #include "Core/SoundManager.hpp"
 #include "Utils/Constants.hpp"
+#include "Utils/LevelCatalog.hpp"
 #include "Utils/MetaGame.hpp"
 #include "Utils/Serializer.hpp"
 
@@ -27,8 +29,8 @@
 namespace {
 
 // Main-menu rows, in display order.
-enum MainRow { ROW_START = 0, ROW_LOAD, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_GENERATOR,
-               ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
+enum MainRow { ROW_START = 0, ROW_LOAD, ROW_VERSUS, ROW_DAILY, ROW_EDITOR, ROW_CUSTOM,
+               ROW_GENERATOR, ROW_RECORDS, ROW_OPTIONS, ROW_QUIT, ROW_COUNT };
 
 const char* const kThemes[] = {"OVERWORLD", "UNDERGROUND", "CASTLE", "ICE"};
 constexpr int kThemeCount = 4;
@@ -149,6 +151,11 @@ void MenuState::enter() {
     m_mainItems.emplace_back("MULTIPLAYER", "4 MODES");
     m_mainItems.emplace_back("DAILY CHALLENGE", MetaGame::todaysChallengeName());
     m_mainItems.emplace_back("MAP EDITOR");
+    // The other half of the editor: a level you author is worthless if there is
+    // no way to play it, and until now there was none.
+    LevelCatalog::refreshCustomLevels();
+    m_mainItems.emplace_back("CUSTOM LEVELS",
+                             std::to_string(LevelCatalog::customLevels().size()));
     m_mainItems.emplace_back("PROCEDURAL LEVEL");
     // Achievement progress on the row itself, so the player can see there is
     // something to chase without opening the page first.
@@ -227,6 +234,21 @@ std::vector<UiMenuItem> MenuState::buildLoadItems() const {
     return rows;
 }
 
+std::vector<UiMenuItem> MenuState::buildCustomLevelItems() const {
+    std::vector<UiMenuItem> rows;
+    for (const LevelEntry& entry : LevelCatalog::customLevels()) {
+        // The file stem as the value column, so two levels that named themselves
+        // the same are still told apart.
+        std::string stem = std::filesystem::path(entry.path).stem().string();
+        rows.emplace_back(entry.displayName, stem + ".json");
+    }
+    if (rows.empty()) {
+        rows.emplace_back("NO CUSTOM LEVELS YET", "MAP EDITOR > SAVE AS", false);
+    }
+    rows.emplace_back("BACK");
+    return rows;
+}
+
 void MenuState::moveSelection(int delta) {
     // SPEC 17.3: "Menu selection: click sound on highlight change". CharSelect
     // and WorldMapState only ever play "bump" for a *blocked* move (a locked
@@ -243,6 +265,11 @@ void MenuState::moveSelection(int delta) {
     if (m_page == Page::Generator) {
         const int n = static_cast<int>(GenRow::COUNT);
         m_genSelected = (m_genSelected + delta + n) % n;
+        return;
+    }
+    if (m_page == Page::CustomLevels) {
+        const int n = static_cast<int>(buildCustomLevelItems().size());
+        if (n > 0) m_customSelected = (m_customSelected + delta + n) % n;
         return;
     }
     if (m_page == Page::Load) {
@@ -375,8 +402,17 @@ void MenuState::activateSelection() {
                 break;
             }
             case ROW_EDITOR:
+                // A screen of its own, with a blank canvas. This row used to
+                // open PlayingState(true, false) — the editor as one floating
+                // ImGui window over a silently loaded copy of World 1-1, with
+                // nothing on screen saying which level that was.
                 m_dismissed = true;
-                game.changeState(std::make_unique<PlayingState>(true, false));
+                game.changeState(std::make_unique<EditorState>());
+                break;
+            case ROW_CUSTOM:
+                LevelCatalog::refreshCustomLevels();
+                m_page = Page::CustomLevels;
+                m_customSelected = 0;
                 break;
             case ROW_GENERATOR:
                 m_page = Page::Generator;
@@ -399,6 +435,23 @@ void MenuState::activateSelection() {
             default:
                 break;
         }
+        return;
+    }
+
+    if (m_page == Page::CustomLevels) {
+        const auto& levels = LevelCatalog::customLevels();
+        const int backRow = static_cast<int>(levels.size());
+        if (m_customSelected >= backRow || levels.empty()) {
+            m_page = Page::Main;
+            return;
+        }
+        m_dismissed = true;
+        // Addressed by PATH, not by a campaign index: an authored level is not
+        // part of the campaign and must not renumber it.
+        game.changeState(std::make_unique<PlayingState>(
+            false, false, MapGeneratorConfig(), 0, 0, MatchConfig{},
+            /*isEndless=*/false, /*pendingLoadSlot=*/0, /*isAttractDemo=*/false,
+            levels[static_cast<std::size_t>(m_customSelected)].path));
         return;
     }
 
@@ -699,6 +752,34 @@ void MenuState::render(sf::RenderTarget& target) {
 
         UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
                                      {centerX, kTop + panelHeight + 18.0f}, 11,
+                                     sf::Color(220, 220, 220), true);
+        return;
+    }
+
+    if (m_page == Page::CustomLevels) {
+        const std::vector<UiMenuItem> rows = buildCustomLevelItems();
+
+        constexpr float kTop = 200.0f;
+        constexpr float kRowHeight = 34.0f;
+        const float rowsTop = kTop + 56.0f;
+        const float panelHeight = (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 30.0f) - kTop;
+        constexpr float kPanelHalfW = 320.0f;
+
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
+        UiRenderer::drawText(target, "CUSTOM LEVELS", {centerX, kTop + 20.0f}, 14,
+                             sf::Color(120, 220, 160), true);
+        UiRenderer::drawMenuItems(target, rows, m_customSelected,
+                                  {centerX - 250.0f, rowsTop}, kRowHeight, 11,
+                                  0.0f, m_elapsed, centerX + kPanelHalfW);
+        // The directory, on the screen that lists the files: "where is it" has
+        // to be answerable from outside the editor too.
+        UiRenderer::drawShadowedText(target,
+                                     toUpper(LevelCatalog::customDirectory()),
+                                     {centerX, kTop + panelHeight + 18.0f}, 10,
+                                     sf::Color(190, 190, 190), true);
+        UiRenderer::drawShadowedText(target, "ENTER  PLAY      ESC  BACK",
+                                     {centerX, kTop + panelHeight + 36.0f}, 11,
                                      sf::Color(220, 220, 220), true);
         return;
     }

@@ -102,9 +102,19 @@ const char* categoryLabel(Category category) {
 }
 
 const std::vector<Category>& placeableCategories() {
+    // Players are deliberately absent.
+    //
+    // A level file does not contain a player: LevelLoader::saveLevel turns any
+    // Mario/Luigi/Toad/Peach in the entity list into the level's "spawnPoint"
+    // and writes no entity for it. Offering one in the palette therefore
+    // promised something the format cannot keep — and worse, dropping a second
+    // Player into a running PlayingState produced an entity that
+    // adoptPlayer() had never seen, so the physics engine and the input manager
+    // disagreed about which body was the player. The Spawn Point tool is how a
+    // start position is authored.
     static const std::vector<Category> kCategories = {
-        Category::Player, Category::Enemy, Category::Item,
-        Category::Block,  Category::Scenery
+        Category::Enemy, Category::Item,
+        Category::Block, Category::Scenery
     };
     return kCategories;
 }

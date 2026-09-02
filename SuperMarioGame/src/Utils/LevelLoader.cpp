@@ -202,8 +202,22 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
     return true;
 }
 
-bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap, 
-                             const std::vector<std::unique_ptr<Entity>>& entities, const std::string& levelName) {
+bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
+                             const std::vector<std::unique_ptr<Entity>>& entities,
+                             const std::string& levelName) {
+    LevelData meta;
+    meta.name = levelName;
+    // Sentinel, not a real spawn: the overload below treats a negative spawn as
+    // "the caller does not know" and falls back to the historical (2, 18) guess,
+    // so this path behaves exactly as it always has.
+    meta.spawnPoint = sf::Vector2f(-1.0f, -1.0f);
+    return saveLevel(jsonPath, tileMap, entities, meta);
+}
+
+bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
+                             const std::vector<std::unique_ptr<Entity>>& entities,
+                             const LevelData& meta) {
+    const std::string& levelName = meta.name;
     try {
         std::filesystem::path fsPath(jsonPath);
         if (fsPath.has_parent_path()) {
@@ -212,7 +226,7 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
 
         nlohmann::json j;
         j["name"] = levelName;
-        j["theme"] = "overworld";
+        j["theme"] = meta.theme.empty() ? std::string("overworld") : meta.theme;
         j["width"] = tileMap.getWidth();
         j["height"] = tileMap.getHeight();
         j["tileSize"] = Constants::TILE_SIZE;
@@ -222,6 +236,16 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
         int defaultSpawnY = std::clamp(18, 0, tileMap.getHeight() - 1);
         int defaultFlagX = std::clamp(tileMap.getWidth() - 2, 0, tileMap.getWidth() - 1);
         int defaultFlagY = std::clamp(18, 0, tileMap.getHeight() - 1);
+
+        // The caller's spawn point wins when it gave one. Levels are authored
+        // with a spawn tool now; writing (2,18) over it every save is how an
+        // edited level came back with the player buried in a wall.
+        if (meta.spawnPoint.x >= 0.0f && meta.spawnPoint.y >= 0.0f) {
+            defaultSpawnX = std::clamp(static_cast<int>(meta.spawnPoint.x / Constants::TILE_SIZE),
+                                       0, std::max(0, tileMap.getWidth() - 1));
+            defaultSpawnY = std::clamp(static_cast<int>(meta.spawnPoint.y / Constants::TILE_SIZE),
+                                       0, std::max(0, tileMap.getHeight() - 1));
+        }
 
         j["spawnPoint"] = { {"x", defaultSpawnX}, {"y", defaultSpawnY} };
         j["flagpole"] = { {"x", defaultFlagX}, {"y", defaultFlagY} };
@@ -284,10 +308,25 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
                 entObj["exitY"] = static_cast<int>(pipe->getExitPosition().y / Constants::TILE_SIZE);
                 entObj["color"] = pipe->getColor();
             }
-            // A moving platform's travel range is deliberately NOT written back
-            // yet: MovingPlatform does not expose it, and writing the loader's
-            // default instead of the platform's real range would turn a level
-            // that was saved once into a level with four-tile sweeps again.
+            if (auto boss = dynamic_cast<const Boss*>(entity.get())) {
+                // Same hole as the platform range below: the arena was loadable
+                // and not saveable, so a boss whose arena had been authored came
+                // back from a save centred on its own spawn instead.
+                const AABB& arena = boss->getArena();
+                entObj["arenaX"] = arena.x / Constants::TILE_SIZE;
+                entObj["arenaW"] = arena.width / Constants::TILE_SIZE;
+            }
+
+            if (auto platform = dynamic_cast<const MovingPlatform*>(entity.get())) {
+                // Closes the round-trip hole this comment used to describe: the
+                // range was unreadable, so saving a level reset every platform
+                // in it to the loader's four-tile default and re-created D5.
+                // Written as a float, since the loader reads it as one and a
+                // half-tile sweep is a legitimate thing to author.
+                const sf::Vector2f range = platform->getTravelRange();
+                entObj["rangeX"] = range.x / Constants::TILE_SIZE;
+                entObj["rangeY"] = range.y / Constants::TILE_SIZE;
+            }
 
             j["entities"].push_back(entObj);
         }

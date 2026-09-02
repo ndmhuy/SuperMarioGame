@@ -11,24 +11,31 @@ namespace {
 
 // Builds the synthetic event. SFML 3's sf::Event is a variant over the concrete
 // event structs, so a KeyPressed is constructed rather than assigned into a tag.
-sf::Event keyEvent(sf::Keyboard::Key key, bool pressed) {
+struct Modifiers {
+    bool ctrl = false;
+    bool shift = false;
+    bool alt = false;
+    bool system = false;
+};
+
+sf::Event keyEvent(sf::Keyboard::Key key, bool pressed, Modifiers mods = {}) {
     if (pressed) {
         sf::Event::KeyPressed event;
         event.code = key;
         event.scancode = sf::Keyboard::Scancode::Unknown;
-        event.alt = false;
-        event.control = false;
-        event.shift = false;
-        event.system = false;
+        event.alt = mods.alt;
+        event.control = mods.ctrl;
+        event.shift = mods.shift;
+        event.system = mods.system;
         return sf::Event(event);
     }
     sf::Event::KeyReleased event;
     event.code = key;
     event.scancode = sf::Keyboard::Scancode::Unknown;
-    event.alt = false;
-    event.control = false;
-    event.shift = false;
-    event.system = false;
+    event.alt = mods.alt;
+    event.control = mods.ctrl;
+    event.shift = mods.shift;
+    event.system = mods.system;
     return sf::Event(event);
 }
 
@@ -49,7 +56,21 @@ bool InputScript::parseKey(const std::string& name, sf::Keyboard::Key& out) {
     // a part of a level the player has not walked to — which is exactly what a
     // verification script needs to photograph the end of a stage.
     if (name == "F1")        { out = sf::Keyboard::Key::F1;        return true; }
+    // F5 is attract mode from the menu and Playtest from the level editor.
+    if (name == "F5")        { out = sf::Keyboard::Key::F5;        return true; }
     return false;
+}
+
+bool InputScript::parseButton(const std::string& name, sf::Mouse::Button& out) {
+    if (name == "left")   { out = sf::Mouse::Button::Left;   return true; }
+    if (name == "right")  { out = sf::Mouse::Button::Right;  return true; }
+    if (name == "middle") { out = sf::Mouse::Button::Middle; return true; }
+    return false;
+}
+
+bool InputScript::buttonDown(sf::Mouse::Button button) const {
+    const auto index = static_cast<std::size_t>(button);
+    return index < m_buttons.size() && m_buttons[index];
 }
 
 bool InputScript::load(const std::string& path) {
@@ -91,7 +112,27 @@ bool InputScript::load(const std::string& path) {
             if (verb == "hold") {
                 step.kind = Step::Kind::Hold;
                 if (!(tokens >> step.seconds)) return fail("hold needs a duration");
+            } else {
+                // Trailing modifier words, for the editor's Ctrl+Z / Ctrl+S.
+                std::string modifier;
+                while (tokens >> modifier) {
+                    if      (modifier == "ctrl")   step.ctrl = true;
+                    else if (modifier == "shift")  step.shift = true;
+                    else if (modifier == "alt")    step.alt = true;
+                    else if (modifier == "system") step.system = true;
+                    else return fail("unknown modifier '" + modifier + "'");
+                }
             }
+        } else if (verb == "mouse") {
+            step.kind = Step::Kind::MouseMove;
+            if (!(tokens >> step.pixel.x >> step.pixel.y)) return fail("mouse needs x and y");
+        } else if (verb == "mousedown" || verb == "mouseup") {
+            std::string buttonName;
+            if (!(tokens >> buttonName)) return fail(verb + " needs left/right/middle");
+            if (!parseButton(buttonName, step.button)) {
+                return fail("unknown mouse button '" + buttonName + "'");
+            }
+            step.kind = (verb == "mousedown") ? Step::Kind::MouseDown : Step::Kind::MouseUp;
         } else if (verb == "shot") {
             step.kind = Step::Kind::Shot;
             if (!(tokens >> step.text)) return fail("shot needs a name");
@@ -146,10 +187,12 @@ InputScript::Effect InputScript::update(float dt, std::vector<sf::Event>& out,
             case Step::Kind::Wait:
                 m_waiting = step.seconds;
                 return Effect::None;
-            case Step::Kind::Press:
-                out.push_back(keyEvent(step.key, true));
-                out.push_back(keyEvent(step.key, false));
+            case Step::Kind::Press: {
+                const Modifiers mods{step.ctrl, step.shift, step.alt, step.system};
+                out.push_back(keyEvent(step.key, true, mods));
+                out.push_back(keyEvent(step.key, false, mods));
                 break;
+            }
             case Step::Kind::Hold:
                 out.push_back(keyEvent(step.key, true));
                 m_pendingReleases.push_back({step.key, step.seconds});
@@ -167,6 +210,18 @@ InputScript::Effect InputScript::update(float dt, std::vector<sf::Event>& out,
             case Step::Kind::SaveReplay:
                 shotName = step.text;
                 return Effect::SaveReplay;
+            case Step::Kind::MouseMove:
+                m_pointer = step.pixel;
+                m_pointerSet = true;
+                break;
+            case Step::Kind::MouseDown:
+                m_buttons[static_cast<std::size_t>(step.button)] = true;
+                m_pointerSet = true;
+                break;
+            case Step::Kind::MouseUp:
+                m_buttons[static_cast<std::size_t>(step.button)] = false;
+                m_pointerSet = true;
+                break;
             case Step::Kind::Quit:
                 return Effect::Quit;
         }

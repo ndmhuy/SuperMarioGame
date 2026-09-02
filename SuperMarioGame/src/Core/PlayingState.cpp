@@ -88,13 +88,15 @@ BackgroundTheme backdropForGeneratedTheme(MapTheme theme) {
 
 PlayingState::PlayingState(bool startInEditor, bool isProcedural, const MapGeneratorConfig& genConfig,
                            int characterIndex, int levelIndex, MatchConfig match, bool isEndless,
-                           int pendingLoadSlot, bool isAttractDemo)
+                           int pendingLoadSlot, bool isAttractDemo,
+                           std::string customLevelPath, bool isPlaytest)
     : m_match(match),
       m_selectedCharIndex(characterIndex),
       m_selectedLevelIndex(LevelCatalog::isValidIndex(levelIndex) ? levelIndex : 0),
       m_startInEditor(startInEditor), m_isProcedural(isProcedural),
-      m_genConfig(genConfig), m_isEndless(isEndless), m_pendingLoadSlot(pendingLoadSlot),
-      m_isAttractDemo(isAttractDemo) {
+      m_customLevelPath(std::move(customLevelPath)), m_isPlaytest(isPlaytest),
+      m_genConfig(genConfig), m_pendingLoadSlot(pendingLoadSlot),
+      m_isAttractDemo(isAttractDemo), m_isEndless(isEndless) {
     // Published now rather than in enter(), because the collision resolver can
     // be reached by a harness that never enters a state, and a stale co-op flag
     // there would silently turn a versus stomp into a friendly boost.
@@ -199,6 +201,11 @@ void PlayingState::enter() {
     } else {
         setupTestScene();
     }
+
+    // Before the editor can place or erase anything: without an admitter it
+    // pushes raw into m_entities and frees Players out from under m_player.
+    m_mapEditor.setEntityAdmitter(&m_editorBridge);
+    m_mapEditor.setSpawnPoint(m_levelSpawnPoint);
 
     if (m_startInEditor && !m_mapEditor.isActive()) {
         m_mapEditor.toggleActive();
@@ -546,15 +553,15 @@ void PlayingState::handleInput(const sf::Event& event) {
                 Game::getInstance().pushState(std::make_unique<PauseState>(
                     [this]() { restartLevel(); },
                     [this]() { saveToSlot(Game::getInstance().getActiveSlot()); },
-                    []() {
+                    [this]() {
                         ScreenTransitionManager::getInstance().reset();
-                        Game::getInstance().changeState(std::make_unique<MenuState>());
+                        leaveToCallingScreen();
                     }));
                 return;
             }
 
             if (keyPressed->code == sf::Keyboard::Key::Backspace) {
-                Game::getInstance().changeState(std::make_unique<MenuState>());
+                leaveToCallingScreen();
             }
 
             // M or Tab toggles the minimap. Minimap subscribes to this event itself.
@@ -629,7 +636,8 @@ void PlayingState::update(float dt) {
 
     if (m_mapEditor.isActive()) {
         sf::Vector2f mouseWorldPos = Game::getInstance().getMouseWorldPosition(m_camera.getView());
-        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos, dt, &m_camera);
+        m_mapEditor.update(m_tileMap, m_entities, mouseWorldPos,
+                           Game::getInstance().getMousePixelPosition(), dt, &m_camera);
         m_camera.update(dt);
         // The editor skips the simulation, not the presentation layer. enter()
         // starts a 0.45s fade-in, and render() draws that overlay after the
@@ -1265,6 +1273,12 @@ void PlayingState::refreshWorldLabel(const std::string& levelPath) {
         m_worldLabel = "RANDOM";
         return;
     }
+    // An authored level has no world number and never will; falling through to
+    // the catalogue match below would print "WORLD ?" over somebody's own level.
+    if (!m_customLevelPath.empty()) {
+        m_worldLabel = "CUSTOM";
+        return;
+    }
 
     // Match the loaded path against the campaign catalogue, so the label comes
     // from the same table the level select reads and cannot drift from it.
@@ -1383,51 +1397,6 @@ sf::Vector2f PlayingState::usableSpawnNear(sf::Vector2f desired, const std::stri
               << " is unusable and no position on its row is any better; using it anyway."
               << std::endl;
     return desired;
-}
-
-PlayingState::PipeTileArt PlayingState::pipeTileArtAt(int tileX, int tileY) const {
-    // pipe_green_head_left/right and pipe_green_body_left/right are 16x16 HALVES
-    // of a pipe, each stretched to a full tile at the draw site. Which half a
-    // column shows used to be decided by "is my left neighbour a pipe?", which
-    // is not the same question: it makes the first column of every run a LEFT
-    // half and every later column a RIGHT half. A one-column run therefore drew
-    // the left half of a rim at 2x — the reported half pipe — and a three-column
-    // run drew L,R,R.
-    //
-    // The run's own extent answers it properly: columns pair off from the run
-    // start, and any column left unpaired (an odd-width run's last column, or a
-    // one-column run) is drawn from pipe_dark_green_up / _long_up, which are
-    // COMPLETE 32px-wide pipes rather than halves. A half rim is therefore not
-    // representable here, whatever the level data says (R21-D1, after D22/D23).
-    int runStart = tileX;
-    while (runStart > 0 && m_tileMap.getTileType(runStart - 1, tileY) == TileType::Pipe) --runStart;
-    int runEnd = tileX;
-    while (runEnd + 1 < m_tileMap.getWidth() &&
-           m_tileMap.getTileType(runEnd + 1, tileY) == TileType::Pipe) ++runEnd;
-
-    const bool isTopExposed = (tileY == 0) ||
-                              (m_tileMap.getTileType(tileX, tileY - 1) != TileType::Pipe);
-    const int offset   = tileX - runStart;
-    const int runWidth = runEnd - runStart + 1;
-
-    if (offset == runWidth - 1 && (runWidth % 2) == 1) {
-        // pipe_dark_green_long_up is 32x64: rim on top, body underneath. One
-        // tile of each, so a narrow pipe of any height is built from whole art.
-        PipeTileArt art;
-        art.frame = "pipe_dark_green_long_up";
-        art.sliceTop = isTopExposed ? 0 : 32;
-        art.sliceHeight = 32;
-        return art;
-    }
-
-    const bool isRightHalf = (offset % 2) == 1;
-    PipeTileArt art;
-    if (isTopExposed) {
-        art.frame = isRightHalf ? "pipe_green_head_right" : "pipe_green_head_left";
-    } else {
-        art.frame = isRightHalf ? "pipe_green_body_right" : "pipe_green_body_left";
-    }
-    return art;
 }
 
 void PlayingState::settleEndOfLevelScenery() {
@@ -1630,12 +1599,6 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Set view to camera view for scrolling world space rendering
     target.setView(m_camera.getView());
 
-    // Compute animated tile frame indices from timer
-    int coinFrame     = static_cast<int>(m_tileAnimTimer / 0.15f) % 4;
-    int questionFrame = static_cast<int>(m_tileAnimTimer / 0.20f) % 4;
-    // Two-frame wave cycle shared by water and lava surfaces.
-    const int waveFrame = static_cast<int>(m_tileAnimTimer / 0.35f) % 2;
-
     // Only iterate tiles the camera can actually see. Sweeping the whole grid was
     // roughly 4,400 sprite draws per frame on a 200-wide level (audit A-14).
     // One tile of margin keeps partially-visible edges and the water bob covered.
@@ -1647,146 +1610,12 @@ void PlayingState::render(sf::RenderTarget& target) {
     const int lastY  = std::min(m_tileMap.getHeight() - 1,
                                 static_cast<int>(std::floor((view.y + view.height) / Constants::TILE_SIZE)) + 1);
 
-    // 1. Draw the tilemap tiles (bottom-to-top to ensure overlapping/bobbing top layers draw on top of background)
-    for (int y = lastY; y >= firstY; --y) {
-        for (int x = firstX; x <= lastX; ++x) {
-            TileType tileType = m_tileMap.getTileType(x, y);
-            if (tileType == TileType::Empty) continue;
-
-            sf::Vector2f tilePos(x * Constants::TILE_SIZE, y * Constants::TILE_SIZE);
-            bool spriteDrawn = false;
-
-            if (m_scenerySheet) {
-                std::string frameKey;
-                PipeTileArt pipeArt;
-
-                switch (tileType) {
-                    case TileType::Ground: {
-                        // Themed terrain. This used to be brown-on-grey for every
-                        // level in the game, so an ice cavern and a castle floor
-                        // and a grass field all looked identical — and a
-                        // generated level looked like nothing in particular.
-                        const bool isTopExposed =
-                            (y == 0) || (m_tileMap.getTileType(x, y - 1) == TileType::Empty);
-                        switch (m_background.getTheme()) {
-                            case BackgroundTheme::Underground:
-                                frameKey = isTopExposed ? "solid_block_grey" : "brick_grey_inside";
-                                break;
-                            case BackgroundTheme::Castle:
-                                frameKey = isTopExposed ? "castle_brick_white" : "brick_grey_inside";
-                                break;
-                            case BackgroundTheme::Ice:
-                                frameKey = isTopExposed ? "solid_block_blue" : "brick_blue_inside";
-                                break;
-                            case BackgroundTheme::Overworld:
-                            default:
-                                frameKey = isTopExposed ? "solid_block_brown" : "brick_brown_inside";
-                                break;
-                        }
-                        break;
-                    }
-                    case TileType::Brick:
-                        frameKey = (m_background.getTheme() == BackgroundTheme::Ice)
-                                       ? "brick_blue_one_side"
-                                       : (m_background.getTheme() == BackgroundTheme::Underground ||
-                                          m_background.getTheme() == BackgroundTheme::Castle)
-                                             ? "brick_grey_one_side"
-                                             : "brick_brown_side";
-                        break;
-                    case TileType::Question:
-                        frameKey = "question_block_" + std::to_string(questionFrame % 3);
-                        break;
-                    case TileType::Pipe: {
-                        pipeArt = pipeTileArtAt(x, y);
-                        frameKey = pipeArt.frame;
-                        break;
-                    }
-                    case TileType::Ice:
-                        // No dedicated ice sprite in world_scenery — use solid_block_blue as fallback
-                        frameKey = "solid_block_blue";
-                        break;
-                    case TileType::Conveyor:
-                        frameKey = "conveyor_belt_green";
-                        break;
-                    case TileType::Water: {
-                        const bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Water);
-                        // The surface alternates between the two wave frames the
-                        // atlas ships, so it actually moves rather than only
-                        // bobbing up and down (task 5.10).
-                        frameKey = isSurface
-                            ? (waveFrame == 0 ? "water_dark_blue_wave_long" : "water_light_blue_wave_long")
-                            : "water_dark_blue_bg";
-                        break;
-                    }
-                    case TileType::Lava: {
-                        const bool isSurface = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Lava);
-                        frameKey = isSurface
-                            ? (waveFrame == 0 ? "lava_wave_long" : "lava_wave_short")
-                            : "lava_bg";
-                        break;
-                    }
-                    case TileType::Coin:
-                        frameKey = "coin_" + std::to_string(coinFrame % 2);
-                        break;
-                    default:
-                        break;
-                }
-
-                if (!frameKey.empty()) {
-                    sf::Sprite tileSprite = m_scenerySheet->getSprite(frameKey);
-                    if (pipeArt.sliceHeight > 0) {
-                        // Narrow-pipe art is taller than one tile, so a column
-                        // takes a horizontal slice of it. Applied before
-                        // getLocalBounds(), which reports the texture rect.
-                        sf::IntRect rect = tileSprite.getTextureRect();
-                        rect.position.y += pipeArt.sliceTop;
-                        rect.size.y = pipeArt.sliceHeight;
-                        tileSprite.setTextureRect(rect);
-                    }
-                    auto bounds = tileSprite.getLocalBounds();
-                    if (bounds.size.x > 0 && bounds.size.y > 0) {
-                        tileSprite.setScale(sf::Vector2f(
-                            Constants::TILE_SIZE / bounds.size.x,
-                            Constants::TILE_SIZE / bounds.size.y
-                        ));
-                        sf::Vector2f drawPos = tilePos;
-                        const bool liquidSurface =
-                            (tileType == TileType::Water &&
-                             (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Water)) ||
-                            (tileType == TileType::Lava &&
-                             (y == 0 || m_tileMap.getTileType(x, y - 1) != TileType::Lava));
-                        if (liquidSurface) {
-                            // Pure vertical bobbing up and down (started 5px lower to prevent exposing top gap)
-                            float bobY = std::sin(m_tileAnimTimer * 3.0f) * 2.5f;
-                            drawPos.y += 5.0f + bobY;
-                        }
-                        tileSprite.setPosition(drawPos);
-                        target.draw(tileSprite);
-                        spriteDrawn = true;
-                    }
-                }
-            }
-
-            // Fallback to debug color rectangles if no atlas loaded or unknown tile
-            if (!spriteDrawn) {
-                const TileInfo& info = TileMap::getInfo(tileType);
-                sf::RectangleShape tileShape(sf::Vector2f(Constants::TILE_SIZE, Constants::TILE_SIZE));
-                tileShape.setPosition(tilePos);
-                tileShape.setFillColor(info.debugColor);
-                tileShape.setOutlineColor(sf::Color(60, 40, 20));
-                tileShape.setOutlineThickness(0.5f);
-                target.draw(tileShape);
-
-                // Decoration on debug shapes
-                if (tileType == TileType::Ground) {
-                    sf::RectangleShape grassShape(sf::Vector2f(Constants::TILE_SIZE, 6.0f));
-                    grassShape.setPosition(tilePos);
-                    grassShape.setFillColor(sf::Color(46, 139, 87));
-                    target.draw(grassShape);
-                }
-            }
-        }
-    }
+    // 1. Draw the tilemap tiles. The two hundred lines of TileType-to-atlas-frame
+    // switch that used to live here are TileMapRenderer's now, because the level
+    // editor draws the same world and a second copy of them would drift.
+    m_tileMapRenderer.setSpriteSheet(m_scenerySheet.get());
+    m_tileMapRenderer.setTheme(m_background.getTheme());
+    m_tileMapRenderer.render(target, m_tileMap, view, m_tileAnimTimer);
 
     // 2. Draw all active entities. Players are drawn last so a large entity
     // they are walking toward (Bowser, Boom Boom) can never paint over them —
@@ -1929,8 +1758,12 @@ void PlayingState::setupTestScene() {
     LevelLoader loader;
     LevelData levelData;
     // Campaign order lives in LevelCatalog — this used to be an if-chain here
-    // with a matching hardcoded level count in advanceToNextLevel().
-    std::string levelPath = LevelCatalog::pathFor(m_selectedLevelIndex);
+    // with a matching hardcoded level count in advanceToNextLevel(). A custom
+    // level is not in that order and is addressed by path instead; it is the
+    // only way an authored level can be played at all.
+    std::string levelPath = m_customLevelPath.empty()
+                                ? LevelCatalog::pathFor(m_selectedLevelIndex)
+                                : m_customLevelPath;
 
 
     std::vector<std::string> pathCandidates = {
@@ -1973,7 +1806,7 @@ void PlayingState::setupTestScene() {
         syncBackdropGround();
         syncVoidPlane();
         settleEndOfLevelScenery();
-        refreshWorldLabel(m_isProcedural ? std::string() : LevelCatalog::pathFor(m_selectedLevelIndex));
+        refreshWorldLabel(m_isProcedural ? std::string() : chosenPath);
     } else {
         // Fallback: manually setup scene if file loading fails
         m_tileMap.initialize(40, 22);
@@ -2636,6 +2469,15 @@ void PlayingState::forgetEntity(Entity* entity) {
     // behind it is released. The shadow outlives the level only if nothing
     // pruned it, and updateShadow() would read freed memory the frame after.
     if (entity == m_shadow) m_shadow = nullptr;
+    // Player 1 too. The prune never removes it, so this case never mattered —
+    // until the level editor gained a working Erase tool, which can delete the
+    // player the same as anything else. m_player, InputManager and Game all hold
+    // the same raw pointer and all three have to let go together (audit A-3).
+    if (entity == m_player) {
+        m_player = nullptr;
+        InputManager::getInstance().registerPlayer(nullptr, 0);
+        Game::getInstance().setPlayer(nullptr);
+    }
     if (entity == m_player2) {
         m_player2 = nullptr;
         m_aiController.reset();
@@ -3176,13 +3018,28 @@ void PlayingState::presentLevelSummary() {
         summary, [this]() { advanceToNextLevel(); }));
 }
 
+void PlayingState::leaveToCallingScreen() {
+    Game& game = Game::getInstance();
+    if (m_isPlaytest) {
+        // Pop, not change: EditorState is directly underneath with the author's
+        // level still loaded, and replacing this state would strand it under a
+        // main menu it can never be reached from.
+        game.popState();
+        return;
+    }
+    game.changeState(std::make_unique<MenuState>());
+}
+
 void PlayingState::advanceToNextLevel() {
     // Campaign order matches the level dropdown: 1-1, 1-1 sub, 1-2, 1-2 sub,
     // 1-3, 1-3 sub, bonus. Finishing the last one returns to the menu.
     const int nextIndex = m_selectedLevelIndex + 1;
 
-    if (m_isProcedural || nextIndex >= LevelCatalog::count()) {
-        if (!m_isProcedural) {
+    // A custom level is a one-off, not position zero of the campaign: advancing
+    // from it would drop the player into World 1-2 and, worse, credit them with
+    // a New Game+ cycle for finishing a level they wrote themselves.
+    if (m_isProcedural || !m_customLevelPath.empty() || nextIndex >= LevelCatalog::count()) {
+        if (!m_isProcedural && m_customLevelPath.empty()) {
             // Finishing the last level opens the next New Game+ cycle: the level
             // flags reset, the counter and the unlocks do not (task 11.3).
             MetaGame::advanceNewGamePlus();
@@ -3190,8 +3047,11 @@ void PlayingState::advanceToNextLevel() {
                       << MetaGame::newGamePlusLevel() << "." << std::endl;
         }
         std::cout << "[PlayingState] Campaign complete — returning to menu." << std::endl;
-        ScreenTransitionManager::getInstance().fadeOut(0.8f, []() {
-            Game::getInstance().changeState(std::make_unique<MenuState>());
+        // The bool is captured by value, not `this`: the callback fires 0.8s
+        // later and must not depend on this state still existing.
+        ScreenTransitionManager::getInstance().fadeOut(0.8f, [playtest = m_isPlaytest]() {
+            if (playtest) Game::getInstance().popState();
+            else Game::getInstance().changeState(std::make_unique<MenuState>());
         });
         return;
     }
@@ -3345,34 +3205,13 @@ void PlayingState::admitEntity(Entity* entity) {
 }
 
 void PlayingState::wireEntityAnimations(Entity* entity) {
-    if (!entity) return;
-
-    // Route entity to its matching sprite sheet atlas based on type hierarchy.
-    // setupAnimations() lives on Player, Enemy, Item, Block — not on Entity base.
-    if (auto* p = dynamic_cast<Player*>(entity)) {
-        if (m_playerSheet) p->setupAnimations(m_playerSheet.get());
-    } else if (auto* e = dynamic_cast<Enemy*>(entity)) {
-        if (m_enemySheet) e->setupAnimations(m_enemySheet.get());
-    } else if (auto* proj = dynamic_cast<Projectile*>(entity)) {
-        // Hammers and Bowser's fire breath both live in the enemy/projectile
-        // atlas. One branch covers every projectile, so a new one is wired by
-        // existing.
-        if (m_enemySheet) proj->setupAnimations(m_enemySheet.get());
-    } else if (dynamic_cast<StarCoin*>(entity) || dynamic_cast<BridgeAxe*>(entity)) {
-        // Two Items whose art is in the world/scenery atlas rather than the item
-        // one: StarCoin's big_coin_0..2, and BridgeAxe's axe_0..2. Routed by
-        // the generic Item branch below they find no frame, and drawSprite bails
-        // on a zero-size sprite — so they drew a placeholder rectangle.
-        if (auto* sceneryItem = dynamic_cast<Item*>(entity)) {
-            if (m_scenerySheet) sceneryItem->setupAnimations(m_scenerySheet.get());
-        }
-    } else if (auto* i = dynamic_cast<Item*>(entity)) {
-        if (m_itemSheet) i->setupAnimations(m_itemSheet.get());
-    } else if (auto* b = dynamic_cast<Block*>(entity)) {
-        if (m_scenerySheet) b->setupAnimations(m_scenerySheet.get());
-    } else {
-        // Fallback: unknown entity type — silently skip
-        std::cerr << "[wireEntityAnimations] Unknown entity type, skipping animation setup." << std::endl;
-    }
+    // The class-to-atlas routing itself lives in EntityArtBinder, because the
+    // level editor screen has to make exactly the same decision and a second
+    // copy of it would drift (g-rule-22). The sheets are pushed in here rather
+    // than in enter(), so an entity admitted before the atlases finished
+    // loading still gets bound with whatever is available now.
+    m_artBinder.setSheets(m_playerSheet.get(), m_enemySheet.get(),
+                          m_itemSheet.get(), m_scenerySheet.get());
+    m_artBinder.bind(entity);
 }
 

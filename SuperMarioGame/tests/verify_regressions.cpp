@@ -34,6 +34,7 @@
 #include "Graphics/SpriteSheet.hpp"
 #include "Utils/LevelCatalog.hpp"
 #include "Entities/EntityCatalogue.hpp"
+#include "Utils/EditorCommands.hpp"
 #include "Utils/CampaignProgress.hpp"
 #include "Utils/ObjectPool.hpp"
 #include "Utils/EntityConfig.hpp"
@@ -3619,10 +3620,48 @@ void testEntityCatalogueIsCompleteAndRoundTrips() {
     // Projectiles are runtime-only and must stay out of the placeable set: a
     // level file containing a hammer would spawn one frozen in mid-air.
     bool projectilePlaceable = false;
+    bool playerPlaceable = false;
     for (auto category : EntityCatalogue::placeableCategories()) {
         if (category == EntityCatalogue::Category::Projectile) projectilePlaceable = true;
+        if (category == EntityCatalogue::Category::Player) playerPlaceable = true;
     }
     check(!projectilePlaceable, "projectiles are not offered as placeable scenery");
+    // A level file carries no player entity - saveLevel turns one into the
+    // level's spawnPoint - and dropping a second Player into a running
+    // PlayingState produced a body adoptPlayer() had never seen. The Spawn Point
+    // tool authors the start position instead.
+    check(!playerPlaceable, "players are not offered as placeable entities");
+
+    // And now the path the palette ACTUALLY uses.
+    //
+    // Everything above this line went through EntityFactory::create, and passed
+    // for the whole time the editor was broken: PlaceEntityCommand::execute()
+    // never called the factory at all. It matched the selected name against
+    // sixteen hardcoded strings and, for the other twenty-four types, left its
+    // unique_ptr null and returned without a word. This is the check that fails
+    // if that ever comes back.
+    int placedNothing = 0;
+    int placedWrong = 0;
+    int offered = 0;
+    std::string firstSilent;
+    for (auto category : EntityCatalogue::placeableCategories()) {
+        for (const EntityCatalogue::Entry* entry : EntityCatalogue::inCategory(category)) {
+            ++offered;
+            std::vector<std::unique_ptr<Entity>> placedInto;
+            PlaceEntityCommand command(placedInto, entry->type, 64.0f, 64.0f);
+            command.execute();
+            if (placedInto.empty()) {
+                if (placedNothing++ == 0) firstSilent = entry->name;
+            } else if (placedInto.front()->getTypeName() != entry->name) {
+                ++placedWrong;
+            }
+        }
+    }
+    check(offered >= 35, "the palette offers the whole game, not a hand-kept subset");
+    check(placedNothing == 0,
+          "every palette entry actually places something" +
+          (placedNothing ? " (first silent failure: " + firstSilent + ")" : std::string()));
+    check(placedWrong == 0, "and places the type the palette said it would");
 }
 
 

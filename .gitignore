@@ -60,3 +60,10 @@ Report/SuperMarioGame/img/*.png
 # canonical build dir is already ignored above; these are the same thing under
 # a different name and must never be committed.
 SuperMarioGame/build_*/
+
+# Levels authored in the in-game level editor. They are somebody's own content,
+# written to SuperMarioGame/assets/levels/custom/ so the game can find and play
+# them (LevelCatalog::customLevels) — not part of the shipped campaign, and not
+# something one developer's scratch level should arrive in another's checkout.
+# The directory is recreated on demand by LevelCatalog::resolvedCustomDirectory.
+SuperMarioGame/assets/levels/custom/

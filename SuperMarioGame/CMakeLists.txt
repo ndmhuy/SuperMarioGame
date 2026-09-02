@@ -281,7 +281,11 @@ set_tests_properties(guard_asset_single_source PROPERTIES TIMEOUT 30)
 
 add_verify_test(verify_all "tests/verify_all.cpp")
 
-add_verify_test(verify_map_editor "tests/verify_map_editor.cpp" NO_CTEST)
+# Registered as a ctest case (R21): it opens no window and needs none, and the
+# NO_CTEST it carried meant the one harness named after the level editor never
+# ran in CI while PlaceEntityCommand silently placed nothing for 24 of the 40
+# palette types.
+add_verify_test(verify_map_editor "tests/verify_map_editor.cpp")
 
 add_verify_test(verify_save_load "tests/verify_save_load.cpp")
 
