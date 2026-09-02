@@ -28,8 +28,18 @@ std::string upper(std::string s) {
 
 GameOverState::GameOverState(RunSummary summary)
     : m_summary(std::move(summary)) {
-    m_items.emplace_back("RETRY LEVEL");
-    m_items.emplace_back("QUIT TO MENU");
+    if (m_summary.isPlaytest) {
+        // RETRY LEVEL would rebuild a campaign PlayingState from
+        // m_summary.levelIndex — always 0, since EditorState::playtest() never
+        // sets it — silently dropping the author back into World 1-1 instead
+        // of their own level. QUIT TO MENU would strand the suspended
+        // EditorState underneath a main menu it can never be reached from.
+        // Neither option is meaningful here, so there is only one.
+        m_items.emplace_back("BACK TO EDITOR");
+    } else {
+        m_items.emplace_back("RETRY LEVEL");
+        m_items.emplace_back("QUIT TO MENU");
+    }
 }
 
 void GameOverState::enter() {
@@ -49,6 +59,16 @@ void GameOverState::enter() {
     // into saves/highscores.json would push a real run off the bottom of the
     // table permanently. PlayingState::exit() keeps the taint flag alive
     // precisely so this check can still see it from here.
+    if (m_summary.isPlaytest) {
+        // A scratch playtest of the level under edit is not a real run — and
+        // EditorState::playtest() always leaves levelIndex at 0, so recording
+        // one here would tag a bogus World 1-1 entry with whatever score the
+        // author's own level happened to produce.
+        std::cout << "[GameOverState] Editor playtest ended in Game Over; not recording a high score."
+                  << std::endl;
+        return;
+    }
+
     if (Game::getInstance().debugCheats().tainted()) {
         std::cout << "[GameOverState] Cheats were used this run; not recording a high score."
                   << std::endl;
@@ -70,22 +90,37 @@ void GameOverState::exit() {
     std::cout << "Exiting GameOverState" << std::endl;
 }
 
+GameOverState::DismissAction GameOverState::dismissAction() const {
+    if (m_summary.isPlaytest) return DismissAction::ReturnToEditor;
+    return m_selected == 0 ? DismissAction::RetryLevel : DismissAction::QuitToMenu;
+}
+
 void GameOverState::activateSelection() {
     if (m_dismissed) return;
     m_dismissed = true;
 
-    if (m_selected == 0) {
-        // Rebuild the same level with the same character. The lost run's score
-        // is gone deliberately — a retry is a fresh attempt.
-        // Same mode, too: retrying a Shadow Chase used to drop the player into
-        // an ordinary single-player level, because the mode was not part of
-        // what a run summary remembered.
-        Game::getInstance().changeState(std::make_unique<PlayingState>(
-            false, m_summary.isProcedural, m_summary.generatorConfig,
-            m_summary.characterIndex, m_summary.levelIndex, m_summary.match,
-            m_summary.isEndless));
-    } else {
-        Game::getInstance().changeState(std::make_unique<MenuState>());
+    switch (dismissAction()) {
+        case DismissAction::RetryLevel:
+            // Rebuild the same level with the same character. The lost run's score
+            // is gone deliberately — a retry is a fresh attempt.
+            // Same mode, too: retrying a Shadow Chase used to drop the player into
+            // an ordinary single-player level, because the mode was not part of
+            // what a run summary remembered.
+            Game::getInstance().changeState(std::make_unique<PlayingState>(
+                false, m_summary.isProcedural, m_summary.generatorConfig,
+                m_summary.characterIndex, m_summary.levelIndex, m_summary.match,
+                m_summary.isEndless));
+            break;
+        case DismissAction::QuitToMenu:
+            Game::getInstance().changeState(std::make_unique<MenuState>());
+            break;
+        case DismissAction::ReturnToEditor:
+            // Pop, not change: EditorState is directly beneath this state on
+            // the stack (PlayingState::leaveToCallingScreen() is the non-death
+            // half of the same contract), so popping reveals it exactly as it
+            // was left, level and all.
+            Game::getInstance().popState();
+            break;
     }
 }
 
@@ -123,7 +158,14 @@ void GameOverState::handleInput(const sf::Event& event) {
         case Key::Escape:
             if (!m_dismissed) {
                 m_dismissed = true;
-                Game::getInstance().changeState(std::make_unique<MenuState>());
+                // Escape always quits regardless of which row is selected — but
+                // "quit" means back to the editor during a playtest, for the
+                // same reason activateSelection()'s ReturnToEditor case does.
+                if (m_summary.isPlaytest) {
+                    Game::getInstance().popState();
+                } else {
+                    Game::getInstance().changeState(std::make_unique<MenuState>());
+                }
             }
             break;
         default:

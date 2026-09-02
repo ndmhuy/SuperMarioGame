@@ -3690,6 +3690,10 @@ RunSummary PlayingState::buildRunSummary() const {
     summary.match = m_match;
     summary.cause = m_death.reason;
     summary.caughtByShadow = m_shadow && m_shadow->caughtPlayerRecently();
+    // Told GameOverState this run was an editor playtest, the same way
+    // m_isPlaytest already tells leaveToCallingScreen() to pop instead of
+    // changing to the main menu on a non-death exit.
+    summary.isPlaytest = m_isPlaytest;
     if (m_player) {
         summary.score         = m_player->getScore();
         summary.coins         = m_player->getCoins();

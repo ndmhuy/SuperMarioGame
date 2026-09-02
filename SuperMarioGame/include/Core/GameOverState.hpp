@@ -37,6 +37,16 @@ struct RunSummary {
     // The opponent's final score, for the versus verdict. Meaningless unless
     // match.hasSecondPlayer().
     int opponentScore = 0;
+
+    // True when this run was an editor playtest (EditorState::playtest() pushed
+    // it via F5) rather than a real campaign/procedural/endless run started
+    // from the main menu. A Game Over here must round-trip back to the editor
+    // the same way PlayingState::leaveToCallingScreen() already does for a
+    // completed or quit playtest — see GameOverState::dismissAction(). Before
+    // this field existed GameOverState had no way to tell the two apart, so it
+    // always offered RETRY LEVEL / QUIT TO MENU and always landed on the main
+    // menu, stranding the suspended EditorState underneath it forever.
+    bool isPlaytest = false;
 };
 
 // Task 7.6 — Game Over.
@@ -58,6 +68,14 @@ public:
 private:
     void activateSelection();
 
+    // What activateSelection() will do, factored out of the Game::getInstance()
+    // calls themselves so the routing decision is a pure read of m_summary /
+    // m_selected — and so a test can assert it without driving the live,
+    // process-wide state manager (Game is a singleton shared by the whole test
+    // binary; see GameOverStateTestHooks in verify_frontend_states.cpp).
+    enum class DismissAction { RetryLevel, QuitToMenu, ReturnToEditor };
+    DismissAction dismissAction() const;
+
     RunSummary m_summary;
     std::vector<UiMenuItem> m_items;
     int m_selected = 0;
@@ -70,4 +88,9 @@ private:
 
     // True when this run made the high-score table, so the screen can say so.
     bool m_madeHighScore = false;
+
+    // verify_frontend_states.cpp reads dismissAction() and m_items directly —
+    // narrower than a public getter nothing else would ever call, matching
+    // PlayingState's LevelCompletionCameraTestHooks pattern.
+    friend class GameOverStateTestHooks;
 };
