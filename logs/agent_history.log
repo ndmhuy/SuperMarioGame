@@ -5661,3 +5661,16 @@ STILL OPEN: main is 125+ commits behind and promoting it is the user's decision,
   pipe is still Top entry, so the down/up story is inconsistent there;
   MovingPlatform::update never calls Block::update; Spiny::isEgg unreachable.
 ---
+
+[2026-09-02 19:10:00] Branch: A/docs/weekly-w12-w13
+Git Fingerprint: 6af4f8e (before) → 6af4f8e (after this commit's parent, log/report only)
+Fetched Remotes: yes, 18:54 (dev == origin/dev, 0/0; this worktree is off dev @ 6af4f8e per assignment)
+Prompt: Phase 4A lane — write the W12 and W13 weekly reports (docs/Group52_12/52.md, docs/Group52_13/52.md) per docs/REPORT_RULES.md, built strictly from git log and logs/agent_history.log evidence for each week, never from memory. This entry covers W12 only; W13 is logged separately per g-rule-12 (commit per completed unit).
+Files Modified: docs/Group52_12/52.md (new), docs/Group52_12/52.pdf (new, rendered via scripts/generate_pdf.py — docs/Group52_10/52.pdf is git-tracked, so this matches the existing convention rather than gitignoring it)
+Reachable From Main: n/a — documentation only
+Verified By: not a runtime change; verified by re-deriving every claim from git log --since/--until on dev and --all (both return exactly 1 commit for 2026-08-23..2026-08-29, matching the submission-sweep plan's count) and by confirming logs/agent_history.log has zero entries timestamped in that window. PDF rendered successfully (pdfinfo: 3 pages, no weasyprint errors beyond one harmless "unknown property: overflow-x" CSS warning already present in scripts/generate_pdf.py's stylesheet).
+Summary of Changes:
+- docs/Group52_12/52.md: W12 (2026-08-23 - 2026-08-29) reported honestly as a one-commit week — the single event is a PR merge (0258f1f, merging A/fix/windows-crash-and-playtest) whose 18 underlying commits are all dated inside W11, not this week. Stated plainly rather than padded; all five mandatory sections present, with Issues & Resolutions, AI Usage Declaration and Tasks Planned explicitly saying "nothing this week, because ..." where there is nothing to report.
+- docs/Group52_12/52.pdf: rendered from the .md via python3 scripts/generate_pdf.py, matching docs/Group52_10's convention of committing the PDF (git ls-files confirms docs/Group52_10/52.md and 52.pdf are both tracked).
+- No files outside docs/Group52_12/ touched. Did not touch docs/Group52_11/ (a sibling lane's directory) or any of AGENTS.md/README.md/reports/Report/submission_documents/C++ source, per the hard constraints given for this lane.
+---
