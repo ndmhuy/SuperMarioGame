@@ -23,6 +23,13 @@ void Player::performJump() {
 
 void Player::jump() {
     if (m_dying) return;
+    // NOCLIP holds onGround false every frame (a ghost stands on nothing), which
+    // meant the jump that is supposed to be the ghost's ASCEND control was
+    // refused and buffered instead -- so noclip could sink and never rise.
+    if (Game::getInstance().debugCheats().passesThroughSolids()) {
+        velocity.y = -Constants::WALK_SPEED;
+        return;
+    }
     if (onGround || coyoteFramesLeft > 0) {
         performJump();
     } else {

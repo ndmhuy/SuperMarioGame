@@ -88,6 +88,21 @@ void CollisionResolver::resolveEntityVsEntity(Entity& e1, Entity& e2, const Coll
     const EntityCategory c1 = e1.getCategory();
     const EntityCategory c2 = e2.getCategory();
 
+    // Debug > Cheats' NOCLIP phases the player through the TILEMAP -- but a Pipe,
+    // a QuestionBlock and a BrickBlock are entities, not tiles, so a ghost still
+    // got pushed out of the first one it met. With gravity zeroed and onGround
+    // forced false there was no way over it either, so noclip wedged the player
+    // permanently. A ghost passes through solid entities too.
+    //
+    // Deliberately scoped to Block: items and enemies still resolve, so a
+    // recorder can phase through the level geometry and keep collecting and
+    // stomping. Turning NOCLIP off restores the block collision immediately.
+    if (Game::getInstance().debugCheats().passesThroughSolids()) {
+        const bool playerVsBlock = (c1 == EntityCategory::Player && c2 == EntityCategory::Block) ||
+                                   (c1 == EntityCategory::Block && c2 == EntityCategory::Player);
+        if (playerVsBlock) return;
+    }
+
     // A contact hazard — Shadow Mario — takes part in exactly one pairing: the
     // one where it touches a real player. Anything else passes straight through
     // it, so it cannot farm the level for the human it is chasing.
