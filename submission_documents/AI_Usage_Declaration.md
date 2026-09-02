@@ -22,10 +22,5 @@ We declare that Artificial Intelligence (AI) tools were utilized during the deve
 ## Academic Integrity
 While AI assisted in the development, we carefully reviewed, tested, and integrated all AI-generated code. We understand the underlying logic of the submitted system and take full responsibility for its correctness, architecture, and behavior. The custom game logic, level design, and system integration were actively directed, guided, and verified by the human developers.
 
-**Signatures:**
-
-___________________________ (Nguyễn Đình Minh Huy)
-
-___________________________ (Trần Gia Huy)
-
 Date: September 2, 2026
+
