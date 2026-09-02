@@ -83,7 +83,7 @@
       "targetLevel": "assets/levels/level_3.json",
       "type": "pipe",
       "x": 59,
-      "y": 16
+      "y": 15
     },
     {
       "type": "goomba",
@@ -103,7 +103,7 @@
   "height": 20,
   "name": "World 1-3 Sub: Castle Lava Secret Vault",
   "spawnPoint": {
-    "x": 3,
+    "x": 6,
     "y": 16
   },
   "theme": "castle",

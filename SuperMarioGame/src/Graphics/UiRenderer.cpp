@@ -18,6 +18,11 @@ sf::Color selectedColor()  { return sf::Color(SELECTED_R, SELECTED_G, SELECTED_B
 sf::Color normalColor()    { return sf::Color(235, 235, 235); }
 sf::Color disabledColor()  { return sf::Color(110, 110, 110); }
 
+// What a truncated string ends with. ASCII rather than U+2026, because the UI
+// font has no glyph for the single-character ellipsis and would draw the
+// missing-glyph box instead.
+constexpr const char* ELLIPSIS = "...";
+
 } // namespace
 
 const sf::Font& UiRenderer::font() {
@@ -62,9 +67,136 @@ void UiRenderer::drawShadowedText(sf::RenderTarget& target, const std::string& t
     drawText(target, text, pos, size, color, centerX);
 }
 
+unsigned int UiRenderer::fitCharSize(const std::string& text, unsigned int preferred,
+                                     float maxWidth, unsigned int minimum) {
+    if (text.empty() || maxWidth <= 0.0f) return preferred;
+    if (minimum > preferred) minimum = preferred;
+
+    // First estimate, from the font's design metric: PressStart2P is strictly
+    // monospace at one em per advance (unitsPerEm 1000, every advance 1000), so
+    // n characters at size S nominally occupy n*S px and the largest S that fits
+    // width W is floor(W/n).
+    const auto length = static_cast<float>(text.size());
+    auto size = static_cast<unsigned int>(std::floor(maxWidth / length));
+    size = std::clamp(size, minimum, preferred);
+
+    // Then confirm it, because that estimate is NOT always right and errs in the
+    // dangerous direction. FreeType hints the advance to whole pixels per size,
+    // and the rounding is not always down: measured on this font, size 12 lays
+    // out at 13px per character and size 20 at 21px, while 8, 11, 15 and 24 hit
+    // their nominal width exactly. Size 12 is what the LOAD GAME page uses — so
+    // trusting the closed form alone would have left that page still overflowing
+    // by ~8%, which is the defect. Stepping down against the real metric also
+    // means a future font swap degrades to a slightly small label rather than
+    // silently reinstating the overflow.
+    while (size > minimum && measureTextWidth(text, size) > maxWidth) {
+        --size;
+    }
+    return size;
+}
+
+void UiRenderer::drawTextFitted(sf::RenderTarget& target, const std::string& text, sf::Vector2f pos,
+                                unsigned int size, sf::Color color, float maxWidth,
+                                bool centerX, unsigned int minSize) {
+    if (text.empty()) return;
+    if (maxWidth <= 0.0f) {
+        drawText(target, text, pos, size, color, centerX);
+        return;
+    }
+
+    const unsigned int fitted = fitCharSize(text, size, maxWidth, minSize);
+    if (measureTextWidth(text, fitted) <= maxWidth) {
+        drawText(target, text, pos, fitted, color, centerX);
+        return;
+    }
+
+    // Only reachable once shrinking has bottomed out at minSize. Dropping
+    // characters is the last resort because it destroys information; shrinking
+    // does not.
+    std::string clipped = text;
+    while (!clipped.empty() && measureTextWidth(clipped + ELLIPSIS, fitted) > maxWidth) {
+        clipped.pop_back();
+    }
+    drawText(target, clipped + ELLIPSIS, pos, fitted, color, centerX);
+}
+
+std::vector<std::string> UiRenderer::wrapText(const std::string& text, unsigned int size,
+                                              float maxWidth) {
+    std::vector<std::string> lines;
+    if (maxWidth <= 0.0f || text.empty()) {
+        lines.push_back(text);
+        return lines;
+    }
+
+    std::string line;
+    std::size_t i = 0;
+    while (i < text.size()) {
+        // Take the next word together with the single space that precedes it,
+        // so the space is measured as part of the candidate rather than left
+        // dangling at the end of a line.
+        std::size_t wordEnd = text.find(' ', i);
+        if (wordEnd == std::string::npos) wordEnd = text.size();
+        std::string word = text.substr(i, wordEnd - i);
+        i = (wordEnd < text.size()) ? wordEnd + 1 : text.size();
+
+        const std::string candidate = line.empty() ? word : line + " " + word;
+        if (measureTextWidth(candidate, size) <= maxWidth) {
+            line = candidate;
+            continue;
+        }
+
+        if (!line.empty()) {
+            lines.push_back(line);
+            line.clear();
+        }
+
+        // A single word wider than the box has no break opportunity, so it gets
+        // one made for it. Leaving it whole would overflow, which is the defect.
+        while (measureTextWidth(word, size) > maxWidth) {
+            std::string head = word;
+            while (head.size() > 1 && measureTextWidth(head, size) > maxWidth) head.pop_back();
+            lines.push_back(head);
+            word.erase(0, head.size());
+        }
+        line = word;
+    }
+    lines.push_back(line);
+    return lines;
+}
+
 void UiRenderer::drawMenuItems(sf::RenderTarget& target, const std::vector<UiMenuItem>& items,
                                int selectedIndex, sf::Vector2f topLeft, float rowHeight,
-                               unsigned int charSize, float valueColumnX, float blinkPhase) {
+                               unsigned int charSize, float valueColumnX, float blinkPhase,
+                               float panelRightX) {
+    // Clearance is one character cell, so the gutters scale with the type. A
+    // pixel count would stop being right the moment a page picked a different
+    // charSize — which the Options and Controls pages now derive at runtime.
+    const float gutter = static_cast<float>(charSize);
+
+    // Where the value column starts. Callers that know their layout pass it;
+    // the rest get it derived from the widest label actually present. This
+    // replaces a flat `topLeft.x + 320` fallback that belonged to no panel at
+    // all and was one of the reasons no value column knew where its box ended.
+    float valueX = valueColumnX;
+    if (valueX <= 0.0f) {
+        float widestLabel = 0.0f;
+        bool anyValue = false;
+        for (const UiMenuItem& item : items) {
+            if (!item.value.empty()) anyValue = true;
+            widestLabel = std::max(widestLabel, measureTextWidth(item.label, charSize));
+        }
+        if (anyValue) valueX = topLeft.x + widestLabel + gutter * 2.0f;
+    }
+
+    // Zero means unbounded in both cases, which is what a caller that passes no
+    // panel edge and has no values gets — the pause and game-over lists.
+    const float labelMax = (valueX > 0.0f)         ? valueX - gutter - topLeft.x
+                         : (panelRightX > 0.0f)    ? panelRightX - gutter - topLeft.x
+                                                   : 0.0f;
+    const float valueMax = (panelRightX > 0.0f && valueX > 0.0f)
+                         ? panelRightX - gutter - valueX
+                         : 0.0f;
+
     for (std::size_t i = 0; i < items.size(); ++i) {
         const UiMenuItem& item = items[i];
         const bool isSelected = (static_cast<int>(i) == selectedIndex);
@@ -83,11 +215,10 @@ void UiRenderer::drawMenuItems(sf::RenderTarget& target, const std::vector<UiMen
             }
         }
 
-        drawText(target, item.label, {topLeft.x, y}, charSize, color);
+        drawTextFitted(target, item.label, {topLeft.x, y}, charSize, color, labelMax);
 
         if (!item.value.empty()) {
-            const float vx = (valueColumnX > 0.0f) ? valueColumnX : topLeft.x + 320.0f;
-            drawText(target, item.value, {vx, y}, charSize, color);
+            drawTextFitted(target, item.value, {valueX, y}, charSize, color, valueMax);
         }
     }
 }

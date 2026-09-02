@@ -69,7 +69,11 @@ void DevPanel::draw(PlayingState& state) {
     if (!state.m_mapEditor.isActive()) {
         drawPlaygroundPanel(state);
         drawPersistencePanel(state);
-        drawAchievementToasts();
+        // Achievement toasts are NOT drawn here. UiRenderer::drawAchievementToasts,
+        // called once from Game::run(), is the single renderer of
+        // AchievementManager's toast model — this panel used to draw a second
+        // ImGui card from the same model, anchored within ~4px of it, and painted
+        // over it every frame an achievement unlocked (defect 9, R21).
         if (m_showAiOverlay) {
             drawAiOverlay(state);
         }
@@ -631,29 +635,5 @@ void DevPanel::drawPersistencePanel(PlayingState& state) {
                         "- Num7: Defeat Bowser    - Num8: Collect star coin\n"
                         "- Num9: Find hidden block");
 
-    ImGui::End();
-}
-
-// ---------------------------------------------------------------------------
-
-void DevPanel::drawAchievementToasts() {
-    const auto& toasts = AchievementManager::getInstance().getActiveToasts();
-    if (toasts.empty()) return;
-
-    ImGui::SetNextWindowPos(ImVec2(Constants::WINDOW_WIDTH - 320.0f, 20.0f), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(300.0f, 80.0f * toasts.size()), ImGuiCond_Always);
-    ImGui::Begin("Achievements Toasts Overlay", nullptr,
-                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                 ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBackground);
-
-    for (const auto& toast : toasts) {
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, toast.alpha);
-        ImGui::BeginChild(toast.id.c_str(), ImVec2(290, 70), true);
-        ImGui::TextColored(ImVec4(1.0f, 0.84f, 0.0f, 1.0f), "Achievement Unlocked!");
-        ImGui::Text("[%s] %s", toast.icon.c_str(), toast.name.c_str());
-        ImGui::EndChild();
-        ImGui::PopStyleVar();
-    }
     ImGui::End();
 }

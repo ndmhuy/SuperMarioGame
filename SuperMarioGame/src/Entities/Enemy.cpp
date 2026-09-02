@@ -4,7 +4,21 @@
 
 #include "Utils/Constants.hpp"
 #include "Core/Game.hpp"
+#include "Entities/TerrainProbe.hpp"
 #include "Utils/TileMap.hpp"
+
+bool Enemy::hasFloorAhead(float dx) const {
+    // One probe line, four pixels below the feet, for both samples: the tile the
+    // enemy is standing on and the tile it would be standing on next.
+    const float footY  = position.y + boundingBox.height + 4.0f;
+    const float underX = position.x + boundingBox.width / 2.0f;
+
+    if (!TerrainProbe::isSolidAt(underX, footY)) return true;
+
+    const float aheadX = (dx >= 0.0f) ? (position.x + boundingBox.width + dx)
+                                      : (position.x + dx);
+    return TerrainProbe::isSolidAt(aheadX, footY);
+}
 
 float Enemy::fallDespawnPlaneY() {
     TileMap* tileMap = Game::getInstance().getTileMap();

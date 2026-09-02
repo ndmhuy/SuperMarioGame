@@ -82,7 +82,14 @@ void OptionsState::buildRows() {
         m_rows.push_back({RowKind::Volume,     "MUSIC VOLUME", "", true});
         m_rows.push_back({RowKind::Volume,     "SFX VOLUME",   "", false});
         m_rows.push_back({RowKind::Difficulty, "DIFFICULTY",   "", false});
-        m_rows.push_back({RowKind::Toggle,     "COLORBLIND",   "", false});
+        // Toggle rows say which flag they own through actionId, which was doing
+        // nothing on this kind. There was exactly one toggle before, so both
+        // valueTextFor() and adjustSelected() named the colourblind flag
+        // directly; a second toggle would have silently driven the first.
+        m_rows.push_back({RowKind::Toggle,     "COLORBLIND",   "colorblind", false});
+        // The developer ImGui overlays. Off by default (defect 12) and reachable
+        // from here so a developer does not need a rebuild to get them back.
+        m_rows.push_back({RowKind::Toggle,     "DEBUG MODE",   "debug", false});
         m_rows.push_back({RowKind::Action,     "BACK",         "", false});
     }
 
@@ -117,6 +124,7 @@ std::string OptionsState::valueTextFor(const Row& row) const {
             return d;
         }
         case RowKind::Toggle:
+            if (row.actionId == "debug") return game.getDebugMode() ? "ON" : "OFF";
             return game.getColorblindMode() ? "ON" : "OFF";
         case RowKind::Binding: {
             const std::string key =
@@ -150,7 +158,8 @@ void OptionsState::adjustSelected(int direction) {
             break;
         }
         case RowKind::Toggle:
-            game.setColorblindMode(!game.getColorblindMode());
+            if (row.actionId == "debug") game.setDebugMode(!game.getDebugMode());
+            else                         game.setColorblindMode(!game.getColorblindMode());
             break;
         default:
             break;
@@ -387,7 +396,7 @@ void OptionsState::render(sf::RenderTarget& target) {
 
         UiRenderer::drawMenuItems(target, items, m_selected,
                                   {px + 60.0f, py + kListTop}, rowHeight, charSize,
-                                  px + PANEL_W - 200.0f, m_elapsed);
+                                  px + PANEL_W - 200.0f, m_elapsed, px + PANEL_W);
 
         if (!m_notice.empty()) {
             UiRenderer::drawText(target, m_notice, {centerX, py + PANEL_H - 60.0f}, 10,
@@ -410,6 +419,15 @@ void OptionsState::render(sf::RenderTarget& target) {
         UiRenderer::drawText(target, "#   SCORE      LEVEL     CHAR    STARS",
                              {px + 60.0f, py + 110.0f}, 12, sf::Color(120, 200, 255));
 
+        // Column starts, and the width each one owns. Every cell is fitted to
+        // its own column rather than trusted to be short enough: LEVEL had 130px
+        // — exactly ten characters at 12px — and the longest name written today,
+        // "Procedural", is exactly ten. One longer level name and the column
+        // printed straight through CHAR.
+        constexpr float kColRank = 60.0f, kColScore = 110.0f, kColLevel = 290.0f,
+                        kColChar = 420.0f, kColStars = 560.0f;
+        constexpr float kColGap = 12.0f;   // one character cell at this size
+
         float y = py + 150.0f;
         for (std::size_t i = 0; i < m_highScores.size(); ++i) {
             const HighScoreEntry& e = m_highScores[i];
@@ -418,11 +436,17 @@ void OptionsState::render(sf::RenderTarget& target) {
                            [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
             const sf::Color rowColor = (i == 0) ? sf::Color(255, 216, 0) : sf::Color(225, 225, 225);
-            UiRenderer::drawText(target, std::to_string(i + 1), {px + 60.0f, y}, 12, rowColor);
-            UiRenderer::drawText(target, std::to_string(e.score), {px + 110.0f, y}, 12, rowColor);
-            UiRenderer::drawText(target, e.levelName, {px + 290.0f, y}, 12, rowColor);
-            UiRenderer::drawText(target, charName, {px + 420.0f, y}, 12, rowColor);
-            UiRenderer::drawText(target, std::to_string(e.starCoins) + "/3", {px + 560.0f, y}, 12, rowColor);
+            UiRenderer::drawTextFitted(target, std::to_string(i + 1), {px + kColRank, y}, 12,
+                                       rowColor, kColScore - kColRank - kColGap);
+            UiRenderer::drawTextFitted(target, std::to_string(e.score), {px + kColScore, y}, 12,
+                                       rowColor, kColLevel - kColScore - kColGap);
+            UiRenderer::drawTextFitted(target, e.levelName, {px + kColLevel, y}, 12,
+                                       rowColor, kColChar - kColLevel - kColGap);
+            UiRenderer::drawTextFitted(target, charName, {px + kColChar, y}, 12,
+                                       rowColor, kColStars - kColChar - kColGap);
+            UiRenderer::drawTextFitted(target, std::to_string(e.starCoins) + "/3",
+                                       {px + kColStars, y}, 12, rowColor,
+                                       PANEL_W - kColStars - kColGap);
             y += 32.0f;
         }
     }

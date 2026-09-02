@@ -4,7 +4,12 @@
 #include "Core/SoundManager.hpp"
 #include "Core/GameSnapshot.hpp"
 #include "Entities/EntityFactory.hpp"
+#include "Entities/Player.hpp"
+#include "Entities/Spiny.hpp"
+#include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
+
+#include <cmath>
 
 Lakitu::Lakitu(sf::Vector2f position)
     : Enemy(position, 800) {
@@ -39,6 +44,14 @@ void Lakitu::onHitByFireball() {
     this->active = false;
 }
 
+bool Lakitu::isEngaged() const {
+    const Player* player = Game::getInstance().getNearestPlayer(getPosition());
+    // No player in the world is not "the player is far away" — it is a world
+    // with no encounter in it, so there is nothing to wind up for.
+    if (!player) return false;
+    return std::abs(player->getPosition().x - position.x) <= ENGAGE_RANGE_X;
+}
+
 void Lakitu::update(float dt) {
     // Execute FlyStrategy to update velocity
     Enemy::update(dt);
@@ -50,7 +63,19 @@ void Lakitu::update(float dt) {
     // Drop a Spiny on a timer. This used to increment a counter and play a
     // sound without ever creating anything, so Lakitu was a hovering sprite
     // (audit B-7). Entities cannot reach the world's entity list, so it asks.
-    if (m_spawnCount >= MAX_SPINIES) return;
+
+    // Nothing winds up while the player is somewhere else. The egg clock used
+    // to start at level load along with FlyStrategy's unbounded tracking, so a
+    // Lakitu parked 5500px down the level spent its whole allowance throwing
+    // eggs at nobody before the player was ever in the room (R21 D8).
+    if (!isEngaged()) return;
+
+    // Concurrent, not lifetime: three Spinies in play at once, replenished as
+    // the player clears them. See MAX_SPINIES for why the lifetime version was
+    // the defect. The timer is deliberately held rather than accumulated while
+    // capped, so clearing the field buys a fresh wind-up instead of an instant
+    // volley of the drops that were banked meanwhile.
+    if (Spiny::liveCount() >= MAX_SPINIES) return;
 
     m_eggTimer += dt;
     if (m_eggTimer >= 4.0f) {

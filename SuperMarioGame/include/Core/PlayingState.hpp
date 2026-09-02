@@ -457,6 +457,39 @@ private:
     // negative value when the column is empty all the way down.
     float floorBelow(float worldX, float fromWorldY) const;
 
+    // Whether a player can be put down at `topLeft` without being buried.
+    //
+    // Requires all three of: inside the map; the 32x32 box a small player
+    // occupies clear of solid tiles; and a floor somewhere beneath that box.
+    bool isSpawnUsable(sf::Vector2f topLeft) const;
+
+    // `desired` if isSpawnUsable() accepts it, otherwise the nearest position on
+    // the same row that it does accept, otherwise `desired` unchanged (with a
+    // complaint on stderr — there is nothing better to offer).
+    //
+    // Every level transition goes through this: pipe warps, the flagpole
+    // advancing to the next level, level select, and LOAD GAME.
+    sf::Vector2f usableSpawnNear(sf::Vector2f desired, const std::string& levelPath) const;
+
+    // Which atlas art one column of a tilemap pipe run is drawn from.
+    //
+    // `frame` is an atlas frame name. `sliceHeight` of 0 means "draw the whole
+    // frame"; otherwise only the `sliceHeight` source rows starting at
+    // `sliceTop` are drawn, which is how a 32x64 whole narrow pipe is split
+    // into a rim tile and however many body tiles a run needs.
+    struct PipeTileArt {
+        std::string frame;
+        int sliceTop = 0;
+        int sliceHeight = 0;
+    };
+
+    // The art for the pipe tile at (tileX, tileY).
+    //
+    // Guarantees that no tile is ever drawn from half a rim: see the comment at
+    // the definition for why the run's own extent, not the left neighbour,
+    // decides this.
+    PipeTileArt pipeTileArtAt(int tileX, int tileY) const;
+
     // Somewhere the given player can come back that is on screen and on solid
     // ground.
     //

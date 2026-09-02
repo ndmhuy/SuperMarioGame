@@ -1,7 +1,5 @@
 #include "Entities/PatrolStrategy.hpp"
 #include "Entities/Enemy.hpp"
-#include "Core/Game.hpp"
-#include "Utils/TileMap.hpp"
 
 PatrolStrategy::PatrolStrategy(bool ledgeAware, bool movingRight)
     : m_ledgeAware(ledgeAware), m_movingRight(movingRight) {}
@@ -30,30 +28,18 @@ void PatrolStrategy::calculateTarget(Enemy& enemy, float dt) {
     }
 
     // Airborne enemies have nothing under them by definition; testing the tile
-    // below a falling enemy would flip it every frame of the fall.
+    // below a falling enemy would flip it every frame of the fall — which is why
+    // Enemy::hasFloorAhead() answers true when the enemy is not on solid ground
+    // and this still gates on onGround as well.
+    //
+    // The probe itself used to be written out here, and being written out here
+    // was the defect: it was the codebase's only ledge check, so nothing else
+    // could use it (R21 D10). It now lives on Enemy, shared with
+    // HammerThrowStrategy.
     if (m_ledgeAware && enemy.onGround) {
-        TileMap* tileMap = Game::getInstance().getTileMap();
-        if (tileMap) {
-            float checkOffset = m_movingRight ? (enemy.boundingBox.width + 4.0f) : -4.0f;
-            float nextX = enemy.position.x + checkOffset;
-            // Check just below the bottom of the bounding box
-            float checkY = enemy.position.y + enemy.boundingBox.height + 4.0f;
-
-            const TileType currentUnderTile =
-                tileMap->getTileAt(enemy.position.x + enemy.boundingBox.width / 2.0f, checkY);
-            const TileType nextTile = tileMap->getTileAt(nextX, checkY);
-
-            // Only solid ground counts as somewhere to stand. Water, lava and a
-            // coin tile are all "not Empty" but none of them holds an enemy up,
-            // so the old != Empty test walked patrols straight into lava.
-            auto standable = [](TileType tile) {
-                return TileMap::getInfo(tile).isSolid;
-            };
-
-            if (standable(currentUnderTile) && !standable(nextTile)) {
-                m_movingRight = !m_movingRight;
-                enemy.facingRight = m_movingRight;
-            }
+        if (!enemy.hasFloorAhead(m_movingRight ? 4.0f : -4.0f)) {
+            m_movingRight = !m_movingRight;
+            enemy.facingRight = m_movingRight;
         }
     }
 }

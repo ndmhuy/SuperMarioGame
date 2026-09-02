@@ -2,6 +2,7 @@
 #include "Entities/EntityFactory.hpp"
 #include "Entities/Castle.hpp"
 #include "Entities/Mario.hpp"
+#include "Entities/MovingPlatform.hpp"
 #include "Entities/QuestionBlock.hpp"
 #include "Entities/Pipe.hpp"
 #include "Utils/Constants.hpp"
@@ -92,8 +93,21 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
                 float platformY = (gy - 1) * Constants::TILE_SIZE;
 
                 if (config.enableMovingPlatforms && dist01(rng) < 0.6f) {
-                    auto platform = EntityFactory::create(EntityType::MovingPlatform, sf::Vector2f(platformX, platformY));
-                    if (platform) entities.push_back(std::move(platform));
+                    // The sweep has to fit the pit. EntityFactory gives every
+                    // platform a fixed four tiles to the right, but a pit here
+                    // is only two to four tiles wide and the bank on the far
+                    // side can stand up to five tiles higher than this one (see
+                    // the elevation profile above), so a platform launched from
+                    // the pit's CENTRE routinely finished its travel inside
+                    // solid ground (D5). Anchored at the pit's left edge, and
+                    // travelling only what a 2-tile-wide platform has left of
+                    // the pit, it cannot leave the gap it was placed to bridge.
+                    const int carvedWidth = std::min(pitWidth, std::max(0, (exitX - 5) - currentX));
+                    const float sweepTiles = static_cast<float>(std::max(0, carvedWidth - 2));
+                    auto platform = std::make_unique<MovingPlatform>(
+                        sf::Vector2f(currentX * Constants::TILE_SIZE, platformY),
+                        sf::Vector2f(sweepTiles * Constants::TILE_SIZE, 0.0f));
+                    entities.push_back(std::move(platform));
                 } else if (config.enableMovingPlatforms && dist01(rng) < 0.85f) {
                     auto fPlatform = EntityFactory::create(EntityType::FallingPlatform, sf::Vector2f(platformX, platformY));
                     if (fPlatform) entities.push_back(std::move(fPlatform));
@@ -148,14 +162,29 @@ void MapGenerator::generate(TileMap& tileMap, std::vector<std::unique_ptr<Entity
     else if (config.theme == MapTheme::Castle) subLevelTarget = "assets/levels/level_3_sub.json";
 
     sf::Vector2f returnExitPos((midX + 4) * Constants::TILE_SIZE, (midY - 1) * Constants::TILE_SIZE);
+    // Three rows above the surface, not four.
+    //
+    // A Pipe is placed by its top-left corner and is Pipe::HEIGHT_PX (4 tiles)
+    // tall, so seating its foot exactly on row midY would put its rim 128px up
+    // — Constants::JUMP_HEIGHT to the pixel, i.e. the apex of the arc, for a
+    // solid block the player has to get on top of to use. Set one row into the
+    // ground instead: the rim is three tiles up and comfortably reachable, and
+    // the buried row is hidden by the terrain drawn over it. Every authored
+    // level places its pipes the same way.
     auto warpPipe = std::make_unique<Pipe>(
-        sf::Vector2f((midX - 2) * Constants::TILE_SIZE, (midY - 2) * Constants::TILE_SIZE),
+        sf::Vector2f((midX - 2) * Constants::TILE_SIZE, (midY - 3) * Constants::TILE_SIZE),
         1, returnExitPos, subLevelTarget, true
     );
     entities.push_back(std::move(warpPipe));
 
-    tileMap.setTile(midX + 2, midY - 1, TileType::Pipe);
-    tileMap.setTile(midX + 2, midY - 2, TileType::Pipe);
+    // Two columns wide, like every other pipe in the game. cc6a32d fixed the
+    // identical one-column bug in generateSubLevel but missed this call site, so
+    // every procedurally generated overworld still emitted a half pipe at its
+    // checkpoint (D22/D23, still live at R21).
+    for (int pipeCol = midX + 2; pipeCol <= midX + 3; ++pipeCol) {
+        tileMap.setTile(pipeCol, midY - 1, TileType::Pipe);
+        tileMap.setTile(pipeCol, midY - 2, TileType::Pipe);
+    }
 
     auto qBlock = std::make_unique<QuestionBlock>(sf::Vector2f(midX * Constants::TILE_SIZE, (midY - 3) * Constants::TILE_SIZE), 1);
     entities.push_back(std::move(qBlock));
@@ -391,7 +420,12 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     if (trampoline) entities.push_back(std::move(trampoline));
 
     // Exit Pipe at sub-level end leading back to returnLevelPath
-    sf::Vector2f exitPipePos((subWidth - 6) * Constants::TILE_SIZE, (floorY - 2) * Constants::TILE_SIZE);
+    // floorY - 3, not - 2: a Pipe is Pipe::HEIGHT_PX (4 tiles) tall and placed
+    // by its top-left corner, so this seats it one row into the floor and puts
+    // its rim three tiles up — see the checkpoint pipe in generate() for why
+    // three and not four. This pipe is the ONLY way out of the vault, so a rim
+    // at the exact top of the jump arc would be a soft lock.
+    sf::Vector2f exitPipePos((subWidth - 6) * Constants::TILE_SIZE, (floorY - 3) * Constants::TILE_SIZE);
     auto exitPipe = std::make_unique<Pipe>(exitPipePos, 2, returnPosition, returnLevelPath, true);
     entities.push_back(std::move(exitPipe));
 

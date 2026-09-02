@@ -179,9 +179,18 @@ void WorldMapState::drawNode(sf::RenderTarget& target, const Node& node) const {
                                   : (unlocked ? sf::Color(220, 220, 220) : sf::Color(110, 110, 110)));
     target.draw(disc);
 
-    UiRenderer::drawText(target, LevelCatalog::nameFor(node.levelIndex),
-                         {node.position.x, node.position.y + NODE_RADIUS + 14.0f}, 11,
-                         unlocked ? sf::Color(240, 240, 240) : sf::Color(130, 130, 130), true);
+    // A label may use half the gap to each neighbour and no more. The nodes are
+    // spread evenly over a fixed span, so the gap shrinks as levels are added:
+    // at nine levels the spacing is 127px and the catalog names already touched.
+    // Deriving the budget from the node count means the map stays readable as
+    // the campaign grows instead of collapsing into overlapping captions.
+    const float spacing = (m_nodes.size() > 1)
+        ? (MAP_RIGHT - MAP_LEFT) / static_cast<float>(m_nodes.size() - 1)
+        : (MAP_RIGHT - MAP_LEFT);
+    UiRenderer::drawTextFitted(target, LevelCatalog::nameFor(node.levelIndex),
+                               {node.position.x, node.position.y + NODE_RADIUS + 14.0f}, 11,
+                               unlocked ? sf::Color(240, 240, 240) : sf::Color(130, 130, 130),
+                               spacing - 8.0f, true);
 
     if (!unlocked) {
         UiRenderer::drawText(target, "X", {node.position.x, node.position.y - 8.0f}, 14,

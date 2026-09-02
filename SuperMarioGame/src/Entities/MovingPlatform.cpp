@@ -1,5 +1,6 @@
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/Player.hpp"
+#include "Entities/TerrainProbe.hpp"
 #include "Core/Game.hpp"
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <cmath>
@@ -17,36 +18,55 @@ void MovingPlatform::onHitFromBelow(Player& player) {
     // Moving platform hit from below: standard bump behavior or nothing
 }
 
-void MovingPlatform::update(float dt) {
-    sf::Vector2f oldPos = position;
-    sf::Vector2f newPos = position;
+AABB MovingPlatform::footprintAt(sf::Vector2f pos) const {
+    return AABB{pos.x, pos.y, boundingBox.width, boundingBox.height};
+}
 
-    if (m_rangeLen > 0.0f) {
-        float speedFraction = m_speed / m_rangeLen;
-        if (m_movingForward) {
-            m_progress += speedFraction * dt;
-            if (m_progress >= 1.0f) {
-                m_progress = 1.0f;
-                m_movingForward = false;
-            }
-        } else {
-            m_progress -= speedFraction * dt;
-            if (m_progress <= 0.0f) {
-                m_progress = 0.0f;
-                m_movingForward = true;
-            }
-        }
-        newPos = m_startPos + m_travelRange * m_progress;
-        
-        // Update velocity representation
-        sf::Vector2f dir = m_travelRange / m_rangeLen;
-        velocity = dir * (m_movingForward ? m_speed : -m_speed);
-    } else {
-        velocity = sf::Vector2f(0.0f, 0.0f);
+void MovingPlatform::update(float dt) {
+    if (!m_terrainProbed) {
+        m_terrainProbed = true;
+        m_startBlocked = TerrainProbe::overlapsSolid(footprintAt(position));
     }
 
-    sf::Vector2f displacement = newPos - oldPos;
-    setPosition(newPos);
+    if (m_rangeLen <= 0.0f || m_startBlocked) {
+        velocity = sf::Vector2f(0.0f, 0.0f);
+        return;
+    }
+
+    const bool forward = m_movingForward;
+    const float from = m_progress;
+    float to = from + (forward ? 1.0f : -1.0f) * (m_speed / m_rangeLen) * dt;
+
+    bool reachedEnd = false;
+    if (forward && to >= m_maxProgress) {
+        to = m_maxProgress;
+        reachedEnd = true;
+    } else if (!forward && to <= m_minProgress) {
+        to = m_minProgress;
+        reachedEnd = true;
+    }
+
+    // The path is parametric and nothing ever asked the tilemap about it, so a
+    // platform whose configured sweep crossed a wall drove into that wall and
+    // stayed there (R21 D5). Probe the destination before committing to it.
+    if (to != from && TerrainProbe::overlapsSolid(footprintAt(m_startPos + m_travelRange * to))) {
+        if (forward) {
+            m_maxProgress = from;
+        } else {
+            m_minProgress = from;
+        }
+        m_movingForward = !forward;
+        to = from;   // hold this frame; the shortened range takes over next one
+    } else if (reachedEnd) {
+        m_movingForward = !forward;
+    }
+
+    // Measured from the parametric step rather than from position, so it stays
+    // the platform's own motion whatever else has touched the entity.
+    const sf::Vector2f displacement = m_travelRange * (to - from);
+    m_progress = to;
+    setPosition(m_startPos + m_travelRange * to);
+    velocity = (dt > 0.0f) ? displacement / dt : sf::Vector2f(0.0f, 0.0f);
 
     // Apply carrying logic if player is standing on top
     Player* player = Game::getInstance().getNearestPlayer(getPosition());

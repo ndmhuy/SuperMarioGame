@@ -398,6 +398,20 @@ target_link_libraries(generate_game_levels PRIVATE AppObjectsRelease)
 # This target is the guard against that recurring. Keep it headless so CI can
 # run it without a display.
 add_verify_test(verify_regressions "tests/verify_regressions.cpp")
+
+# R21 release-defect batch. Three suites, each guarding a class of defect that
+# had no guard at all -- which is why each class kept coming back.
+#   entity_guards: platforms that drive into terrain, Lakitu's drop allowance,
+#                  and enemies (bosses included) walking off the world.
+#   level_data:    invariants over the seven shipped level JSONs -- pipe runs
+#                  >=2x2, no P-Switch can delete a column's last solid tile,
+#                  spawns and pipe exits outside solid geometry, castle seated
+#                  on its flagpole's row, no platform sweep into terrain.
+#   ui_layout:     text fits the box it is drawn in, and debugMode survives a
+#                  settings round-trip defaulting to off.
+add_verify_test(verify_r21_entity_guards "tests/verify_r21_entity_guards.cpp")
+add_verify_test(verify_r21_level_data "tests/verify_r21_level_data.cpp")
+add_verify_test(verify_r21_ui_layout "tests/verify_r21_ui_layout.cpp")
 add_verify_test(verify_frontend_states "tests/verify_frontend_states.cpp")
 
 # Two-player modes, the CPU opponent and Shadow Mario. Headless: it drives the

@@ -29,8 +29,16 @@ void Camera::follow(const sf::Vector2f& target, float dt) {
 
 void Camera::follow(const sf::Vector2f& target, const sf::Vector2f& targetVelocity, float dt) {
     if (m_scrollMode == ScrollMode::Locked) {
-        // In locked mode, keep m_position updated to prevent stale camera jumps upon release
-        m_position = clampToBounds(target);
+        // The bounds are doing the work — a boss arena narrower than the view
+        // centres itself through clampToBounds — so the camera must not chase.
+        //
+        // Do NOT reintroduce `m_position = clampToBounds(target)` here (384250f).
+        // It was added to stop a stale m_position jumping the view when the mode
+        // is released, but that is already handled at the release sites, which
+        // snapTo() after restoring the bounds — PlayingState::releaseBossArena()
+        // and setupTestScene(). Writing the target here instead makes Locked
+        // follow the player exactly whenever the bounds are wider than the
+        // arena, which is the opposite of what the mode is named for.
         return;
     }
 

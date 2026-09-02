@@ -5,7 +5,25 @@
 
 class Pipe : public Block {
 public:
-    explicit Pipe(sf::Vector2f position, int pipeId = 0, sf::Vector2f exitPosition = {0.0f, 0.0f}, std::string targetLevel = "", bool isEntrance = false, float rotationDegrees = 0.0f);
+    // A warp pipe is 2 tiles wide and 4 tall.
+    //
+    // It used to be 2x2, which PipeRenderer draws from the 64x64 whole-pipe
+    // frame: a stub no taller than the player and indistinguishable from the
+    // decorative pipe runs stamped into the tilemap, so nothing on screen said
+    // "this one goes somewhere". At 2x4 PipeRenderer::wholeFrameFor crosses its
+    // `size.y >= size.x * 1.75` test and picks the 62x128 double-height art
+    // instead. checkWarp() reads the bounding box, so the trigger follows.
+    //
+    // Level data places a pipe by its TOP-left corner, so every authored and
+    // generated warp pipe moved up two tiles when this changed — the seven level
+    // JSONs and MapGenerator's two call sites.
+    static constexpr float WIDTH_PX  = 64.0f;
+    static constexpr float HEIGHT_PX = 128.0f;
+
+    // `color` selects an atlas family: "green" (pipe_dark_green_*) or "white"
+    // (pipe_white_black_*). PipeRenderer maps it; an unknown value falls back to
+    // the quarter-sprite assembly rather than drawing nothing.
+    explicit Pipe(sf::Vector2f position, int pipeId = 0, sf::Vector2f exitPosition = {0.0f, 0.0f}, std::string targetLevel = "", bool isEntrance = false, float rotationDegrees = 0.0f, std::string color = "green");
     ~Pipe() override = default;
 
     std::string getTypeName() const override { return "pipe"; }
@@ -32,6 +50,7 @@ public:
     bool isEntrance() const { return m_isEntrance; }
     float getRotationDegrees() const { return m_rotationDegrees; }
     void setRotationDegrees(float deg) { m_rotationDegrees = deg; }
+    const std::string& getColor() const { return m_color; }
 
 private:
     int m_pipeId = 0;
@@ -39,5 +58,6 @@ private:
     std::string m_targetLevel;
     bool m_isEntrance = false;
     float m_rotationDegrees = 0.0f;
+    std::string m_color = "green";
     const SpriteSheet* m_spriteSheet = nullptr;
 };

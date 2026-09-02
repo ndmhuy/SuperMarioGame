@@ -114,20 +114,37 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
 
 Hud::~Hud() = default;
 
+float Hud::coinIconX() const {
+    // 25px is the icon's own 24px width plus a hair of separation.
+    return m_coinsText.getPosition().x - m_coinsText.getOrigin().x - 25.0f;
+}
+
 void Hud::sync(const HudData& data) {
     m_curData = data;
 
-    // 1. Score: 6 digits padded with zero (Y=60, Right)
+    // The right-hand HUD column grows leftwards from this edge instead of
+    // rightwards off the screen. "%06d" is a minimum width, not a maximum: a
+    // seventh score digit reached x=1265 and an eighth left the 1280px window
+    // entirely, and four-digit coin counts did the same one row up. Anchoring
+    // the right edge makes the field length irrelevant.
+    constexpr float RIGHT_EDGE = 1244.f;
+    const auto pinRight = [](sf::Text& text, float y) {
+        const sf::FloatRect bounds = text.getLocalBounds();
+        text.setOrigin(sf::Vector2f(bounds.position.x + bounds.size.x, 0.0f));
+        text.setPosition(sf::Vector2f(RIGHT_EDGE, y));
+    };
+
+    // 1. Score: at least 6 digits, padded with zero (Y=60, right-aligned)
     char scoreBuf[32];
     std::snprintf(scoreBuf, sizeof(scoreBuf), "%06d", m_curData.score);
     m_scoreText.setString(scoreBuf);
-    m_scoreText.setPosition(sf::Vector2f(1100.f, 60.f));
+    pinRight(m_scoreText, 60.f);
 
-    // 2. Coins: x 57 (Y=25, Right)
+    // 2. Coins: x 57 (Y=25, right-aligned)
     char coinsBuf[32];
     std::snprintf(coinsBuf, sizeof(coinsBuf), "x %02d", m_curData.coins);
     m_coinsText.setString(coinsBuf);
-    m_coinsText.setPosition(sf::Vector2f(1125.f, 25.f));
+    pinRight(m_coinsText, 25.f);
 
     // 3. World Level (Y=25, Center). Centred on its own width rather than
     // pinned to x=540: the label is no longer a fixed-width "WORLD 1-1", and a
@@ -268,13 +285,13 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
             float targetHeight = 24.0f;
             float scale = targetHeight / bounds.size.y;
             coinSprite.setScale(sf::Vector2f(scale, scale));
-            coinSprite.setPosition(sf::Vector2f(1100.f, 28.f));
+            coinSprite.setPosition(sf::Vector2f(coinIconX(), 28.f));
             target.draw(coinSprite, state);
             coinSpriteDrawn = true;
         }
     }
     if (!coinSpriteDrawn) {
-        m_coinShape.setPosition(sf::Vector2f(1100.f, 32.f));
+        m_coinShape.setPosition(sf::Vector2f(coinIconX(), 32.f));
         target.draw(m_coinShape, state);
     }
 

@@ -110,6 +110,18 @@ public:
     bool getColorblindMode() const { return m_colorblindMode; }
     void setColorblindMode(bool enabled) { m_colorblindMode = enabled; }
 
+    // Whether the ImGui developer surfaces are drawn at all. Off by default and
+    // persisted like every other setting, because six of the ten ImGui windows
+    // had no flag, no compile guard and no keybinding: the engine Dev Tools
+    // panel was up in every state including the main menu of a release build,
+    // and Num1..Num9 fired achievement events in every gameplay frame.
+    //
+    // Deliberately does NOT gate the Mario Maker level editor (F1) or the debug
+    // console (backtick): the editor is a shipped feature and the console owns
+    // its own visibility flag.
+    bool getDebugMode() const { return m_debugMode; }
+    void setDebugMode(bool enabled) { m_debugMode = enabled; }
+
     // What match is being played. PlayingState publishes this when it sets a
     // level up, so systems too deep to be handed the mode — the collision
     // resolver deciding whether a stomp is an attack or a co-op boost — can ask.
@@ -155,6 +167,7 @@ private:
     std::unordered_map<std::string, std::string> m_keyBindings;
     std::unordered_map<std::string, std::string> m_keyBindings2;
     bool m_colorblindMode = false;
+    bool m_debugMode = false;
     MatchConfig m_matchConfig;
 
     // Scripted input for verification runs. Inactive unless loadInputScript()

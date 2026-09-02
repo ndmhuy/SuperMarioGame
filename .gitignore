@@ -55,3 +55,8 @@ Report/SuperMarioGame/img/*.png
 # floors a P-Switch could delete under the player). The dual-write is gone; this
 # anchored rule makes sure a stray recreation can never be committed.
 /assets/
+
+# Per-lane build trees from parallel agent work (build_r21_lane_a/ etc). The
+# canonical build dir is already ignored above; these are the same thing under
+# a different name and must never be committed.
+SuperMarioGame/build_*/

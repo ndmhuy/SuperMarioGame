@@ -427,8 +427,10 @@ void PlayingState::enter() {
             if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
                 castle->raiseFlag();
                 m_hasLevelCompleteCastle = true;
+                // The box, not WIDTH_TILES: a themed castle can be a few pixels
+                // wider (Castle::setFrame), and the door is at its centre.
                 m_levelCompleteCastleTarget = castle->getPosition() +
-                    sf::Vector2f{Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f, 0.0f};
+                    sf::Vector2f{castle->getBoundingBox().width * 0.5f, 0.0f};
             }
         }
         std::cout << "[PlayingState] Level complete!" << std::endl;
@@ -560,39 +562,46 @@ void PlayingState::handleInput(const sf::Event& event) {
                 EventBus::getInstance().publish({EventType::MinimapToggled, 0});
             }
 
-            EventBus& bus = EventBus::getInstance();
-            switch (keyPressed->code) {
-                case sf::Keyboard::Key::Num1: // Collect Coin
-                    bus.publish({EventType::CoinCollected, 1});
-                    break;
-                case sf::Keyboard::Key::Num2: // Defeat Enemy
-                    bus.publish({EventType::EnemyDefeated, 0});
-                    break;
-                case sf::Keyboard::Key::Num3: // Take Damage
-                    bus.publish({EventType::PlayerDamaged, 0});
-                    break;
-                case sf::Keyboard::Key::Num4: // Lose Life / Die
-                    bus.publish({EventType::PlayerDied, 0});
-                    break;
-                case sf::Keyboard::Key::Num5: // Checkpoint Activated
-                    bus.publish({EventType::CheckpointActivated, 0});
-                    break;
-                case sf::Keyboard::Key::Num6: // Finish Level 3 (unlocks character achievements)
-                    bus.publish({EventType::LevelComplete, 3});
-                    break;
-                case sf::Keyboard::Key::Num7: // Boss Defeated
-                    bus.publish({EventType::BossDefeated, 0});
-                    break;
-                case sf::Keyboard::Key::Num8: // Star Coin Collected
-                    bus.publish({EventType::StarCoinCollected, 0});
-                    break;
-                case sf::Keyboard::Key::Num9: // Hidden Block Found
-                    // Was BlockBroken, which is a brick shattering, not a secret
-                    // being found; the two are separate events now.
-                    bus.publish({EventType::HiddenBlockFound, 0});
-                    break;
-                default:
-                    break;
+            // R21: the number row publishes gameplay events directly -- coins,
+            // deaths, level completion, boss defeat. Useful for exercising the
+            // HUD and the achievement rules, and indefensible in a release
+            // build, where Num6 finishes the level and Num4 kills the player.
+            // Behind the same Options > DEBUG MODE flag as the dev panel.
+            if (Game::getInstance().getDebugMode()) {
+                EventBus& bus = EventBus::getInstance();
+                switch (keyPressed->code) {
+                    case sf::Keyboard::Key::Num1: // Collect Coin
+                        bus.publish({EventType::CoinCollected, 1});
+                        break;
+                    case sf::Keyboard::Key::Num2: // Defeat Enemy
+                        bus.publish({EventType::EnemyDefeated, 0});
+                        break;
+                    case sf::Keyboard::Key::Num3: // Take Damage
+                        bus.publish({EventType::PlayerDamaged, 0});
+                        break;
+                    case sf::Keyboard::Key::Num4: // Lose Life / Die
+                        bus.publish({EventType::PlayerDied, 0});
+                        break;
+                    case sf::Keyboard::Key::Num5: // Checkpoint Activated
+                        bus.publish({EventType::CheckpointActivated, 0});
+                        break;
+                    case sf::Keyboard::Key::Num6: // Finish Level 3 (unlocks character achievements)
+                        bus.publish({EventType::LevelComplete, 3});
+                        break;
+                    case sf::Keyboard::Key::Num7: // Boss Defeated
+                        bus.publish({EventType::BossDefeated, 0});
+                        break;
+                    case sf::Keyboard::Key::Num8: // Star Coin Collected
+                        bus.publish({EventType::StarCoinCollected, 0});
+                        break;
+                    case sf::Keyboard::Key::Num9: // Hidden Block Found
+                        // Was BlockBroken, which is a brick shattering, not a secret
+                        // being found; the two are separate events now.
+                        bus.publish({EventType::HiddenBlockFound, 0});
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -1315,6 +1324,112 @@ float PlayingState::floorBelow(float worldX, float fromWorldY) const {
     return -1.0f;
 }
 
+namespace {
+// A small player is 32x32 (Mario's constructor). Deliberately the SMALLEST
+// form: a spawn that a small player fits is the weakest claim worth making, and
+// the level restores the saved power-up form after the spawn anyway.
+constexpr float SPAWN_BOX = 32.0f;
+}
+
+bool PlayingState::isSpawnUsable(sf::Vector2f topLeft) const {
+    const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
+    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
+    if (topLeft.x < 0.0f || topLeft.x + SPAWN_BOX > mapRight ||
+        topLeft.y < 0.0f || topLeft.y + SPAWN_BOX > mapBottom) {
+        return false;
+    }
+
+    // The spawn's OWN box, not just the column beneath it.
+    //
+    // The old guard asked only "is anything solid below?" and began that scan at
+    // the spawn point itself, so a spawn buried in a solid tile hit that tile on
+    // its first sample and was reported standable. All three sub-levels shipped
+    // a spawn point inside their own entrance pipe on the strength of that
+    // answer, masked only because every route in overrode it (R21-D2).
+    for (float dy = 4.0f; dy < SPAWN_BOX; dy += 12.0f) {
+        for (float dx = 4.0f; dx < SPAWN_BOX; dx += 12.0f) {
+            if (TileMap::getInfo(m_tileMap.getTileAt(topLeft.x + dx, topLeft.y + dy)).isSolid) {
+                return false;
+            }
+        }
+    }
+
+    // Starting below the box, for the same reason.
+    return floorBelow(topLeft.x + SPAWN_BOX * 0.5f, topLeft.y + SPAWN_BOX) >= 0.0f;
+}
+
+sf::Vector2f PlayingState::usableSpawnNear(sf::Vector2f desired, const std::string& levelPath) const {
+    if (isSpawnUsable(desired)) return desired;
+
+    // Sideways along the same row rather than downwards: a level's spawn row is
+    // chosen to be above its floor, and stepping out of whatever the author
+    // buried it in is a smaller lie than dropping it into the room below.
+    const float mapRight = m_tileMap.getWidth() * Constants::TILE_SIZE;
+    for (float step = Constants::TILE_SIZE; step < mapRight; step += Constants::TILE_SIZE) {
+        for (const float candidateX : {desired.x + step, desired.x - step}) {
+            const sf::Vector2f candidate{candidateX, desired.y};
+            if (isSpawnUsable(candidate)) {
+                std::cerr << "[PlayingState] Spawn (" << desired.x << ", " << desired.y
+                          << ") in " << levelPath
+                          << " is inside solid geometry or has no floor; moved to ("
+                          << candidate.x << ", " << candidate.y << ")." << std::endl;
+                return candidate;
+            }
+        }
+    }
+
+    std::cerr << "[PlayingState] Spawn (" << desired.x << ", " << desired.y
+              << ") in " << levelPath
+              << " is unusable and no position on its row is any better; using it anyway."
+              << std::endl;
+    return desired;
+}
+
+PlayingState::PipeTileArt PlayingState::pipeTileArtAt(int tileX, int tileY) const {
+    // pipe_green_head_left/right and pipe_green_body_left/right are 16x16 HALVES
+    // of a pipe, each stretched to a full tile at the draw site. Which half a
+    // column shows used to be decided by "is my left neighbour a pipe?", which
+    // is not the same question: it makes the first column of every run a LEFT
+    // half and every later column a RIGHT half. A one-column run therefore drew
+    // the left half of a rim at 2x — the reported half pipe — and a three-column
+    // run drew L,R,R.
+    //
+    // The run's own extent answers it properly: columns pair off from the run
+    // start, and any column left unpaired (an odd-width run's last column, or a
+    // one-column run) is drawn from pipe_dark_green_up / _long_up, which are
+    // COMPLETE 32px-wide pipes rather than halves. A half rim is therefore not
+    // representable here, whatever the level data says (R21-D1, after D22/D23).
+    int runStart = tileX;
+    while (runStart > 0 && m_tileMap.getTileType(runStart - 1, tileY) == TileType::Pipe) --runStart;
+    int runEnd = tileX;
+    while (runEnd + 1 < m_tileMap.getWidth() &&
+           m_tileMap.getTileType(runEnd + 1, tileY) == TileType::Pipe) ++runEnd;
+
+    const bool isTopExposed = (tileY == 0) ||
+                              (m_tileMap.getTileType(tileX, tileY - 1) != TileType::Pipe);
+    const int offset   = tileX - runStart;
+    const int runWidth = runEnd - runStart + 1;
+
+    if (offset == runWidth - 1 && (runWidth % 2) == 1) {
+        // pipe_dark_green_long_up is 32x64: rim on top, body underneath. One
+        // tile of each, so a narrow pipe of any height is built from whole art.
+        PipeTileArt art;
+        art.frame = "pipe_dark_green_long_up";
+        art.sliceTop = isTopExposed ? 0 : 32;
+        art.sliceHeight = 32;
+        return art;
+    }
+
+    const bool isRightHalf = (offset % 2) == 1;
+    PipeTileArt art;
+    if (isTopExposed) {
+        art.frame = isRightHalf ? "pipe_green_head_right" : "pipe_green_head_left";
+    } else {
+        art.frame = isRightHalf ? "pipe_green_body_right" : "pipe_green_body_left";
+    }
+    return art;
+}
+
 void PlayingState::settleEndOfLevelScenery() {
     for (const auto& entity : m_entities) {
         if (!entity) continue;
@@ -1337,9 +1452,15 @@ void PlayingState::settleEndOfLevelScenery() {
         }
 
         if (auto* castle = dynamic_cast<Castle*>(entity.get())) {
+            // Styled before it is settled, because setFrame() can change the
+            // box width the floor probe below is centred on.
+            const BackgroundTheme theme = m_background.getTheme();
+            castle->setFrame((theme == BackgroundTheme::Ice || theme == BackgroundTheme::Castle)
+                                 ? Castle::STONE_FRAME
+                                 : Castle::DEFAULT_FRAME);
+
             const sf::Vector2f at = castle->getPosition();
-            const float floorTop = floorBelow(at.x + Castle::WIDTH_TILES * Constants::TILE_SIZE * 0.5f,
-                                              at.y);
+            const float floorTop = floorBelow(at.x + castle->getBoundingBox().width * 0.5f, at.y);
             if (floorTop < 0.0f) continue;
             castle->setPosition({at.x, floorTop - Castle::HEIGHT_TILES * Constants::TILE_SIZE});
         }
@@ -1537,6 +1658,7 @@ void PlayingState::render(sf::RenderTarget& target) {
 
             if (m_scenerySheet) {
                 std::string frameKey;
+                PipeTileArt pipeArt;
 
                 switch (tileType) {
                     case TileType::Ground: {
@@ -1575,13 +1697,8 @@ void PlayingState::render(sf::RenderTarget& target) {
                         frameKey = "question_block_" + std::to_string(questionFrame % 3);
                         break;
                     case TileType::Pipe: {
-                        bool isTopExposed = (y == 0) || (m_tileMap.getTileType(x, y - 1) != TileType::Pipe);
-                        bool hasLeftTile = (x > 0) && (m_tileMap.getTileType(x - 1, y) == TileType::Pipe);
-                        if (isTopExposed) {
-                            frameKey = hasLeftTile ? "pipe_green_head_right" : "pipe_green_head_left";
-                        } else {
-                            frameKey = hasLeftTile ? "pipe_green_body_right" : "pipe_green_body_left";
-                        }
+                        pipeArt = pipeTileArtAt(x, y);
+                        frameKey = pipeArt.frame;
                         break;
                     }
                     case TileType::Ice:
@@ -1617,6 +1734,15 @@ void PlayingState::render(sf::RenderTarget& target) {
 
                 if (!frameKey.empty()) {
                     sf::Sprite tileSprite = m_scenerySheet->getSprite(frameKey);
+                    if (pipeArt.sliceHeight > 0) {
+                        // Narrow-pipe art is taller than one tile, so a column
+                        // takes a horizontal slice of it. Applied before
+                        // getLocalBounds(), which reports the texture rect.
+                        sf::IntRect rect = tileSprite.getTextureRect();
+                        rect.position.y += pipeArt.sliceTop;
+                        rect.size.y = pipeArt.sliceHeight;
+                        tileSprite.setTextureRect(rect);
+                    }
                     auto bounds = tileSprite.getLocalBounds();
                     if (bounds.size.x > 0 && bounds.size.y > 0) {
                         tileSprite.setScale(sf::Vector2f(
@@ -1770,7 +1896,14 @@ void PlayingState::render(sf::RenderTarget& target) {
     // Suppressed while an overlay is up: an ImGui window drawn underneath the
     // pause menu still reacts to the mouse, which would let the player edit the
     // level they just paused.
-    if (!m_suspended) {
+    // R21: and suppressed entirely unless the player asked for debug mode in
+    // Options. This panel was never gated at all -- it drew over ordinary play
+    // in a release build, which is also how the duplicate achievement toast
+    // shipped: the newer SFML toast was added because the ImGui one supposedly
+    // "only appeared while the dev overlay was up", and the overlay was always
+    // up. The map editor is deliberately NOT behind this flag; it is a shipped
+    // feature reachable from the main menu.
+    if (!m_suspended && Game::getInstance().getDebugMode()) {
         m_devPanel.draw(*this);
     }
 }
@@ -1814,11 +1947,14 @@ void PlayingState::setupTestScene() {
     }
 
     if (loader.loadLevel(chosenPath, m_tileMap, levelData)) {
-        // Spawn active player character at the spawnPoint loaded from JSON
-        m_levelSpawnPoint = levelData.spawnPoint;
+        // Guarded for the same reason the warp path is: this is the flagpole ->
+        // next level route and the level-select route, and a level file's own
+        // spawnPoint is exactly as trustworthy as a pipe's exit.
+        const sf::Vector2f spawnPos = usableSpawnNear(levelData.spawnPoint, chosenPath);
+        m_levelSpawnPoint = spawnPos;
         m_hasCheckpoint = false;   // a new level invalidates the old checkpoint
-        spawnSelectedPlayer(levelData.spawnPoint);
-        
+        spawnSelectedPlayer(spawnPos);
+
         // Transfer all loaded items/entities and wire their animations
         for (auto& entity : levelData.entities) {
             admitEntity(entity.get());
@@ -1832,7 +1968,7 @@ void PlayingState::setupTestScene() {
         // centred on its own spawn point, never carrying either over from
         // whatever the previous level last did with the camera.
         m_camera.setScrollMode(Camera::ScrollMode::Free);
-        m_camera.snapTo(levelData.spawnPoint);
+        m_camera.snapTo(spawnPos);
         m_background.setTheme(levelData.theme);
         syncBackdropGround();
         syncVoidPlane();
@@ -1973,28 +2109,18 @@ bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spa
 
     // A pipe exit is level data, and level data can be wrong: these used to name
     // tile (104,20) of a 65-tile-wide level, which dropped the player outside
-    // the map into open air. Rather than trust it, check that the exit is inside
-    // the destination and has ground beneath it, and fall back to the level's
-    // own spawn point when it does not. Landing at the start of a room is a
-    // visible oddity; landing in the void is an unrecoverable one.
-    const float mapRight  = m_tileMap.getWidth()  * Constants::TILE_SIZE;
-    const float mapBottom = m_tileMap.getHeight() * Constants::TILE_SIZE;
-    auto standableBelow = [this, mapBottom](sf::Vector2f p) {
-        for (float y = p.y; y < mapBottom; y += 8.0f) {
-            if (TileMap::getInfo(m_tileMap.getTileAt(p.x + 4.0f, y)).isSolid ||
-                TileMap::getInfo(m_tileMap.getTileAt(p.x + 16.0f, y)).isSolid ||
-                TileMap::getInfo(m_tileMap.getTileAt(p.x + 28.0f, y)).isSolid) return true;
-        }
-        return false;
-    };
-    const bool insideMap = spawnPos.x >= 0.0f && spawnPos.x < mapRight &&
-                           spawnPos.y >= 0.0f && spawnPos.y < mapBottom;
-    if (!insideMap || !standableBelow(spawnPos)) {
-        std::cerr << "[PlayingState] Spawn (" << spawnPos.x << ", " << spawnPos.y
-                  << ") is outside " << chosenPath
-                  << " or has no floor; using the level's own spawn point." << std::endl;
+    // the map into open air. Rather than trust it, fall back to the level's own
+    // spawn point when the exit is unusable — and then check THAT too, because a
+    // level's own spawn point can be just as wrong (all three sub-levels'
+    // were). Landing at the start of a room is a visible oddity; landing in the
+    // void, or inside a pipe, is an unrecoverable one.
+    if (!isSpawnUsable(spawnPos)) {
+        std::cerr << "[PlayingState] Pipe exit (" << spawnPos.x << ", " << spawnPos.y
+                  << ") is not a usable spawn in " << chosenPath
+                  << "; using the level's own spawn point." << std::endl;
         spawnPos = levelData.spawnPoint;
     }
+    spawnPos = usableSpawnNear(spawnPos, chosenPath);
 
     // cleanupTestScene() nulled m_player, so spawnSelectedPlayer cannot carry the
     // stats itself — apply them here, through the same silent path.

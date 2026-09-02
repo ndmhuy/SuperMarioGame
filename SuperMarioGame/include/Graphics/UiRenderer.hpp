@@ -54,19 +54,57 @@ public:
     // Vertical list with the selected row highlighted by a caret and colour.
     // Disabled rows render greyed out. `blinkPhase` drives the caret blink and
     // is normally the state's own elapsed time.
+    //
+    // `panelRightX` is the inside edge of the panel the list is being drawn
+    // into, in the same screen space as `topLeft`. It is what lets the renderer
+    // know where the box it is filling ends: labels are fitted to the value
+    // column and values to the panel edge. Leaving it 0 means "unbounded" and
+    // reproduces the old, overflowing behaviour — pass it.
     static void drawMenuItems(sf::RenderTarget& target, const std::vector<UiMenuItem>& items,
                               int selectedIndex, sf::Vector2f topLeft, float rowHeight,
                               unsigned int charSize, float valueColumnX = 0.0f,
-                              float blinkPhase = 0.0f);
+                              float blinkPhase = 0.0f, float panelRightX = 0.0f);
 
     // Achievement toasts, drawn in screen space in the top-right. Lives here
-    // rather than in the HUD so any state can show them: they were an ImGui
-    // window in the dev panel before, which meant they only ever appeared while
-    // the dev overlay was up and never during ordinary play.
+    // rather than in the HUD so any state can show them.
+    //
+    // The dev panel had a second, older ImGui implementation of the same model
+    // until R21. It was assumed to be harmless because it "only appeared with
+    // the dev overlay" — but DevPanel::draw() has never been gated on anything,
+    // so both cards were drawn every frame, ~4px apart, and the ImGui one
+    // painted over this one. That wrong premise is exactly why two renderers
+    // shipped; there must only ever be one consumer of getActiveToasts() that
+    // draws.
     static void drawAchievementToasts(sf::RenderTarget& target);
 
     // Width in pixels the given string would occupy, for manual layout.
     static float measureTextWidth(const std::string& text, unsigned int size);
+
+    // Largest character size at or below `preferred` that keeps `text` inside
+    // `maxWidth`, floored at `minimum`. `maxWidth <= 0` means unbounded and
+    // returns `preferred`.
+    //
+    // The result can be wrong in only one direction: it never returns a size
+    // that measures wider than the box, but at `minimum` the text may still not
+    // fit — that is drawTextFitted's ellipsis case, and the caller's cue that
+    // the box is genuinely too small.
+    static unsigned int fitCharSize(const std::string& text, unsigned int preferred,
+                                    float maxWidth, unsigned int minimum = 8);
+
+    // One line that is guaranteed not to leave `maxWidth`. Shrinks the glyphs
+    // first (readable, keeps the whole string) and only truncates with an
+    // ellipsis once shrinking has bottomed out at `minSize`. `maxWidth <= 0`
+    // behaves exactly like drawText.
+    static void drawTextFitted(sf::RenderTarget& target, const std::string& text, sf::Vector2f pos,
+                               unsigned int size, sf::Color color, float maxWidth,
+                               bool centerX = false, unsigned int minSize = 8);
+
+    // Greedy word wrap at `maxWidth`, for blocks that may keep their size and
+    // grow downwards instead. Words longer than the box are split mid-word
+    // rather than allowed to overflow. Never returns an empty vector, so a
+    // caller can always advance its cursor by lines.size() rows.
+    static std::vector<std::string> wrapText(const std::string& text, unsigned int size,
+                                             float maxWidth);
 
     // Font every UI surface uses. Falls back to an empty font (SFML draws
     // nothing) rather than crashing when the asset is missing.

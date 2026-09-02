@@ -104,15 +104,19 @@ public:
     // and treated as optional on load, so a config.json written before two
     // players were configurable still parses and simply keeps the built-in
     // arrow-key layout.
+    //
+    // `debugMode` is optional on load in exactly the same way and defaults to
+    // FALSE when absent — the developer ImGui surfaces must stay off for anyone
+    // whose config.json predates the setting.
     static bool saveSettings(float sfxVolume, float musicVolume, const std::string& difficulty,
                              const std::unordered_map<std::string, std::string>& keyBindings,
                              const std::unordered_map<std::string, std::string>& keyBindings2,
-                             bool colorblindMode);
+                             bool colorblindMode, bool debugMode);
 
     static bool loadSettings(float& sfxVolume, float& musicVolume, std::string& difficulty,
                              std::unordered_map<std::string, std::string>& keyBindings,
                              std::unordered_map<std::string, std::string>& keyBindings2,
-                             bool& colorblindMode);
+                             bool& colorblindMode, bool& debugMode);
 
 private:
     static std::string getSaveFilePath(int slot);

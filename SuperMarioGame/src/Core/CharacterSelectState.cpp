@@ -176,15 +176,20 @@ void CharacterSelectState::render(sf::RenderTarget& target) {
         UiRenderer::drawText(target, slot.displayName, {x + CARD_W * 0.5f, cardY - lift + 200.0f},
                              16, nameColor, true);
 
+        // Blurbs and unlock hints are content, not layout: they are authored per
+        // character and nothing stops the next one being longer than the card.
+        // Fitting them to CARD_W means adding a character cannot push text out
+        // over its neighbour's portrait.
+        constexpr float TEXT_BUDGET = CARD_W - 16.0f;
         if (unlocked) {
-            UiRenderer::drawText(target, slot.blurb, {x + CARD_W * 0.5f, cardY - lift + 236.0f},
-                                 9, sf::Color(170, 170, 170), true);
+            UiRenderer::drawTextFitted(target, slot.blurb, {x + CARD_W * 0.5f, cardY - lift + 236.0f},
+                                       9, sf::Color(170, 170, 170), TEXT_BUDGET, true);
         } else {
             UiRenderer::drawText(target, "LOCKED", {x + CARD_W * 0.5f, cardY - lift + 236.0f},
                                  10, sf::Color(200, 80, 80), true);
-            UiRenderer::drawText(target, slot.unlockHint,
-                                 {x + CARD_W * 0.5f, cardY - lift + 262.0f}, 8,
-                                 sf::Color(140, 110, 110), true);
+            UiRenderer::drawTextFitted(target, slot.unlockHint,
+                                       {x + CARD_W * 0.5f, cardY - lift + 262.0f}, 8,
+                                       sf::Color(140, 110, 110), TEXT_BUDGET, true);
         }
     }
 

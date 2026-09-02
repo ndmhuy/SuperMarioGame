@@ -23,6 +23,7 @@
 #include "Entities/PSwitch.hpp"
 #include "Entities/POWBlock.hpp"
 #include "Entities/Trampoline.hpp"
+#include "Entities/MovingPlatform.hpp"
 #include "Entities/Pipe.hpp"
 #include "Entities/QuestionBlock.hpp"
 
@@ -151,7 +152,24 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
                 std::string targetLevel = entityJson.value("targetLevel", "");
                 float exitX = entityJson.value("exitX", tx + 2.0f);
                 float exitY = entityJson.value("exitY", ty);
-                entity = std::make_unique<Pipe>(position, pipeId, sf::Vector2f(exitX * Constants::TILE_SIZE, exitY * Constants::TILE_SIZE), targetLevel, isEntrance);
+                // Optional; the atlas ships a green and a white/black family and
+                // a castle level looks wrong ending on garden-green plumbing.
+                std::string pipeColor = entityJson.value("color", std::string("green"));
+                entity = std::make_unique<Pipe>(position, pipeId, sf::Vector2f(exitX * Constants::TILE_SIZE, exitY * Constants::TILE_SIZE), targetLevel, isEntrance, 0.0f, pipeColor);
+            } else if (typeStr == "moving_platform") {
+                // "rangeX"/"rangeY" are the travel, in tiles, from the placed
+                // position. The schema carried no such field, so EntityFactory
+                // gave every platform in the game the same hardcoded four tiles
+                // to the right — and a level cannot make a four-tile sweep fit a
+                // three-tile pit, which is how level 1-1's platform at (90,20)
+                // came to end its travel inside the ground at cols 94-95 (D5).
+                // The default reproduces the factory's behaviour exactly, so
+                // levels that never mention a range are unchanged.
+                const float rangeX = entityJson.value("rangeX", 4.0f);
+                const float rangeY = entityJson.value("rangeY", 0.0f);
+                entity = std::make_unique<MovingPlatform>(
+                    position,
+                    sf::Vector2f(rangeX * Constants::TILE_SIZE, rangeY * Constants::TILE_SIZE));
             } else {
                 EntityType eType = SerializationUtils::parseEntityTypeName(typeStr);
                 entity = EntityFactory::create(eType, position);
@@ -264,7 +282,12 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
                 entObj["targetLevel"] = pipe->getTargetLevel();
                 entObj["exitX"] = static_cast<int>(pipe->getExitPosition().x / Constants::TILE_SIZE);
                 entObj["exitY"] = static_cast<int>(pipe->getExitPosition().y / Constants::TILE_SIZE);
+                entObj["color"] = pipe->getColor();
             }
+            // A moving platform's travel range is deliberately NOT written back
+            // yet: MovingPlatform does not expose it, and writing the loader's
+            // default instead of the platform's real range would turn a level
+            // that was saved once into a level with four-tile sweeps again.
 
             j["entities"].push_back(entObj);
         }

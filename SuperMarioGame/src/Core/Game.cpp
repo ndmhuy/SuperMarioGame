@@ -29,7 +29,7 @@ void Game::run() {
 
     // Load settings from config
     Serializer::loadSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
-                             m_keyBindings2, m_colorblindMode);
+                             m_keyBindings2, m_colorblindMode, m_debugMode);
     
     // Build the difficulty strategy from what was just loaded. Without this the
     // persisted setting stayed a string nothing consumed (task 9.4).
@@ -178,17 +178,23 @@ void Game::run() {
         // 3. Update ImGui
         ImGui::SFML::Update(*m_window, elapsed);
 
-        // ImGui Dev Tools panel
+        // ImGui Dev Tools panel. Behind OPTIONS > DEBUG MODE, which is off
+        // unless the player turns it on: this window had no gate of any kind and
+        // was therefore drawn in every state of a release build, including over
+        // the main menu before a level had even been chosen.
+        //
         // Bottom-right, below the map editor window (912,8 - 360x600) and clear
         // of the AI overlay. At its old spot it landed on top of both.
-        ImGui::SetNextWindowPos(ImVec2(912.0f, 616.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(360.0f, 96.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Super Mario Engine Dev Tools");
-        ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)", 
-                    1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::Text("Press ` to toggle the debug console.");
-        ImGui::End();
+        if (getDebugMode()) {
+            ImGui::SetNextWindowPos(ImVec2(912.0f, 616.0f), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(360.0f, 96.0f), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
+            ImGui::Begin("Super Mario Engine Dev Tools");
+            ImGui::Text("Application Average: %.3f ms/frame (%.1f FPS)",
+                        1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+            ImGui::Text("Press ` to toggle the debug console.");
+            ImGui::End();
+        }
 
         DebugConsole::getInstance().draw();
 
@@ -319,7 +325,7 @@ void Game::initImGui() {
 void Game::shutdown() {
     // Save configuration settings
     Serializer::saveSettings(m_sfxVolume, m_musicVolume, m_difficulty, m_keyBindings,
-                             m_keyBindings2, m_colorblindMode);
+                             m_keyBindings2, m_colorblindMode, m_debugMode);
     // And the profile: achievements and lifetime statistics. Written here as well
     // as on each unlock, so a session that earns nothing still persists its
     // playtime and counters.

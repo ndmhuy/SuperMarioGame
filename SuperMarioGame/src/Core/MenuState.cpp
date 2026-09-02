@@ -610,7 +610,7 @@ void MenuState::render(sf::RenderTarget& target) {
                               sf::Color(0, 0, 0, 170));
         UiRenderer::drawMenuItems(target, m_mainItems, m_mainSelected,
                                   {centerX - 270.0f, PANEL_TOP + PADDING}, ROW_HEIGHT, 15,
-                                  centerX + 40.0f, m_elapsed);
+                                  centerX + 40.0f, m_elapsed, centerX + 320.0f);
         // Shadowed: this line sits over the parallax bushes, and plain white
         // text on light green foliage is unreadable.
         UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  CONFIRM",
@@ -648,6 +648,12 @@ void MenuState::render(sf::RenderTarget& target) {
         // edge of the frame.
         constexpr float kTop = 196.0f;
         constexpr float kRowHeight = 34.0f;
+        // Named because four things now measure against it: the frame itself,
+        // the row list's right clip, and the two centred summary lines below.
+        constexpr float kPanelHalfW = 280.0f;
+        // One character cell of clearance at each edge, matching the gutter
+        // drawMenuItems uses so the centred lines and the rows agree.
+        constexpr float kTextBudget = kPanelHalfW * 2.0f - 22.0f * 2.0f;
         const float rowsTop = kTop + 58.0f;
         const float rowsBottom = rowsTop + kRowHeight * static_cast<float>(rows.size());
         const float blurbY = rowsBottom + 16.0f;
@@ -656,17 +662,17 @@ void MenuState::render(sf::RenderTarget& target) {
         const float contentBottom = padsCollide ? warnY : (twoHumans ? keysY : blurbY);
         const float panelHeight = (contentBottom + 22.0f) - kTop;
 
-        UiRenderer::drawPanel(target, {centerX - 280.0f, kTop}, {560.0f, panelHeight},
-                              sf::Color(0, 0, 0, 200));
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
         UiRenderer::drawText(target, "MULTIPLAYER", {centerX, kTop + 20.0f}, 14,
                              sf::Color(255, 170, 220), true);
         UiRenderer::drawMenuItems(target, rows, m_mpSelected,
                                   {centerX - 210.0f, rowsTop}, kRowHeight, 13,
-                                  centerX + 90.0f, m_elapsed);
+                                  centerX + 90.0f, m_elapsed, centerX + kPanelHalfW);
 
         // What the highlighted mode actually does. The labels alone do not say.
-        UiRenderer::drawText(target, modeBlurb(m_match.mode), {centerX, blurbY}, 11,
-                             sf::Color(200, 200, 200), true);
+        UiRenderer::drawTextFitted(target, modeBlurb(m_match.mode), {centerX, blurbY}, 11,
+                                   sf::Color(200, 200, 200), kTextBudget, true);
 
         if (twoHumans) {
             auto padSummary = [&input](int pad) {
@@ -675,14 +681,19 @@ void MenuState::render(sf::RenderTarget& target) {
                 const std::string jump  = input.getBoundKeyName("jump", pad);
                 return left + "/" + right + " + " + jump;
             };
-            UiRenderer::drawText(target, "P1  " + padSummary(0) + "      P2  " + padSummary(1),
-                                 {centerX, keysY}, 11, sf::Color(150, 220, 150), true);
+            // Fitted, not fixed: the key names are rebindable, so this line has
+            // no maximum length the layout can be written against. "LShift" on
+            // both pads already made it 58 characters — 637px in a 560px panel.
+            UiRenderer::drawTextFitted(target, "P1  " + padSummary(0) + "      P2  " + padSummary(1),
+                                       {centerX, keysY}, 11, sf::Color(150, 220, 150),
+                                       kTextBudget, true);
 
             // Both pads on the same key is unplayable, and the only place it can
             // be noticed before the level starts is here.
             if (padsCollide) {
-                UiRenderer::drawText(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
-                                     {centerX, warnY}, 10, sf::Color(255, 140, 140), true);
+                UiRenderer::drawTextFitted(target, "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS",
+                                           {centerX, warnY}, 10, sf::Color(255, 140, 140),
+                                           kTextBudget, true);
             }
         }
 
@@ -700,13 +711,21 @@ void MenuState::render(sf::RenderTarget& target) {
         const float rowsTop = kTop + 56.0f;
         const float panelHeight = (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 30.0f) - kTop;
 
-        UiRenderer::drawPanel(target, {centerX - 300.0f, kTop}, {600.0f, panelHeight},
-                              sf::Color(0, 0, 0, 200));
+        constexpr float kPanelHalfW = 300.0f;
+
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
         UiRenderer::drawText(target, "LOAD GAME", {centerX, kTop + 20.0f}, 14,
                              sf::Color(120, 220, 160), true);
+        // No explicit value column: the labels are "SLOT n" and "BACK", so
+        // letting drawMenuItems derive the column from the widest of them hands
+        // the summary every pixel the panel has. The old hardcoded column at
+        // centerX+10 left it 290px for a string that is never shorter than 31
+        // characters and typically 35-37 — it printed 81-153px out through the
+        // right border of the frame on every save that existed.
         UiRenderer::drawMenuItems(target, rows, m_loadSelected,
                                   {centerX - 230.0f, rowsTop}, kRowHeight, 12,
-                                  centerX + 10.0f, m_elapsed);
+                                  0.0f, m_elapsed, centerX + kPanelHalfW);
         UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  LOAD      ESC  BACK",
                                      {centerX, kTop + panelHeight + 18.0f}, 11,
                                      sf::Color(220, 220, 220), true);
@@ -726,13 +745,27 @@ void MenuState::render(sf::RenderTarget& target) {
     rows.emplace_back("PLAY ENDLESS");
     rows.emplace_back("BACK");
 
-    UiRenderer::drawPanel(target, {centerX - 280.0f, 200.0f}, {560.0f, 400.0f},
-                          sf::Color(0, 0, 0, 200));
-    UiRenderer::drawText(target, "PROCEDURAL GENERATOR", {centerX, 220.0f}, 14,
+    // Height derived from the row count, like the other three pages. This was
+    // the last page still hardcoding 400px: ten rows of 36px from y=262 end at
+    // 599 against a panel bottom of 600 — one pixel of clearance — and the hint
+    // line at y=570 was drawn *inside* the frame, between rows 9 and 10. Adding
+    // an eleventh generator row would have repeated the main-menu overflow that
+    // the comment at the top of this function records.
+    constexpr float kTop = 200.0f;
+    constexpr float kPanelHalfW = 280.0f;
+    constexpr float kRowHeight = 36.0f;
+    const float rowsTop = kTop + 62.0f;
+    const float panelHeight =
+        (rowsTop + kRowHeight * static_cast<float>(rows.size()) + 26.0f) - kTop;
+
+    UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                          {kPanelHalfW * 2.0f, panelHeight}, sf::Color(0, 0, 0, 200));
+    UiRenderer::drawText(target, "PROCEDURAL GENERATOR", {centerX, kTop + 20.0f}, 14,
                          sf::Color(120, 200, 255), true);
     UiRenderer::drawMenuItems(target, rows, m_genSelected,
-                              {centerX - 210.0f, 262.0f}, 36.0f, 13,
-                              centerX + 110.0f, m_elapsed);
+                              {centerX - 210.0f, rowsTop}, kRowHeight, 13,
+                              centerX + 110.0f, m_elapsed, centerX + kPanelHalfW);
     UiRenderer::drawShadowedText(target, "LEFT/RIGHT  ADJUST      ESC  BACK",
-                                 {centerX, 570.0f}, 11, sf::Color(220, 220, 220), true);
+                                 {centerX, kTop + panelHeight + 18.0f}, 11,
+                                 sf::Color(220, 220, 220), true);
 }

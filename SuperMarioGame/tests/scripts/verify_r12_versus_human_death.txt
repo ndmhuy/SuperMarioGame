@@ -12,7 +12,10 @@
 # two-human match on World 1-1 (levelIndex 0), both players controlled by this
 # process's own two key sets (config.json: P1 left/right/jump/fire = A/D/W/F;
 # P2 has no keyBindings2 override, so InputManager's built-in P2 defaults apply
-# — Left/Right/Up/M, confirmed in InputManager.cpp's resetBindingsToDefaults).
+# — Left/Right/Up/Period, confirmed in InputManager.cpp's loadDefaultBindings
+# and resetBindingsToDefaults, which R21 made agree. This line used to say M;
+# 1a7a6db moved P2 fire off M because M is the minimap toggle, and the reset
+# table was not updated with it, so the two disagreed until R21.)
 #
 # The death: Player 2 is walked straight into the Goomba at level_1.json's
 # (x:12, y:20) — 9 tiles from the (x:3, y:19) spawn — WITHOUT ever jumping. A

@@ -45,12 +45,36 @@ public:
     void raiseFlag();
     bool isFlagRaised() const { return m_flagRaised; }
 
+    // Restyle to the level's theme.
+    //
+    // The atlas ships a brown keep (castle_0, 148x176) and a stone one
+    // (castle_white, 153x176); every level ended on the brown one, so an ice
+    // world and a castle world both finished on a summer-brick gatehouse. The
+    // frames differ in width, and Entity::drawSprite scales uniformly by the
+    // tighter axis, so a 153px frame in a 148px box would draw 6px short and
+    // leave the castle hovering — the box follows the art instead. Only the
+    // width moves; every shipped castle frame is 176px tall.
+    //
+    // Called after the level's theme is known (PlayingState::
+    // settleEndOfLevelScenery), which is also after setupAnimations().
+    // A frame the atlas does not have is ignored, keeping the current art.
+    void setFrame(const std::string& frameKey);
+
+    // The default, and what a castle is drawn from until setFrame says otherwise.
+    static constexpr const char* DEFAULT_FRAME = "castle_0";
+    static constexpr const char* STONE_FRAME   = "castle_white";
+
     // The castle's footprint, in tiles. Levels and the generator both need this
     // to leave room for it. castle_0 is 148x176 px (4.625 x 5.5 tiles).
     static constexpr float WIDTH_TILES  = 4.625f; // 148px
     static constexpr float HEIGHT_TILES = 5.5f;   // 176px
 
 private:
+    // Points the animator at m_frameKey and resizes the box to that frame. A
+    // no-op until the atlas is attached, and re-run by setupAnimations when it is.
+    void applyFrame();
+
+    std::string m_frameKey = DEFAULT_FRAME;
     // How far up its short mast the flag has climbed, 0..1.
     float m_flagRise = 0.0f;
     bool m_flagRaised = false;

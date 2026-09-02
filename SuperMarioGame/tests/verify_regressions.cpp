@@ -69,6 +69,7 @@
 #include "Entities/PiranhaPlant.hpp"
 #include "Core/AchievementManager.hpp"
 
+#include <any>
 #include <filesystem>
 #include <map>
 #include <iostream>
@@ -2613,35 +2614,93 @@ void testEveryImplementedEnemyIsUsedByTheCampaign() {
           std::to_string(totalHidden) + ")");
 }
 
-// F1 — a placed Lakitu has to be a bounded encounter, not a Spiny fountain.
+// F1/D8 — a placed Lakitu has to be a bounded encounter, not a Spiny fountain,
+// and the bound has to be one the player can spend.
 //
-// FlyStrategy::FollowPlayer tracks the player from the frame the level loads and
-// never stops, and the egg timer fired every 4 s forever: a single Lakitu placed
-// anywhere in a 200-tile level would drop fifteen-plus Spinies over one
-// playthrough, and a Spiny cannot be stomped. Standing still next to one on Hard
-// killed a full-health Mario twice inside six seconds during this phase's
-// playtest. m_spawnCount was already being incremented and never read; this is
-// the limit it counts towards.
+// F1 (the original defect): FlyStrategy::FollowPlayer tracks the player from the
+// frame the level loads and never stops, and the egg timer fired every 4 s
+// forever, so one Lakitu dropped fifteen-plus Spinies over a 200-tile level and
+// a Spiny cannot be stomped. Standing still next to one on Hard killed a
+// full-health Mario twice inside six seconds.
+//
+// D8 (R21, what the first fix cost): MAX_SPINIES was made a LIFETIME cap counted
+// by m_spawnCount, which only ever incremented, and the clock started at level
+// load. level_1's Lakitu sits at tile (175,11), ~5500px from the player's spawn:
+// it spent all three drops off-camera at t=4/8/12s and could never drop again —
+// the "Lakitu sometimes doesn't drop the Spiny" report.
+//
+// The cap is now CONCURRENT (Spiny::liveCount()) and the clock is gated on
+// Lakitu::isEngaged(), so this pins all three properties at once: nothing is
+// thrown at nobody, the flood limit still holds during a fight, and clearing the
+// field re-arms it. getSpawnCount() survives only as a lifetime diagnostic and
+// is deliberately no longer what the limit is asserted against.
 void testLakituStopsThrowingSpinies() {
-    section("F1  one Lakitu drops a bounded number of Spinies");
+    section("F1/D8  one Lakitu's Spiny limit is concurrent, and it holds its eggs "
+            "until the player arrives");
 
+    // Stand in for PlayingState's spawn handler: the drop leaves as an event and
+    // the Spiny it asks for is what the concurrent cap counts. Without this the
+    // cap can never be reached and every assertion below passes vacuously.
+    std::vector<std::unique_ptr<Spiny>> spinies;
     int spawnRequests = 0;
-    EventBus::ScopedSubscription counter(
+    EventBus::ScopedSubscription spawner(
         EventType::EntitySpawnRequested,
-        [&spawnRequests](const GameEvent&) { ++spawnRequests; });
+        [&spawnRequests, &spinies](const GameEvent& ev) {
+            if (!ev.data.has_value() || ev.data.type() != typeid(EntitySpawnRequest)) return;
+            const auto request = std::any_cast<EntitySpawnRequest>(ev.data);
+            if (request.type != static_cast<int>(EntityType::Spiny)) return;
+            ++spawnRequests;
+            spinies.push_back(std::make_unique<Spiny>(request.position));
+        });
 
-    Lakitu lakitu({1000.0f, 200.0f});
-    check(lakitu.getSpawnCount() == 0, "starts having thrown nothing");
+    check(Spiny::liveCount() == 0,
+          "the census starts empty — no Spiny leaked out of an earlier check");
 
-    // 60 seconds is fifteen egg timers — an entire level's worth of following.
+    Mario mario({0.0f, 500.0f});
+    Game::getInstance().setPlayer(&mario);
+
+    // (a) Unengaged: the whole approach to level_1's Lakitu, which the player
+    // spends about a minute walking towards.
+    Lakitu lakitu({5000.0f, 200.0f});
+    check(!lakitu.isEngaged(), "a Lakitu 5000px away is not engaged");
     for (int frame = 0; frame < 60 * 60; ++frame) lakitu.update(1.0f / 60.0f);
+    check(spawnRequests == 0,
+          "it throws nothing at a player who is not there (threw " +
+          std::to_string(spawnRequests) + ")");
+    check(lakitu.getSpawnCount() == 0,
+          "so its allowance is still intact when the player finally arrives");
 
-    check(lakitu.getSpawnCount() == Lakitu::MAX_SPINIES,
-          "after a minute of following it has thrown exactly MAX_SPINIES (" +
-          std::to_string(lakitu.getSpawnCount()) + ")");
+    // (b) Engaged: it drops its full complement and then stops.
+    mario.setPosition({5000.0f, 500.0f});
+    check(lakitu.isEngaged(), "and is engaged once the player is within a screen width");
+
+    for (int frame = 0; frame < 60 * 30 && spawnRequests < Lakitu::MAX_SPINIES; ++frame) {
+        lakitu.update(1.0f / 60.0f);
+    }
     check(spawnRequests == Lakitu::MAX_SPINIES,
-          "and asked the world for exactly that many Spinies (" +
-          std::to_string(spawnRequests) + "), not one per 4 s forever");
+          "it then drops exactly MAX_SPINIES (" + std::to_string(spawnRequests) + ")");
+
+    // A further minute is fifteen more egg timers. The F1 flood must stay fixed.
+    for (int frame = 0; frame < 60 * 60; ++frame) lakitu.update(1.0f / 60.0f);
+    check(spawnRequests == Lakitu::MAX_SPINIES,
+          "and stops there while they are all alive (" + std::to_string(spawnRequests) +
+          "), not one per 4 s forever");
+    check(Spiny::liveCount() == Lakitu::MAX_SPINIES, "the census agrees on how many are in play");
+
+    // (c) The player clears the field. This is the half a lifetime cap could
+    // never do — with it, the encounter was over for good.
+    spinies.clear();
+    check(Spiny::liveCount() == 0, "clearing them empties the census");
+
+    for (int frame = 0; frame < 60 * 30 && spawnRequests == Lakitu::MAX_SPINIES; ++frame) {
+        lakitu.update(1.0f / 60.0f);
+    }
+    check(spawnRequests > Lakitu::MAX_SPINIES,
+          "and Lakitu throws again once its Spinies are dead (" +
+          std::to_string(spawnRequests) + " total) — the cap is concurrent, not lifetime");
+
+    spinies.clear();
+    Game::getInstance().setPlayer(nullptr);
 }
 
 // The achievement whose description is literally "Find all hidden blocks" was

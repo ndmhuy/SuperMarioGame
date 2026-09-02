@@ -83,7 +83,7 @@
       "targetLevel": "assets/levels/level_2.json",
       "type": "pipe",
       "x": 59,
-      "y": 16
+      "y": 15
     },
     {
       "type": "koopa_troopa",
@@ -103,7 +103,7 @@
   "height": 20,
   "name": "World 1-2 Sub: Sky Platform Canopy",
   "spawnPoint": {
-    "x": 3,
+    "x": 6,
     "y": 16
   },
   "theme": "underground",

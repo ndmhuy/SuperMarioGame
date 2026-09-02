@@ -160,6 +160,15 @@ void InputManager::update(Character& character) {
 // --- Key name <-> enum -------------------------------------------------------
 // Only the keys a player can reasonably bind. Anything outside this table is
 // rejected rather than guessed at.
+//
+// INVARIANT: every key loadDefaultBindings() and resetBindingsToDefaults() use
+// must appear here. A key with no name is invisible to getBoundKeyName(), so the
+// rebinding UI shows the action as unbound, and it is unparseable by
+// applyBindings(), so resetting to defaults silently skips it and config.json
+// can never restore it. 384250f moved Player 2's ground pound onto Slash and
+// 1a7a6db moved its fire onto Period/RControl without extending this table:
+// Player 2's ground pound then reported no bound key at all, which is exactly
+// what a player sees as "Player 2 has no ground pound".
 namespace {
 const std::pair<const char*, sf::Keyboard::Key> kKeyNames[] = {
     {"A", sf::Keyboard::Key::A}, {"B", sf::Keyboard::Key::B}, {"C", sf::Keyboard::Key::C},
@@ -175,6 +184,9 @@ const std::pair<const char*, sf::Keyboard::Key> kKeyNames[] = {
     {"RShift", sf::Keyboard::Key::RShift}, {"Left",   sf::Keyboard::Key::Left},
     {"Right",  sf::Keyboard::Key::Right},  {"Up",     sf::Keyboard::Key::Up},
     {"Down",   sf::Keyboard::Key::Down},   {"Enter",  sf::Keyboard::Key::Enter},
+    // The arrow-cluster keys Player 2's default layout actually uses.
+    {"Period", sf::Keyboard::Key::Period}, {"Slash",  sf::Keyboard::Key::Slash},
+    {"RControl", sf::Keyboard::Key::RControl},
 };
 } // namespace
 
@@ -305,8 +317,14 @@ std::unordered_map<std::string, std::string> InputManager::resetBindingsToDefaul
         defaults = {{"left", "A"}, {"right", "D"}, {"jump", "W"}, {"run", "LShift"},
                     {"crouch", "S"}, {"fire", "F"}, {"groundpound", "Q"}};
     } else {
+        // R21: fire is "Period", not "M". 1a7a6db moved Player 2's fire off M
+        // because M is the minimap toggle, but changed only loadDefaultBindings
+        // -- so this table went on naming the key it used to be, and the first
+        // "reset to defaults" silently moved fire back onto the minimap key.
+        // The comment above promises these cannot drift; it is only true if
+        // both tables are edited together.
         defaults = {{"left", "Left"}, {"right", "Right"}, {"jump", "Up"}, {"run", "N"},
-                    {"crouch", "Down"}, {"fire", "M"}, {"groundpound", "Slash"}};
+                    {"crouch", "Down"}, {"fire", "Period"}, {"groundpound", "Slash"}};
     }
 
     applyBindings(defaults, playerIndex);

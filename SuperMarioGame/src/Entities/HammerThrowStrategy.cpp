@@ -85,7 +85,31 @@ void HammerThrowStrategy::calculateTarget(Enemy& enemy, float dt) {
 }
 
 void HammerThrowStrategy::applyMovement(Enemy& enemy, float dt) {
-    // Standard Hammer Bro shuffle back and forth
+    (void)dt;
+
+    // Standard Hammer Bro shuffle back and forth.
     float shuffleDir = (std::sin(m_jumpCooldownTimer * 2.0f) > 0.0f) ? 1.0f : -1.0f;
-    enemy.velocity.x = shuffleDir * 30.0f;
+
+    if (enemy.onGround) {
+        // The shuffle used to be blind — a sin() sign and nothing else — so a
+        // Hammer Bro placed on a platform walked off it within a few seconds
+        // and was culled below the level (R21 D10). PatrolStrategy's ledge
+        // check is now on Enemy, so this can ask the same question.
+        if (!enemy.hasFloorAhead(shuffleDir * SHUFFLE_PROBE_AHEAD)) {
+            shuffleDir = -shuffleDir;
+            // A one-tile perch has void on both sides: hold station rather than
+            // pick the other void.
+            if (!enemy.hasFloorAhead(shuffleDir * SHUFFLE_PROBE_AHEAD)) {
+                shuffleDir = 0.0f;
+            }
+        }
+        m_groundShuffleDir = shuffleDir;
+    } else {
+        // Mid-hop there is nothing underneath to test, so hasFloorAhead() would
+        // permit anything and the periodic jump would carry him over the very
+        // edge the check just refused. Keep whatever the ground last allowed.
+        shuffleDir = m_groundShuffleDir;
+    }
+
+    enemy.velocity.x = shuffleDir * SHUFFLE_SPEED;
 }

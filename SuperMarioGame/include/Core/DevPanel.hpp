@@ -50,7 +50,6 @@ private:
     void drawGeneratorPanel(PlayingState& state);
     void drawPlaygroundPanel(PlayingState& state);
     void drawPersistencePanel(PlayingState& state);
-    void drawAchievementToasts();
     // Task 9.1's AI debug overlay: what every live enemy is doing and why.
     void drawAiOverlay(PlayingState& state);
     // Live tunables for the two-player modes: the shadow's delay and drift
