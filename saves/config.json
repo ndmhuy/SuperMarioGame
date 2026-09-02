@@ -1,5 +1,6 @@
 {
     "colorblindMode": false,
+    "debugMode": false,
     "difficulty": "normal",
     "keyBindings": {
         "fire": "F",

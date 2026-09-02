@@ -48,6 +48,14 @@ BlockTouch Flagpole::onCharacterTouch(Character& character, const CollisionInfo&
 
 void Flagpole::onPlayerCollision(Player& player, float collisionY) {
     if (m_triggered) return;
+    // A touch that the level will refuse must leave NO trace: not the latch,
+    // not the score, not the jingle. This used to latch first and publish
+    // afterwards, and PlayingState refuses LevelComplete while a boss is alive
+    // -- so brushing the pole during a boss fight spent the flagpole, awarded
+    // 5000 points and a flagpole jingle, and left a level that could never be
+    // completed. See setCompletionGate() for why this is asked rather than
+    // assumed.
+    if (!canCompleteNow()) return;
     m_triggered = true;
 
     // Calculate height caught relative to flagpole top

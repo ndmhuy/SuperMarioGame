@@ -462,7 +462,7 @@ void PlayingState::enter() {
         // (updateBossArena) is meant to make this unreachable in the first
         // place, but a misplaced arena/flagpole in level data (as level_2's
         // Boom Boom arena once was) must not be able to skip the fight.
-        if (m_activeBoss && m_activeBoss->isActive()) return;
+        if (!levelMayComplete()) return;
         m_levelComplete = true;
         m_levelCompleteTimer = 0.0f;
         m_hasLevelCompleteCastle = false;
@@ -3947,6 +3947,27 @@ void PlayingState::admitEntity(Entity* entity) {
         enemy->applySpeedScale(Game::getInstance().difficulty().enemySpeedScale()
                                * MetaGame::enemySpeedMultiplier());
     }
+
+    // A flagpole has to know whether a touch would actually finish the level,
+    // because the LevelComplete handler REFUSES one while a boss is alive and
+    // the flagpole used to spend its single trigger on that refusal -- leaving a
+    // level nobody could finish. Installed at the same single door the
+    // difficulty scale uses, so an editor-placed flagpole and a level-loaded one
+    // are gated identically and neither has to remember to ask.
+    //
+    // Deliberately the same predicate the handler tests, in one place: two
+    // copies of "may the level end now" would drift, and this batch has already
+    // paid for that class of duplication more than once.
+    if (auto* flagpole = dynamic_cast<Flagpole*>(entity)) {
+        flagpole->setCompletionGate([this]() { return levelMayComplete(); });
+    }
+}
+
+bool PlayingState::levelMayComplete() const {
+    // "No escape until defeated" (SPEC 6.4) applies to FINISHING the level, not
+    // just to leaving the arena. A defeated boss is pruned and forgetEntity()
+    // nulls this pointer, so once the fight is won the gate opens on its own.
+    return !(m_activeBoss && m_activeBoss->isActive());
 }
 
 void PlayingState::wireEntityAnimations(Entity* entity) {

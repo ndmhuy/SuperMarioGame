@@ -472,6 +472,12 @@ add_verify_test(verify_r21_save_slots "tests/verify_r21_save_slots.cpp")
 # every axe has been reached — only exist on a running state.
 add_verify_test(verify_r21_versus_and_axes "tests/verify_r21_versus_and_axes.cpp")
 
+# The flagpole soft lock: a touch refused mid-boss-fight used to spend the
+# flagpole's single trigger, leaving a level that could never be finished even
+# after the boss was dead. Reported by a teammate and not reproducible by the
+# reporter, because level_2's arena ends one tile short of its flagpole.
+add_verify_test(verify_r21_flagpole_softlock "tests/verify_r21_flagpole_softlock.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------

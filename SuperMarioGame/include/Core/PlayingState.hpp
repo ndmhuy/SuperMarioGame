@@ -739,6 +739,11 @@ private:
     // wires its animations and applies the difficulty modifiers.
     void admitEntity(Entity* entity);
 
+    // May a flagpole touch finish the level right now? False while a boss is
+    // still alive. Shared by the LevelComplete handler and by the gate installed
+    // on every Flagpole, so the rule exists once.
+    bool levelMayComplete() const;
+
     // Moves everything queued by a spawn handler this frame into m_entities.
     // Called once per frame, after every loop that walks m_entities has ended.
     void flushPendingSpawns();
