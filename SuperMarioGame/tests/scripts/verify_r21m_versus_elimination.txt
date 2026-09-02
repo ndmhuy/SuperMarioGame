@@ -1,0 +1,134 @@
+# R21 Lane M — the survivor's camera and the elimination badges, observed in the
+# running game (directives 9 & 10).
+#
+# VERSUS (two humans) rather than VERSUS CPU, deliberately: a CPU speedrunner
+# on HARD runs itself into World 1-1's pits within seconds of the elimination
+# and the match is over before the camera can be watched for any length of time.
+# A keyboard-driven Player 2 stands still until this script moves it, which is
+# what makes the "does the view follow the survivor" window as long as it needs
+# to be. Player 2's keys are the arrows (InputManager's second binding set).
+#
+# What this proves, in order:
+#   1. A VERSUS match starts with both badges live: Mario at the top left,
+#      Luigi beside it, both with a life count.
+#   2. Player 1 spends their lives (HARD starts them on 2) by dropping through
+#      the floor with NOCLIP and then switching it back off, which is the
+#      deterministic route into the void that Lane G's cheats script uses.
+#   3. On the second death Player 1 is ELIMINATED. Before this change the camera
+#      then froze — update() still chose updateVersusCamera(), which returns
+#      immediately without both players — and the CPU ran out of frame while the
+#      view sat still. The last three shots are the CPU moving and the frame
+#      moving with it.
+#   4. Player 1's badge is dimmed with "OUT" under it instead of staying on
+#      screen frozen on stale numbers, and the CPU's badge is still there.
+#
+# PRECONDITION: saves/config.json must have "debugMode": true (F8 is inert
+# otherwise) and "difficulty": "hard" (2 starting lives, so two deaths finish
+# Player 1 instead of three). Back that file up and restore it afterwards —
+# Game::shutdown() persists it.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_lane_m/SuperMarioGame --script tests/scripts/verify_r21m_versus_elimination.txt
+#
+# Screenshots land in saves/shots/.
+
+wait 2.5
+shot r21m_v_00_menu
+
+# --- MULTIPLAYER -> VERSUS CPU -> START ------------------------------------
+# Two Downs to MULTIPLAYER: the main menu is START GAME, LOAD GAME,
+# MULTIPLAYER (MenuState.cpp:149-151) -- tests/scripts/versus_cpu.txt predates
+# LOAD GAME and its single Down now lands on that page instead.
+# Row order on the multiplayer page is MODE, OPPONENT, AI SKILL, AI STYLE,
+# START, BACK (MenuState.cpp:208-217).
+press Down
+wait 0.4
+press Down
+wait 0.4
+press Enter
+wait 0.8
+shot r21m_v_01_versus_human_selected
+# Two Downs to START: with MODE on VERSUS the AI SKILL and AI STYLE rows are
+# disabled and the cursor skips them, so the enabled rows are MODE, OPPONENT,
+# START, BACK. Four Downs (what versus_cpu.txt needs, where the AI rows ARE
+# live) walked past START onto BACK and the run never left the menu.
+press Down
+wait 0.3
+press Down
+wait 0.4
+press Enter
+wait 3.5
+shot r21m_v_02_match_start_both_badges
+
+# --- Death 1 of 2: NOCLIP + crouch drops Player 1 through the floor --------
+# Lane G's route into the void (tests/scripts/verify_r21g_debug_cheats.txt), and
+# the reason this script uses two HUMANS: NOCLIP is a global cheat, so it
+# zeroes both players' gravity. A keyboard Player 2 that is not being touched
+# simply stands still while it is on and lands again when it goes off, whereas a
+# CPU speedrunner is usually mid-jump and drifts out of the world alongside
+# Player 1 — which cost the bot a life on every drop and ended the match in a
+# draw with no survivor to follow. Walking Player 1 into a pit instead does not
+# work either: the versus tether shoves whoever falls behind along the screen
+# edge, so Player 2 was dragged into the same pit.
+press F8
+wait 0.4
+hold S 1.8
+wait 1.0
+press F8
+wait 5.0
+shot r21m_v_03_after_first_death
+
+# --- Death 2 of 2: this one eliminates Player 1 -----------------------------
+press F8
+wait 0.4
+hold S 1.8
+wait 1.0
+press F8
+wait 6.0
+shot r21m_v_04_player1_eliminated
+
+# --- The camera has to keep working for the survivor ------------------------
+# Player 2 walks right on the arrow keys. Before this change the view stopped
+# dead at the elimination — update() still chose updateVersusCamera(), which
+# returns at its first line without both players — and Player 2 simply left the
+# frame; the tether that keeps a lone player on screen was gated on
+# `m_player && !m_player2` and did not cover them either.
+#
+# Two things about the shape of this walk, both learned the hard way:
+#
+#   * InputScript::update does NOT block on a `hold` — it queues the release and
+#     drains the next step on the same frame (InputScript.cpp:212). So a `hold`
+#     followed straight by a `shot` photographs the survivor half a step in, and
+#     three `hold`s in a row are one hold, not three. Jump taps are therefore
+#     interleaved INSIDE one long Right hold, which is exactly what is wanted.
+#
+#   * Walking alone gets nowhere. World 1-1 puts a three-brick step at about
+#     x=640, and 640 is also where the camera stops being pinned to the level's
+#     left bound — so without jumps the survivor stalls against the step at
+#     precisely the point where the camera could first start moving, and the
+#     frame never moves whether the fix is in or not.
+shot r21m_v_05_survivor_before_walking
+hold Right 26.0
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+shot r21m_v_06_camera_followed_the_survivor
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+hold Up 0.35
+wait 1.3
+shot r21m_v_07_camera_still_following
+quit

@@ -118,6 +118,13 @@ private:
     // getter that only a test would ever call.
     friend class DebugCheatsTestHooks;
 
+    // tests/verify_r21_versus_and_axes.cpp reaches m_camera, m_player/m_player2,
+    // m_hud and the axe counters to prove three things a public API could not
+    // show: that the camera follows the survivor of a two-player match, that
+    // the eliminated player's badge says so, and that the bridge waits for the
+    // last axe. Same tradeoff as the two friends above.
+    friend class VersusAndAxesTestHooks;
+
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
     void regenerateProceduralLevel();
@@ -228,9 +235,33 @@ private:
         // every frame, and the match becomes a permanent loop of death jingles
         // while Player 2 plays on.
         bool eliminated = false;
+
+        // Who this was, and what their run finished on.
+        //
+        // Elimination calls destroy() on the Player and forgetEntity() nulls
+        // m_player / m_player2, so by the time the HUD next syncs there is no
+        // object left to ask "which character was this, and how many coins did
+        // they have?". Player 1's badge therefore froze on whatever it last
+        // read and Player 2's vanished. Recorded here as an explicit fact at
+        // the moment of elimination; inferring it from a pointer that no longer
+        // exists only moves the staleness somewhere else.
+        std::string characterName;
+        std::string badgeLabel;   // "P2" or "CPU"; Player 1's badge has no label
+        int finalCoins = 0;
+        int finalScore = 0;
     };
     DeathState m_death;    // Player 1
     DeathState m_death2;   // Player 2
+
+    // Records `who`'s identity into their death record, so the HUD can keep
+    // showing whose badge it is after the object behind it is gone.
+    void rememberEliminatedIdentity(const Player* who, DeathState& death) const;
+    // Overwrites the badge fields of a player who is out with the facts kept
+    // above, and marks them eliminated. Runs after the two live-player sync
+    // blocks in update() precisely so it can override what they left behind:
+    // Player 1's block falls through to mock test-scene values once
+    // Game::getPlayer() is null, and Player 2's block does not run at all.
+    void applyEliminatedBadges(HudData& hudData) const;
 
     // Which record belongs to `who`, or null if it is not a participant (the
     // shadow, for instance, cannot die).
@@ -290,6 +321,22 @@ private:
     // screen: every screen-space overlay the game has — HUD, minimap, pause,
     // victory — would otherwise have to learn about viewports.
     void updateVersusCamera(float dt);
+    // Both participants are in the level. The ONLY case updateVersusCamera()
+    // can frame — it needs two positions to take a midpoint of.
+    bool bothPlayersPresent() const { return m_player && m_player2; }
+    // The participant that single-player logic must act on: Player 1 while they
+    // are still in the level, otherwise Player 2, otherwise nothing.
+    //
+    // Elimination destroys the loser and forgetEntity() nulls its pointer, so
+    // "m_player is null" stopped meaning "there is nobody to follow" the moment
+    // versus mode existed — it can equally mean "Player 1 is out and Player 2
+    // is still playing". update()'s camera dispatch read m_player2 to decide
+    // whether this was a two-player frame, so after Player 1 was eliminated it
+    // still chose updateVersusCamera(), which returns immediately without both
+    // players: the view stopped dead and the survivor ran straight out of it.
+    // The view tether and the boss arena clamp had the mirror-image bug, both
+    // being written against m_player alone.
+    Player* activeParticipant() const;
     // Both players' lives are spent before the run is over.
     bool allPlayersOut() const;
     // The second participant's status line, drawn beside the single-player HUD:
@@ -630,6 +677,33 @@ private:
     // make contact during them harmful, and attacks continuously — the series
     // has always paired that with a second solution, and this is it.
     void chopBridge();
+
+    // --- How many axes, and why the count is the difficulty knob -------------
+    //
+    // EASY 1, NORMAL 2 (left + right), HARD 3 (left + middle + right). More
+    // axes is HARDER, not easier: every axe has to be reached before the bridge
+    // drops, so the route that skips the fight costs one traverse of a lava
+    // bridge under Bowser's fire per axe instead of one per fight. The user
+    // chose this reading explicitly over "more axes = more chances".
+    //
+    // Read from Game::difficulty()'s persisted id, which is the only source of
+    // truth for the tier — IDifficultyStrategy exposes getId() plus the four
+    // scaling factors, and deliberately has no "tier" enum to switch on.
+    static int axeQuotaForDifficulty();
+
+    // Sizes the level's axe roster to that quota and arms the counter below.
+    //
+    // Hung off findActiveBoss() rather than called from each of the five level
+    // load paths: the roster belongs to the fight the level has, every path
+    // that discovers the boss already calls that one method, and a sixth load
+    // path added later therefore cannot forget to size it.
+    void configureBridgeAxes();
+    // How many the fight started with, and how many are still to be reached.
+    // m_axesTotal == 0 means this fight has no axe route at all, and a chop
+    // request is then honoured immediately — which is what an axe dropped into
+    // a running level by the map editor relies on.
+    int m_axesTotal = 0;
+    int m_axesRemaining = 0;
 
     // --- POW block: clears the enemies that are standing on something --------
     //
