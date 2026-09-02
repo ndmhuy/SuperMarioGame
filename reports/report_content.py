@@ -172,14 +172,14 @@ members wrote engine code and presentation code rather than one owning systems a
         TileMap and level loading, camera, save/load, time rewind, map generator</td>
     <td>Parallax backdrop, screen transitions, Menu / WorldMap / Playing / Options states, two-player
         modes, level editor</td>
-    <td>179</td></tr>
+    <td>{F['commits_a']}</td></tr>
 <tr><td><strong>B</strong> &mdash; Tr&#7847;n Gia Huy<br>25125084</td>
     <td>Enemies &amp; Interaction</td>
     <td>Input manager and command objects, sound manager, enemies and AI movement strategies, blocks,
         entity factory, object pool, replay recorder, debug console</td>
     <td>Sprite sheets and animation, HUD, minimap, particles, death effects, audio wiring, character
         select, pause / game over / victory, statistics, achievements, boss fights</td>
-    <td>57</td></tr>
+    <td>{F['commits_b']}</td></tr>
 </tbody></table></div>
 <p>Commit counts are from <code>git shortlog -sne</code> on the integration branch and are a measure of
 activity, not of value: a large share of Member A's total is engine refactoring and defect work, which
@@ -2116,7 +2116,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <tbody>
 <tr><td>6</td><td><code>Entity</code></td><td>&sect;6.1</td><td>compact</td><td>The four branches under the abstract root: Character, Item, Block, Projectile.</td></tr>
 <tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>full</td><td>Thirteen concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
-<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>full</td><td>Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right.</td></tr>
+<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>full</td><td>Ten concrete blocks; <code>FallingPlatform</code> drives itself through a phase enum (see &sect;7.4 &mdash; not the State pattern). <code>Thwomp</code> is an <code>Enemy</code>, not a <code>Block</code>.</td></tr>
 <tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>compact</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
 <tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>full</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>
 <tr><td>9</td><td><code>IPlayerState</code></td><td>&sect;6.4</td><td>full</td><td>Five player forms plus the two Decorators that wrap them.</td></tr>

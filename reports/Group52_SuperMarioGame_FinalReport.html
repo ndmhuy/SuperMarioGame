@@ -84,7 +84,7 @@ footer{max-width:74ch;margin:56px auto 0;padding-top:18px;border-top:1px solid v
   <p class="sub" style="margin-top:14px">
     Nguy&#7877;n &#272;&#236;nh Minh Huy (25125083) &middot; Tr&#7847;n Gia Huy (25125084)</p>
   <p class="meta">C++17 &middot; SFML 3.0.2 &middot; ImGui-SFML &middot; CMake<br>
-  Verified against commit c1368a4 &middot; 2026-08-31</p>
+  Verified against commit 3ec20ac &middot; 2026-08-31</p>
 </div>
 
 <div class="toc"><ol>
@@ -125,7 +125,7 @@ rubric line the project deliberately forfeits.</p>
 <div><b>279</b><span>files</span></div>
 <div><b>10</b><span>patterns</span></div>
 <div><b>32</b><span>CI tests</span></div>
-<div><b>510</b><span>commits</span></div>
+<div><b>513</b><span>commits</span></div>
 </div>
 
 <h2 id="intro">2 &middot; Introduction and objectives</h2>
@@ -160,14 +160,14 @@ members wrote engine code and presentation code rather than one owning systems a
         TileMap and level loading, camera, save/load, time rewind, map generator</td>
     <td>Parallax backdrop, screen transitions, Menu / WorldMap / Playing / Options states, two-player
         modes, level editor</td>
-    <td>179</td></tr>
+    <td>452</td></tr>
 <tr><td><strong>B</strong> &mdash; Tr&#7847;n Gia Huy<br>25125084</td>
     <td>Enemies &amp; Interaction</td>
     <td>Input manager and command objects, sound manager, enemies and AI movement strategies, blocks,
         entity factory, object pool, replay recorder, debug console</td>
     <td>Sprite sheets and animation, HUD, minimap, particles, death effects, audio wiring, character
         select, pause / game over / victory, statistics, achievements, boss fights</td>
-    <td>57</td></tr>
+    <td>61</td></tr>
 </tbody></table></div>
 <p>Commit counts are from <code>git shortlog -sne</code> on the integration branch and are a measure of
 activity, not of value: a large share of Member A's total is engine refactoring and defect work, which
@@ -333,11 +333,11 @@ the hollow triangle is UML generalization, pointing at the base.</p>
 <path class="uml-edge" d="M 33 598 V 622.0 H 164.4"/>
 <path class="uml-edge" d="M 33 598 V 622.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 584.0 H 22"/>
-<polygon class="uml-tri" points="29,262 37,262 33,256"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="29,376 37,376 33,370"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,262 37,262 33,256"/>
 <polygon class="uml-tri" points="29,604 37,604 33,598"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -537,8 +537,8 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 33 294 V 356.0 H 44.0"/>
 <path class="uml-edge" d="M 33 294 V 356.0 H 157.2"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 22"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,300 37,300 33,294"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
@@ -598,9 +598,9 @@ argument the feature list makes, made visible in a diagram instead of a count.</
 <path class="uml-edge" d="M 11 28 V 280.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 142.4"/>
 <path class="uml-edge" d="M 11 28 V 280.0 H 262.8"/>
-<polygon class="uml-tri" points="7,34 15,34 11,28"/>
-<polygon class="uml-tri" points="29,148 37,148 33,142"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="29,148 37,148 33,142"/>
+<polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="116" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Enemy</text>
 <text class="uml-st" x="104" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -652,8 +652,8 @@ charge. Neither can forget the rest, because neither is given the chance.</p>
 <path class="uml-edge" d="M 11 28 V 128.0 H 234.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 22.0"/>
 <path class="uml-edge" d="M 11 28 V 166.0 H 128.0"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="166" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">IPlayerState</text>
 <text class="uml-st" x="154" y="18" text-anchor="end">&#171;interface&#187;</text>
@@ -2004,8 +2004,8 @@ outside the process is touched, so a verification run is reproducible.</p>
 
 <h2 id="process">12 &middot; Process and project history</h2>
 <p>The project ran from 29 May to 2 September 2026 across 10 weekly reporting periods
-(<code>docs/Group52_04/</code> through <code>Group52_13/</code>), 510 commits and
-301 recorded working sessions in <code>logs/agent_history.log</code>. This section is
+(<code>docs/Group52_04/</code> through <code>Group52_13/</code>), 513 commits and
+302 recorded working sessions in <code>logs/agent_history.log</code>. This section is
 about the third of those numbers rather than the first two: <strong>how the project checked itself,
 what the checking produced, and why its engineering rules read the way they do</strong>. The
 individual defects are deliberately not restated here &mdash; the five worth reading are worked
@@ -2108,7 +2108,7 @@ inert</strong> &mdash; compiled, harnessed, green, and constructed by nothing th
 reached. Every claim in &sect;4 of this report is graded against the stronger definition, and where
 only the weaker one holds, &sect;13 says so.</p>
 <p><strong>The log is the audit trail.</strong> <code>logs/agent_history.log</code> holds
-301 entries, and it is not a changelog. Each records the commit before and after,
+302 entries, and it is not a changelog. Each records the commit before and after,
 whether the remotes were fetched, whether the work is reachable from <code>main()</code>, how it was
 verified, and &mdash; required, not optional &mdash; the mistakes made getting there. It is
 append-only and <strong>union-merged</strong>: when two branches both appended, the resolution is to
@@ -2152,7 +2152,7 @@ something other than good intentions.</p>
  running the game for six seconds.</td>
  <td>&sect;4 grades every capability by how it was confirmed; &sect;13 lists what only compiles.</td></tr>
 <tr><td><strong>The log</strong></td>
- <td>301 entries carrying fingerprints, fetch status, reachability, verification and
+ <td>302 entries carrying fingerprints, fetch status, reachability, verification and
  mistakes.</td>
  <td>Union on merge conflict &mdash; keep both entries, never choose a side.</td></tr>
 <tr><td><strong>CI</strong></td>
@@ -2521,7 +2521,7 @@ ctest --output-on-failure # 32 verification targets registered as CTest cases
 <tr><td>Design patterns</td><td>see &sect;7 for the full list, each with the problem it solves</td></tr>
 <tr><td>Verification harnesses</td><td>40 source files, 38 built,
     32 registered as CTest cases</td></tr>
-<tr><td>Commits on the integration branch</td><td>510</td></tr>
+<tr><td>Commits on the integration branch</td><td>513</td></tr>
 <tr><td>Sound effects / music tracks</td><td>29 / 12</td></tr>
 <tr><td>Achievements</td><td>12</td></tr>
 </tbody></table></div>
@@ -2551,7 +2551,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 <tbody>
 <tr><td>6</td><td><code>Entity</code></td><td>&sect;6.1</td><td>compact</td><td>The four branches under the abstract root: Character, Item, Block, Projectile.</td></tr>
 <tr><td>6a</td><td><code>Item</code></td><td>&sect;6.2</td><td>full</td><td>Thirteen concrete power-ups and pickups behind one <code>activate()</code> call.</td></tr>
-<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>full</td><td>Ten concrete blocks, three of them (FallingPlatform, Thwomp) State machines in their own right.</td></tr>
+<tr><td>6b</td><td><code>Block</code></td><td>&sect;6.2</td><td>full</td><td>Ten concrete blocks; <code>FallingPlatform</code> drives itself through a phase enum (see &sect;7.4 &mdash; not the State pattern). <code>Thwomp</code> is an <code>Enemy</code>, not a <code>Block</code>.</td></tr>
 <tr><td>7</td><td><code>Character</code></td><td>&sect;6.3</td><td>compact</td><td>Player and Enemy split, including the ShadowMario replay rival.</td></tr>
 <tr><td>8</td><td><code>Enemy</code></td><td>&sect;6.3</td><td>full</td><td>The enemy branch, with the Boss sub-hierarchy sealed by Template Method.</td></tr>
 <tr><td>9</td><td><code>IPlayerState</code></td><td>&sect;6.4</td><td>full</td><td>Five player forms plus the two Decorators that wrap them.</td></tr>
@@ -2613,15 +2613,15 @@ inside it) are the very next diagrams, each in full detail.</p>
 <path class="uml-edge" d="M 33 940 V 964.0 H 164.4"/>
 <path class="uml-edge" d="M 33 940 V 964.0 H 284.8"/>
 <path class="uml-edge" d="M 11 28 V 926.0 H 22"/>
+<polygon class="uml-tri" points="29,72 37,72 33,66"/>
+<polygon class="uml-tri" points="29,262 37,262 33,256"/>
 <polygon class="uml-tri" points="51,604 59,604 55,598"/>
+<polygon class="uml-tri" points="73,338 81,338 77,332"/>
+<polygon class="uml-tri" points="29,946 37,946 33,940"/>
+<polygon class="uml-tri" points="73,414 81,414 77,408"/>
 <polygon class="uml-tri" points="51,300 59,300 55,294"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
 <polygon class="uml-tri" points="29,718 37,718 33,712"/>
-<polygon class="uml-tri" points="29,72 37,72 33,66"/>
-<polygon class="uml-tri" points="73,414 81,414 77,408"/>
-<polygon class="uml-tri" points="29,262 37,262 33,256"/>
-<polygon class="uml-tri" points="73,338 81,338 77,332"/>
-<polygon class="uml-tri" points="29,946 37,946 33,940"/>
 <rect class="uml-box uml-abs" x="0" y="0" width="123" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Entity</text>
 <text class="uml-st" x="111" y="18" text-anchor="end">&#171;abstract&#187;</text>
@@ -3251,9 +3251,9 @@ inside it) are the very next diagrams, each in full detail.</p>
 <path class="uml-edge" d="M 11 28 V 356.0 H 22"/>
 <polygon class="uml-tri" points="51,110 59,110 55,104"/>
 <polygon class="uml-tri" points="29,72 37,72 33,66"/>
-<polygon class="uml-tri" points="29,376 37,376 33,370"/>
-<polygon class="uml-tri" points="51,186 59,186 55,180"/>
 <polygon class="uml-tri" points="7,34 15,34 11,28"/>
+<polygon class="uml-tri" points="51,186 59,186 55,180"/>
+<polygon class="uml-tri" points="29,376 37,376 33,370"/>
 <rect class="uml-box" x="0" y="0" width="89" height="28" rx="4"/>
 <text class="uml-name" x="12" y="18">Character</text>
 <rect class="uml-box uml-abs" x="22" y="38" width="116" height="28" rx="4"/>
@@ -4398,7 +4398,7 @@ inside it) are the very next diagrams, each in full detail.</p>
 </svg></div><figcaption>Figure 12 (full detail) — The complete Strategy hierarchy, every attribute and method.</figcaption></figure>
 
 <footer>Group 52 &middot; CS202 Object-Oriented Programming &middot; University of Science, VNU-HCM<br>
-Generated by <code>reports/build_report.py</code> from the repository at commit c1368a4.
+Generated by <code>reports/build_report.py</code> from the repository at commit 3ec20ac.
 Self-contained: opens from disk, no network, prints to PDF.</footer>
 
 </main>

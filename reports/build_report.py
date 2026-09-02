@@ -146,12 +146,34 @@ def verify_ctest_parity(build_dir=None):
     print(f"OK: ctest parity — FACTS['ctests'] == `ctest -N` == {real}")
 
 
+
+def member_commits(names):
+    """Commits on HEAD by any of `names` (one member may have several git identities)."""
+    out = git("shortlog", "-sn", "HEAD")
+    total = 0
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        count, _, author = line.partition("\t")
+        if author.strip() in names:
+            total += int(count.strip())
+    return total
+
+
 FACTS = {
     "sources":   count_files(GAME / "src", ".cpp"),
     "headers":   count_files(GAME / "include", ".hpp"),
     "loc":       count_lines(GAME / "src", ".cpp") + count_lines(GAME / "include", ".hpp"),
     "harnesses": count_files(GAME / "tests", ".cpp"),
     "commits":   git("rev-list", "--count", "HEAD"),
+    # Per-member commit counts, derived rather than typed. The report claims
+    # these come from git shortlog; before this they were hand-typed 179/57
+    # while the tree held 419/61, so the claim was false and the numbers drifted
+    # by 240 commits (Phase 6 audit, 2026-09-02). Member B has two git
+    # identities, so both are summed.
+    "commits_a":  member_commits(("Nguyen Dinh Minh Huy", "Nguy\u1ec5n \u0110\u00ecnh Minh Huy")),
+    "commits_b":  member_commits(("FubuGold", "Tran Gia Huy", "Tr\u1ea7n Gia Huy")),
     "head":      git("rev-parse", "--short", "HEAD"),
     "enemies":   len(subclasses_of("Enemy")) + len(subclasses_of("Boss")),
     "items":     len(subclasses_of("Item")),
