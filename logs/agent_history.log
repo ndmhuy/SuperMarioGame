@@ -6652,3 +6652,21 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   HARD axe unreachable behind the arena enclosure post; MapGenerator's
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
+
+[2026-09-02 20:39:16] Branch: A/docs/member-contributions
+Git Fingerprint: d013442 (before) → e19eff9 (after)
+Fetched Remotes: yes, 20:22 (git fetch --all; dev is 48 ahead / 0 behind origin/dev, unrelated to this lane's files)
+Prompt: Phase 4C of the submission sweep - make Member_Contributions.md/.xlsx's "generated from one source" claim true, extend the task table from #121 with the 2026-08-31..09-02 sessions, and refresh commit counts from git shortlog -sn.
+Files Modified: scripts/build_contributions.py (new), submission_documents/Member_Contributions.md, submission_documents/Member_Contributions.xlsx
+Reachable From Main: n/a - not runtime code (a documentation-generation script, run manually per its own docstring)
+Verified By: ran `python3 scripts/build_contributions.py` twice (idempotent), then opened both outputs: read the regenerated .md end-to-end, and loaded the .xlsx with openpyxl confirming Summary A1:L15 and Tasks A1:F159
+Summary of Changes:
+- Wrote scripts/build_contributions.py: one TASKS list (student_id, description, hours, evidence) plus a MEMBERS roster and a GIT_AUTHOR_TO_STUDENT_ID map (FubuGold -> Member B per AGENTS.md Layer 2) feed both render_markdown() and render_xlsx(); git commit counts are measured live via `git shortlog -sn HEAD` (subprocess), not typed in - an unmapped git author now raises instead of silently under-counting.
+- Extracted the original 120 task rows programmatically from the existing Member_Contributions.md (regex over the table) rather than hand-retyping them, to avoid transcription errors.
+- Delegated a first pass at summarizing the 57 new agent_history.log entries (2026-08-30 15:42 .. end of file) into headline task rows to a subagent; caught and removed 3 duplicate rows it produced (level-completion-and-camera-defects, endless-mode-and-solvability, submission-package-update all already existed as rows 117-119 in the old table, since those sessions' log entries fell inside the slice I hardanded it) before merging - final new-row count is 37, not 40.
+- New rows are dated 2026-08-31..09-02 and are entirely Member A (Nguyen Dinh Minh Huy): the log slice in that window has zero B/-prefixed branch entries, verified by grep before writing the honesty note.
+- Table is now 157 tasks / 321 hours (was 120 / 223.5). Git commits measured fresh: Nguyen Dinh Minh Huy 417, Tran Gia Huy 4 + FubuGold 57 = 61 (Member B, same person, two git identities), total 478 (doc previously said 316; dev's true commit count on this worktree's HEAD, not hand-typed).
+- Updated percentages: Tasks 71.3%/28.7%, Hours 75.1%/24.9%, Git 87.2%/12.8% (Member A/B) - the manual Percent convention stays 0.5/0.5 per the existing convention; the gap-honesty note is now generated from live numbers instead of a hardcoded sentence.
+- Rewrote the doc's opening sentence to name scripts/build_contributions.py as the actual generator, making the "generated from one source so they cannot drift" claim true for the first time.
+- Did not touch reports/, Report/, docs/, .gitignore, C++ source, features_list.md or testing_tasks.md (sibling-lane files) per this lane's constraints.
+---
