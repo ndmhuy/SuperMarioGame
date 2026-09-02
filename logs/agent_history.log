@@ -5471,3 +5471,102 @@ STILL OPEN (Phase 2/3, in progress): procedural boss arena + endless far-chunk
   PlaceEntityCommand hand-rolls 16 type names and never calls EntityFactory, so
   24 of 40 palette buttons silently place nothing); Bonus D.
 ---
+
+[2026-09-02 14:05:00] Branch: dev (merged from A/release/defect-batch-r21)
+Git Fingerprint: dev 1a7a6db (before merge) → 97fc43a (after, --no-ff merge commit); task branch tip 4474ac6
+Fetched Remotes: yes, 14:01 — origin/dev had NOT moved since the batch was cut (dev...origin/dev = 0/0), so no rebase was needed and the merge was clean with zero conflicts
+Prompt: (continuation of the 09:50 entry) Phases 2-4 of the R21 batch: GUI map editor + "which map am I editing / where is it / how do I play it"; debug-mode recording cheats (immortal, invincibility, etc.) with immortality that RESCUES rather than suppressing the void kill; procedural boss arena + endless far-chunk entities + LevelSolvability + endless timer; entity registry factory; Bonus D dynamic lighting for real with sf::Shader. Then merge to dev and push dev only — main is the user's responsibility.
+Files Modified: see the twelve commits 8789f29..4474ac6 on A/release/defect-batch-r21. New files of note:
+- SuperMarioGame/include|src/Core/EditorState.{hpp,cpp}, DebugCheats.{hpp,cpp}
+- SuperMarioGame/include|src/Graphics/LightingRenderer.{hpp,cpp}, EntityArtBinder.*, TileMapRenderer.*
+- SuperMarioGame/include/Utils/IEntityAdmitter.hpp, include/Entities/TerrainProbe.hpp
+- SuperMarioGame/assets/shaders/radial_light.frag
+- SuperMarioGame/tests/guard_asset_single_source.cpp, verify_r21_{entity_guards,level_data,ui_layout,debug_cheats,entity_registry,lighting}.cpp
+- docs/issues/release_batch_r21_2026-09-02.md (full review record)
+Reachable From Main: yes for every item, with ONE honest exception carried forward — UiRenderer::wrapText was built as part of the shared text-fitting mechanism and still has NO production caller (harness-only). It is not counted as complete.
+Verified By: ran the game (post-merge, scripted) + ctest 23/23 on the MERGED dev + verify_regressions 584/584.
+  Post-merge verification specifically: rebuilt from scratch on dev after the
+  merge commit (AGENTS.md directive 1's user-directed-merge clause), ctest 23/23,
+  launched the binary and captured saves/shots/r21_postmerge_menu.png — the main
+  menu renders with no ImGui chrome and a CUSTOM LEVELS row, and
+  saves/config.json still reads "debugMode": false after a real run.
+  OBSERVED RUNNING across the batch: menu free of ImGui with debug off; LOAD GAME
+  fitting a real 32-char save summary; editor placing enemies/blocks/pipes as real
+  sprites with the open file named in the chrome; a custom level saved to a shown
+  absolute path and played from CUSTOM LEVELS; playtest round-tripping back to the
+  editor; IMMORTAL rescuing from the void with lives unchanged AND the control case
+  dying with Immortal off; time scale, freeze timer, hide HUD, free camera, noclip;
+  appended endless chunk 6 holding 29 entities across tiles 703-797 that STAY put;
+  a procedural boss arena locking with the BOWSER health bar in endless at 689m;
+  a cheat-free endless run past 347s with the timer disabled; a dark cave with a
+  player lamp and a fireball casting its own separate warm light; day/night at
+  four phases wrapping correctly; and the no-shader fallback rendering normally.
+  NOT OBSERVED, stated plainly: in-level pipe rendering and castle seating (unit-
+  covered by verify_r21_level_data, mutation-tested); Bowser's clamp in a live 1-3
+  fight (unit-covered); the multiplayer music fix (needs two players and audible
+  output); the axe chopping a GENERATED bridge (scripts jumped over it); the cheat
+  panel's BUTTONS (ImGui reads the real mouse, so no script can click them).
+Summary of Changes:
+- MAP EDITOR (defect 11 + the user's follow-up). PlaceEntityCommand hand-rolled
+  16 type names and never called EntityFactory, so 24 of 40 palette buttons
+  silently placed nothing. The test that looked like it covered this called
+  EntityFactory::create — the one path placement did NOT use — while its own
+  comment described this exact failure. Now a real EditorState:IGameState with
+  the open file named in the chrome as BUILT-IN/CUSTOM/NEW, custom levels in
+  assets/levels/custom/ with the absolute path shown, a CUSTOM LEVELS menu page
+  that PLAYS them (before this an authored level was written where nothing could
+  load it), F5 playtest round-trip, and built-ins protected from overwrite.
+  Closed a use-after-free: forgetEntity handled boss/shadow/player-2 but not
+  Player 1, so erasing Mario left three raw pointers dangling.
+- RECORDING CHEATS (user request). The existing `god` was not immortality — it
+  set invincibilityTimer to 100000, guarding only the damage path, so a pit
+  still ended the take. The user caught the obvious wrong fix before it was
+  written: suppressing the void kill drops the player into an endless fall,
+  which is worse than dying. IMMORTAL now RESCUES onto solid ground in the
+  column they fell from, keeping lives, form, score and clock — mirroring
+  Boss::returnToArenaSpawn() from 95521a8, which exists for exactly that problem
+  and which the player never got. A cheated run is permanently TAINTED: no high
+  score, no achievement, no lifetime statistics (a lethal hit under Immortal
+  still publishes PlayerDied on its way to being rescued, which would otherwise
+  have inflated the death count).
+- PROCGEN (defect 7). The report was "entities are not created in far chunks".
+  They ARE created; they teleport back, because MovingPlatform/PiranhaPlant/
+  FallingPlatform/Boss cache spawn positions in chunk-local coordinates. Fixed
+  with a virtual Entity::translate — the plan preferred world-space emission and
+  was WRONG: LevelSolvability compares entity x against chunk-local columns, so
+  that would have broken the platform-bridging check outright. Plus a 45% dead
+  prefab margin and enemies nested in the coin-cluster branch. A real boss arena
+  every 5 chunks. Endless had a 300s countdown that killed the player — an
+  endless mode that ended.
+- ENTITY REGISTRY (user request). One table row per type; the new suite walks
+  THE ENUM (EntityType::Count), so a forgotten type fails the build instead of
+  becoming a dead palette button. Deliberately an explicit table, not
+  self-registration: that is only sound because AppObjectsRelease/AppObjectsTest
+  are OBJECT libraries, and a future static archive would silently delete
+  entities from the palette. The constraint is commented at both sites.
+- BONUS D. Built for real: a GLSL 1.20 fragment shader, theme-driven darkness,
+  fireballs as moving lights, a 100s raised-cosine day/night cycle, and a
+  graceful no-GPU fallback verified by moving the .frag out of the tree. This
+  resolves a contradiction where SPEC.md scored 110/115 citing "GLSL shader
+  effects" and descoped those same shaders fifteen lines later; SPEC.md:945 and
+  TASKS.md:779-782 are corrected so the rubric claim is true, not aspirational.
+- MISTAKES MADE, recorded because the log is an audit trail: (1) a bare `return`
+  in the debug-key gate would have shipped a game the player could not jump in —
+  code AFTER that switch dispatches jump/fire to both players; caught before
+  commit. (2) A LOAD GAME screenshot of three EMPTY slots was briefly treated as
+  proof an overflow was fixed; "EMPTY" is 5 characters and the defect needs 31+.
+  Re-run against a real save. (3) Twice launched the next lane before committing
+  the previous, risking a half-finished lane's edits landing in a commit; caught
+  both times, and the order was corrected for the rest of the batch.
+- PROCESS GAP FOUND: guard_saves_hermeticity protects saves/ during ctest, but
+  nothing protects it from a manual scripted RUN of the game, which is how
+  debugMode:true briefly persisted into the developer's own config.json mid-batch.
+  Worth a guard; not built this batch.
+STILL OPEN (recorded in docs/issues/release_batch_r21_2026-09-02.md §5): main is
+  125 commits behind and still carries the truncated castle_end sprite —
+  promoting it is the USER'S decision and was explicitly reserved by them;
+  MovingPlatform::update never calls Block::update so a multi-frame platform
+  animation would be frozen; Spiny::isEgg is unreachable; a playtest ended by a
+  Game Over does not pop back to the editor; no distance gate on entity updates
+  in long endless runs; no ImGui sliders for the lighting tunables.
+---
