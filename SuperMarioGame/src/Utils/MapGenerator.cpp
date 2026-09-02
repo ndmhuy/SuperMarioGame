@@ -619,14 +619,34 @@ void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_pt
     auto trampoline = EntityFactory::create(EntityType::Trampoline, sf::Vector2f(45 * Constants::TILE_SIZE, (floorY - 1) * Constants::TILE_SIZE));
     if (trampoline) entities.push_back(std::move(trampoline));
 
-    // Exit Pipe at sub-level end leading back to returnLevelPath
-    // floorY - 3, not - 2: a Pipe is Pipe::HEIGHT_PX (4 tiles) tall and placed
-    // by its top-left corner, so this seats it one row into the floor and puts
-    // its rim three tiles up — see the checkpoint pipe in generate() for why
-    // three and not four. This pipe is the ONLY way out of the vault, so a rim
-    // at the exact top of the jump arc would be a soft lock.
-    sf::Vector2f exitPipePos((subWidth - 6) * Constants::TILE_SIZE, (floorY - 3) * Constants::TILE_SIZE);
+    // Exit Pipe at sub-level end leading back to returnLevelPath.
+    //
+    // A vault's way OUT is the ascending half of the up/down pair the entrance
+    // pipe (generate()'s checkpoint pipe, and every hand-authored level's own
+    // entrance pipe) is the descending half of. Every shipped sub-level JSON
+    // (level_1_sub/level_2_sub/level_3_sub) authors this exact exit pipe as
+    // `side_left` — Pipe.hpp's EntryMode comment names this pairing: the
+    // L-bend shaft reading "goes UP" is what tells the player this is the way
+    // back, not a dead-end pipe stub. Leaving this at the EntryMode::Top
+    // default left every PROCEDURALLY generated vault's exit looking and
+    // behaving like a descending entrance — the up/down pipe story was
+    // inconsistent between generated and hand-authored levels.
+    //
+    // floorY - 4, not - 3: a Top-entry pipe is seated one row INTO the floor
+    // (see the checkpoint pipe above) because its rim has to stay within jump
+    // reach of the floor it is mounted on — embedding the foot does not matter
+    // there, nobody stands where the foot is. A side-entry pipe's mouth is at
+    // the FOOT of the collider (Pipe::getMouthCenter()), so the foot has to
+    // land exactly ON the floor row rather than a row into it, or the mouth's
+    // lower half is buried in the ground the player is meant to walk up to —
+    // the exact "mouth is inside the floor tile" defect
+    // verify_r21_level_data.cpp's checkSideEntryMouths() (bottomRow ==
+    // floorRow) exists to catch. floorY - 4 puts the 4-tile-tall collider's
+    // foot flush with the floor, matching every hand-authored side-entry pipe
+    // (e.g. level_1_sub.json's exit pipe at row 14 with its floor at row 18).
+    sf::Vector2f exitPipePos((subWidth - 6) * Constants::TILE_SIZE, (floorY - 4) * Constants::TILE_SIZE);
     auto exitPipe = std::make_unique<Pipe>(exitPipePos, 2, returnPosition, returnLevelPath, true);
+    exitPipe->setEntryMode(Pipe::EntryMode::SideLeft);
     entities.push_back(std::move(exitPipe));
 
     std::cout << "[MapGenerator] Generated subterranean bonus vault (Width: " << subWidth << ", Return Target: " << returnLevelPath << ")" << std::endl;

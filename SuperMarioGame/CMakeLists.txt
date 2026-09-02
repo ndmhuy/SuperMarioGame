@@ -485,6 +485,18 @@ add_verify_test(verify_r21_flagpole_softlock "tests/verify_r21_flagpole_softlock
 # living one file away from where the effect is observed.
 add_verify_test(verify_2a_platform_anim_and_spiny_egg "tests/verify_2a_platform_anim_and_spiny_egg.cpp")
 
+# Submission sweep, Phase 2 lane 2B: level_3.json's third Hard-difficulty axe
+# stood behind the boss arena's right enclosure post, unreachable by ordinary
+# movement, which broke the non-combat route through Bowser on the one
+# difficulty tier that requires every axe; and MapGenerator's generated vault
+# exit pipe kept the Top-entry default instead of the side_left every
+# hand-authored sub-level authors it as, so a generated vault's way out looked
+# and behaved like a second entrance. Driven against a live PlayingState (the
+# axe check) and MapGenerator's own output (the pipe check) for the same
+# reason verify_r21_versus_and_axes.cpp is: neither defect exists anywhere a
+# harness that composes its own state would see it.
+add_verify_test(verify_hard_axe_and_vault_pipe "tests/verify_hard_axe_and_vault_pipe.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------
