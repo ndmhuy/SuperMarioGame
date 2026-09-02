@@ -47,3 +47,11 @@ Report/SuperMarioGame/img/*.pdf
 # build outputs, the originals are the tracked ones.
 Report/SuperMarioGame/img/*.png
 !Report/SuperMarioGame/img/hcmus-logo.png
+
+# The one and only level/asset tree is SuperMarioGame/assets/. A second tree at
+# the repository root used to be created by tools/generate_game_levels.cpp and
+# won path resolution whenever the game was launched from here, silently serving
+# stale levels (all themes flattened to "overworld", half pipes, Brick sub-level
+# floors a P-Switch could delete under the player). The dual-write is gone; this
+# anchored rule makes sure a stray recreation can never be committed.
+/assets/

@@ -262,6 +262,23 @@ set_tests_properties(guard_saves_hermeticity_check PROPERTIES
     FIXTURES_CLEANUP saves_hermeticity
     TIMEOUT 30)
 
+# R21: one asset tree, enforced. tools/generate_game_levels.cpp used to write
+# every level twice -- once relative to the cwd, once to "../" + path -- which
+# created a second, untracked levels tree at the repository root. Because
+# ResourceManager::resolvePath tries the bare relative path first, that stale
+# tree won whenever the game was launched from the repo root, silently serving
+# levels that predated the D21/D22/D23 fixes. The dual-write is gone and
+# /assets/ is gitignored, but neither keeps a recreated tree OFF THE DISK, and
+# the disk is what path resolution reads. This guard is what actually fails.
+add_executable(guard_asset_single_source "tests/guard_asset_single_source.cpp")
+target_compile_definitions(guard_asset_single_source PRIVATE
+    ASSET_GUARD_PROJECT_ROOT="${CMAKE_CURRENT_SOURCE_DIR}"
+    ASSET_GUARD_REPO_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_dependencies(ctest_binaries guard_asset_single_source)
+
+add_test(NAME guard_asset_single_source COMMAND guard_asset_single_source)
+set_tests_properties(guard_asset_single_source PROPERTIES TIMEOUT 30)
+
 add_verify_test(verify_all "tests/verify_all.cpp")
 
 add_verify_test(verify_map_editor "tests/verify_map_editor.cpp" NO_CTEST)
