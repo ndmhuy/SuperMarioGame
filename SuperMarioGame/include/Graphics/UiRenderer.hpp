@@ -99,12 +99,23 @@ public:
                                unsigned int size, sf::Color color, float maxWidth,
                                bool centerX = false, unsigned int minSize = 8);
 
-    // Greedy word wrap at `maxWidth`, for blocks that may keep their size and
-    // grow downwards instead. Words longer than the box are split mid-word
-    // rather than allowed to overflow. Never returns an empty vector, so a
-    // caller can always advance its cursor by lines.size() rows.
-    static std::vector<std::string> wrapText(const std::string& text, unsigned int size,
-                                             float maxWidth);
+    // THERE IS DELIBERATELY NO WORD-WRAP PRIMITIVE HERE. drawTextFitted above is
+    // this renderer's whole answer to text that does not fit, and that is a
+    // choice, not an omission — do not add one back without a caller.
+    //
+    // A `wrapText` returning one line per row shipped alongside drawTextFitted
+    // and was removed in the 2026-09-02 sweep with zero production callers, on
+    // this evidence: every surface UiRenderer draws is either a row grid
+    // (drawMenuItems, which is one row per item by definition) or a fixed hint
+    // line or a column-shaped summary, and none of those may reflow to two rows
+    // without breaking the grid they sit in. Growing downwards also needs a
+    // caller whose panel height is derived after the text is measured, and each
+    // page here computes its height from a row COUNT before drawing.
+    //
+    // The prose blocks that would want wrapping are all ImGui chrome (the
+    // editor's tabs and dialogs) and ImGui::TextWrapped already handles them —
+    // which is the same separation this header's own preamble describes, where
+    // UiRenderer exists so the SFML front end never has to reach for ImGui.
 
     // Font every UI surface uses. Falls back to an empty font (SFML draws
     // nothing) rather than crashing when the asset is missing.
