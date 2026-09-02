@@ -484,11 +484,19 @@
 
 ### 7.1 Animated Menu State [v2.0]
 - [x] Rewrite `MenuState` with animated background, running Mario, spinning coins
-- [ ] Attract mode (demo playback after 30s idle) [v2.0] — needs 10.3 Replay System
-- [ ] Options: New Game, Load Game, Options, High Scores, Statistics, Achievements, Quit [v2.0: expanded]
-      — New Game, Options & High Scores, Map Editor, Procedural Level and Quit
-      are live. Load Game is not wired to the menu yet; Statistics and
-      Achievements are tasks 7.9 and 7.10.
+- [x] Attract mode (demo playback after 30s idle) [v2.0] — `ATTRACT_MODE_IDLE_SECONDS`
+      (Constants.hpp:59), idle accumulator and trigger at MenuState.cpp:545-557,
+      reset at :491, demo payload at PlayingState.cpp:1860-1888 driving
+      `assets/replays/attract_demo.json`. Branch `A/feature/attract-mode` merged
+      into dev as 6075c27. *(R21: the "needs 10.3" note was stale — 10.3 shipped
+      first and this was built on it.)*
+- [x] Options: New Game, Load Game, Options, High Scores, Statistics, Achievements, Quit [v2.0: expanded]
+      — nine rows live at MenuState.cpp:144-163, handlers at :349-400: START GAME,
+      LOAD GAME, MULTIPLAYER, DAILY CHALLENGE, MAP EDITOR, PROCEDURAL LEVEL,
+      RECORDS, OPTIONS, QUIT. High Scores, Statistics and Achievements are pages
+      under RECORDS (OptionsState.hpp:27) rather than top-level rows.
+      *(R21: the old note claimed "Load Game is not wired to the menu yet". It
+      has been wired since R8, commit 3d4263f — the note outlived the defect.)*
 - [x] Commit: `feat: implement animated MenuState`
 
 ### 7.2 Character Select State
@@ -640,7 +648,11 @@
 ### 10.4 Debug Console
 - [x] Create DebugConsole.hpp/.cpp — lives in `Core/`, not `Utils/`, alongside the
       other ICommand implementations
-  - [x] Toggle with `, [x] text→command parsing, [ ] autocomplete (not done)
+  - [x] Toggle with `, [x] text→command parsing, [x] autocomplete
+        *(R21: previously marked "not done" and it was wrong —
+        `DebugConsoleCompletionCallback` at DebugConsole.cpp:282-315 does
+        longest-common-prefix disambiguation, wired at :411-413 through
+        `ImGuiInputTextFlags_CallbackCompletion`, live via Game.cpp:62/119/193.)*
 - [x] Commit: `feat: implement debug console with command parsing`
 - [ ] **Merge**: `git checkout dev && git merge feature/advanced-systems`
 
@@ -775,6 +787,14 @@
       reasons locally off its vision grid. Deliberately left unwritten rather
       than shipped inert.
 - [ ] Split-screen Speedrun mode (plan §1.2) — its own proposal; see above.
+      *(R21 re-verified the blocker rather than restating it: `Camera` holds one
+      `sf::View` (Camera.hpp:107) and is explicitly non-movable (Camera.hpp:40-41,
+      audit X-7 — EventBus lambdas capture `this`); `setViewport` is called
+      nowhere in the project; `PlayingState` owns the camera by value
+      (PlayingState.hpp:245); `Hud::draw` positions ~30 elements at literal
+      1280x720 coordinates; and `WINDOW_WIDTH/HEIGHT` is used 47 times across 15
+      files. Game.cpp:275-290 already defers the same resolution-independence
+      refactor for letterboxing. Still deliberately unbuilt.)*
 
 ### Bonus D — Dynamic Lighting (`feature/dynamic-lighting`)
 - [ ] GLSL fragment shader for radial light
