@@ -921,3 +921,36 @@ The lane therefore **shipped no level-data edit** (`level_3.json` is untouched, 
 ### 8.19 Environment trap worth keeping: `build/assets/levels/` is a stale copy
 
 Lane 2B lost real time to false mutation-test results before finding that asset sync is a **`SuperMarioGame`-target-only `POST_BUILD` step**, so `build/assets/levels/` can hold a stale copy of level data while the source tree is correct. Related to the known duplicate-level-asset hazard: which `level_*.json` is actually loaded depends on the launch directory. Any lane editing level data must confirm which copy the running binary reads before concluding a change had or had not any effect.
+
+### 8.20 Correction to §8.16 — the FACTS undercount, measured on merged `dev`
+
+§8.16 said `FACTS["ctests"]` prints **26** against **29** real cases. That was true at `6af4f8e`; it is stale on merged `dev` @ `d013442`, and lane 5C caught it. Measured directly by running the extractor's own regexes:
+
+| Quantity | Value |
+| :--- | :-- |
+| `targets` — all `add_verify_test(...)` invocations | 38 |
+| `FACTS["ctests"]` — as extracted (minus `NO_CTEST`) | **29** |
+| Explicit `add_test(NAME …)` the regex cannot see | **3** — `guard_saves_hermeticity_setup`, `guard_saves_hermeticity_check`, `guard_asset_single_source` |
+| Real registered cases (`ctest -N`) | **32** |
+
+**The diagnosis in §8.16 was right and the numbers were stale**: the gap is exactly the three guards registered through a second mechanism, and it moved from 26/29 to 29/32 because three Phase 2 lanes each added a test. Raw `grep -c` over `CMakeLists.txt` overcounts (41 / 15 / 4) because it also matches the macro definition and comments — only the extractor's own `[a-z_0-9]+` regexes give the operative figures.
+
+Lane 5C handled it correctly by typing **neither** number into prose: §13 uses `F['ctests']`, and it deliberately phrased the surrounding sentence to assert no arithmetic relation between `targets` and `ctests`, so the text stays true after the extractor is fixed. That is the right way to write around a known-wrong derived fact.
+
+### 8.21 Lanes 4B, 4C, 5C accepted
+
+| Lane | Branch | Verified by the orchestrator |
+| :-- | :--- | :--- |
+| 4B | `A/docs/features-list-v3` | `features_list.md` **97 → 127** items, continuous, no gaps; the "lighting excluded" text is now the correction itself; `testing_tasks.md` +11 rows covering 1–127 |
+| 4C | `A/docs/member-contributions` | `git shortlog -sn` re-run → **419 / 57+4**; task table 120 → **157**; generator regenerates both editions; xlsx opens at `Summary A1:L16`, `Tasks A1:F159`; measurement stamp present in both |
+| 5C | `A/docs/report-process-gaps-future` | Touched only `reports/report_content.py` + log; clean tree; no generated output committed |
+
+**4B's value is in what it refused to add.** Four candidates rejected: the `PlayerDeathHop` overlay (`spawnDeathEffect`'s only caller passing it is `verify_graphics_visual.cpp` — harness-only), `UiRenderer::wrapText` (deleted by 2D), the `kill_all`/`stats` console commands (do not exist), and build guards (not reachable gameplay). It also declined to claim the HARD axe, following 2B's non-reproduction. Fifteen existing items were corrected in **both** directions — Mini/Mega Mushroom marked editor-authored because content ids 5/6 appear in no level file, while five enemy items had that marker **removed** because the shipped levels do place them.
+
+**5C removed four stale §13 gaps** after re-verifying them against merged `dev`: the six "unplaced" enemy types now all appear in `level_1/2/3.json`; `hidden_block` has 12 placements; `AnimationManager` no longer exists; `playLevelBGM` maps index 2 to `castle`. It also *downgraded* an overstatement rather than only removing — Bowser's stagger **was** observed live, so it is restated as "observed, never tuned against a human" — and deleted the hand-typed "504 individual checks" rather than re-guessing it.
+
+### 8.22 Fourth plan defect found by a lane: the console-command count
+
+§4.2 lists `features_list.md` item #9's console count as `[STALE]` "(11 → recount; `noclip` added)". **Wrong.** `DebugConsole` still registers exactly **11** commands and there is no `NoclipCommand` — `noclip` exists as a Debug > Cheats switch, not a console command. Lane 4B left the count at 11 and reframed the preamble. §4.2's row is **withdrawn**.
+
+That is the fourth defect the plan itself carried, after the unreachable HARD axe (§8.18), `docs/two_player_ai_plan.md` (§8.12), and the 28/28 ctest baseline (§8.5). Every one was found by a lane checking rather than trusting — which is the argument §12 now makes about the procedure.
