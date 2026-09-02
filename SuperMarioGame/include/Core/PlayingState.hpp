@@ -125,6 +125,14 @@ private:
     // last axe. Same tradeoff as the two friends above.
     friend class VersusAndAxesTestHooks;
 
+    // tests/verify_r21o_offcamera_gate.cpp reaches the camera, the entity list
+    // and the two census counters to prove BOTH halves of the off-camera update
+    // gate on a live instance: that an entity left far behind stops thinking,
+    // and that a projectile, a platform and a shadow at the same distance do
+    // not. A guard that only checked the first half would license the very bug
+    // it exists to prevent. Same tradeoff as the three friends above.
+    friend class OffCameraGateTestHooks;
+
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
     void regenerateProceduralLevel();
@@ -747,6 +755,42 @@ private:
     // Moves everything queued by a spawn handler this frame into m_entities.
     // Called once per frame, after every loop that walks m_entities has ended.
     void flushPendingSpawns();
+
+    // --- Off-camera update gate ------------------------------------------
+    //
+    // Endless Mode never discards a chunk it has appended, so m_entities only
+    // ever grows: extendEndlessLevelIfNeeded() splices a hundred fresh tiles of
+    // content in every time the player gets within 40 tiles of the end, and
+    // everything it spliced keeps thinking for the rest of the run. The gate
+    // below stops paying for the chunks the player has walked past.
+    //
+    // Margin is HALF THE LIVE VIEW in each axis rather than a tile constant, so
+    // nothing within two viewport widths of the camera centre is ever frozen.
+    // At the default 1280x720 view that is 20 tiles horizontally and 11
+    // vertically; the versus/co-op camera zooms out to fit both players, and
+    // deriving the margin from the view means that wider camera automatically
+    // gets a wider safe band instead of silently eating into it.
+    AABB thinkingRegion() const;
+
+    // Whether `entity` must keep updating even when it is far outside
+    // thinkingRegion(). This is a WHITELIST of what may be frozen, not a
+    // blacklist of what may not: a class added later keeps its old behaviour
+    // until someone deliberately opts it in.
+    bool freezableOffCamera(const Entity& entity) const;
+
+    // Census for the Endless append line. Written by update()'s entity pass;
+    // `m_entitiesThought + m_entitiesFrozen` is what the ungated loop used to
+    // update every frame, which is what makes the gate's effect measurable
+    // from a single run rather than from two builds.
+    //
+    // m_entitiesExempt is the honest part: entities that were out of the
+    // thinking region and kept thinking anyway because freezableOffCamera()
+    // said no. `frozen + exempt` is everything out of region, so this counter
+    // is the gate's REMAINING HEADROOM — without it the two numbers above
+    // cannot distinguish "the gate is working" from "nothing was far away".
+    std::size_t m_entitiesThought = 0;
+    std::size_t m_entitiesFrozen  = 0;
+    std::size_t m_entitiesExempt  = 0;
 
     // The single door a mid-frame spawn goes through. Wires animations and
     // difficulty immediately — so the caller still gets a fully formed entity —

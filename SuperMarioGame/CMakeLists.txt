@@ -478,6 +478,15 @@ add_verify_test(verify_r21_versus_and_axes "tests/verify_r21_versus_and_axes.cpp
 # reporter, because level_2's arena ends one tile short of its flagpole.
 add_verify_test(verify_r21_flagpole_softlock "tests/verify_r21_flagpole_softlock.cpp")
 
+# The off-camera entity update gate, and the lighting sliders' defaults. Driven
+# against a live PlayingState because the gate is a property of update()'s frame
+# ordering, not of a predicate in isolation. Every gate case is a PAIR — one
+# entity that must stop and another at the same distance that must not — because
+# a guard asserting only the saving half would license the bug the gate exists
+# to avoid (a frozen projectile never returns to its pool; a frozen Shadow Mario
+# stalls the mode it drives).
+add_verify_test(verify_r21o_offcamera_gate "tests/verify_r21o_offcamera_gate.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------
