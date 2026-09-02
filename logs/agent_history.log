@@ -5717,6 +5717,166 @@ Summary of Changes:
 - Evidence: git log R1–R21 2026-08-31 to 09-02 shows 97 commits implementing subsystems mentioned; each R-batch documented in logs/agent_history.log with observed-running verification where applicable
 ---
 
+[2026-09-02 19:58:15] Branch: A/fix/editor-playtest-gameover
+Git Fingerprint: 6af4f8e (before) -> 2bd2f80 (after)
+Fetched Remotes: yes, 19:58 (git fetch --all; this lane's task is a scoped
+  single-worktree code fix handed a fixed base commit by the coordinator, not
+  a repository-state report, but fetched anyway for honesty — no new commits
+  on origin relevant to this lane)
+Prompt: Phase 2 lane 2C of the submission sweep — an editor playtest that ends
+  in Game Over goes through GameOverState instead of popping back to the
+  editor; fix it consistent with GameStateManager's deferred push/pop design,
+  add a mutation-tested regression case, observe it in the real game, log
+  honestly. Mid-task the coordinator cut scope: drop the full scripted
+  Game-Over playthrough if it proves slow, one confirming observation is
+  enough, do not imply coverage not actually obtained.
+Files Modified:
+  SuperMarioGame/include/Core/GameOverState.hpp
+  SuperMarioGame/src/Core/GameOverState.cpp
+  SuperMarioGame/src/Core/PlayingState.cpp (ONE function touched:
+    buildRunSummary() — added one line, `summary.isPlaytest = m_isPlaytest;`,
+    plus its comment. Nothing else in this file changed. Flagging for the
+    user's merge: two sibling lanes (2D, 2E) also touch PlayingState.cpp.)
+  SuperMarioGame/tests/verify_frontend_states.cpp
+  SuperMarioGame/tests/scripts/verify_2c_editor_playtest_gameover.txt (new)
+Reachable From Main: yes for the fix itself — EditorState::playtest() (real
+  F5 handler) -> PlayingState (isPlaytest=true) -> PlayingState's own
+  death-sequence handler -> RunSummary::isPlaytest -> GameOverState::
+  dismissAction()/activateSelection() -> Game::popState(). Not solely a
+  verify_* construction: this is the same call chain a human hitting F5 then
+  dying three times in the editor goes through. The specific "watched a real
+  Game Over screen resolve to the editor" observation is qualified below —
+  I got a live death+respawn, not a live Game Over.
+Verified By: ctest (29/29, unchanged from baseline) + verify_regressions
+  (584/584, unchanged) + verify_frontend_states (86/86 — 80 baseline + 6 new:
+  testGameOverRoutesAPlaytestBackToTheEditor,
+  testGameOverDoesNotRecordAPlaytestHighScore,
+  testPlayingStateThreadsIsPlaytestIntoTheRunSummary, each contributing
+  2-2-2 checks) + a hand mutation test in both directions (below) + a
+  partial live run (see below). Not verified: the actual live Game Over
+  screen and its BACK TO EDITOR dismissal — see honesty note below.
+Summary of Changes:
+- Root cause, in one sentence: PlayingState's out-of-lives branch (the
+  fadeOut callback inside its death-sequence handler, ~PlayingState.cpp:3480)
+  unconditionally did `Game::getInstance().changeState(make_unique<
+  GameOverState>(summary))` with no `m_isPlaytest` check, unlike
+  `leaveToCallingScreen()` and `advanceToNextLevel()`, which both already
+  branch on it and `popState()` instead — so a playtest's last death replaced
+  PlayingState with GameOverState (a GameStateManager `Change`, which only
+  swaps the TOP of the stack) while the suspended EditorState stayed buried
+  underneath, and GameOverState's own RETRY LEVEL / QUIT TO MENU choices
+  (`changeState()` again) could only ever reach the main menu from there —
+  never the editor.
+- How the non-death exit already worked, and how Game Over was made
+  consistent with it: `leaveToCallingScreen()` checks `m_isPlaytest` and
+  calls `Game::popState()` instead of `changeState(MenuState)`, which is safe
+  specifically because EditorState is the very next entry down the
+  `GameStateManager` stack (pushed there by `EditorState::playtest()`) — a
+  pop reveals it exactly as F5 left it, generically, via the existing
+  deferred push/pop/change queue (no reaching around it). The fix threads
+  `RunSummary::isPlaytest` from `m_isPlaytest` (new field, GameOverState.hpp;
+  set in `PlayingState::buildRunSummary()`) so `GameOverState` can tell a
+  playtest death from a real one, then makes its OWN dismissal path do the
+  identical `Game::popState()` for that case — a new
+  `GameOverState::dismissAction()` (private, pure — reads only `m_summary`/
+  `m_selected`) is the routing decision `activateSelection()` now switches on
+  (RetryLevel / QuitToMenu / ReturnToEditor), and `handleInput()`'s Escape
+  case checks the same flag directly (Escape's semantics — always quit,
+  ignoring row selection — don't fit dismissAction()'s selection-aware
+  contract, so it is not routed through it). The constructor also collapses
+  the menu to a single "BACK TO EDITOR" item for a playtest run: RETRY LEVEL
+  would have rebuilt a campaign PlayingState from `m_summary.levelIndex`,
+  always 0 for a playtest since `EditorState::playtest()` never sets it,
+  silently dropping the author into World 1-1 instead of their own level.
+  `GameOverState::enter()` also skips high-score recording for a playtest run
+  for the same reason (scratch level, bogus level index) — not required by
+  the plan's acceptance bar, but directly adjacent to the code already being
+  touched and cheap to guard.
+- Regression case: extended the EXISTING `verify_frontend_states.cpp` (read
+  first, per instructions) rather than adding a new binary — it already
+  harnesses GameOverState/PauseState/VictoryState the same way. Added
+  `GameOverStateTestHooks` (dismissesToEditor/dismissesToRetry/itemCount),
+  deliberately reading `dismissAction()` and `m_items` directly rather than
+  driving `activateSelection()`/`handleInput(Escape)` through the real
+  `Game::getInstance()` singleton — this file's own existing comment above
+  `testLoadGameRestoresPlayerFromSlot` already documents why a headless case
+  in this shared-process binary must not route through the live state
+  manager. Also extended `LevelCompletionCameraTestHooks` with a
+  `buildRunSummary()` accessor to check the PlayingState-side wiring
+  directly. Baseline today at this exact HEAD: 29/29 ctest, 584/584
+  verify_regressions, 80/80 verify_frontend_states (not the plan's stale 28).
+  After: 29/29, 584/584, 86/86.
+- MUTATION TEST, both directions, by hand (not just described):
+  (1) Commented out `summary.isPlaytest = m_isPlaytest;` in
+  `PlayingState::buildRunSummary()`, rebuilt `verify_frontend_states`,
+  ran it: 85/86, exactly
+  "[FAIL] a playtest run's summary is flagged, so GameOverState can route it
+  home" failed, nothing else. Restored the line, rebuilt, reran: 86/86.
+  (2) Reverted `GameOverState`'s constructor branch, `dismissAction()`'s
+  playtest check, and `enter()`'s high-score skip (kept RunSummary::
+  isPlaytest and the tests), rebuilt, ran: 83/86, exactly the three
+  playtest-specific checks failed ("a playtest Game Over offers a single
+  choice...", "and dismissing it pops back to the editor...", "a playtest
+  run never reaches the high-score table"), nothing else. Restored all
+  three, rebuilt, reran: 86/86. Both directions observed, not assumed.
+- Live run, and an HONEST account of how far it got (the coordinator's scope
+  cut explicitly asked for this over a padded claim): wrote
+  tests/scripts/verify_2c_editor_playtest_gameover.txt (menu -> editor ->
+  Ctrl+O/Enter opens the built-in World 1-1 -> F5 playtest -> lose 3 lives ->
+  Game Over -> BACK TO EDITOR). First attempt used `hold Right`, which is
+  PLAYER 2's move-right binding in this codebase's default WASD/arrows split
+  (InputManager.cpp's loadDefaultBindings — Player 1 is A/D/W/F) — my own
+  scripting mistake, not a game defect; `m_player` (Player 1, the one the
+  editor's playtest actually drives) never received a movement command, so
+  Mario stood still the entire run and the one death that occurred was a
+  patrolling Goomba walking into him, not the reverse (confirmed with a
+  temporary diagnostic added to and then fully reverted from
+  PlayingState.cpp — no trace of it remains in the committed diff). Switched
+  the script to `hold D`: this time Mario visibly walked and a real
+  Goomba-contact death occurred cleanly (screenshot
+  saves/shots/2c_05a_after_first_death.png shows him past the Goomba's last
+  position; "[PlayingState] Player 1 was defeated." / "Respawned. Lives
+  remaining: 2" on stdout). The second and third deaths — intended via
+  World 1-1's first floor pit, since `makeSpawnSafe()`'s D29 spawn-camping
+  guard turned out NOT to destroy that Goomba after all (my "9 tiles, outside
+  the 80px clear radius" arithmetic held; an earlier log line blaming the
+  clear sweep was from the broken `hold Right` run and is superseded here) —
+  did not land within the session's remaining budget: Mario's held-D walk
+  reached the pit's edge but stopped there rather than continuing over it in
+  the time budgeted (saves/shots/2c_05_after_three_deaths_game_over_or_editor.png
+  shows him standing at what is actually a brick staircase, not the gap I'd
+  planned around — my tile-coordinate reading of level_1.json was off by
+  more than the walk speed accounted for). Per the coordinator's mid-task
+  instruction ("if it is proving slow or flaky... stop trying; a single
+  confirming observation is enough"), I stopped iterating on movement timing
+  rather than continue spending budget on it.
+  Reachable From Main: the fix's code path — yes, per above. The specific
+  "Game Over screen resolves to BACK TO EDITOR" frame — NOT observed live
+  this session, only via the mutation-tested ctest harness. Recording this
+  plainly rather than cropping a screenshot to imply more than was seen.
+- Free space: 7.6 GiB before the main build, 7.3 GiB after (well above the
+  1.5 GiB stop threshold; never close to it). Deps tree at
+  build/_deps needed its own baked-in absolute paths (CMakeCache.txt /
+  Makefiles / .cmake files referencing the ORIGINAL repo's
+  .../SuperMarioGame/SuperMarioGame/build/_deps path from the APFS clone)
+  rewritten in place to this worktree's path with `perl -pi -e` over ~470
+  text files (three passes: the full `.../build/_deps` prefix, the shorter
+  `.../build` prefix, then the bare source-dir prefix) before
+  `cmake .. -DFETCHCONTENT_BASE_DIR=...` would configure at all — no files
+  deleted or re-fetched, per the build-setup instructions.
+- MISTAKE MADE, recorded per the log's own rule: I built and ran a full
+  scripted playthrough attempt around `hold Right` (Player 2's key) before
+  checking which key actually drives Player 1, costing a build+run cycle and
+  most of two more before I traced it via a temporary diagnostic print. The
+  diagnostic is fully reverted; `git diff` on PlayingState.cpp shows only the
+  intended one-line RunSummary change.
+STILL OPEN: the live Game Over screenshot itself (see above) — a follow-up
+  session with more budget could retime tests/scripts/
+  verify_2c_editor_playtest_gameover.txt's `hold D` durations against
+  level_1.json's actual tile layout (my reading of the first floor gap's
+  x-range was wrong) to get the full 3-life round trip on camera; the fix and
+  its regression guard do not depend on this.
+---
 [2026-09-02 20:04:44] Branch: A/fix/hard-axe-and-vault-pipe
 Git Fingerprint: 6af4f8e (before) → 6af4f8e (after, no new commits yet — this entry is written just before the commit that follows it; see the commit for the resulting SHA)
 Fetched Remotes: no — this is a scoped lane task (submission_sweep_plan_2026-09-02.md §6, lane 2B) working in an isolated worktree per the coordinator's instructions, not a repository-state report; branch policy and merge order are the coordinator's concern, not mine to re-derive here.
