@@ -5,6 +5,14 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric}
 
+% Landscape pages for the UML appendix's two tallest detailed diagrams
+% (Enemy/Boss, IGameState today - whichever crosses build_report.py's
+% SPLIT_MIN_HEIGHT_PT next). Plan section 4.1: shrinking either to fit one
+% portrait page put their member text at 5-6pt; \begin{landscape} lets
+% html_to_latex.py's svg handler give each balanced group its own rotated
+% page near native scale instead.
+\usepackage{pdflscape}
+
 % Inline code that is allowed to wrap.
 %
 % The report is full of paths and identifiers - docs/issues/code_audit_...md,
@@ -31,6 +39,17 @@
 
 % Disable indentation on new paragraphs
 \setlength{\parindent}{0pt}
+
+% Let the paragraph builder stretch inter-word spaces further as a last
+% resort before giving up and reporting an Overfull \hbox (plan section
+% 4.1's build.sh guard fails the build on any of those over 5pt). This is
+% the standard, content-independent remedy for the ordinary tight line a
+% long report accumulates - one \codebreak'd identifier landing a few points
+% short of the margin - as opposed to \seqsplitcode's per-character breaks,
+% which target a SPECIFIC token with nowhere at all to break. Both are
+% needed: this pass would not, by itself, have fixed IMovementStrategy
+% overflowing a whole table column.
+\setlength{\emergencystretch}{3em}
 
 % Line spacing 1.5
 \renewcommand{\baselinestretch}{1.5}
