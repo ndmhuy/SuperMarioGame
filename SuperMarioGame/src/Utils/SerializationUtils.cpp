@@ -81,4 +81,19 @@ EntityType parseEntityTypeName(const std::string& name) {
     return EntityType::Goomba;
 }
 
+std::string getPipeEntryModeName(Pipe::EntryMode mode) {
+    switch (mode) {
+        case Pipe::EntryMode::SideLeft:  return "side_left";
+        case Pipe::EntryMode::SideRight: return "side_right";
+        case Pipe::EntryMode::Top:
+        default:                         return "top";
+    }
+}
+
+Pipe::EntryMode parsePipeEntryModeName(const std::string& name) {
+    if (name == "side_left")  return Pipe::EntryMode::SideLeft;
+    if (name == "side_right") return Pipe::EntryMode::SideRight;
+    return Pipe::EntryMode::Top;
+}
+
 } // namespace SerializationUtils

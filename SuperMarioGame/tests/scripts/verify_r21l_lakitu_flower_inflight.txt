@@ -1,0 +1,118 @@
+# R21 Lane L — photograph the Fire Flower ITSELF leaving the Lakitu.
+#
+# The companion script (verify_r21l_lakitu_flower.txt) proves the drop by its
+# effect: Small Mario at TIME 272 becomes FIRE Mario at TIME 271 with exactly
+# +1000 score, and never again for the next 37 seconds. What it cannot show is
+# the flower, because the drop starts 148px above the player's head and is
+# collected in under half a second — shorter than the gap between frames.
+#
+# So this run repeats the same approach and then slows the SIMULATION with
+# Debug > Cheats' time scale (F11 steps 1x - 0.5x - 0.25x - 0.1x) just before
+# the drop is due. The flower's fall stretches from ~0.4s to ~1.7s of real time,
+# which the 0.6s sampling below catches. The time scale is a rendering/stepping
+# aid: it multiplies the dt every timer in the game sees, the flower interval
+# included, so it changes WHEN the drop happens in real seconds and not whether.
+#
+# WHY THE TIMINGS ARE WHAT THEY ARE (level clock, from the shipped level_1):
+#   t=0     spawn tile 98.5 (x~3152); the level's only Lakitu at tile 175
+#           (x=5600), so they start 2448px apart.
+#   t~5     cheats armed, the player flies east under NOCLIP; the two close at
+#           250 px/s (150 walk + 100 Lakitu tracking).
+#   t~8     separation reaches ENGAGE_RANGE_X (1280) — the clock starts HERE,
+#           not at level load, which is the whole point of the engagement gate.
+#   t~25    F11 twice: 0.25x. ~4s of engaged time is still owed, i.e. ~16s real.
+#   t~29    FLOWER_DROP_INTERVAL elapses and the flower falls.
+#
+# PRECONDITION: "debugMode": true in saves/config.json. Restore it to false
+# afterwards — Game::shutdown() persists it and the shipped default is off.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_lane_l/SuperMarioGame --script tests/scripts/verify_r21l_lakitu_flower_inflight.txt
+
+wait 2.0
+press Enter
+wait 2.5
+press Enter
+wait 2.5
+press Enter
+wait 4.0
+
+press F4
+wait 0.3
+press F3
+wait 0.3
+press F8
+wait 0.3
+
+hold D 12.0
+wait 12.5
+release D
+wait 6.0
+
+# No time scaling: F11 changes the dt every timer sees, the flower interval
+# included, so it moves the drop in real seconds too and buys nothing. Sample
+# densely instead. Run 2 dated the drop between HUD TIME 272 and 271 (level
+# t~28-29s); 0.2s frames across TIME 275..269 bracket it either side of any
+# frame-timing jitter, and the fall lasts ~0.43s, so several frames catch it.
+wait 4.5
+shot r21l_if_00
+wait 0.2
+shot r21l_if_01
+wait 0.2
+shot r21l_if_02
+wait 0.2
+shot r21l_if_03
+wait 0.2
+shot r21l_if_04
+wait 0.2
+shot r21l_if_05
+wait 0.2
+shot r21l_if_06
+wait 0.2
+shot r21l_if_07
+wait 0.2
+shot r21l_if_08
+wait 0.2
+shot r21l_if_09
+wait 0.2
+shot r21l_if_10
+wait 0.2
+shot r21l_if_11
+wait 0.2
+shot r21l_if_12
+wait 0.2
+shot r21l_if_13
+wait 0.2
+shot r21l_if_14
+wait 0.2
+shot r21l_if_15
+wait 0.2
+shot r21l_if_16
+wait 0.2
+shot r21l_if_17
+wait 0.2
+shot r21l_if_18
+wait 0.2
+shot r21l_if_19
+wait 0.2
+shot r21l_if_20
+wait 0.2
+shot r21l_if_21
+wait 0.2
+shot r21l_if_22
+wait 0.2
+shot r21l_if_23
+wait 0.2
+shot r21l_if_24
+wait 0.2
+shot r21l_if_25
+wait 0.2
+shot r21l_if_26
+wait 0.2
+shot r21l_if_27
+wait 0.2
+shot r21l_if_28
+wait 0.2
+shot r21l_if_29
+wait 0.2
+quit

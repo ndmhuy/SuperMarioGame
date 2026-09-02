@@ -49,27 +49,16 @@ std::string toUpper(std::string s) {
     return s;
 }
 
-// m:ss, matching the minimap/statistics convention for play time elsewhere.
-std::string minutesSeconds(float seconds) {
-    const int total = static_cast<int>(seconds);
-    const int m = total / 60;
-    const int s = total % 60;
-    std::ostringstream ss;
-    ss << m << ":" << std::setfill('0') << std::setw(2) << s;
-    return ss.str();
-}
+// A slot's value column used to be formatted here. It moved onto
+// SaveSlotPreview::summary() when the pause menu's slot picker needed the same
+// string: two formatters would let the two screens describe the same slot
+// differently, and the picker's whole job is to be trusted about what it is
+// overwriting.
 
-// One save slot's value column: character, level, score, star coins, play
-// time (SPEC 12.3) — or "EMPTY" so an unused slot reads as available rather
-// than broken.
-std::string formatSlotSummary(const SaveSlotPreview& preview) {
-    if (!preview.exists) return "EMPTY";
-    std::ostringstream ss;
-    ss << toUpper(preview.character) << "  L" << preview.levelId
-       << "  " << preview.score << "PT  STARS " << preview.starCoinsCount << "/3  "
-       << minutesSeconds(preview.playTime);
-    return ss.str();
-}
+// Confirm rows on Page::LoadDelete, in display order.
+constexpr int DELETE_ROW_KEEP = 0;
+constexpr int DELETE_ROW_DELETE = 1;
+constexpr int DELETE_ROW_COUNT = 2;
 
 // The multiplayer modes, in the order the page cycles them. Split-screen is
 // absent on purpose rather than shown greyed out: Camera holds a single sf::View
@@ -228,10 +217,56 @@ std::vector<UiMenuItem> MenuState::buildLoadItems() const {
     std::vector<UiMenuItem> rows;
     for (int i = 0; i < 3; ++i) {
         rows.emplace_back("SLOT " + std::to_string(i + 1),
-                          formatSlotSummary(m_slotPreviews[static_cast<std::size_t>(i)]));
+                          m_slotPreviews[static_cast<std::size_t>(i)].summary());
     }
     rows.emplace_back("BACK");
     return rows;
+}
+
+void MenuState::requestSlotDelete() {
+    if (m_loadSelected < 0 || m_loadSelected >= 3) {
+        // The BACK row has no slot behind it.
+        SoundManager::getInstance().playSound("bump");
+        return;
+    }
+    if (!m_slotPreviews[static_cast<std::size_t>(m_loadSelected)].exists) {
+        // Same convention as confirming a locked card or an empty slot: a
+        // blocked action gets the "bump" cue rather than silently doing nothing.
+        SoundManager::getInstance().playSound("bump");
+        return;
+    }
+
+    m_pendingDeleteSlot = m_loadSelected + 1;
+    m_deleteConfirmSelected = DELETE_ROW_KEEP;
+    m_page = Page::LoadDelete;
+}
+
+void MenuState::performSlotDelete() {
+    if (m_pendingDeleteSlot < 1 || m_pendingDeleteSlot > 3) return;
+
+    // Serializer owns the path. Resolving "saves/slot_n.json" here instead
+    // would be a second source of truth for it, which is the bug
+    // guard_asset_single_source exists about — and the one time this suite
+    // hand-rolled a save path it deleted the developer's real files.
+    const bool removed = Serializer::deleteSlot(m_pendingDeleteSlot);
+
+    // Game::getActiveSlot() is deliberately left pointing at the slot that was
+    // just freed. It is what the checkpoint autosave writes to, so re-pointing
+    // it at one of the surviving saves would make the next autosave quietly
+    // overwrite a save the player did not touch; the emptied slot is the one
+    // place a write cannot destroy anything.
+    m_pendingDeleteSlot = 0;
+    m_page = Page::Load;
+
+    // Re-read from disk rather than clearing the cached preview: the page must
+    // show what is actually there now, including a delete that failed.
+    refreshSlotPreviews();
+
+    // "break_block" rather than a positive chime: something was destroyed, and
+    // the cue should not sound like a reward. "bump" is the blocked-action cue
+    // the rest of the menus use, so a delete that removed nothing sounds like
+    // the no-op it was.
+    SoundManager::getInstance().playSound(removed ? "break_block" : "bump");
 }
 
 std::vector<UiMenuItem> MenuState::buildCustomLevelItems() const {
@@ -280,6 +315,11 @@ void MenuState::moveSelection(int delta) {
         m_loadSelected = (m_loadSelected + delta + n) % n;
         return;
     }
+    if (m_page == Page::LoadDelete) {
+        m_deleteConfirmSelected =
+            (m_deleteConfirmSelected + delta + DELETE_ROW_COUNT) % DELETE_ROW_COUNT;
+        return;
+    }
 
     // Skip over rows this mode does not offer, so the cursor never parks on a
     // greyed-out line where Left/Right silently does nothing.
@@ -292,6 +332,12 @@ void MenuState::moveSelection(int delta) {
 }
 
 void MenuState::adjustSelection(int direction) {
+    if (m_page == Page::LoadDelete) {
+        // The confirm page is a two-row choice; Left/Right flips it as readily
+        // as Up/Down, so neither is a dead key on it.
+        moveSelection(direction);
+        return;
+    }
     if (m_page == Page::Multiplayer) {
         switch (static_cast<MpRow>(m_mpSelected)) {
             case MpRow::Mode: {
@@ -455,6 +501,18 @@ void MenuState::activateSelection() {
         return;
     }
 
+    if (m_page == Page::LoadDelete) {
+        if (m_deleteConfirmSelected == DELETE_ROW_DELETE) {
+            performSlotDelete();
+        } else {
+            // KEEP returns to the slot list, not to the main menu: the player
+            // was browsing their saves and still is.
+            m_pendingDeleteSlot = 0;
+            m_page = Page::Load;
+        }
+        return;
+    }
+
     if (m_page == Page::Load) {
         switch (static_cast<LoadRow>(m_loadSelected)) {
             case LoadRow::Back:
@@ -564,12 +622,34 @@ void MenuState::handleInput(const sf::Event& event) {
         case Key::Space:
             activateSelection();
             break;
+        case Key::X:
+        case Key::Delete:
+            // Delete the highlighted save. Deliberately a distinct key from
+            // Enter/LOAD — the two are next to each other in intent and must
+            // not be next to each other in consequence. It only opens the
+            // confirmation page; requestSlotDelete() refuses an empty slot.
+            //
+            // X is the key the page names, and it is the one that is actually
+            // there on every keyboard: on this project's own development Macs
+            // the large key is Backspace (already "back") and forward-delete
+            // needs Fn. Delete stays wired as an alias for the players who
+            // reach for it anyway.
+            if (m_page == Page::Load) requestSlotDelete();
+            break;
         case Key::Escape:
         case Key::Backspace:
-            // From the submenu, back out. From the top level, quitting is the
-            // only thing left — but make the player pick it deliberately.
-            if (m_page != Page::Main) m_page = Page::Main;
-            else                      m_mainSelected = ROW_QUIT;
+            // Back out one level at a time. The confirm page steps back to the
+            // slot list rather than all the way out, and cancelling it must not
+            // delete anything. From the top level, quitting is the only thing
+            // left — but make the player pick it deliberately.
+            if (m_page == Page::LoadDelete) {
+                m_pendingDeleteSlot = 0;
+                m_page = Page::Load;
+            } else if (m_page != Page::Main) {
+                m_page = Page::Main;
+            } else {
+                m_mainSelected = ROW_QUIT;
+            }
             break;
         default:
             break;
@@ -807,8 +887,48 @@ void MenuState::render(sf::RenderTarget& target) {
         UiRenderer::drawMenuItems(target, rows, m_loadSelected,
                                   {centerX - 230.0f, rowsTop}, kRowHeight, 12,
                                   0.0f, m_elapsed, centerX + kPanelHalfW);
-        UiRenderer::drawShadowedText(target, "UP/DOWN  SELECT      ENTER  LOAD      ESC  BACK",
+        // The delete key is named on the screen it works on, because a key with
+        // no row of its own is invisible otherwise.
+        UiRenderer::drawShadowedText(target,
+                                     "ENTER  LOAD      X  DELETE SAVE      ESC  BACK",
                                      {centerX, kTop + panelHeight + 18.0f}, 11,
+                                     sf::Color(220, 220, 220), true);
+        return;
+    }
+
+    if (m_page == Page::LoadDelete) {
+        constexpr float kTop = 240.0f;
+        constexpr float kPanelHalfW = 300.0f;
+        constexpr float kPanelHeight = 210.0f;
+
+        // Red border: the only page in this menu that destroys anything should
+        // not look like the ones that do not.
+        UiRenderer::drawPanel(target, {centerX - kPanelHalfW, kTop},
+                              {kPanelHalfW * 2.0f, kPanelHeight},
+                              sf::Color(0, 0, 0, 225), sf::Color(255, 120, 120, 240));
+        UiRenderer::drawText(target,
+                             "DELETE SLOT " + std::to_string(m_pendingDeleteSlot) + "?",
+                             {centerX, kTop + 22.0f}, 16, sf::Color(255, 140, 140), true);
+
+        // Name the run being erased. "Are you sure?" alone does not tell the
+        // player which campaign they are about to lose.
+        const std::size_t index = (m_pendingDeleteSlot >= 1 && m_pendingDeleteSlot <= 3)
+                                ? static_cast<std::size_t>(m_pendingDeleteSlot - 1) : 0;
+        UiRenderer::drawTextFitted(target, m_slotPreviews[index].summary(),
+                                   {centerX, kTop + 54.0f}, 12, sf::Color(255, 255, 255),
+                                   kPanelHalfW * 2.0f - 44.0f, true);
+        UiRenderer::drawText(target, "THIS CANNOT BE UNDONE", {centerX, kTop + 78.0f}, 10,
+                             sf::Color(200, 200, 200), true);
+
+        std::vector<UiMenuItem> rows;
+        rows.emplace_back("KEEP IT");
+        rows.emplace_back("DELETE");
+        UiRenderer::drawMenuItems(target, rows, m_deleteConfirmSelected,
+                                  {centerX - 90.0f, kTop + 108.0f}, 32.0f, 14,
+                                  0.0f, m_elapsed, centerX + kPanelHalfW);
+
+        UiRenderer::drawShadowedText(target, "ENTER  CONFIRM      ESC  CANCEL",
+                                     {centerX, kTop + kPanelHeight + 18.0f}, 11,
                                      sf::Color(220, 220, 220), true);
         return;
     }

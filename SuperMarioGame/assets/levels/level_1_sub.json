@@ -76,6 +76,7 @@
       "y": 17
     },
     {
+      "entry": "side_left",
       "exitX": 104,
       "exitY": 18,
       "isEntrance": true,
@@ -83,7 +84,7 @@
       "targetLevel": "assets/levels/level_1.json",
       "type": "pipe",
       "x": 59,
-      "y": 15
+      "y": 14
     },
     {
       "type": "goomba",

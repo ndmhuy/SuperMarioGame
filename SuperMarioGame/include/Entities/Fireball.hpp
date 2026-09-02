@@ -31,6 +31,24 @@ public:
     void onHitEnemy(Enemy& enemy) override;
     bool onTileImpact(const CollisionInfo& info) override;
 
+    // A shot that has already burst is spent, and must not hit anything else.
+    //
+    // It stays alive for the three frames of the burst animation, and it used to
+    // stay collidable for all of them — so the broadphase went on pairing it
+    // with whatever it had just hit and calling onHitEnemy() again every frame.
+    // Against an ordinary enemy that is invisible (the first hit killed it), but
+    // Bowser survives fire on purpose and counts the hits: one fireball scored
+    // three of the four an opening costs. Observed, frames 0-2 of
+    // tests/verify_r21_boss_combat.cpp's repro.
+    bool isCollidable() const override { return active && m_impactTimer <= 0.0f; }
+
+    // Nor does a burst move. beginImpact() zeroes the velocity, but gravity
+    // belongs to the physics engine and it kept adding to it: the burst slid
+    // down the screen over its three frames and could even spend one of the
+    // bounces the flying shot had left. It is an animation playing where the
+    // shot ended, so it stays where the shot ended.
+    bool isPhysicsDriven() const override { return m_impactTimer <= 0.0f; }
+
     float getLifetime() const { return m_lifetime; }
     int getBouncesLeft() const { return m_bouncesLeft; }
     bool isImpacting() const { return m_impactTimer > 0.0f; }

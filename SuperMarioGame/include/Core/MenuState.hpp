@@ -30,7 +30,12 @@ public:
 
 private:
     // Which list the keyboard is currently driving.
-    enum class Page { Main, Generator, Multiplayer, Load, CustomLevels };
+    //
+    // LoadDelete is the confirmation step in front of Serializer::deleteSlot().
+    // A save is a player's whole campaign and the delete is irreversible, so it
+    // is never the consequence of a single keypress — the DEL key only ever
+    // *asks*.
+    enum class Page { Main, Generator, Multiplayer, Load, LoadDelete, CustomLevels };
 
     // Rows of the generator submenu, in display order.
     enum class GenRow { Theme, Difficulty, PitProbability, PipeFrequency,
@@ -67,6 +72,15 @@ private:
     void refreshSlotPreviews();
     std::vector<UiMenuItem> buildLoadItems() const;
 
+    // DEL on the Load page: opens Page::LoadDelete for the highlighted slot, or
+    // plays the blocked cue if that slot is already empty — there is nothing to
+    // free and no question worth asking.
+    void requestSlotDelete();
+
+    // Runs the delete the confirmation page agreed to, then re-reads the slots
+    // so the freed one reads EMPTY without leaving and re-entering the page.
+    void performSlotDelete();
+
     // The author's own levels, re-scanned every time the page opens — a level
     // saved from the editor a moment ago has to be playable without a restart.
     // This is the route from "I made a level" to "I am playing my level" that
@@ -94,6 +108,14 @@ private:
 
     // Refreshed by refreshSlotPreviews() every time the Load page opens.
     std::array<SaveSlotPreview, 3> m_slotPreviews;
+
+    // The slot Page::LoadDelete is asking about, 1-based; 0 means nothing is
+    // pending, which is what that page must never be entered with.
+    int m_pendingDeleteSlot = 0;
+
+    // Confirm rows: 0 = KEEP (cancel), 1 = DELETE. Defaults to the harmless
+    // one, so Enter pressed out of habit destroys nothing.
+    int m_deleteConfirmSelected = 0;
 
     // What the multiplayer page is currently configuring. Defaults to the mode
     // that used to be the only one, so the page opens on familiar ground.

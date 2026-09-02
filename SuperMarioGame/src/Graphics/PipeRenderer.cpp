@@ -1,6 +1,8 @@
 #include "Graphics/PipeRenderer.hpp"
+#include "Utils/Constants.hpp"
+#include <algorithm>
 #include <cmath>
-#include <vector>
+#include <string>
 
 namespace {
 
@@ -14,129 +16,179 @@ std::string wholeFamilyFor(const std::string& color) {
     return color;
 }
 
-// The single frame that covers a box of this shape, or "" if the atlas has none.
-std::string wholeFrameFor(const SpriteSheet* sheet, const std::string& color,
-                          sf::Vector2f size) {
-    const std::string family = wholeFamilyFor(color);
-    std::vector<std::string> candidates;
+// --- What the L-bend frames actually contain -------------------------------
+//
+// `pipe_dark_green_long_l` and `_short_l` are L-BENDS. The `_l` is the bend,
+// not "left" — measured by cropping world_scenery_item.png, not inferred from
+// the name, because the name is exactly what made the R21 batch pick long_l for
+// a top-entry pipe and ship a warp pipe with no rim to stand on.
+//
+// In the 62x128 `long_l` frame:
+//   * the vertical shaft occupies source x [34,62) over the frame's full height
+//     and is UNIFORM down its length, so stretching it vertically is
+//     pixel-identical to tiling it — which is why the rising shaft below is one
+//     stretched quad rather than a loop;
+//   * the horizontal arm occupies source y [96,128) across the full width, with
+//     its open mouth capped at the left edge.
+//
+// Held as fractions of the frame so both halves are placed from the SAME
+// mapping: a hardcoded 34px would put the shaft 3px off the arm's own shaft at
+// the bend, and any atlas re-pack would silently break it.
+constexpr float kShaftLeftFrac  = 34.0f / 62.0f;
+constexpr float kShaftWidthFrac = 28.0f / 62.0f;
+constexpr float kShaftSrcTopFrac    = 32.0f / 128.0f;
+constexpr float kArmSrcTopFrac      = 96.0f / 128.0f;
+constexpr float kBendSrcHeightFrac  = 32.0f / 128.0f;
 
-    if (size.y >= size.x * 1.75f) {
-        // Tall: a double-height pipe (62x128), then the 1-tile-wide verticals.
-        candidates = {"pipe_" + family + "_long_l",
-                      "pipe_" + family + "_long_up",
-                      "pipe_" + family + "_slight_long_up"};
-    } else if (size.x <= 40.0f) {
-        candidates = {"pipe_" + family + "_up",
-                      "pipe_" + family + "_long_up",
-                      "pipe_" + family + "_short_l"};
-    } else {
-        // The common case: a 2x2 pipe entity, and pipe_dark_green_short_l is
-        // exactly 64x64 — the same size as the hitbox.
-        candidates = {"pipe_" + family + "_short_l",
-                      "pipe_" + family + "_long_l"};
-    }
+// A sub-rectangle of an atlas frame, by fraction of the frame.
+sf::IntRect subFrame(const sf::IntRect& frame, float xFrac, float wFrac,
+                     float yFrac, float hFrac) {
+    sf::IntRect r = frame;
+    r.position.x += static_cast<int>(std::lround(frame.size.x * xFrac));
+    r.position.y += static_cast<int>(std::lround(frame.size.y * yFrac));
+    r.size.x = std::max(1, static_cast<int>(std::lround(frame.size.x * wFrac)));
+    r.size.y = std::max(1, static_cast<int>(std::lround(frame.size.y * hFrac)));
+    return r;
+}
 
-    for (const std::string& name : candidates) {
-        if (sheet->hasFrame(name)) return name;
-    }
-    return {};
+// Places `sprite` so its texture rect fills the given rectangle of pipe-local
+// space, then draws it under the shared transform.
+void drawStretched(sf::RenderTarget& target, sf::Sprite sprite,
+                   sf::Vector2f at, sf::Vector2f box, const sf::RenderStates& states) {
+    const sf::FloatRect bounds = sprite.getLocalBounds();
+    if (bounds.size.x <= 0.0f || bounds.size.y <= 0.0f) return;
+    if (box.x <= 0.0f || box.y <= 0.0f) return;
+    sprite.setScale({box.x / bounds.size.x, box.y / bounds.size.y});
+    sprite.setPosition(at);
+    target.draw(sprite, states);
 }
 
 } // namespace
 
+PipeRenderer::TileArt PipeRenderer::cellArt(int columnOffset, int runWidth,
+                                            bool isRimRow, const std::string& color) {
+    // pipe_green_head_left/right and pipe_green_body_left/right are 16x16
+    // HALVES of a pipe, each stretched to a full 32px cell at the draw site.
+    // Columns therefore pair off from the run's left edge: each pair composes
+    // one whole 2-cell-wide pipe. A column left unpaired — an odd run's last
+    // column, or a 1-wide run — cannot be drawn from a half without showing
+    // half a rim (the reported "half pipe"), so it is drawn from
+    // pipe_*_long_up, which is a COMPLETE 32px-wide pipe. A half rim is
+    // therefore not representable here, whatever the level data says
+    // (R21-D1, after D22/D23).
+    if (columnOffset == runWidth - 1 && (runWidth % 2) == 1) {
+        // pipe_dark_green_long_up is 32x64: one cell of rim over one of body,
+        // so a narrow pipe of any height is built from whole art.
+        TileArt art;
+        art.frame = "pipe_" + wholeFamilyFor(color) + "_long_up";
+        art.sliceTop    = isRimRow ? 0 : 32;
+        art.sliceHeight = 32;
+        return art;
+    }
+
+    // Only green, red and purple ship halves; a colour without them is caught
+    // by draw(), which retries in green rather than drawing nothing.
+    const bool rightHalf = (columnOffset % 2) == 1;
+    TileArt art;
+    art.frame = "pipe_" + color +
+                (isRimRow ? (rightHalf ? "_head_right" : "_head_left")
+                          : (rightHalf ? "_body_right" : "_body_left"));
+    return art;
+}
+
 void PipeRenderer::draw(sf::RenderTarget& target,
-                       const SpriteSheet* scenerySheet,
-                       sf::Vector2f position,
-                       sf::Vector2f size,
-                       float rotationDegrees,
-                       bool hasHead,
-                       const std::string& color) {
+                        const SpriteSheet* scenerySheet,
+                        sf::Vector2f position,
+                        sf::Vector2f size,
+                        float rotationDegrees,
+                        Shape shape,
+                        const std::string& color,
+                        float shaftRisePx) {
     if (!scenerySheet) return;
+    if (size.x <= 0.0f || size.y <= 0.0f) return;
 
-    const sf::Vector2f center = position + sf::Vector2f(size.x * 0.5f, size.y * 0.5f);
+    // --- One transform for the whole assembly -------------------------------
+    //
+    // A pipe is drawn from several sprites, and giving each its own rotation
+    // about its own centre is what used to leave hairline seams between the
+    // quadrants and visibly mismatched corners on a rotated pipe: independently
+    // transformed sprites cannot stay flush. Composing ONE rotation into the
+    // RenderStates instead means the pieces are laid out in the pipe's own
+    // local space (origin at its top-left, extent `size`) and rotated together.
+    //
+    // An east-facing L-bend is the west-facing one mirrored about the box
+    // centre, so the mirror lives here too and the layout code below only ever
+    // has one handedness to describe.
+    sf::Transform xf;
+    xf.translate(position + size * 0.5f);
+    if (rotationDegrees != 0.0f) xf.rotate(sf::degrees(rotationDegrees));
+    if (shape == Shape::LBendMouthEast) xf.scale({-1.0f, 1.0f});
+    xf.translate(-size * 0.5f);
+    const sf::RenderStates states(xf);
 
-    // --- One sprite for one hitbox ------------------------------------------
-    //
-    // A Pipe entity is a single 64x64 collider (see Pipe's constructor), but it
-    // used to be *drawn* as four 16x16 quarter frames, each with its own origin,
-    // its own 4x per-axis scale and — when rotated — its own rotation about its
-    // own centre. That is what produced the hairline seams between quadrants and
-    // the visibly mismatched corners on a rotated pipe: four independently
-    // transformed sprites cannot stay flush.
-    //
-    // The atlas already contains whole-pipe art, so the thing with one hitbox is
-    // now drawn as one sprite, transformed once.
-    if (hasHead) {
-        const std::string whole = wholeFrameFor(scenerySheet, color, size);
-        if (!whole.empty()) {
-            sf::Sprite sprite = scenerySheet->getSprite(whole);
-            const sf::FloatRect bounds = sprite.getLocalBounds();
-            if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-                sprite.setOrigin({bounds.size.x * 0.5f, bounds.size.y * 0.5f});
-                // Filled to the collider deliberately: the sprite and the thing
-                // the player collides with should be the same rectangle. For the
-                // 64x64 case this is exactly 1:1.
-                sprite.setScale({size.x / bounds.size.x, size.y / bounds.size.y});
-                sprite.setPosition(center);
-                sprite.setRotation(sf::degrees(rotationDegrees));
-                target.draw(sprite);
-                return;
+    if (shape == Shape::VerticalTop) {
+        const float tile = Constants::TILE_SIZE;
+        const int cols = std::max(1, static_cast<int>(std::lround(size.x / tile)));
+        const int rows = std::max(1, static_cast<int>(std::lround(size.y / tile)));
+        const float cellW = size.x / static_cast<float>(cols);
+        const float cellH = size.y / static_cast<float>(rows);
+
+        for (int row = 0; row < rows; ++row) {
+            for (int col = 0; col < cols; ++col) {
+                TileArt art = cellArt(col, cols, row == 0, color);
+                if (!scenerySheet->hasFrame(art.frame)) {
+                    art = cellArt(col, cols, row == 0, "green");
+                    if (!scenerySheet->hasFrame(art.frame)) continue;
+                }
+                sf::Sprite cell = scenerySheet->getSprite(art.frame);
+                if (art.sliceHeight > 0) {
+                    // Applied before getLocalBounds(), which reports the rect.
+                    sf::IntRect rect = cell.getTextureRect();
+                    rect.position.y += art.sliceTop;
+                    rect.size.y = art.sliceHeight;
+                    cell.setTextureRect(rect);
+                }
+                drawStretched(target, cell,
+                              {col * cellW, row * cellH}, {cellW, cellH}, states);
             }
         }
+        return;
     }
 
-    // --- Fallback: the old quarter assembly ---------------------------------
+    // --- L-bend: a horizontal mouth at floor level, and a shaft that leaves --
+    const std::string bendFrame = "pipe_" + wholeFamilyFor(color) + "_long_l";
+    if (!scenerySheet->hasFrame(bendFrame)) {
+        // No L art in this atlas. A rimmed vertical pipe is wrong about the
+        // direction but right about being a pipe, which beats drawing nothing.
+        draw(target, scenerySheet, position, size, rotationDegrees,
+             Shape::VerticalTop, color, 0.0f);
+        return;
+    }
+
+    const sf::IntRect frame = scenerySheet->getSprite(bendFrame).getTextureRect();
+
+    // The shaft continuation first, so the bend below paints over where they
+    // meet rather than leaving a seam at the join.
+    if (shaftRisePx > 0.0f) {
+        sf::Sprite shaft = scenerySheet->getSprite(bendFrame);
+        shaft.setTextureRect(subFrame(frame, kShaftLeftFrac, kShaftWidthFrac,
+                                      kShaftSrcTopFrac, kBendSrcHeightFrac));
+        drawStretched(target, shaft,
+                      {size.x * kShaftLeftFrac, -shaftRisePx},
+                      {size.x * kShaftWidthFrac, shaftRisePx},
+                      states);
+    }
+
+    // The bend itself fills the collider, at the frame's own aspect — one
+    // sprite for one hitbox, the same rule the vertical case follows.
     //
-    // Reached for a headless body segment, which has no whole-sprite equivalent
-    // in the atlas, and for any colour whose full art is missing. Kept so a
-    // different or partial atlas still renders something rather than nothing.
-    const std::string key_head_l = "pipe_" + color + "_head_left";
-    const std::string key_head_r = "pipe_" + color + "_head_right";
-    const std::string key_body_l = "pipe_" + color + "_body_left";
-    const std::string key_body_r = "pipe_" + color + "_body_right";
-
-    std::vector<sf::Sprite> sprites;
-    sprites.reserve(4);
-    if (hasHead) {
-        sprites.push_back(scenerySheet->getSprite(key_head_l));
-        sprites.push_back(scenerySheet->getSprite(key_head_r));
-        sprites.push_back(scenerySheet->getSprite(key_body_l));
-        sprites.push_back(scenerySheet->getSprite(key_body_r));
-    } else {
-        sprites.push_back(scenerySheet->getSprite(key_body_l));
-        sprites.push_back(scenerySheet->getSprite(key_body_r));
-        sprites.push_back(scenerySheet->getSprite(key_body_l));
-        sprites.push_back(scenerySheet->getSprite(key_body_r));
-    }
-
-    // Quadrant center offsets relative to tile center (0-degree base offsets)
-    // Top-Left, Top-Right, Bottom-Left, Bottom-Right
-    sf::Vector2f offsets[4] = {
-        {-size.x * 0.25f, -size.y * 0.25f},
-        { size.x * 0.25f, -size.y * 0.25f},
-        {-size.x * 0.25f,  size.y * 0.25f},
-        { size.x * 0.25f,  size.y * 0.25f}
-    };
-
-    float angleRad = rotationDegrees * (3.1415926535f / 180.0f);
-    float cosA = std::cos(angleRad);
-    float sinA = std::sin(angleRad);
-
-    sf::Vector2f halfSize(size.x * 0.5f, size.y * 0.5f);
-
-    for (int i = 0; i < 4; ++i) {
-        sf::FloatRect bounds = sprites[i].getLocalBounds();
-        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
-            sprites[i].setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
-            sprites[i].setScale(sf::Vector2f(halfSize.x / bounds.size.x, halfSize.y / bounds.size.y));
-
-            float rx = offsets[i].x * cosA - offsets[i].y * sinA;
-            float ry = offsets[i].x * sinA + offsets[i].y * cosA;
-
-            sprites[i].setPosition(center + sf::Vector2f(rx, ry));
-            sprites[i].setRotation(sf::degrees(rotationDegrees));
-
-            target.draw(sprites[i]);
-        }
-    }
+    // NOT stretched to make the arm taller. The first attempt drew the arm two
+    // tiles tall so a full-size player would visibly fit through the mouth,
+    // which doubled every line in the bore and turned a legible elbow into two
+    // chunky blocks; the frame only reads as an L-bend at the proportions it
+    // was drawn in. The trigger follows the art instead of the reverse — see
+    // L_BEND_MOUTH_HEIGHT_FRAC — and it tests the player's FEET, so Small and
+    // Super both enter a one-tile mouth even though Super is taller than it.
+    sf::Sprite bend = scenerySheet->getSprite(bendFrame);
+    drawStretched(target, bend, {0.0f, 0.0f}, size, states);
 }

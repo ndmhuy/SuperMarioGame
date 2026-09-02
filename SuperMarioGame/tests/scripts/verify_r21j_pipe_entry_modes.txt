@@ -1,0 +1,95 @@
+# R21J — the two pipe entry modes, observed in the running game.
+#
+# What this is meant to show, in order:
+#   1. The overworld warp pipe in 1-1 (tile 98,17) drawn as a proper 2-tile-wide
+#      RIMMED VERTICAL pipe that the player stands on. Before this batch it was
+#      drawn from pipe_dark_green_long_l — an L-bend with no top rim — so it was
+#      a vertical stripe with a horizontal blob at its base and nothing to stand
+#      on. The rim is assembled from pipe_green_head_left/head_right over
+#      body_left/body_right rows, the same art the tilemap path composes.
+#   2. The entry animation: the player sinks INTO the pipe over 0.5s, drawn
+#      BEHIND it, with the screen fading as they go, instead of the world being
+#      swapped under a standing player.
+#   3. The underground room's way out, drawn as an L-BEND: a horizontal mouth at
+#      floor level with the shaft rising to the ceiling, so the art says "this
+#      goes UP". It is entered by WALKING EAST INTO THE MOUTH — holding Right —
+#      not by standing on it and pressing Down, which does nothing to it.
+#
+# TEMPORARY level_1.json overrides, both reverted straight after this script and
+# confirmed with `git diff` (the technique is sanctioned here — see the header of
+# tests/scripts/verify_r12_bridge_axe.txt):
+#   * spawnPoint -> (98.5, 14), directly above the warp pipe's rim, so the run
+#     starts standing on the thing under test instead of 95 tiles away;
+#   * that pipe's exit -> (55, 16), four tiles west of the sub-level's own
+#     up-pipe at (59,14), so the second half of the script does not need 54
+#     tiles of walking past three goombas to reach it.
+# The real values are spawnPoint (3,19) and exit (5,16).
+#
+#   ./build_lane_j/SuperMarioGame --script tests/scripts/verify_r21j_pipe_entry_modes.txt
+#
+# Screenshots land in saves/shots/. Shots are deliberately dense around each
+# warp: the slide is 0.5s and the walk-in fires the moment the player is flush
+# against the mouth, so exactly which frame lands mid-animation is not
+# predictable to the tenth of a second.
+#
+# NOTE ON `hold`: it does NOT block the script queue -- it emits the key-down
+# and registers a deferred release, and InputScript::update then keeps draining
+# steps until it reaches a `wait` or a `shot`. A `hold`/`shot` pair with no
+# `wait` between them therefore lands on the SAME FRAME, which is how the
+# first draft of this script took five "mid-slide" shots before the slide had
+# started and then reported that the animation did not run. Every shot below is
+# paced by its own `wait`; the `hold` durations only say how long the key stays
+# down underneath them.
+wait 2.0
+press Enter
+wait 1.2
+press Enter
+wait 1.2
+press Enter
+wait 2.5
+shot r21j_00_top_entry_rim
+wait 0.6
+shot r21j_01_top_entry_rim_settled
+hold S 0.30
+wait 0.025
+shot r21j_02_slide_a
+wait 0.025
+shot r21j_03_slide_b
+wait 0.025
+shot r21j_04_slide_c
+wait 0.025
+shot r21j_05_slide_d
+wait 0.025
+shot r21j_06_slide_e
+wait 0.025
+shot r21j_07_slide_f
+wait 0.025
+shot r21j_08_slide_g
+wait 0.025
+shot r21j_09_slide_h
+wait 1.6
+shot r21j_10_sub_arrival
+wait 0.6
+shot r21j_11_sub_uppipe
+hold D 1.60
+wait 0.30
+shot r21j_12_approach
+wait 0.025
+shot r21j_13_walkin_a
+wait 0.025
+shot r21j_14_walkin_b
+wait 0.025
+shot r21j_15_walkin_c
+wait 0.025
+shot r21j_16_walkin_d
+wait 0.025
+shot r21j_17_walkin_e
+wait 0.025
+shot r21j_18_walkin_f
+wait 0.025
+shot r21j_19_walkin_g
+wait 0.025
+shot r21j_20_walkin_h
+wait 1.6
+shot r21j_21_back_in_overworld
+quit

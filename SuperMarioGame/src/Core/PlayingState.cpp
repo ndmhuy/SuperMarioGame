@@ -830,6 +830,22 @@ void PlayingState::update(float dt) {
     // physics has run. Recording here as well used to double the rate and halve
     // the effective rewind window.
 
+    // 1c. A pipe entry is in progress — the player is sliding into the mouth.
+    //
+    // Ahead of both the input poll and the physics pass deliberately: the slide
+    // is scripted motion through a solid block, so the collision resolver would
+    // push the player back out of the pipe they are entering, and the movement
+    // keys would let them walk away halfway in. The presentation layer still
+    // ticks, or the fade this starts would be pinned on screen — the same defect
+    // the map-editor and replay early returns above each name.
+    if (m_pipeEntry.active) {
+        updatePipeEntry(dt);
+        m_camera.update(dt);
+        m_background.update(dt);
+        ScreenTransitionManager::getInstance().update(dt);
+        return;
+    }
+
     // 2. Process held keys (MoveLeft, MoveRight, Crouch, Run).
     //
     // These are polled from the keyboard rather than driven by events, so the
@@ -1083,29 +1099,30 @@ void PlayingState::update(float dt) {
         sf::Vector2f warpExit{0.0f, 0.0f};
         bool warping = false;
 
+        sf::Vector2f warpMouth{0.0f, 0.0f};
+        float warpApproachX = 0.0f;
+
         for (const auto& entity : m_entities) {
             if (auto pipe = dynamic_cast<Pipe*>(entity.get())) {
                 if (pipe->checkWarp(*m_player)) {
-                    warpTarget = pipe->getTargetLevel();
-                    warpExit   = pipe->getExitPosition();
-                    warping    = true;
+                    warpTarget    = pipe->getTargetLevel();
+                    warpExit      = pipe->getExitPosition();
+                    warpMouth     = pipe->getMouthCenter();
+                    warpApproachX = pipe->getSideApproachDirection();
+                    warping       = true;
                     break;
                 }
             }
         }
 
-        if (warping) {
-            m_warpCooldown = 0.75f;
+        if (warping && (!warpTarget.empty() || warpExit.x != 0.0f || warpExit.y != 0.0f)) {
+            // Long enough to cover the slide as well as the warp itself, so the
+            // exit cannot immediately re-trigger the pipe it landed next to.
+            m_warpCooldown = 1.5f;
             SoundManager::getInstance().playSound("pipe");
             EventBus::getInstance().publish({EventType::PlayerWarped, 0});
-
-            if (!warpTarget.empty()) {
-                loadLevelByPath(warpTarget, warpExit);
-            } else if (warpExit.x != 0.0f || warpExit.y != 0.0f) {
-                m_player->setPosition(warpExit);
-                m_player->setVelocity({0.0f, 0.0f});
-            }
-            return;   // the world just changed underneath us; resume next frame
+            beginPipeEntry(warpMouth, warpApproachX, warpTarget, warpExit);
+            return;   // the slide owns the next few frames
         }
     }
 
@@ -1314,6 +1331,77 @@ void PlayingState::update(float dt) {
         // The replay wants the same Memento, kept for longer and thinned out —
         // no second capture path, and nothing to drift out of step (task 10.3).
         ReplayRecorder::getInstance().record(snapshot);
+    }
+}
+
+void PlayingState::beginPipeEntry(sf::Vector2f mouthCenter, float approachX,
+                                  const std::string& targetLevel, sf::Vector2f exit) {
+    if (!m_player) return;
+
+    const AABB box = m_player->getBoundingBox();
+    m_pipeEntry = PipeEntry{};
+    m_pipeEntry.active      = true;
+    m_pipeEntry.duration    = 0.5f;
+    m_pipeEntry.from        = m_player->getPosition();
+    m_pipeEntry.targetLevel = targetLevel;
+    m_pipeEntry.exit        = exit;
+
+    if (approachX == 0.0f) {
+        // Top entry: sink straight down, and line up with the mouth on the way
+        // so a player standing half off the rim does not slide down its edge.
+        // Far enough that the whole sprite is inside the pipe's own art by the
+        // end — render() draws them behind it for exactly these frames.
+        m_pipeEntry.to = {mouthCenter.x - box.width * 0.5f,
+                          m_pipeEntry.from.y + box.height + 8.0f};
+    } else {
+        // Side entry: walk on into the mouth. A pipe is solid, so the player is
+        // already flush against its face and this carries them through it.
+        m_pipeEntry.to = {m_pipeEntry.from.x + approachX * (box.width + 24.0f),
+                          m_pipeEntry.from.y};
+    }
+
+    // The existing screen transition, not a second one: by the time the slide
+    // ends the screen is dark, so the level swap underneath it is not seen.
+    // A circle iris centred on the pipe would suit it better, but the focal
+    // point is in screen space and nothing exposes the world-to-screen mapping,
+    // so a mis-centred iris would be worse than a clean fade.
+    ScreenTransitionManager::getInstance().fadeOut(m_pipeEntry.duration);
+}
+
+void PlayingState::updatePipeEntry(float dt) {
+    m_pipeEntry.elapsed += dt;
+    const float t = (m_pipeEntry.duration <= 0.0f)
+                        ? 1.0f
+                        : std::min(1.0f, m_pipeEntry.elapsed / m_pipeEntry.duration);
+
+    if (m_player) {
+        // Requests are cleared every frame, not once at the start: they are
+        // rebuilt from held keys by the input poll this early return skips, but
+        // whatever was held on the frame the warp fired is still in there.
+        m_player->clearMovementRequests();
+        m_player->setVelocity({0.0f, 0.0f});
+        m_player->setPosition(m_pipeEntry.from +
+                              (m_pipeEntry.to - m_pipeEntry.from) * t);
+    }
+
+    if (t < 1.0f) return;
+
+    // Copied out and the slide cleared BEFORE the warp runs. loadLevelByPath()
+    // replaces m_entities and rebuilds the player, so reading m_pipeEntry after
+    // it would be reading a slide whose start position belongs to a level that
+    // no longer exists — and render() keys its draw order off `active`.
+    const std::string target = m_pipeEntry.targetLevel;
+    const sf::Vector2f exit  = m_pipeEntry.exit;
+    m_pipeEntry = PipeEntry{};
+
+    if (!target.empty()) {
+        // Starts its own fade-in, which replaces the fade-out above.
+        loadLevelByPath(target, exit);
+    } else if (m_player) {
+        m_player->setPosition(exit);
+        m_player->setVelocity({0.0f, 0.0f});
+        // Same-level teleport: nothing else reveals the screen again.
+        ScreenTransitionManager::getInstance().fadeIn(0.3f);
     }
 }
 
@@ -1806,6 +1894,16 @@ void PlayingState::render(sf::RenderTarget& target) {
     // they are walking toward (Bowser, Boom Boom) can never paint over them —
     // adoptPlayer() inserts the player at the FRONT of m_entities, which used
     // to mean the opposite: the player was drawn (and hidden) first.
+    //
+    // Going down a pipe is the one case that wants the opposite: the slide
+    // carries the player into the pipe's own art, and drawn on top of it they
+    // would sink through the front of the pipe in full view rather than
+    // disappearing into it. For those frames only, they go first.
+    const bool playerBehindEntities = m_pipeEntry.active;
+    if (playerBehindEntities) {
+        if (m_player  && m_player->isActive())  m_player->render(target);
+        if (m_player2 && m_player2->isActive()) m_player2->render(target);
+    }
     for (auto& entity : m_entities) {
         if (entity && entity->isActive() &&
             entity.get() != static_cast<Entity*>(m_player) &&
@@ -1813,8 +1911,10 @@ void PlayingState::render(sf::RenderTarget& target) {
             entity->render(target);
         }
     }
-    if (m_player  && m_player->isActive())  m_player->render(target);
-    if (m_player2 && m_player2->isActive()) m_player2->render(target);
+    if (!playerBehindEntities) {
+        if (m_player  && m_player->isActive())  m_player->render(target);
+        if (m_player2 && m_player2->isActive()) m_player2->render(target);
+    }
 
     // 3. Draw entity death effects (flying trajectories) and impact particles.
     // Both are world-space, so they must be drawn while the camera view is still active.
@@ -2096,6 +2196,11 @@ void PlayingState::cleanupTestScene() {
     // of the next level they were never eliminated in.
     m_death = DeathState{};
     m_death2 = DeathState{};
+    // A slide belongs to the pipe and the player it started with, both of which
+    // this teardown destroys. Leaving it active would freeze the next level on
+    // its first frame: update() would keep returning early to advance a slide
+    // whose endpoints are pixels in a level that is gone.
+    m_pipeEntry = PipeEntry{};
 }
 
 bool PlayingState::loadLevelByPath(const std::string& jsonPath, sf::Vector2f spawnOverride) {

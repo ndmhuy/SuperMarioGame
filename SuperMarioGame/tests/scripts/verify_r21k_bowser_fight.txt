@@ -1,0 +1,95 @@
+# Lane K — the 1-3 Bowser fight, observed live.
+#
+# Why this exists: AGENTS.md directive 9/10. tests/verify_r21_boss_combat.cpp
+# drives the fight through the real collision pipeline against level_3's own
+# tilemap, but a harness does not prove PlayingState ever runs it. This does.
+#
+# TEMPORARY state, restored and verified afterwards:
+#   saves/slot_1.json   — Fire Mario, level id 3, on the right-hand ledge at tile
+#                         188 — the last bridge column, four tiles right of
+#                         Bowser (~1.2s of walking at BOSS_BOWSER_SPEED 55) so
+#                         INVINCIBLE lands before his first contact, and two
+#                         tiles short of the bridge_axe at (190,19), which a
+#                         take from tile 191 walked into: that chopped the bridge
+#                         and deleted him on the spot, which is defect 3. MAIN MENU > LOAD GAME > SLOT 1 restores level,
+#                         form and position (PlayingState::loadFromSlot), which
+#                         is how the arena is reached WITHOUT the level_3.json
+#                         spawnPoint override tests/scripts/verify_r12_bridge_axe.txt
+#                         uses — that file belongs to another lane this batch.
+#                         The alternative, walking 180 tiles from the level's own
+#                         (3,19) spawn via the Fire Flower at tile 66, failed on
+#                         the first attempt exactly as R9/R12/R16's blind long
+#                         runs did.
+#   saves/config.json   — debugMode true, for the F-row cheats. The shipped
+#                         default is off; the game rewrites this file on exit, so
+#                         it is reset AFTER the run, not before it.
+#   saves/progress.json — levels 0 and 1 completed, so the world map is
+#                         consistent with a save that claims to be in 1-3.
+#
+# Two timing facts this script is built around, both learned the hard way:
+#   - Bowser closes on the player within a second of the load and every contact
+#     costs a form, so INVINCIBLE (F3) has to be on before he arrives or the run
+#     is Super Mario with no fireballs by the time F is pressed. A take with the
+#     cheats 1.2s late recorded exactly that: one contact, then six dead F
+#     presses and no fireball spawned at all.
+#   - `shot` saves a 1280x720 PNG, which costs real time that the fixed-timestep
+#     accumulator then hands to the simulation. Four screenshots between the
+#     fourth fireball and the first jump burned the whole 3s stagger, so the
+#     stagger window below has none in it.
+#
+#   ./build_lane_k/SuperMarioGame --script tests/scripts/verify_r21k_bowser_fight.txt
+#
+# Screenshots land in saves/shots/.
+wait 2.5
+press S
+wait 0.6
+press Enter
+wait 1.2
+shot r21k_00_load_page
+press Enter
+wait 0.2
+press F3
+wait 0.1
+press F2
+wait 0.1
+press F4
+wait 0.1
+press F6
+wait 0.1
+press F10
+wait 0.1
+shot r21k_01_in_arena
+wait 0.4
+# Face him — he is to the LEFT from the ledge.
+hold A 0.3
+wait 0.4
+# (a) Defect 1 — fire into him. The HUD's "N FIREBALLS TO STUN" counts down.
+press F
+wait 0.35
+shot r21k_02_fireball_1
+press F
+wait 0.35
+press F
+wait 0.35
+press F
+wait 0.35
+# (b) The opening — walk into him while he reels. Any contact lands a hit here,
+# so this does not have to be a clean descent.
+hold A 1.0
+wait 0.35
+press W
+wait 0.45
+shot r21k_03_after_staggered_stomp
+# (c) Defect 2 — let the guard come back up, then stomp again for nothing.
+wait 3.5
+hold A 1.0
+press W
+wait 0.7
+hold A 1.0
+press W
+wait 0.9
+shot r21k_04_after_unstaggered_stomps
+wait 1.0
+shot r21k_05_final
+wait 0.5
+quit

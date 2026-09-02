@@ -27,6 +27,17 @@ struct SaveSlotPreview {
     int starCoinsCount = 0;
     float playTime = 0.0f;
     std::string timestamp = "";
+
+    // The one-line "what is in this slot" string: character, level, score, star
+    // coins and play time (SPEC 12.3) — or "EMPTY".
+    //
+    // It lives on the struct rather than in MenuState.cpp, where it started,
+    // because two screens now have to answer the same question: LOAD GAME says
+    // what you would resume, and the pause menu's slot picker says what you
+    // would OVERWRITE. Two formatters would let the picker describe a slot
+    // differently from the page the player just read it on, which is exactly
+    // the kind of disagreement that makes a destructive choice untrustworthy.
+    std::string summary() const;
 };
 
 class Serializer {

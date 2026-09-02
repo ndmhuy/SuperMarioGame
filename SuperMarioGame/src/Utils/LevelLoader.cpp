@@ -35,6 +35,34 @@
 #include <fstream>
 #include <iostream>
 
+namespace {
+
+// How far above its collider a side-entry pipe's shaft has to be drawn to reach
+// the ceiling of the room it stands in, in pixels.
+//
+// Walks up the shaft's own column (the L-bend puts the shaft on the far side
+// from the mouth) to the first solid tile and stops just under it. Returns 0
+// when the column is open all the way to the top of the map, which is the
+// overworld case: there is no ceiling to leave through, so the shaft stays the
+// height of the collider rather than being drawn up into open sky.
+float shaftRiseToCeiling(const TileMap& tileMap, const Pipe& pipe) {
+    const AABB box = pipe.getBoundingBox();
+    const int rimRow = static_cast<int>(std::floor(box.y / Constants::TILE_SIZE));
+    const int leftCol = static_cast<int>(std::floor(box.x / Constants::TILE_SIZE));
+    const int rightCol = static_cast<int>(std::floor((box.x + box.width - 1.0f) / Constants::TILE_SIZE));
+    const int shaftCol = (pipe.getEntryMode() == Pipe::EntryMode::SideLeft) ? rightCol : leftCol;
+
+    for (int row = rimRow - 1; row >= 0; --row) {
+        const TileType above = tileMap.getTileType(shaftCol, row);
+        if (above != TileType::Empty && TileMap::getInfo(above).isSolid) {
+            return static_cast<float>(rimRow - (row + 1)) * Constants::TILE_SIZE;
+        }
+    }
+    return 0.0f;
+}
+
+} // namespace
+
 bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, LevelData& levelData) {
     std::string filename = std::filesystem::path(jsonPath).filename().string();
     std::vector<std::string> fallbacks = {
@@ -155,7 +183,25 @@ bool LevelLoader::loadLevel(const std::string& jsonPath, TileMap& tileMap, Level
                 // Optional; the atlas ships a green and a white/black family and
                 // a castle level looks wrong ending on garden-green plumbing.
                 std::string pipeColor = entityJson.value("color", std::string("green"));
-                entity = std::make_unique<Pipe>(position, pipeId, sf::Vector2f(exitX * Constants::TILE_SIZE, exitY * Constants::TILE_SIZE), targetLevel, isEntrance, 0.0f, pipeColor);
+                auto pipe = std::make_unique<Pipe>(position, pipeId, sf::Vector2f(exitX * Constants::TILE_SIZE, exitY * Constants::TILE_SIZE), targetLevel, isEntrance, 0.0f, pipeColor);
+
+                // Optional, defaulting to "top" so every level authored before
+                // the field existed keeps the classic stand-on-it-and-crouch
+                // pipe it has always had. saveLevel() writes it back — see the
+                // note on SerializationUtils::getPipeEntryModeName.
+                pipe->setEntryMode(SerializationUtils::parsePipeEntryModeName(
+                    entityJson.value("entry", std::string("top"))));
+
+                // How far an L-bend's shaft is drawn above the collider, so it
+                // leaves the room through the ceiling instead of stopping in
+                // mid-air. Measured off the tilemap that was just loaded rather
+                // than authored in the file: the ceiling already states where it
+                // is, and a second copy in the entity's JSON would be wrong the
+                // first time a room was re-dug.
+                if (pipe->isSideEntry()) {
+                    pipe->setShaftRise(shaftRiseToCeiling(tileMap, *pipe));
+                }
+                entity = std::move(pipe);
             } else if (typeStr == "moving_platform") {
                 // "rangeX"/"rangeY" are the travel, in tiles, from the placed
                 // position. The schema carried no such field, so EntityFactory
@@ -307,6 +353,15 @@ bool LevelLoader::saveLevel(const std::string& jsonPath, const TileMap& tileMap,
                 entObj["exitX"] = static_cast<int>(pipe->getExitPosition().x / Constants::TILE_SIZE);
                 entObj["exitY"] = static_cast<int>(pipe->getExitPosition().y / Constants::TILE_SIZE);
                 entObj["color"] = pipe->getColor();
+                // Written unconditionally, "top" included. This batch had to
+                // fix three fields the loader read and the saver dropped, each
+                // of which silently reset part of a level on the first save;
+                // omitting the default here to keep the files tidy would set
+                // the fourth one up.
+                entObj["entry"] = SerializationUtils::getPipeEntryModeName(pipe->getEntryMode());
+                // getShaftRise() is deliberately absent: it is derived from the
+                // room's ceiling at load time, so writing it would be a second
+                // statement of what the tilemap already says.
             }
             if (auto boss = dynamic_cast<const Boss*>(entity.get())) {
                 // Same hole as the platform range below: the arena was loadable

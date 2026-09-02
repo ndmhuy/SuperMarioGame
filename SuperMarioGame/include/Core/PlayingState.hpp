@@ -158,6 +158,40 @@ private:
     // One press of the crouch key is one warp, not one per frame.
     float m_warpCooldown = 0.0f;
 
+    // --- Going down a pipe ---------------------------------------------------
+    //
+    // A pipe entry is a short scripted slide INTO the mouth before the world
+    // changes, so a warp reads as going somewhere rather than as the screen
+    // being swapped underneath a standing player.
+    //
+    // It is scripted motion, not physics: the slide deliberately carries the
+    // player inside a solid block, so the frames it runs for skip both the
+    // input poll and the physics pass (see the early return in update()) —
+    // otherwise collision resolution would shove them straight back out of the
+    // pipe they are entering, and the movement keys would let them walk away
+    // mid-animation.
+    //
+    // Holds no Pipe pointer on purpose. Completing the entry replaces
+    // m_entities wholesale, and the pipe that started it is one of the things
+    // destroyed; everything the completion needs is copied out up front.
+    struct PipeEntry {
+        bool active = false;
+        float elapsed = 0.0f;
+        float duration = 0.0f;
+        sf::Vector2f from{0.0f, 0.0f};
+        sf::Vector2f to{0.0f, 0.0f};
+        std::string targetLevel;
+        sf::Vector2f exit{0.0f, 0.0f};
+    };
+    PipeEntry m_pipeEntry;
+
+    // Starts the slide. `mouthCenter` and `approachX` come from the Pipe, which
+    // is still alive at the call site and will not be a frame later.
+    void beginPipeEntry(sf::Vector2f mouthCenter, float approachX,
+                        const std::string& targetLevel, sf::Vector2f exit);
+    // Advances it, and performs the warp on the frame it finishes.
+    void updatePipeEntry(float dt);
+
     // --- Dying ---------------------------------------------------------------
     //
     // Death is a sequence, not an instant. killPlayer() starts it; the player

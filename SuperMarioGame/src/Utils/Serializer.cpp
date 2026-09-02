@@ -8,6 +8,7 @@
 #include "Core/StatisticsTracker.hpp"
 #include "Core/AchievementManager.hpp"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <ctime>
 #include <exception>
@@ -405,6 +406,24 @@ SaveSlotPreview Serializer::getSlotPreview(int slot) {
         preview.exists = false;
     }
     return preview;
+}
+
+std::string SaveSlotPreview::summary() const {
+    if (!exists) return "EMPTY";
+
+    // m:ss, matching the minimap/statistics convention for play time elsewhere.
+    const int totalSeconds = static_cast<int>(playTime);
+    std::string upperCharacter = character;
+    for (char& c : upperCharacter) {
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+
+    std::ostringstream ss;
+    ss << upperCharacter << "  L" << levelId
+       << "  " << score << "PT  STARS " << starCoinsCount << "/3  "
+       << (totalSeconds / 60) << ":" << std::setfill('0') << std::setw(2)
+       << (totalSeconds % 60);
+    return ss.str();
 }
 
 bool Serializer::deleteSlot(int slot) {

@@ -225,15 +225,93 @@ void checkPipeEntities(const TileMap& map,
                                          std::to_string(bottomRow) + ", floor row " +
                                          std::to_string(floorRow) + ")");
 
-        // And its rim is jumpable from that floor. JUMP_HEIGHT is exactly four
-        // tiles, so a rim four tiles up sits on the apex of the arc and is not
-        // reliably reachable — and a sub-level's exit pipe is the only way out
-        // of the room, so "usually" is not good enough.
-        const float rise = (floorRow - rimRow) * Constants::TILE_SIZE;
-        check(rise < Constants::JUMP_HEIGHT,
-              who + " rim is " + std::to_string(static_cast<int>(rise)) +
-                  "px above its floor, under the " +
-                  std::to_string(static_cast<int>(Constants::JUMP_HEIGHT)) + "px jump");
+        if (pipe->isTopEntry()) {
+            // A top-entry pipe is MOUNTED, so its rim has to be jumpable from
+            // that floor. JUMP_HEIGHT is exactly four tiles, so a rim four
+            // tiles up sits on the apex of the arc and is not reliably
+            // reachable.
+            //
+            // Scoped to top entry once EntryMode existed: a side-entry pipe is
+            // walked into at floor level and is never stood on, so its rim's
+            // height is not a reachability constraint at all — asserting it
+            // would have forced the sub-level up-pipes back down into their own
+            // floor, which is the arrangement that buried the mouth. The
+            // constraint that replaces it for those is checkSideEntryMouths()
+            // below, and it is the stronger one: the mouth must be standable
+            // AND walkable-into.
+            const float rise = (floorRow - rimRow) * Constants::TILE_SIZE;
+            check(rise < Constants::JUMP_HEIGHT,
+                  who + " rim is " + std::to_string(static_cast<int>(rise)) +
+                      "px above its floor, under the " +
+                      std::to_string(static_cast<int>(Constants::JUMP_HEIGHT)) + "px jump");
+        }
+    }
+}
+
+// R21J — a side-entry pipe's mouth is at floor level and can be walked into.
+//
+// The reachability question for an L-bend is not "can the rim be jumped to" but
+// "is there floor beside the mouth to walk in from, and is the mouth level with
+// it". Getting that wrong is invisible in a screenshot of a level file and
+// leaves a sub-level with no way out — which is exactly what the old geometry
+// did once the art started drawing the arm where the arm actually is: the pipe
+// sat one tile lower and its mouth was inside the floor tile.
+void checkSideEntryMouths(const TileMap& map,
+                          const std::vector<std::unique_ptr<Entity>>& entities,
+                          const std::string& label) {
+    for (const auto& entity : entities) {
+        const auto* pipe = dynamic_cast<const Pipe*>(entity.get());
+        if (!pipe || !pipe->isSideEntry()) continue;
+
+        const AABB box = pipe->getBoundingBox();
+        const int leftCol  = static_cast<int>(box.x / Constants::TILE_SIZE);
+        const int rightCol = static_cast<int>((box.x + box.width - 1.0f) / Constants::TILE_SIZE);
+        const int rimRow   = static_cast<int>(box.y / Constants::TILE_SIZE);
+        const std::string who = label + ": side pipe at " + at(leftCol, rimRow);
+
+        // The mouth band is the bottom pipe->mouthHeight() of the collider,
+        // and its lowest row has to be the row a walking player occupies —
+        // i.e. the collider's foot must rest ON the floor, not inside it.
+        const int floorRow  = floorRowBelow(map, leftCol, rimRow);
+        const int bottomRow = static_cast<int>((box.y + box.height) / Constants::TILE_SIZE);
+        check(floorRow >= 0, who + " has a floor in its column");
+        if (floorRow < 0) continue;
+        check(bottomRow == floorRow,
+              who + " foot sits on its floor rather than in it (foot row " +
+                  std::to_string(bottomRow) + ", floor row " +
+                  std::to_string(floorRow) + ")");
+
+        // Floor to walk in from, on the side the mouth faces, and nothing solid
+        // standing in the way of the approach.
+        const bool facesWest = pipe->getEntryMode() == Pipe::EntryMode::SideLeft;
+        const int approachCol = facesWest ? leftCol - 1 : rightCol + 1;
+        check(approachCol >= 0 && approachCol < map.getWidth(),
+              who + " mouth is not against the edge of the map");
+        if (approachCol < 0 || approachCol >= map.getWidth()) continue;
+
+        check(TileMap::getInfo(map.getTileType(approachCol, floorRow)).isSolid,
+              who + " has floor to walk in from at column " + std::to_string(approachCol));
+
+        const int mouthRows =
+            std::max(1, static_cast<int>(pipe->mouthHeight() / Constants::TILE_SIZE));
+        bool approachClear = true;
+        for (int row = floorRow - mouthRows; row < floorRow; ++row) {
+            if (row < 0) continue;
+            if (TileMap::getInfo(map.getTileType(approachCol, row)).isSolid) approachClear = false;
+        }
+        check(approachClear, who + " approach is clear of solid tiles");
+
+        // And the shaft has somewhere to rise to: an up-pipe whose column is
+        // open to the top of the map would be drawn stopping in mid-air, which
+        // is the exact complaint this mode exists to answer.
+        const int shaftCol = facesWest ? rightCol : leftCol;
+        bool hasCeiling = false;
+        for (int row = rimRow - 1; row >= 0; --row) {
+            if (TileMap::getInfo(map.getTileType(shaftCol, row)).isSolid) hasCeiling = true;
+        }
+        check(hasCeiling,
+              who + " shaft column " + std::to_string(shaftCol) +
+                  " has a ceiling to leave through");
     }
 }
 
@@ -245,6 +323,7 @@ void testWarpPipesStandOnTheFloorAndCanBeMounted() {
         LevelData data;
         if (!loadInto(name, map, data)) continue;
         checkPipeEntities(map, data.entities, name);
+        checkSideEntryMouths(map, data.entities, name);
     }
 }
 

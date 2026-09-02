@@ -424,8 +424,17 @@ add_verify_test(verify_regressions "tests/verify_regressions.cpp")
 #                  settings round-trip defaulting to off.
 add_verify_test(verify_r21_entity_guards "tests/verify_r21_entity_guards.cpp")
 add_verify_test(verify_r21_level_data "tests/verify_r21_level_data.cpp")
+#   pipes:         the ONE pipe-art selector both the tilemap and the Pipe
+#                  entity compose from, the `entry` field's save/load round
+#                  trip, and where each EntryMode can actually be entered from.
+add_verify_test(verify_r21_pipes "tests/verify_r21_pipes.cpp")
 add_verify_test(verify_r21_ui_layout "tests/verify_r21_ui_layout.cpp")
 add_verify_test(verify_r21_debug_cheats "tests/verify_r21_debug_cheats.cpp")
+#   lakitu_flower: Lakitu's Fire Flower mercy drop -- the only guaranteed route
+#                  to the fireballs Bowser's stagger requires. Checks it fires
+#                  on the engaged-time interval, ignores the concurrent Spiny
+#                  cap, never fires off-camera, and cannot be farmed.
+add_verify_test(verify_r21_lakitu_flower "tests/verify_r21_lakitu_flower.cpp")
 # entity_registry: walks the EntityType ENUM (0..Count), not the catalogue, and
 #                  fails if any enumerator has no registration whose creator
 #                  builds an entity — the check that turns "someone forgot to
@@ -443,6 +452,18 @@ add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
 # without a GPU, and the handful of genuinely GPU-dependent checks announce a
 # SKIP when sf::Shader::isAvailable() is false rather than failing the run.
 add_verify_test(verify_r21_lighting "tests/verify_r21_lighting.cpp")
+
+# The Bowser fight's three combat rules, driven through the real pipeline
+# (PhysicsEngine broadphase -> resolveEntityVsEntity) against level_3's own
+# tilemap rather than a hand-built one: fire staggers him, a stomp only lands
+# while he reels, and the bridge chop drains him in the lava instead of
+# deleting him.
+add_verify_test(verify_r21_boss_combat "tests/verify_r21_boss_combat.cpp")
+
+# Three save slots that are actually three slots, and the delete that frees
+# one. Identifies the saved file by watching Serializer's own directory rather
+# than naming it, so a delete that resolves its own path fails the run.
+add_verify_test(verify_r21_save_slots "tests/verify_r21_save_slots.cpp")
 
 # ---------------------------------------------------------
 # 19. Asset synchronisation

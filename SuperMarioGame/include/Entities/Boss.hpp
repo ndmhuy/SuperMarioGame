@@ -95,6 +95,40 @@ public:
     // animation all happen exactly as they would after a fifth stomp.
     void defeatNow();
 
+    // The bridge went out from under him: fall, land in the lava, and burn down.
+    //
+    // The alternative — and what shipped — was chopBridge() calling defeatNow(),
+    // which is instant: the axe swung and Bowser was simply not there any more.
+    // "When the bridge is cut off, the bowser should drop into lava and lose
+    // health gradually, not just disappearing." So this is a death the player
+    // watches happen: gravity carries him off the stump of the bridge, the drain
+    // starts when he reaches the lava, and the last point goes through
+    // defeatNow() so the score, the BossDefeated event and the defeat animation
+    // are the same ones a fifth stomp would have produced.
+    //
+    // Lives on Boss rather than Bowser because nothing about it is Bowser's:
+    // any boss standing on a floor that can be removed over lava dies this way,
+    // and the health it drains is Boss's own private member.
+    void beginLavaDeath();
+
+    // True from the moment the bridge is cut until the bar reaches zero.
+    //
+    // Public because two things outside the fight have to know. The void sweep
+    // must not treat a boss falling towards the lava as a boss who wandered off
+    // (onLeftLevel() below), and PlayingState must not release the arena — and
+    // with it the HUD's boss bar — until the drain has actually finished, or the
+    // gradual death the player is meant to see is drawn nowhere.
+    bool isDyingInLava() const { return m_lavaDeath != LavaDeath::None; }
+
+    // Nothing but the death sequence may move him once he is in the lava.
+    // Gravity would carry him straight through the two lava tiles and past the
+    // void plane, where the out-of-world sweep and this death would fight over
+    // who owns him — and the sweep calls onLeftLevel() every frame it wins.
+    // Falling is still ordinary physics, which is the point of having two
+    // states: he drops off the stump of the bridge exactly as anything else
+    // would, and only the burn-down is scripted.
+    bool isPhysicsDriven() const override;
+
     // A boss that leaves the level is put back here at full health rather than
     // left falling forever. Bowser stands on brick directly above lava in 1-3;
     // lava is not solid and burns only the player, so losing that floor by any
@@ -134,6 +168,24 @@ protected:
     virtual void onTookHit() {}
     virtual void onDefeated() {}
 
+    // May a descending impact land a hit while this boss still has its guard up,
+    // i.e. while it is NOT staggered?
+    //
+    // True for Boom Boom, whose whole fight is three clean stomps landed in the
+    // pauses between charges. False for Bowser: his guard is precisely what the
+    // fireballs are for — onHitByFireball()'s own comment says "four hits and he
+    // reels, and while he reels he can be stomped" — and a stomp that lands
+    // whatever his state lets the player skip that mechanic entirely, which is
+    // why the fight appeared to work while the fire route did nothing visible.
+    //
+    // A virtual on Boss rather than a dynamic_cast<Bowser*> in the resolver or a
+    // second copy of the contact rules in Bowser: the resolver already went to
+    // some trouble to name no concrete enemy type (EntityCategory's comment asks
+    // callers to add a virtual instead of widening the enum), and there is only
+    // one place — onPlayerTouch() below — where the answer is consumed, so a
+    // third boss with a third guard policy overrides one line.
+    virtual bool canBeStompedWhileGuarded() const { return true; }
+
     // Costs one health point unless the boss is still in its i-frames.
     // Returns true if the hit actually landed.
     bool takeHit(int amount = 1);
@@ -159,6 +211,27 @@ protected:
     bool isDying() const { return isDefeated() && active; }
 
 private:
+    // How long the whole health bar takes to burn away, however many points it
+    // holds — the drain interval is derived from the bar's length, so easy mode's
+    // shorter bar does not make the death shorter.
+    static constexpr float LAVA_DRAIN_SECONDS = 2.4f;
+    // How far he settles into the lava once he reaches it, and how fast. He is
+    // not swallowed whole: the sprite has to stay readable while the bar runs.
+    static constexpr float LAVA_SINK_DEPTH = 22.0f;
+    static constexpr float LAVA_SINK_SPEED = 30.0f;
+    // If no lava turns up within this long, drain where he is anyway. A level
+    // whose bridge has no lava under it — a hand-made one, or one from the map
+    // editor — must still show him die rather than drop him out of the world,
+    // which is the very failure returnToArenaSpawn() exists to catch.
+    static constexpr float LAVA_FALL_GRACE = 2.0f;
+
+    // Falling is the drop off the stump of the bridge, driven by ordinary
+    // gravity; Draining is the burn-down, driven entirely by updateLavaDeath().
+    enum class LavaDeath { None, Falling, Draining };
+
+    void updateLavaDeath(float dt);
+    float lavaDrainInterval() const;
+
     // Where the fight started. Captured at construction, so it is the level's
     // own placement and not wherever the boss has since walked to.
     sf::Vector2f m_arenaSpawn;
@@ -174,6 +247,11 @@ private:
     float m_staggerTimer = 0.0f;
     float m_defeatTimer = 0.0f;
     bool m_defeatAnnounced = false;
+
+    LavaDeath m_lavaDeath = LavaDeath::None;
+    float m_lavaFallTimer = 0.0f;
+    float m_lavaDrainTimer = 0.0f;
+    float m_lavaSinkLeft = 0.0f;
 
     AABB m_arena;
 };

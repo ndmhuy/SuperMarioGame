@@ -66,6 +66,31 @@ uint64_t fnv1a(const std::string& data) {
     return hash;
 }
 
+// saves/shots/ is screenshot OUTPUT, not save data.
+//
+// This guard exists to catch a test writing the developer's real save files --
+// the incident it was built for was a ctest run deleting saves/progress.json.
+// It was watching the whole tree, screenshots included, and saves/shots/ is
+// where every `--script` run drops its PNGs. So any ordinary playtest between
+// the snapshot and the verify failed the guard, and it failed for a reason that
+// had nothing to do with hermeticity.
+//
+// That is not a harmless false positive. A guard that cries wolf gets read as
+// noise, and this one did: two separate investigations this session blamed a
+// test harness for "writing saves/" on its evidence, and the harness turned out
+// to be clean -- measured, all four save files byte-identical across a run. The
+// real cause was a concurrent playtest writing PNGs. A check that cannot tell
+// those apart costs more than it earns.
+//
+// Narrowed to exclude ONLY this one output directory. Every *.json under
+// saves/, slot files included, is still watched byte-for-byte, so the incident
+// this guard was written for still fails it. Deliberately a path prefix rather
+// than an extension filter: a new kind of save file must be watched by default,
+// and only a directory whose whole purpose is generated output is skipped.
+bool isOutputArtefact(const std::string& relativePath) {
+    return relativePath.rfind("shots/", 0) == 0;
+}
+
 std::string readFile(const fs::path& p) {
     std::ifstream in(p, std::ios::binary);
     std::ostringstream ss;
@@ -91,6 +116,7 @@ std::vector<std::string> snapshotLines() {
     for (const auto& entry : fs::recursive_directory_iterator(dir)) {
         if (!entry.is_regular_file()) continue;
         const std::string rel = fs::relative(entry.path(), dir).generic_string();
+        if (isOutputArtefact(rel)) continue;
         const std::string content = readFile(entry.path());
         std::ostringstream line;
         line << rel << '\t' << content.size() << '\t' << fnv1a(content);

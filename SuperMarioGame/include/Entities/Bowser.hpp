@@ -37,6 +37,16 @@ public:
     static constexpr int FIRE_HITS_PER_STAGGER = 4;
 
 protected:
+    // No. His guard is the fight, and fire is what breaks it.
+    //
+    // Boss::onPlayerTouch pays out for any genuine descending impact, which is
+    // right for Boom Boom and wrong here: it let the player win by jumping on
+    // him five times, so the four-fireball stagger above was decoration and
+    // there was no reason to ever carry a flower into the arena. Reported as
+    // "the Bowser stun by fireball is not working, it does not receive fireball
+    // but can be stomped" — the second half of that is this.
+    bool canBeStompedWhileGuarded() const override { return false; }
+
     void updateBehaviour(float dt) override;
     void onPhaseChanged(int newPhase) override;
     void onTookHit() override;

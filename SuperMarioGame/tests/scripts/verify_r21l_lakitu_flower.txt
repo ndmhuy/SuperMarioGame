@@ -1,0 +1,97 @@
+# R21 Lane L — Lakitu's Fire Flower mercy drop, observed in the running game
+# (directives 9 and 10).
+#
+# WHY: Bowser only staggers after FIRE_HITS_PER_STAGGER fireball hits and only a
+# staggered Bowser can be stomped, so a player who reaches the bridge as Small
+# Mario cannot win. Nothing else on the route guarantees a Fire Flower. Lakitu
+# now drops one after Lakitu::FLOWER_DROP_INTERVAL seconds of ENGAGED time.
+#
+# WHAT THIS RUN SHOWS, in order:
+#   1. World 1-1 starts with Small Mario — the unwinnable-at-Bowser state.
+#   2. Flying east under NOCLIP brings the level's only Lakitu (tile 175,11)
+#      inside Lakitu::ENGAGE_RANGE_X, which is what starts the clock at all.
+#   3. After the interval a Fire Flower falls out of the Lakitu, not a Spiny egg.
+#   4. It lands on the player and Mario turns Fire — the route through Bowser.
+#
+# PRECONDITION: "debugMode": true in saves/config.json (the cheats are inert
+# otherwise). Back that file up first: Game::shutdown() persists the flag, so it
+# must be restored to false afterwards — the shipped default is off.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_lane_l/SuperMarioGame --script tests/scripts/verify_r21l_lakitu_flower.txt
+#
+# Screenshots land in saves/shots/ with the r21l_ prefix.
+
+wait 2.0
+
+# START GAME -> character select -> world map (1-1 is the first node)
+press Enter
+wait 2.5
+press Enter
+wait 2.5
+press Enter
+wait 4.0
+shot r21l_00_small_mario_at_level_start
+
+# Cheats: INFINITE LIVES and INVINCIBLE so the Spinies Lakitu also throws cannot
+# end the run before the interval elapses, and NOCLIP so the flight east is not
+# at the mercy of the pits between tile 98 and the Lakitu's stretch. None of
+# them touches the drop logic: it reads only engagement, elapsed time and the
+# player's FORM, and an invincible Small Mario is still Small.
+press F4
+wait 0.3
+press F3
+wait 0.3
+press F8
+wait 0.5
+
+# East to the Lakitu. Spawn is tile 98.5 (x~3152); the Lakitu sits at tile 175
+# (x=5600) and tracks the player at 100 px/s from level load, so the two
+# converge. ENGAGE_RANGE_X is 1280px — one camera width.
+hold D 12.0
+wait 12.5
+release D
+wait 1.0
+shot r21l_01_engaged_with_lakitu
+
+# The interval. A burst of one-second frames across the window the drop is due
+# in, so the flower is caught IN FLIGHT rather than only inferred from its
+# effect. Engagement begins around level t=8s (the two close at 250 px/s), so
+# the drop lands around level t=28s — the HUD clock on each frame dates it.
+wait 5.0
+shot r21l_02_burst_a
+wait 1.0
+shot r21l_03_burst_b
+wait 1.0
+shot r21l_04_burst_c
+wait 1.0
+shot r21l_05_burst_d
+wait 1.0
+shot r21l_06_burst_e
+wait 1.0
+shot r21l_07_burst_f
+wait 1.0
+shot r21l_08_burst_g
+wait 1.0
+shot r21l_09_burst_h
+wait 1.0
+shot r21l_10_burst_i
+wait 1.0
+shot r21l_11_burst_j
+wait 1.0
+shot r21l_12_burst_k
+wait 1.0
+shot r21l_13_burst_l
+wait 1.0
+shot r21l_14_burst_m
+
+# A further full interval with the player now holding Fire. The score must NOT
+# move again: dropFireFlower() refuses while the player already has the form,
+# which is both the anti-spam rule and the reason a second flower would be
+# litter.
+wait 12.0
+shot r21l_15_plus_12s_no_second_flower
+wait 12.0
+shot r21l_16_plus_24s_still_no_second_flower
+
+quit

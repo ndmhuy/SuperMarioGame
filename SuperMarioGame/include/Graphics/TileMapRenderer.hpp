@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Graphics/BackgroundRenderer.hpp"
+#include "Graphics/PipeRenderer.hpp"
 #include "Physics/AABB.hpp"
 #include "Utils/TileMap.hpp"
 #include <SFML/Graphics/RenderTarget.hpp>
@@ -22,15 +23,10 @@ class TileMapRenderer {
 public:
     // Which atlas art one column of a tilemap pipe run is drawn from.
     //
-    // `frame` is an atlas frame name. `sliceHeight` of 0 means "draw the whole
-    // frame"; otherwise only the `sliceHeight` source rows starting at
-    // `sliceTop` are drawn, which is how a 32x64 whole narrow pipe is split into
-    // a rim tile and however many body tiles a run needs.
-    struct PipeTileArt {
-        std::string frame;
-        int sliceTop = 0;
-        int sliceHeight = 0;
-    };
+    // The same type the Pipe entity's own art is composed from, because it is
+    // the same decision: PipeRenderer::cellArt owns it, and this class only
+    // supplies the run geometry a tilemap knows and an entity does not.
+    using PipeTileArt = PipeRenderer::TileArt;
 
     // `sheet` may be null (no atlas loaded); every tile then falls back to its
     // TileInfo debug colour rather than drawing nothing.

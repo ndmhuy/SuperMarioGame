@@ -26,6 +26,11 @@ public:
     // MAX_SPINIES.
     int getSpawnCount() const { return m_spawnCount; }
 
+    // Engaged seconds banked towards the next Fire Flower, and the lifetime
+    // tally of flowers actually dropped. Diagnostics only.
+    float getFlowerTimer() const { return m_flowerTimer; }
+    int getFlowerCount() const { return m_flowerCount; }
+
     // Is the player close enough for this to be a fight at all?
     bool isEngaged() const;
 
@@ -54,7 +59,36 @@ public:
     // beside the cap.
     static constexpr float ENGAGE_RANGE_X = static_cast<float>(Constants::WINDOW_WIDTH);
 
+    // How long a player must stay in the fight before Lakitu drops a Fire
+    // Flower instead of an egg.
+    //
+    // WHY THIS EXISTS AT ALL: Bowser needs FIRE_HITS_PER_STAGGER fireball hits
+    // before a stomp does anything, so a player who arrives at the bridge as
+    // Small Mario has no route to win — there is no other guaranteed flower on
+    // the way. Lakitu is the recovery path.
+    //
+    // ENGAGED seconds, not seconds since level load: the same reason the egg
+    // clock is gated (see ENGAGE_RANGE_X). A wall-clock timer would have burnt
+    // the mercy drop off-camera exactly as the lifetime Spiny cap did (R21 D8).
+    //
+    // 20s is five egg cycles at the 4s throw rate, so the player has already
+    // had to survive a full concurrent field of Spinies plus two refills before
+    // the flower arrives; it cannot be rushed. It is also short enough to be
+    // *reachable*: Lakitu tracks at ENEMY_LAKITU_SPEED (100 px/s) against a
+    // 150 px/s walk, so even a player who simply walks away stays inside
+    // ENGAGE_RANGE_X for ~25s, and one who stops to fight banks it sooner. A
+    // longer interval would make the drop unobservable in ordinary play, which
+    // is the "shipped and inert" failure all over again.
+    static constexpr float FLOWER_DROP_INTERVAL = 20.0f;
+
 private:
+    // Publish a Fire Flower spawn request unless the player is already Fire.
+    // Returns whether anything was dropped, so the caller knows whether to
+    // restart the clock.
+    bool dropFireFlower();
+
     float m_eggTimer = 0.0f;
     int m_spawnCount = 0;
+    float m_flowerTimer = 0.0f;
+    int m_flowerCount = 0;
 };

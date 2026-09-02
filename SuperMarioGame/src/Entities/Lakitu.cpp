@@ -9,6 +9,7 @@
 #include "Core/Game.hpp"
 #include "Utils/Constants.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 Lakitu::Lakitu(sf::Vector2f position)
@@ -52,6 +53,30 @@ bool Lakitu::isEngaged() const {
     return std::abs(player->getPosition().x - position.x) <= ENGAGE_RANGE_X;
 }
 
+bool Lakitu::dropFireFlower() {
+    const Player* player = Game::getInstance().getNearestPlayer(getPosition());
+    // Player::getForm() unwraps the Star and Mega decorators, so this asks about
+    // the durable form and not about a temporary invincibility. Cape and Mega
+    // are deliberately NOT excluded: neither one throws a fireball, so neither
+    // one answers the Bowser fight, and Mega expires. Fire is the only form
+    // that already holds what the drop is for.
+    if (player && player->getForm() == Player::Form::Fire) return false;
+
+    EntitySpawnRequest request;
+    request.type = static_cast<int>(EntityType::FireFlower);
+    request.position = position + sf::Vector2f(0.0f, Constants::TILE_SIZE);
+    // Straight down, unlike the eggs' sideways kick: PlayingState applies this
+    // velocity to the spawned entity verbatim, and a flower that skitters off a
+    // ledge is not a rescue. Gravity and the tile collision it inherits from
+    // Item land it on whatever is underneath.
+    request.velocity = sf::Vector2f(0.0f, 0.0f);
+    EventBus::getInstance().publish({EventType::EntitySpawnRequested, request});
+
+    ++m_flowerCount;
+    SoundManager::getInstance().playSound("powerup_appears");
+    return true;
+}
+
 void Lakitu::update(float dt) {
     // Execute FlyStrategy to update velocity
     Enemy::update(dt);
@@ -69,6 +94,21 @@ void Lakitu::update(float dt) {
     // Lakitu parked 5500px down the level spent its whole allowance throwing
     // eggs at nobody before the player was ever in the room (R21 D8).
     if (!isEngaged()) return;
+
+    // --- The mercy drop ---------------------------------------------------
+    // Deliberately resolved BEFORE the Spiny cap below. A player pinned by
+    // three live, unstompable Spinies is precisely the player this drop exists
+    // for, so it must not be rationed by the gate that rations the eggs.
+    // Clamped rather than left to grow so the banked time cannot silently
+    // become a queue of owed flowers.
+    m_flowerTimer = std::min(m_flowerTimer + dt, FLOWER_DROP_INTERVAL);
+    if (m_flowerTimer >= FLOWER_DROP_INTERVAL && dropFireFlower()) {
+        // Only a drop that actually happened restarts the clock. Parking the
+        // timer at the interval while the player is already Fire is what makes
+        // this a mercy: lose the form mid-fight and the replacement is there on
+        // the next frame, not twenty seconds later.
+        m_flowerTimer = 0.0f;
+    }
 
     // Concurrent, not lifetime: three Spinies in play at once, replenished as
     // the player clears them. See MAX_SPINIES for why the lifetime version was

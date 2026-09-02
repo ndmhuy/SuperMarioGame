@@ -181,6 +181,37 @@ void testOptionsEditsRealSettings(sf::RenderTexture* target) {
     section("7.8  the options screen edits the settings that actually exist");
 
     Game& game = Game::getInstance();
+
+    // Put back what this case changes.
+    //
+    // Every setting below is process-wide state on the Game singleton, and this
+    // case drives the real Options screen to change it. The TestSaveSandbox in
+    // main() keeps the changes off disk, which is what protects the developer's
+    // saves/ -- but it does NOT stop them leaking into the *later cases in this
+    // same binary*, which share the singleton. DEBUG MODE is the one that bites:
+    // Game::setDebugMode also arms DebugCheats (Game.cpp:475), so a case running
+    // after this one would find cheats armed and immortality available, and a
+    // future case that happened to call Game::shutdown() would persist the flag
+    // for real. A case that mutates a singleton restores it; relying on the
+    // sandbox alone only covers the file, not the process.
+    const float restoreMusic = game.getMusicVolume();
+    const float restoreSfx = game.getSfxVolume();
+    const std::string restoreDifficulty = game.getDifficulty();
+    const bool restoreColorblind = game.getColorblindMode();
+    const bool restoreDebug = game.getDebugMode();
+    struct SettingsRestore {
+        Game& game;
+        float music; float sfx; std::string difficulty; bool colorblind; bool debug;
+        ~SettingsRestore() {
+            game.setMusicVolume(music);
+            game.setSfxVolume(sfx);
+            game.setDifficulty(difficulty);
+            game.setColorblindMode(colorblind);
+            game.setDebugMode(debug);
+        }
+    } restore{game, restoreMusic, restoreSfx, restoreDifficulty,
+              restoreColorblind, restoreDebug};
+
     game.setMusicVolume(50.0f);
     game.setSfxVolume(50.0f);
     game.setDifficulty("normal");
@@ -377,9 +408,22 @@ void testPauseIsAnOverlayAndOffersItsChoices(sf::RenderTexture* target) {
     check(pause.isOverlay(), "it draws over the frozen level");
 
     // Down once from RESUME lands on SAVE GAME, which must not dismiss the menu.
+    //
+    // R21: SAVE GAME no longer writes on a single keypress. It used to save to
+    // Game::getActiveSlot() and nothing in the game could ever change that, so
+    // the player had three slots and could only write one; it now opens a slot
+    // chooser. Free slot 1 and make it active first, so the chooser opens on an
+    // EMPTY row and confirming it writes immediately rather than raising the
+    // overwrite prompt (an occupied slot deliberately asks before destroying a
+    // run, which would need a third keypress here).
+    Game::getInstance().setActiveSlot(1);
+    Serializer::deleteSlot(1);
+
     step(pause, sf::Keyboard::Key::Down);
     step(pause, sf::Keyboard::Key::Enter);
-    check(saved, "SAVE GAME calls back into PlayingState");
+    check(!saved, "SAVE GAME opens the slot chooser rather than writing a slot");
+    step(pause, sf::Keyboard::Key::Enter);
+    check(saved, "choosing a slot calls back into PlayingState");
 
     // Two more Downs reach RESTART LEVEL — proving the menu is still live.
     step(pause, sf::Keyboard::Key::Down);

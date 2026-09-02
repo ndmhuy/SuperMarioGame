@@ -9,19 +9,16 @@
 
 TileMapRenderer::PipeTileArt TileMapRenderer::pipeTileArtAt(const TileMap& tileMap,
                                                             int tileX, int tileY) {
-    // pipe_green_head_left/right and pipe_green_body_left/right are 16x16 HALVES
-    // of a pipe, each stretched to a full tile at the draw site. Which half a
-    // column shows used to be decided by "is my left neighbour a pipe?", which
-    // is not the same question: it makes the first column of every run a LEFT
-    // half and every later column a RIGHT half. A one-column run therefore drew
-    // the left half of a rim at 2x — the reported half pipe — and a three-column
-    // run drew L,R,R.
+    // Which half a column shows used to be decided by "is my left neighbour a
+    // pipe?", which is not the same question: it makes the first column of every
+    // run a LEFT half and every later column a RIGHT half. A one-column run
+    // therefore drew the left half of a rim at 2x — the reported half pipe — and
+    // a three-column run drew L,R,R.
     //
-    // The run's own extent answers it properly: columns pair off from the run
-    // start, and any column left unpaired (an odd-width run's last column, or a
-    // one-column run) is drawn from pipe_dark_green_up / _long_up, which are
-    // COMPLETE 32px-wide pipes rather than halves. A half rim is therefore not
-    // representable here, whatever the level data says (R21-D1, after D22/D23).
+    // The run's own extent answers it properly, and that answer now lives in
+    // PipeRenderer::cellArt so the Pipe entity's art is composed by the SAME
+    // code. This function's remaining job is the part only a tilemap has: how
+    // wide the run its column belongs to actually is.
     int runStart = tileX;
     while (runStart > 0 && tileMap.getTileType(runStart - 1, tileY) == TileType::Pipe) --runStart;
     int runEnd = tileX;
@@ -30,27 +27,8 @@ TileMapRenderer::PipeTileArt TileMapRenderer::pipeTileArtAt(const TileMap& tileM
 
     const bool isTopExposed = (tileY == 0) ||
                               (tileMap.getTileType(tileX, tileY - 1) != TileType::Pipe);
-    const int offset   = tileX - runStart;
-    const int runWidth = runEnd - runStart + 1;
 
-    if (offset == runWidth - 1 && (runWidth % 2) == 1) {
-        // pipe_dark_green_long_up is 32x64: rim on top, body underneath. One
-        // tile of each, so a narrow pipe of any height is built from whole art.
-        PipeTileArt art;
-        art.frame = "pipe_dark_green_long_up";
-        art.sliceTop = isTopExposed ? 0 : 32;
-        art.sliceHeight = 32;
-        return art;
-    }
-
-    const bool isRightHalf = (offset % 2) == 1;
-    PipeTileArt art;
-    if (isTopExposed) {
-        art.frame = isRightHalf ? "pipe_green_head_right" : "pipe_green_head_left";
-    } else {
-        art.frame = isRightHalf ? "pipe_green_body_right" : "pipe_green_body_left";
-    }
-    return art;
+    return PipeRenderer::cellArt(tileX - runStart, runEnd - runStart + 1, isTopExposed);
 }
 
 void TileMapRenderer::render(sf::RenderTarget& target, const TileMap& tileMap,

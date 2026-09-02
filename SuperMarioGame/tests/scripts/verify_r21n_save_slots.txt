@@ -1,0 +1,175 @@
+# R21N — the pause menu's save-slot chooser, and deleting a save, observed in
+# the running game.
+#
+#   ./build_lane_n/SuperMarioGame --script tests/scripts/verify_r21n_save_slots.txt
+#
+# What this is meant to show, in order:
+#
+#   1. SAVE GAME no longer writes a slot on its own. It used to run
+#      PlayingState's `saveToSlot(Game::getActiveSlot())` immediately, and
+#      nothing in the game ever changed the active slot — so it was 1 on every
+#      launch, the player had three slots and could only ever write one, and
+#      every save silently destroyed the previous one. It now opens a chooser.
+#
+#   2. The chooser showing an OCCUPIED slot next to two EMPTY ones, with the
+#      same summary string the LOAD GAME page uses — so the player can read
+#      what they would overwrite before they overwrite it. That is why this
+#      script saves to slot 2 FIRST and then re-opens the chooser: a shot of
+#      three empty slots would not show the thing under test (the same mistake
+#      tests/scripts/verify_r21_load_overflow.txt records making).
+#
+#   3. A save written to a slot OTHER THAN 1, and then loaded back from the
+#      main menu — the round trip that was impossible before.
+#
+#   4. The overwrite confirmation, defaulting to KEEP IT, and ESC out of it
+#      saving nothing.
+#
+#   5. LOAD GAME's delete: X on an occupied slot asks, confirming frees it, and
+#      the page redraws with that slot reading EMPTY without leaving it.
+#
+# NOTE this writes saves/slot_2.json for real, then deletes it again as the
+# final act of the script — which is itself the observation. saves/ was backed
+# up outside the repo before this run and restored after it.
+#
+# Screenshots land in saves/shots/ with the r21n_ prefix.
+
+wait 1.5
+
+# START GAME (row 0) -> character select -> confirm Mario -> world map -> 1-1.
+# Three Enters, not two: the campaign goes through the world map, and a first
+# draft of this script that stopped at two spent the whole first half
+# screenshotting the map and the character cards instead of the pause menu.
+press Enter
+wait 1.2
+press Enter
+wait 1.6
+press Enter
+wait 3.0
+shot r21n_00_playing
+
+# Walk east for a moment so the save records a position and some play time
+# rather than a row of zeroes.
+hold Right 2.0
+wait 2.4
+shot r21n_01_walked
+
+# ---------------------------------------------------------------------------
+# 1 + 2. The chooser
+# ---------------------------------------------------------------------------
+press Escape
+wait 1.0
+shot r21n_02_pause_menu
+
+# Down once from RESUME lands on SAVE GAME.
+press Down
+wait 0.4
+press Enter
+wait 1.0
+# The chooser, opened on the active slot (1). All three read EMPTY, and the
+# save has NOT happened — which is defect 1's fix.
+shot r21n_03_chooser_all_empty
+
+# Down to SLOT 2 and confirm. It is empty, so there is nothing to destroy and
+# no confirmation step; the notice reports the slot that was actually written.
+press Down
+wait 0.4
+press Enter
+wait 1.2
+shot r21n_04_saved_to_slot_2
+
+# Re-open the chooser. The cursor is still on SAVE GAME, and the chooser now
+# opens on the active slot — which the save just moved to 2. Slot 2 shows its
+# summary; 1 and 3 still read EMPTY.
+press Enter
+wait 1.0
+shot r21n_05_chooser_occupied_and_empty
+
+# ---------------------------------------------------------------------------
+# 4. The overwrite confirmation
+# ---------------------------------------------------------------------------
+press Enter
+wait 1.0
+# Names the run that would be lost, and the cursor sits on KEEP IT.
+shot r21n_06_overwrite_confirm
+
+press Escape
+wait 0.6
+# Back on the chooser, not on a save: slot 2 still shows the same summary.
+shot r21n_07_cancelled_back_to_chooser
+
+press Escape
+wait 0.6
+# And back on the pause menu with nothing written.
+shot r21n_08_cancelled_back_to_pause
+
+# QUIT TO MENU is row 4; the cursor is on row 1.
+press Down
+wait 0.25
+press Down
+wait 0.25
+press Down
+wait 0.4
+press Enter
+wait 2.5
+
+# ---------------------------------------------------------------------------
+# 3. Load slot 2 back
+# ---------------------------------------------------------------------------
+# LOAD GAME is row 1 of a freshly entered main menu.
+press Down
+wait 0.4
+press Enter
+wait 1.2
+shot r21n_09_load_page_slot_2_occupied
+
+# Row 0 is SLOT 1; one Down reaches SLOT 2.
+press Down
+wait 0.4
+press Enter
+wait 3.5
+shot r21n_10_loaded_from_slot_2
+
+# ---------------------------------------------------------------------------
+# 5. Delete the save
+# ---------------------------------------------------------------------------
+press Escape
+wait 1.0
+press Down
+wait 0.25
+press Down
+wait 0.25
+press Down
+wait 0.25
+press Down
+wait 0.4
+press Enter
+wait 2.5
+
+press Down
+wait 0.4
+press Enter
+wait 1.2
+press Down
+wait 0.4
+shot r21n_11_slot_2_selected_for_delete
+
+# X asks; it does not delete.
+press X
+wait 1.0
+shot r21n_12_delete_confirm
+
+# Down onto DELETE, then confirm.
+press Down
+wait 0.4
+press Enter
+wait 1.5
+# The page redrew itself: slot 2 reads EMPTY without leaving and re-entering.
+shot r21n_13_slot_2_now_empty
+
+# X on the now-empty slot is refused rather than asking again.
+press X
+wait 0.8
+shot r21n_14_delete_refused_on_empty
+
+wait 0.5
+quit
