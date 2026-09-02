@@ -6670,3 +6670,19 @@ Summary of Changes:
 - Rewrote the doc's opening sentence to name scripts/build_contributions.py as the actual generator, making the "generated from one source so they cannot drift" claim true for the first time.
 - Did not touch reports/, Report/, docs/, .gitignore, C++ source, features_list.md or testing_tasks.md (sibling-lane files) per this lane's constraints.
 ---
+
+[2026-09-02 20:42:31] Branch: A/docs/member-contributions
+Git Fingerprint: 30f00d8 (before) → 9615ac4 (after)
+Fetched Remotes: no — no repository-state claim made in this task, just a follow-up fix inside the already-fetched worktree
+Prompt: Coordinator review caught that the committed doc's git counts (417) were already stale (git shortlog -sn HEAD now returns 419, since my own two prior commits landed after I measured) and unstamped, so a grader can't tell when the number was true. Fix: emit "Git commit counts measured at <sha> on <date>" in both editions, regenerate once, commit, and do not re-run afterward.
+Files Modified: scripts/build_contributions.py, submission_documents/Member_Contributions.md, submission_documents/Member_Contributions.xlsx
+Reachable From Main: n/a - not runtime code (documentation-generation script)
+Verified By: ran `python3 scripts/build_contributions.py` once (not re-run after committing, per the coordinator's explicit instruction, since re-running would move the stamp again); confirmed via openpyxl that the Summary sheet's new stamp row (row 11) reads correctly and the header/data rows shifted consistently (dims A1:L16), and grepped the stamp line into the .md
+Summary of Changes:
+- Added get_git_sha(repo_root) (same subprocess pattern as count_git_commits) returning `git rev-parse --short HEAD`.
+- main() now builds `measured_at = f"Git commit counts measured at {sha} on {date.today().isoformat()}."` and passes it into both render_markdown() and render_xlsx().
+- render_markdown() prints the stamp as its own italicized line directly under the Summary key/value table, before the Percent-convention blockquote.
+- render_xlsx()'s Summary sheet layout is now computed from dynamic row offsets (info_start, stamp_row, instr1_row, instr2_row, header_row) instead of hardcoded row numbers, so inserting the stamp row (11) correctly shifted the two instruction lines to 12-13, the per-member header to 14, and the two data rows to 15-16 without silently overwriting anything.
+- Did not freeze the git counts into the script (measuring live via `git shortlog -sn` stays correct); the stamp is what makes the *measurement* honest rather than presented as timeless. Regenerated once with this commit's parent (30f00d8) as HEAD, so the stamp reads "measured at 30f00d8 on 2026-09-02" and the count is 480 (419 Nguyen Dinh Minh Huy + 61 Tran Gia Huy/FubuGold) - correct as of that measurement, already one commit stale by the time this very commit lands, which is the expected and honest behavior the coordinator asked for.
+- Per instruction, did not re-run the script again after this commit.
+---
