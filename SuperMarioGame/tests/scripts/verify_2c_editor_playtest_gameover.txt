@@ -1,0 +1,93 @@
+# Lane 2C — an editor playtest that ends in Game Over must pop back to the
+# editor with the level under edit intact, not settle on GameOverState.
+#
+# Route: Main menu -> Level Editor (blank) -> Ctrl+O, Enter opens the built-in
+# World 1-1 (level_1.json, row 0 of the Open dialog) -> F5 playtests it.
+# Player 1's move-right key is D (InputManager.cpp's default WASD binding —
+# Right/arrow keys are Player 2's), so that is what walks Mario. Default
+# difficulty is Normal (3 starting lives, DifficultyStrategy.hpp), and this
+# worktree's saves/config.json does not override it, so three deaths are
+# needed to run PlayingState out of lives:
+#
+#   1. level_1.json's own Goomba at tile (12,20), a short walk from the (3,19)
+#      spawn — a held D with no jump walks into it, and Player::powerDown()
+#      kills a Small player on a side touch with no power to lose.
+#   2 & 3. That Goomba is an EntityCategory::Enemy standing near the
+#      checkpoint, so PlayingState::makeSpawnSafe() destroys it as part of
+#      clearing the respawn point (D29's spawn-camping guard) the moment the
+#      player respawns there, so it cannot be walked into twice. The tile
+#      floor's first pit (ground strips run tiles 0-29, then a gap at 30-31)
+#      is not an entity and is never cleared, so the second and third deaths
+#      instead walk there and fall in — the same killPlayer()/
+#      DeathPhase::Falling path as the Goomba hit.
+#
+# Before the fix: the third death unconditionally built RunSummary and did
+# Game::changeState(GameOverState) (PlayingState's death-sequence handler),
+# whose own RETRY LEVEL / QUIT TO MENU choices both changeState() again — the
+# suspended EditorState stayed on the stack underneath, but nothing short of
+# quitting the process could ever reach it again. After the fix,
+# RunSummary::isPlaytest carries m_isPlaytest through, GameOverState offers a
+# single BACK TO EDITOR choice, and dismissing it calls Game::popState(),
+# which reveals EditorState exactly as F5 left it.
+#
+#   ./build/SuperMarioGame --script tests/scripts/verify_2c_editor_playtest_gameover.txt
+#
+# Screenshots land in saves/shots/. The round-trip is also confirmed on
+# stdout: "[GameOverState] Editor playtest ended in Game Over; not recording a
+# high score." must appear, and "Exiting GameOverState" must be followed by
+# EditorState's own onResume() work (LevelCatalog::refreshCustomLevels()) with
+# no "Entering MenuState" in between.
+
+wait 2.0
+shot 2c_00_main_menu
+
+# Level Editor is the fifth main-menu row (row index 4) — same as
+# verify_r21e_editor.txt.
+press Down
+press Down
+press Down
+press Down
+wait 0.3
+press Enter
+wait 1.2
+shot 2c_01_editor_blank
+
+# Ctrl+O, Enter opens row 0 of the Open dialog — the built-in World 1-1.
+press O ctrl
+wait 0.5
+shot 2c_02_open_dialog
+press Enter
+wait 1.0
+shot 2c_03_world_1_1_loaded_in_editor
+
+# F5 playtests it.
+press F5
+wait 1.5
+shot 2c_04_playtest_started
+
+# Death 1: walk into the Goomba at tile (12,20).
+hold D 4.0
+wait 5.0
+shot 2c_05a_after_first_death
+
+# Death 2: that Goomba is gone now (cleared by the respawn-safety sweep), so
+# walk the full 27 tiles from spawn to the first pit (tile x 30-31) instead.
+hold D 10.0
+wait 12.0
+shot 2c_05b_after_second_death
+
+# Death 3: same pit again — it is a tile gap, never cleared. This is the one
+# that runs PlayingState out of lives.
+hold D 10.0
+wait 12.0
+hold D 3.0
+wait 4.0
+shot 2c_05_after_three_deaths_game_over_or_editor
+
+# If the fix is in, this is already GameOverState with a single BACK TO
+# EDITOR choice; Enter (RunSummary::isPlaytest -> GameOverState::
+# dismissAction() -> Game::popState()) reveals EditorState underneath.
+press Enter
+wait 1.0
+shot 2c_06_back_in_editor_with_level_intact
+quit

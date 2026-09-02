@@ -124,6 +124,33 @@ public:
         return n;
     }
 
+    // Drives the exact private method PlayingState's Game Over branch calls
+    // right before handing off to GameOverState, so a test can confirm
+    // m_isPlaytest actually reaches the summary without needing to survive a
+    // full death sequence to get there.
+    static RunSummary buildRunSummary(const PlayingState& state) {
+        return state.buildRunSummary();
+    }
+
+};
+
+// Reads GameOverState's routing decision and menu contents directly, rather
+// than driving activateSelection()/handleInput(Escape) — those call the real
+// Game::getInstance() singleton, which every other case in this file (and
+// verify_frontend_states.cpp's own comment above testLoadGameRestoresPlayerFromSlot)
+// deliberately avoids routing a headless harness through. dismissAction() is
+// the pure decision GameOverState::activateSelection() actually switches on in
+// production, so this checks the real routing logic without touching shared
+// process-wide state.
+class GameOverStateTestHooks {
+public:
+    static bool dismissesToEditor(const GameOverState& state) {
+        return state.dismissAction() == GameOverState::DismissAction::ReturnToEditor;
+    }
+    static bool dismissesToRetry(const GameOverState& state) {
+        return state.dismissAction() == GameOverState::DismissAction::RetryLevel;
+    }
+    static std::size_t itemCount(const GameOverState& state) { return state.m_items.size(); }
 };
 
 #include <SFML/Graphics/Image.hpp>
@@ -390,6 +417,111 @@ void testGameOverRecordsTheRun(sf::RenderTexture* target) {
     gameOver.exit();
 
     Serializer::clearHighScores();
+}
+
+// --- An editor playtest that ends in Game Over must round-trip back to the
+// --- editor, not strand it under GameOverState / the main menu -------------
+//
+// EditorState::playtest() (EditorState.cpp) pushes a PlayingState with
+// isPlaytest=true directly over the editor. Every non-death way out of that
+// PlayingState already checks m_isPlaytest and pops instead of changing state
+// (PlayingState::leaveToCallingScreen(), PlayingState::advanceToNextLevel()),
+// which is what keeps EditorState alive and reachable underneath. The Game
+// Over branch (PlayingState's death-sequence handler) did not: it always
+// built a RunSummary and unconditionally changeState()'d to GameOverState,
+// whose own RETRY LEVEL / QUIT TO MENU choices both changeState() again —
+// replacing the top of the stack a second time and leaving the suspended
+// EditorState buried underneath a main menu it can never be reached from, its
+// onResume() never called again.
+//
+// The fix threads m_isPlaytest through RunSummary (PlayingState::
+// buildRunSummary(), one line) so GameOverState can tell the two cases apart
+// (GameOverState::dismissAction()) and, for a playtest, offer a single "BACK
+// TO EDITOR" choice that pops rather than changes — the same pop
+// leaveToCallingScreen() already uses, not a parallel path.
+void testGameOverRoutesAPlaytestBackToTheEditor(sf::RenderTexture* target) {
+    section("state-machine  a Game Over reached from an editor playtest pops back to EditorState");
+
+    // Control: an ordinary (non-playtest) run keeps its original two choices,
+    // retrying on row 0 — the behaviour this fix must not disturb.
+    {
+        RunSummary summary;
+        summary.isPlaytest = false;
+        GameOverState gameOver(summary);
+        gameOver.enter();
+        renderOnce(gameOver, target);
+        check(GameOverStateTestHooks::itemCount(gameOver) == 2,
+              "an ordinary Game Over still offers RETRY LEVEL and QUIT TO MENU");
+        check(GameOverStateTestHooks::dismissesToRetry(gameOver),
+              "and row 0 still retries the level rather than popping");
+        gameOver.exit();
+    }
+
+    // The defect this guards: a playtest's Game Over must route home instead.
+    RunSummary playtestSummary;
+    playtestSummary.isPlaytest = true;
+    GameOverState gameOver(playtestSummary);
+    gameOver.enter();
+    renderOnce(gameOver, target);
+
+    check(GameOverStateTestHooks::itemCount(gameOver) == 1,
+          "a playtest Game Over offers a single choice, not RETRY LEVEL / QUIT TO MENU "
+          "(both of which would silently discard the author's own level)");
+    check(GameOverStateTestHooks::dismissesToEditor(gameOver),
+          "and dismissing it pops back to the editor rather than changing state to "
+          "the main menu or a freshly-built campaign PlayingState");
+
+    gameOver.exit();
+}
+
+// A playtest of the level under edit is not a real run, and
+// EditorState::playtest() always leaves RunSummary::levelIndex at its default
+// (0): recording one would tag a bogus World 1-1 high-score entry with
+// whatever score the author's scratch level happened to produce.
+void testGameOverDoesNotRecordAPlaytestHighScore() {
+    section("state-machine  an editor playtest's Game Over does not pollute the high-score table");
+
+    Serializer::clearHighScores();
+
+    RunSummary summary;
+    summary.isPlaytest = true;
+    summary.score = 999999;   // an unmissable false entry if this regresses
+
+    GameOverState gameOver(summary);
+    gameOver.enter();
+
+    check(Serializer::loadHighScores().empty(),
+          "a playtest run never reaches the high-score table");
+
+    gameOver.exit();
+    Serializer::clearHighScores();
+}
+
+// The other half of the fix: PlayingState actually has to tell GameOverState
+// which case it is. buildRunSummary() is where every other RunSummary field is
+// populated from PlayingState's own members, so m_isPlaytest belongs there too.
+void testPlayingStateThreadsIsPlaytestIntoTheRunSummary() {
+    section("state-machine  PlayingState::buildRunSummary() carries m_isPlaytest to GameOverState");
+
+    {
+        PlayingState state(false, false, MapGeneratorConfig(), 0, 0);   // an ordinary run
+        state.enter();
+        check(!LevelCompletionCameraTestHooks::buildRunSummary(state).isPlaytest,
+              "an ordinary run's summary is not flagged as a playtest");
+        state.exit();
+    }
+    {
+        // EditorState::playtest()'s exact construction shape (EditorState.cpp),
+        // minus the scratch level path, which is irrelevant to this flag.
+        PlayingState state(false, false, MapGeneratorConfig(), 0, 0, MatchConfig{},
+                            /*isEndless=*/false, /*pendingLoadSlot=*/0,
+                            /*isAttractDemo=*/false, /*customLevelPath=*/std::string(),
+                            /*isPlaytest=*/true);
+        state.enter();
+        check(LevelCompletionCameraTestHooks::buildRunSummary(state).isPlaytest,
+              "a playtest run's summary is flagged, so GameOverState can route it home");
+        state.exit();
+    }
 }
 
 void testPauseIsAnOverlayAndOffersItsChoices(sf::RenderTexture* target) {
@@ -1134,6 +1266,9 @@ int main() {
     testVictoryTalliesTheTimeBonus(target);
     testVictorySkipsTheTallyBeforeDismissing();
     testGameOverRecordsTheRun(target);
+    testGameOverRoutesAPlaytestBackToTheEditor(target);
+    testGameOverDoesNotRecordAPlaytestHighScore();
+    testPlayingStateThreadsIsPlaytestIntoTheRunSummary();
     testPauseIsAnOverlayAndOffersItsChoices(target);
     testPauseDismissesOnce();
     testCharacterSelectGatesLockedSlots(target);
