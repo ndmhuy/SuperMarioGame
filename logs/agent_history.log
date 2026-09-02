@@ -6652,3 +6652,21 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   HARD axe unreachable behind the arena enclosure post; MapGenerator's
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
+
+[2026-09-02 20:45:00] Branch: dev
+Git Fingerprint: d013442 (before) → e2f0ff2 (after)
+Fetched Remotes: yes, 20:33
+Prompt: Sweep plan 2E — cheap OOP fixes (6 items from §2.3)
+Files Modified: Entity.hpp, Fireball.hpp, Hammer.hpp, BossFireball.hpp, DevPanel.cpp, PlayingState.cpp, Camera.hpp, Camera.cpp, EditorState.cpp, SoundManager.hpp, SoundManager.cpp, README.md
+Reachable From Main: yes — all changes are in production paths (DevPanel render, PlayingState prune/spawn, Camera view, SoundManager events)
+Verified By: build (0 errors) + ctest (32/32 passed)
+Summary of Changes:
+- Item 1: DevPanel.cpp — replaced 7 raw `new X(p)` with EntityFactory::create(EntityType::X, p); removed 7 concrete item includes, added EntityFactory include
+- Item 2: PlayingState::spawnProjectile — removed switch on EntityType, replaced with if-chain for pooled types + factory fallback
+- Item 3: PlayingState::recycleEntity — added virtual Entity::PoolTag enum and poolTag() method; overridden in Fireball, Hammer, BossFireball; recycleEntity now uses switch on poolTag() instead of 3 sequential dynamic_casts
+- Item 4: Camera::getView() — changed from `sf::View&` to `const sf::View&`; added setViewSize()/setViewViewport() methods; updated EditorState to use new setters
+- Item 5: SoundManager — all 21 subscriptions (20 bare bus.subscribe + 1 m_comboHitSub) now stored in std::vector<ScopedSubscription> m_subscriptions; removed separate m_comboHitSub member
+- Item 6: README.md — corrected P2 fire key (Period not M), game states (10 incl. Editor), movement strategies (8, removed Swimming/Climbing), Singleton (12 not 4), Observer subscribers (real names), Command (no replay serialization, added IEditorCommand), Object Pool (Fireball/Hammer/BossFireball not particles), State (removed FallingPlatform/Thwomp as pattern participants)
+- SPEC §2.2 corrections proposed but NOT applied (SPEC is frozen per sweep plan §4.2; user applies)
+- Worked directly on dev per user directive (no branch)
+---
