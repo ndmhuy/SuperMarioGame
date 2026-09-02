@@ -1,0 +1,26 @@
+# Phase 3A screenshot catalogue -- core screens only (scope cut: main
+# features, minimal effort). Plain menu/campaign navigation, no custom level,
+# no editor, no debug console -- just Start -> Character Select -> World Map
+# -> 1-1 -> Pause.
+#
+#   ./build/SuperMarioGame --script tests/scripts/report_core_screens.txt
+#
+# Screenshots land in saves/shots/.
+
+wait 2.0
+shot core_menu
+press Enter
+wait 1.2
+shot core_character_select
+press Enter
+wait 1.2
+shot core_world_map
+press Enter
+wait 2.5
+shot core_playing
+press Escape
+wait 0.6
+shot core_pause
+press Escape
+wait 0.5
+quit
