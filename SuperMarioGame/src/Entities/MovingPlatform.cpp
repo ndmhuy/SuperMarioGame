@@ -23,6 +23,15 @@ AABB MovingPlatform::footprintAt(sf::Vector2f pos) const {
 }
 
 void MovingPlatform::update(float dt) {
+    // MovingPlatform fully overrides Block::update() to own its kinematic
+    // motion, so the base implementation — the only place that advances
+    // m_animator — never ran. The platform moved correctly but its texture
+    // animation was permanently frozen on frame 0. Run it unconditionally,
+    // before the early-return paths below, so a blocked/stationary platform
+    // still animates (m_bumpTimer stays inert here: MovingPlatform never
+    // calls onHitFromBelow's bump path, so this only drives the animator).
+    Block::update(dt);
+
     if (!m_terrainProbed) {
         m_terrainProbed = true;
         m_startBlocked = TerrainProbe::overlapsSolid(footprintAt(position));

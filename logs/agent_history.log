@@ -3554,6 +3554,70 @@ Summary of Changes:
 - Peach's float and the pipe's crouch check named physical keys rather than the
   bound action, so rebinding silently broke both. Both use isActionHeld() now.
 ---
+[2026-08-20 10:26:19] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → a59d435 (after — branch created off A/complete-game-tiers-1-4, no commits; planning session)
+Fetched Remotes: yes, 10:24
+Prompt: Diverge onto a new branch, read docs/two_player_ai_plan.md, and propose what to implement for Shadow Mario and AI multiplayer.
+Files Modified: logs/agent_history.log only
+Reachable From Main: n/a — planning session, no runtime code written
+Verified By: n/a — no code changes; findings verified by reading source on this branch after fetch
+Summary of Changes:
+- Created branch A/shadow-mario-ai-multiplayer off A/complete-game-tiers-1-4
+  (which contains dev + 14 commits; branching off bare dev would have dropped
+  the Tier 1-4 work this feature builds on). Note: local dev is 30 commits
+  ahead of origin/dev (unpushed merges).
+- Surveyed the engine for 2P/AI/Shadow readiness. Key findings:
+  * Shared-screen Versus (TASKS.md 11.1) is real and load-bearing: P2 bindings,
+    registerPlayer(idx), m_player2, versus camera/HUD, player-vs-player
+    collision all exist.
+  * BUG: PlayingState::handleInput never dispatches press events for m_player2
+    — P2 cannot jump. Also the M key is both P2 fire and the minimap toggle.
+  * BUG: GameSnapshot captures P1 only — rewind/replay silently desync in 2P.
+  * Enemies target P1 only (strategies call Game::getPlayer()).
+  * ReplayRecorder is state-based and decimated to every 6th frame — NOT
+    suitable to drive Shadow Mario; a new 60Hz PlayerFramePacket deque is
+    needed. TASK_DIVISION.md's "extends Replay system" rationale for Bonus C
+    is therefore wrong.
+  * IMovementStrategy takes Enemy& and cannot drive a Player; a separate
+    AIController (as the plan doc proposes) is the cheaper path.
+  * SpriteColorFilter is still dead code (audit B-9) and is exactly what a
+    dark translucent shadow sprite needs.
+  * Camera is non-copyable/non-movable, no viewport support — split-screen is
+    expensive; shared-screen modes are nearly free.
+- Proposed a 3-phase plan to the user (fix 2P foundations → Shadow Mario
+  Chase → AI opponent; split-screen deferred). Flagged that Bonus C is
+  assigned to Member B in TASK_DIVISION.md while this session runs as
+  Member A — ownership needs the user's call. No code implemented; awaiting
+  user confirmation per Plan Deviations directive.
+---
+[2026-08-20 10:38:00] Branch: A/shadow-mario-ai-multiplayer
+Git Fingerprint: a59d435 (before) → c142645 (after)
+Fetched Remotes: no — fetched at 10:24 this session; no repository-state reporting in this task
+Prompt: Add per-mode GUI adaptation to the plan, and plan a seam for a future neural-network reinforcement-learning AI side project.
+Files Modified: docs/two_player_ai_plan.md, logs/agent_history.log
+Reachable From Main: n/a — documentation only
+Verified By: n/a — no code changes
+Summary of Changes:
+- Added §5 "GUI & UX Adaptation Per Mode" to docs/two_player_ai_plan.md: mode
+  picker off ROW_VERSUS, opponent picker (Human/CPU + difficulty/archetype),
+  CharacterSelectState forwarding the mode, per-mode HUD (generalized versus
+  HUD with CPU labels, co-op shared pool, shadow-delay gauge, minimap second
+  marker), mode-aware Victory/GameOver headlines, pause freezing the AI
+  decision timer, OptionsState exposing the existing P2 bindings and fixing
+  the M-key minimap collision, and ImGui DevPanel sliders per AGENTS.md
+  tunability rule.
+- Added §6 "RL-Ready Policy Seam": AIController delegates decisions to an
+  IAIPolicy interface (HeuristicPolicy now, NeuralPolicy later). Fixed-size
+  normalized AIObservation, AIAction mirroring PlayerFramePacket (recorded
+  human play doubles as imitation-learning data), epsilon-noise applied
+  outside the policy (maps to epsilon-greedy), reward function as an EventBus
+  subscriber. Headless training mode explicitly deferred to its own proposal.
+- Updated §4 sketch (m_policy member replaces "neural network inference"
+  comment) and renumbered Next Steps to §7 with GUI-pass and policy-seam-first
+  items.
+- Committed as c142645. Not pushed (per policy). Implementation still awaiting
+  the user's phase green-light and the Member A/B ownership call on Bonus C.
+---
 [2026-08-20 11:30:00] Branch: A/complete-game-tiers-1-4
 Git Fingerprint: 202bb40 (before) → f8a5777 (after, 1 commit)
 Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
@@ -3623,122 +3687,6 @@ Summary of Changes:
   brown-on-grey before, so ice/castle/grass were indistinguishable); HUD labels
   carry a black outline (red on a light castle ceiling was unreadable); the main
   menu hint is shadowed because it sits over the parallax bushes.
----
-[2026-08-20 13:10:00] Branch: A/complete-game-tiers-1-4
-Git Fingerprint: 94a25c8 (before) → 9e035e8 (after, 1 commit)
-Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
-Prompt: "anything else to do"
-Files Modified:
-- SuperMarioGame/CMakeLists.txt (every verify_* target)
-- SuperMarioGame/tests/ (10 harnesses)
-- SuperMarioGame/src/Utils/Serializer.cpp
-- SuperMarioGame/src/Entities/{Mario,Luigi,Peach,Toad,Player}.cpp
-- SuperMarioGame/include/Entities/{Player,Entity,Character,Trampoline,PiranhaPlant}.hpp
-Reachable From Main: the spawn-drift and save/load fixes are; the rest is build
-and test infrastructure.
-Verified By: `cmake --build build` with no target now succeeds for all 22
-targets (six did not compile and two hung before); ctest 12/12, up from 2
-registered cases. NOT verified by playing.
-Summary of Changes:
-- Answering "anything else to do" honestly meant building everything rather than
-  the two targets I habitually build. Six harnesses did not compile and two hung.
-- REAL BUG FOUND: every character spawned 2px below the position it was
-  constructed with. The constructors set a placeholder 32x32 box then called
-  changeState(SmallState); applyStateSize() shifts position.y by the height
-  difference to keep the feet planted, which is right for a mushroom mid-level
-  and wrong for the initial form. This also made save/load LOSSY: the save wrote
-  the drifted position and the load drifted it again, so a round trip moved the
-  player every time. Added Player::setStartingForm() and made loadGame restore
-  the position after the form. Two harnesses had been failing on exactly this
-  assertion and nobody could see it because they did not build.
-- WHY THE HARNESSES ROTTED: four defined their own stub Game/TileMap/SoundManager
-  to link a few entity files, while their CMake targets linked the whole engine —
-  35 duplicate symbols each. Two more hand-picked source lists that had drifted
-  (verify_hud_boss compiled Hud.cpp without SpriteSheet.cpp). Deleted the stubs
-  and routed every target through the add_verify_test helper that already
-  existed, so a harness cannot drift from the engine again.
-- Added NO_CTEST to the helper for harnesses that open an sf::RenderWindow and
-  loop until it closes. Registering those as tests is what made `ctest` hang on
-  the first one; they are inspection tools, not tests.
-- ELEVEN STALE ASSERTIONS, every one describing behaviour that was deliberately
-  changed and improved: death animations mean an enemy is dying rather than
-  instantly inactive; isCollidable() replaced the zero-sized-AABB idiom (B-14);
-  a hidden block is always collidable because hitting it is how you find it
-  (B-3); a question block publishes PowerUpRequested rather than the pickup
-  event nothing listened to (B-2) — that test was asserting the bug; player
-  states own their sizes (24x30, 24x60); a fireball bursts before vanishing; a
-  paratroopa has a one-second grace so one stomp cannot count twice.
-- verify_fireball's enemy-death assertion was MISSING: it drove a resolver method
-  that no longer exists and only ever checked the fireball. That is the exact
-  gap that let three enemies ship with a shadowed m_isFlipped. It now drives the
-  real dispatch and asserts the Goomba dies.
-- LESSON: "the tests pass" meant "the two targets I build pass". A test that does
-  not compile is worse than no test — it looks like coverage in the file listing.
-  Build every target before claiming a suite is green.
----
-[2026-08-20 10:26:19] Branch: A/shadow-mario-ai-multiplayer
-Git Fingerprint: a59d435 (before) → a59d435 (after — branch created off A/complete-game-tiers-1-4, no commits; planning session)
-Fetched Remotes: yes, 10:24
-Prompt: Diverge onto a new branch, read docs/two_player_ai_plan.md, and propose what to implement for Shadow Mario and AI multiplayer.
-Files Modified: logs/agent_history.log only
-Reachable From Main: n/a — planning session, no runtime code written
-Verified By: n/a — no code changes; findings verified by reading source on this branch after fetch
-Summary of Changes:
-- Created branch A/shadow-mario-ai-multiplayer off A/complete-game-tiers-1-4
-  (which contains dev + 14 commits; branching off bare dev would have dropped
-  the Tier 1-4 work this feature builds on). Note: local dev is 30 commits
-  ahead of origin/dev (unpushed merges).
-- Surveyed the engine for 2P/AI/Shadow readiness. Key findings:
-  * Shared-screen Versus (TASKS.md 11.1) is real and load-bearing: P2 bindings,
-    registerPlayer(idx), m_player2, versus camera/HUD, player-vs-player
-    collision all exist.
-  * BUG: PlayingState::handleInput never dispatches press events for m_player2
-    — P2 cannot jump. Also the M key is both P2 fire and the minimap toggle.
-  * BUG: GameSnapshot captures P1 only — rewind/replay silently desync in 2P.
-  * Enemies target P1 only (strategies call Game::getPlayer()).
-  * ReplayRecorder is state-based and decimated to every 6th frame — NOT
-    suitable to drive Shadow Mario; a new 60Hz PlayerFramePacket deque is
-    needed. TASK_DIVISION.md's "extends Replay system" rationale for Bonus C
-    is therefore wrong.
-  * IMovementStrategy takes Enemy& and cannot drive a Player; a separate
-    AIController (as the plan doc proposes) is the cheaper path.
-  * SpriteColorFilter is still dead code (audit B-9) and is exactly what a
-    dark translucent shadow sprite needs.
-  * Camera is non-copyable/non-movable, no viewport support — split-screen is
-    expensive; shared-screen modes are nearly free.
-- Proposed a 3-phase plan to the user (fix 2P foundations → Shadow Mario
-  Chase → AI opponent; split-screen deferred). Flagged that Bonus C is
-  assigned to Member B in TASK_DIVISION.md while this session runs as
-  Member A — ownership needs the user's call. No code implemented; awaiting
-  user confirmation per Plan Deviations directive.
----
-[2026-08-20 10:38:00] Branch: A/shadow-mario-ai-multiplayer
-Git Fingerprint: a59d435 (before) → c142645 (after)
-Fetched Remotes: no — fetched at 10:24 this session; no repository-state reporting in this task
-Prompt: Add per-mode GUI adaptation to the plan, and plan a seam for a future neural-network reinforcement-learning AI side project.
-Files Modified: docs/two_player_ai_plan.md, logs/agent_history.log
-Reachable From Main: n/a — documentation only
-Verified By: n/a — no code changes
-Summary of Changes:
-- Added §5 "GUI & UX Adaptation Per Mode" to docs/two_player_ai_plan.md: mode
-  picker off ROW_VERSUS, opponent picker (Human/CPU + difficulty/archetype),
-  CharacterSelectState forwarding the mode, per-mode HUD (generalized versus
-  HUD with CPU labels, co-op shared pool, shadow-delay gauge, minimap second
-  marker), mode-aware Victory/GameOver headlines, pause freezing the AI
-  decision timer, OptionsState exposing the existing P2 bindings and fixing
-  the M-key minimap collision, and ImGui DevPanel sliders per AGENTS.md
-  tunability rule.
-- Added §6 "RL-Ready Policy Seam": AIController delegates decisions to an
-  IAIPolicy interface (HeuristicPolicy now, NeuralPolicy later). Fixed-size
-  normalized AIObservation, AIAction mirroring PlayerFramePacket (recorded
-  human play doubles as imitation-learning data), epsilon-noise applied
-  outside the policy (maps to epsilon-greedy), reward function as an EventBus
-  subscriber. Headless training mode explicitly deferred to its own proposal.
-- Updated §4 sketch (m_policy member replaces "neural network inference"
-  comment) and renumbered Next Steps to §7 with GUI-pass and policy-seam-first
-  items.
-- Committed as c142645. Not pushed (per policy). Implementation still awaiting
-  the user's phase green-light and the Member A/B ownership call on Bonus C.
 ---
 [2026-08-20 11:48:54] Branch: A/shadow-mario-ai-multiplayer
 Git Fingerprint: a59d435 (before) → b878f38 (after, plus a follow-up commit for
@@ -3907,6 +3855,58 @@ Summary of Changes:
   Game::shutdown() calls its shutdown(), so I left it alone rather than change
   something I cannot demonstrate is broken.
 - Not pushed, per policy.
+---
+[2026-08-20 13:10:00] Branch: A/complete-game-tiers-1-4
+Git Fingerprint: 94a25c8 (before) → 9e035e8 (after, 1 commit)
+Fetched Remotes: yes — `git fetch --all`; HEAD...origin was 0/0 before this commit.
+Prompt: "anything else to do"
+Files Modified:
+- SuperMarioGame/CMakeLists.txt (every verify_* target)
+- SuperMarioGame/tests/ (10 harnesses)
+- SuperMarioGame/src/Utils/Serializer.cpp
+- SuperMarioGame/src/Entities/{Mario,Luigi,Peach,Toad,Player}.cpp
+- SuperMarioGame/include/Entities/{Player,Entity,Character,Trampoline,PiranhaPlant}.hpp
+Reachable From Main: the spawn-drift and save/load fixes are; the rest is build
+and test infrastructure.
+Verified By: `cmake --build build` with no target now succeeds for all 22
+targets (six did not compile and two hung before); ctest 12/12, up from 2
+registered cases. NOT verified by playing.
+Summary of Changes:
+- Answering "anything else to do" honestly meant building everything rather than
+  the two targets I habitually build. Six harnesses did not compile and two hung.
+- REAL BUG FOUND: every character spawned 2px below the position it was
+  constructed with. The constructors set a placeholder 32x32 box then called
+  changeState(SmallState); applyStateSize() shifts position.y by the height
+  difference to keep the feet planted, which is right for a mushroom mid-level
+  and wrong for the initial form. This also made save/load LOSSY: the save wrote
+  the drifted position and the load drifted it again, so a round trip moved the
+  player every time. Added Player::setStartingForm() and made loadGame restore
+  the position after the form. Two harnesses had been failing on exactly this
+  assertion and nobody could see it because they did not build.
+- WHY THE HARNESSES ROTTED: four defined their own stub Game/TileMap/SoundManager
+  to link a few entity files, while their CMake targets linked the whole engine —
+  35 duplicate symbols each. Two more hand-picked source lists that had drifted
+  (verify_hud_boss compiled Hud.cpp without SpriteSheet.cpp). Deleted the stubs
+  and routed every target through the add_verify_test helper that already
+  existed, so a harness cannot drift from the engine again.
+- Added NO_CTEST to the helper for harnesses that open an sf::RenderWindow and
+  loop until it closes. Registering those as tests is what made `ctest` hang on
+  the first one; they are inspection tools, not tests.
+- ELEVEN STALE ASSERTIONS, every one describing behaviour that was deliberately
+  changed and improved: death animations mean an enemy is dying rather than
+  instantly inactive; isCollidable() replaced the zero-sized-AABB idiom (B-14);
+  a hidden block is always collidable because hitting it is how you find it
+  (B-3); a question block publishes PowerUpRequested rather than the pickup
+  event nothing listened to (B-2) — that test was asserting the bug; player
+  states own their sizes (24x30, 24x60); a fireball bursts before vanishing; a
+  paratroopa has a one-second grace so one stomp cannot count twice.
+- verify_fireball's enemy-death assertion was MISSING: it drove a resolver method
+  that no longer exists and only ever checked the fireball. That is the exact
+  gap that let three enemies ship with a shadowed m_isFlipped. It now drives the
+  real dispatch and asserts the Goomba dies.
+- LESSON: "the tests pass" meant "the two targets I build pass". A test that does
+  not compile is worse than no test — it looks like coverage in the file listing.
+  Build every target before claiming a suite is green.
 ---
 [2026-08-20 13:54:39] Branch: A/teammate-fixes
 Git Fingerprint: fa318b7 (before) → see commit below (after).
@@ -4584,6 +4584,32 @@ Summary of Changes:
   - D26 "observe live (finish a level)": PARTIAL — observed the mechanism run stably in a real live session (death/respawn/pause, no crash); did NOT observe the specific castle_complete/level_complete sequence live (would require reaching and defeating a boss level, not attempted — see R15's log on blind-scripted-boss-traversal reliability); audio itself never confirmed by ear (no audio perception, by design of what I am, independent of any device).
   - D27 "observe live (die and respawn)": STRUCK before this criterion applied — no fix was implemented since the defect could not be demonstrated in code; the live smoke run did include an unscripted death+respawn, consistent with (not proof of) the no-interruption-mechanism finding above.
   - D28 "toggle colorblind mode and confirm a visible change live": STRUCK — not attempted this session; closure rests on the 2026-08-19 commit's own stated verification (its message documents an Okabe-Ito palette and a luminance-gap regression test), not on a fresh observation by this session.
+[2026-08-31 17:00:00] Branch: A/docs/audit-status-reconciliation (off dev @ 6f28868)
+Git Fingerprint: 6f28868 (before) → cc08fc3 (after, not pushed per plan directive)
+Fetched Remotes: yes, 17:00 UTC (git fetch --all completed cleanly; dev 0 commits ahead/behind origin/dev at session start per ENV snapshot, consistent with no-push policy)
+Prompt: Reconcile docs/issues/spec_feature_audit_2026-08-31.md defect statuses with shipped code. Task: mark defects RESOLVED by phases R1-R19, mark four defects STRUCK (D20/D25/D27/D28 already fixed or not demonstrable), cancel R18, strike R7 item 2 (now done by R17), add re-verification caution to R7, add methodological note about audit's four mis-recorded defects, and append full log entry per AGENTS.md §3.
+Files Modified: docs/issues/spec_feature_audit_2026-08-31.md, logs/agent_history.log
+Reachable From Main: n/a — documentation only; no runtime code changed
+Verified By: docs only; every status recorded here was verified against code by the orchestrator or a read-only triage pass, not re-derived in this session
+Summary of Changes:
+- Added methodological correction note (after "Repo state when audited") recording that four playtest-derived defects (D20, D25, D27, D28) were already fixed or not demonstrable when recorded, folded into this document without re-verification against the audited commit. Recommends future audit passes re-verify observations before recording.
+- Marked D1-D4 RESOLVED (R1): fixed SoundManager level-BGM index mapping, Spiny despawn check, solvability result surfacing, verify_sound_visual.cpp CMake registration.
+- Marked D6 RESOLVED (R3): SoundManager now degrades gracefully when no audio device available.
+- Marked D9, D11, D15 RESOLVED (R6): `.member_profile.json` untracked, `52.pdf` generated, A-11 friend-sprawl recorded in SPEC descope addendum.
+- Marked D16-D18 RESOLVED (R17): Star sprite wired to rainbow filter, Piranha Plant centered (two root causes: LevelLoader entity x-placement and 64.0f emerge height vs 48.0f), fireball-kill flip pivot corrected.
+- Marked D19 PARTIALLY RESOLVED (R15): Arena size fixed (7→16 tiles); flag reachable half never reproduced, already fixed by eb7affe (08:04 same day, ancestor of audit base).
+- Marked D20 STRUCK — NEVER OPEN: Refuted by R15 evidence (level_3.json contains "type": "bowser", logs show boss detection, jump-stomp scores 5000 with Bowser active). Likely already fixed by eb7affe.
+- Marked D21-D24 RESOLVED (R16): P-Switch soft-lock fixed (MapGenerator theming issue, not PlayingState), half-rendered pipe located and fixed, long-L pipe replaced, question-block solidify unified.
+- Marked D25 STRUCK — NEVER OPEN: No transform animation exists in codebase; all power-ups are instant state swaps; uniform scaling only (no non-uniform stretch possible).
+- Marked D26 RESOLVED (R19): End-game audio cues sequenced (plan's described cues were incorrect; actual issue was castle_complete cut off by level_complete on boss levels, fixed with deferred swap).
+- Marked D27 NOT DEMONSTRABLE AS WORDED: lost_life.wav is 3.267s (longer than 1.6s respawn window); no code stops it; plays over resumed BGM; observation real, stated mechanism absent.
+- Marked D28 STRUCK — NEVER OPEN: Already fixed by commit 2e7f5bb (2026-08-19, 12 days before audit); ColorPalette::get() reads colorblind mode and is wired into Minimap, HUD, OptionsState.
+- Marked R1, R2, R3, R4, R6, R15, R16, R17, R19 as COMPLETE / merged to dev.
+- Marked R5, R7, R8, R9, R10, R11, R12 as OPEN.
+- Marked R18 as CANCELLED (D25 struck, no work required).
+- Struck R7 item 2 as DONE (delivered by R17's D16 fix).
+- Added caution to R7 noting the "verified dormant 2026-08-31" inventory was compiled by the same audit pass that mis-recorded D20/D25/D27/D28, recommending re-verification against dev before implementation.
+- All changes committed in single logical commit (one file, one conceptual unit: full audit status reconciliation).
 [2026-08-31 17:30:00] Branch: A/fix/player-enemy-visual-batch (off dev, worktree agent-a1f6093353d235ab9)
 Git Fingerprint: e4c7b37 (before, session start) -> 4550bfe (after, 3 commits, not pushed)
 Fetched Remotes: yes, 17:19 local (git fetch --all clean)
@@ -4611,32 +4637,6 @@ Summary of Changes:
 - Acceptance checklist, explicit PASS/FAIL: build PASS; ctest 13/13 green PASS; D16 star visual observed running PASS; D17 Piranha Plant pipe fit observed running PASS; D18 fireball-kill flip observed running PASS; level_1.json and bonus_1.json both confirmed clean (`git diff` empty) before every commit and at session end PASS; out-of-scope tile (102,19-20) single-column pipe in level_1.json left untouched, as instructed, PASS.
 ---
 
-[2026-08-31 17:00:00] Branch: A/docs/audit-status-reconciliation (off dev @ 6f28868)
-Git Fingerprint: 6f28868 (before) → cc08fc3 (after, not pushed per plan directive)
-Fetched Remotes: yes, 17:00 UTC (git fetch --all completed cleanly; dev 0 commits ahead/behind origin/dev at session start per ENV snapshot, consistent with no-push policy)
-Prompt: Reconcile docs/issues/spec_feature_audit_2026-08-31.md defect statuses with shipped code. Task: mark defects RESOLVED by phases R1-R19, mark four defects STRUCK (D20/D25/D27/D28 already fixed or not demonstrable), cancel R18, strike R7 item 2 (now done by R17), add re-verification caution to R7, add methodological note about audit's four mis-recorded defects, and append full log entry per AGENTS.md §3.
-Files Modified: docs/issues/spec_feature_audit_2026-08-31.md, logs/agent_history.log
-Reachable From Main: n/a — documentation only; no runtime code changed
-Verified By: docs only; every status recorded here was verified against code by the orchestrator or a read-only triage pass, not re-derived in this session
-Summary of Changes:
-- Added methodological correction note (after "Repo state when audited") recording that four playtest-derived defects (D20, D25, D27, D28) were already fixed or not demonstrable when recorded, folded into this document without re-verification against the audited commit. Recommends future audit passes re-verify observations before recording.
-- Marked D1-D4 RESOLVED (R1): fixed SoundManager level-BGM index mapping, Spiny despawn check, solvability result surfacing, verify_sound_visual.cpp CMake registration.
-- Marked D6 RESOLVED (R3): SoundManager now degrades gracefully when no audio device available.
-- Marked D9, D11, D15 RESOLVED (R6): `.member_profile.json` untracked, `52.pdf` generated, A-11 friend-sprawl recorded in SPEC descope addendum.
-- Marked D16-D18 RESOLVED (R17): Star sprite wired to rainbow filter, Piranha Plant centered (two root causes: LevelLoader entity x-placement and 64.0f emerge height vs 48.0f), fireball-kill flip pivot corrected.
-- Marked D19 PARTIALLY RESOLVED (R15): Arena size fixed (7→16 tiles); flag reachable half never reproduced, already fixed by eb7affe (08:04 same day, ancestor of audit base).
-- Marked D20 STRUCK — NEVER OPEN: Refuted by R15 evidence (level_3.json contains "type": "bowser", logs show boss detection, jump-stomp scores 5000 with Bowser active). Likely already fixed by eb7affe.
-- Marked D21-D24 RESOLVED (R16): P-Switch soft-lock fixed (MapGenerator theming issue, not PlayingState), half-rendered pipe located and fixed, long-L pipe replaced, question-block solidify unified.
-- Marked D25 STRUCK — NEVER OPEN: No transform animation exists in codebase; all power-ups are instant state swaps; uniform scaling only (no non-uniform stretch possible).
-- Marked D26 RESOLVED (R19): End-game audio cues sequenced (plan's described cues were incorrect; actual issue was castle_complete cut off by level_complete on boss levels, fixed with deferred swap).
-- Marked D27 NOT DEMONSTRABLE AS WORDED: lost_life.wav is 3.267s (longer than 1.6s respawn window); no code stops it; plays over resumed BGM; observation real, stated mechanism absent.
-- Marked D28 STRUCK — NEVER OPEN: Already fixed by commit 2e7f5bb (2026-08-19, 12 days before audit); ColorPalette::get() reads colorblind mode and is wired into Minimap, HUD, OptionsState.
-- Marked R1, R2, R3, R4, R6, R15, R16, R17, R19 as COMPLETE / merged to dev.
-- Marked R5, R7, R8, R9, R10, R11, R12 as OPEN.
-- Marked R18 as CANCELLED (D25 struck, no work required).
-- Struck R7 item 2 as DONE (delivered by R17's D16 fix).
-- Added caution to R7 noting the "verified dormant 2026-08-31" inventory was compiled by the same audit pass that mis-recorded D20/D25/D27/D28, recommending re-verification against dev before implementation.
-- All changes committed in single logical commit (one file, one conceptual unit: full audit status reconciliation).
 [2026-08-31 18:50:00] Branch: A/refactor/collision-dispatch (off dev @ 6f28868, worktree agent-a0f6786d289a8781f)
 Git Fingerprint: ab16759 (worktree HEAD at session start) / 6f28868 (branch base, dev tip at branch time) -> 4b87e0d (after, 11 commits, no merge, no push per plan directive)
 Fetched Remotes: yes, 18:46 local (git fetch --all clean; git rev-list --left-right --count dev...origin/dev = 55/0 — dev is 55 ahead of origin/dev, 0 behind, consistent with the no-push policy). Note: dev advanced by 3 docs-only commits (cc08fc3, f148f3a, caad332 — the parallel audit-reconciliation task) AFTER this branch was cut, so `git diff dev..HEAD` shows docs/issues/spec_feature_audit_2026-08-31.md and logs/agent_history.log as if changed. This session touched neither; the diff to compare is 6f28868..HEAD (39 files).
@@ -4715,47 +4715,6 @@ Summary of Changes:
 - Two things left for whoever picks this up: (1) BulletBill and Lakitu both start acting the instant a level loads, because nothing in this engine gates an enemy on camera proximity — that is why Bullet Bill placement is constrained to "clear lane west of the player" rather than "wherever a cannon would be", and camera-proximity activation is the real fix if anyone wants Bullet Bills in a fortress's second half. (2) breaking a Brick tile still publishes BlockBroken, which no longer counts as a secret — correct — but the tile path in PhysicsEngine also adds 100 score directly, so if brick-break scoring ever looks doubled, that is where to look.
 - No merge, no push, per standing directive.
 ---
-[2026-08-31 20:33:00] Branch: A/feature/wire-dormant-vfx-sfx
-Git Fingerprint: 2afbbb9 (worktree HEAD at session start, "merge: test targets honour assert()") -> 7d94fb9 (after, 7 commits, no merge, no push per plan directive)
-Fetched Remotes: yes, at session start before reading repo state. git rev-list --left-right --count dev...origin/dev = 86/0 at session end (dev is 86 commits ahead of origin/dev locally, 0 behind — consistent with a local-only dev not yet pushed, same pattern prior sessions recorded).
-Prompt: R7 — Dead-wiring batch (F2 + F4 + F6), items 1,3,4,5,6,7 from docs/issues/spec_feature_audit_2026-08-31.md plus orchestrator-added item 8 (F6, a plan gap: R7's header names F2+F4+F6 but none of the seven numbered items covered F6). Caution flagged: the "verified dormant 2026-08-31" audit inventory mis-recorded D20/D25/D27/D28 and got secret_finder backwards, so each item had to be re-verified against dev before implementation, not trusted as-is.
-Files Modified:
-  SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/src/Entities/Player.cpp,
-  SuperMarioGame/src/Physics/CollisionResolver.cpp, SuperMarioGame/src/Core/PlayingState.cpp,
-  SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/include/Core/SoundManager.hpp,
-  SuperMarioGame/src/Core/SoundManager.cpp, SuperMarioGame/src/Core/MenuState.cpp,
-  SuperMarioGame/src/Core/OptionsState.cpp, SuperMarioGame/include/Core/DebugConsole.hpp,
-  SuperMarioGame/src/Core/DebugConsole.cpp
-Reachable From Main: yes for items 1, 3, 4, 5, 6, 7 (all run every frame inside PlayingState::update()/enter(), or MenuState/OptionsState's real input handlers, all on the path from Game::run()). Item 8 is also reachable (DebugConsole::draw() is called unconditionally from Game::run(), unchanged) but its new Tab-completion callback could not be *exercised* live this session — see PASS/SKIPPED notes below.
-Verified By: ctest 13/13 (all green after every commit's final state) + live scripted runs (tests/scripts/, not committed — ad hoc /tmp scripts) for items 1/3/4/6/7; build only for item 5's audible effect and item 8's callback (see per-item notes). Full per-item breakdown:
-
-  Item 1 (star kill + player death hop) — PASS. Premise re-verified true: only DeathEffectType::EnemyFlip was ever spawned; StarKillSpin/PlayerDeathHop existed fully implemented in EntityDeathEffect.cpp (render/update logic already correct) with zero call sites. Deeper premise check found the underlying mechanic didn't exist either: touching an enemy while starred outside a stomp fell into the generic knockback+takeDamage branch, which Player::powerDown() already no-ops for a starred player — so before this fix, Star protected the player but never killed the enemy on a side touch. Added Player::hasStarPower() (decorator walk, same pattern as powerDown()'s isInvincible check) and a star-power branch in CollisionResolver::resolvePlayerVsEnemy mirroring the existing cape-spin branch (enemy.onHitByFireball(), safe against bosses since Boss::onHitByFireball() still routes through takeHit()'s own health/i-frame rules). PlayingState's EnemyDefeated handler picks StarKillSpin over EnemyFlip when either player currently has star power; killPlayer() now also spawns PlayerDeathHop. OBSERVED RUNNING: a scripted star-kill run on World 1-1 (temporary spawnPoint + a "star" and a "goomba" entity added near the existing koopa_troopa, reverted before commit) showed the koopa flying off per onHitByFireball(), "x2!"/"x3!" combo counters, and the "First Stomp" achievement firing. A death on World 1-3 (temporary spawnPoint near the lava trench at tiles 40-42, reverted before commit) produced a screenshot (zoomed crop) showing two distinct Mario sprites at different positions during the fall — the real player's own beginDeathFall() physics and the new PlayerDeathHop overlay rendering independently, confirming the wiring at runtime, not just at review.
-
-  Item 3 (four unused ParticleEmitter types) — PASS (Combo confirmed live), LavaEmber/WaterBubble/WallDust code-reviewed + exercised but not individually screenshotted. Premise true: BrickBreak/Stomp/CoinSparkle/DeathPoof were the only ParticleType values ever passed to burst(); Combo/WallDust/WaterBubble/LavaEmber had full EmitterSettings in the switch and no caller. Added: new EventBus::ScopedSubscription on EventType::ComboHit for Combo (separate from SoundManager's own subscription to the same event); a per-player, per-frame check using TileMap::getTileSurfaceType() on the bounding-box center for WaterBubble/LavaEmber (same query PhysicsEngine's water-gravity switch already uses), timer-gated at 0.4s; a WallDust check reusing the exact isOnWall() && !isOnGround() condition CollisionResolver already relies on for the wall-slide speed cap. OBSERVED RUNNING: Combo's sparkle burst is visible above the player in the same star-kill run as item 1 (World 1-1), synchronized with the "x2!"/"x3!" counters. LavaEmber's code path runs on the same frame a lava-triggered death was observed (World 1-3, same run as item 1's death test) — the death reason logged as the generic "was defeated" (Player::takeDamage -> powerDown -> PlayerDied), which is the same path the pre-existing lava-burn check uses, and my ambient check sits earlier in the same update() call — but no isolated screenshot of the ember sprite itself was captured. WaterBubble: NOT observed live — grepped every assets/levels/*.json and confirmed no shipped level contains a single "water" tile (only World 1-3 has any lava/water tile at all, and it's lava-only), matching the precedent the orchestrator flagged for R9's population pass. WallDust: attempted (a scripted jump toward the small brick step in World 1-1) but the screenshot shows the player grounded at the step's base, not airborne against it — the jump timing did not land the condition. Not confirmed live; code review only (reuses an already-tested CollisionResolver condition verbatim).
-
-  Item 4 (surface-dependent footsteps) — PASS (wired and exercised), audio not audible. Premise true: footstep_floor/footstep_grass/footstep_metalcap are loaded in SoundManager::loadAllSounds() and grepping src/+include/ found zero other references anywhere. Added PlayingState::updateFootstep(), called once per player per frame: grounded + actually moving (skips airborne/still/wall-sliding) plays a cadence-timed step (0.18s running / 0.30s walking) keyed off TileMap::getTileSurfaceType() under the feet. SPEC 11.4 lists four surfaces but only three WAVs ship in assets/sfx, so ice and every other non-ground solid tile share footstep_floor; Bowser's Castle (levelIndex 2) overrides to footstep_metalcap by level (no distinct "Metal" TileType exists) rather than by tile. OBSERVED RUNNING: the code path executes every frame across both live runs (World 1-1 and World 1-3) without crashing or throwing; SoundManager::playSound() is genuinely called. The resulting sound is not audible in this headless/no-listening environment, so this is "reachable and exercised," not "heard."
-
-  Item 5 (combo SFX escalation) — PASS (event + call path exercised), pitch change not audible. Premise true: EventType::ComboHit (published Player.cpp:incrementCombo) had two subscribers (AchievementManager, StatisticsTracker) and SoundManager never subscribed to it, despite SPEC 11.1 naming combo_1..combo_4.wav — which do not exist in assets/sfx (checked: only the 29 names loadAllSounds() already loads ship). Added a new EventBus::ScopedSubscription (m_comboHitSub, per R4/audit X-7 — not a raw discarded SubscriptionId) that calls the existing "coin" sound with pitch rising per combo tier (capped). playSound() gained an optional pitch parameter (default 1.0, source-compatible with all 17 existing call sites) and now always calls sf::Sound::setPitch() explicitly, since a pooled sf::Sound is reused across calls and a stale pitch could otherwise bleed into an unrelated later sound. OBSERVED RUNNING: same star-kill run as items 1/3 confirms the event fires at multiple tiers ("x2!", "x3!") and playSound() executes without crashing; the pitch difference itself is inaudible in this environment.
-
-  Item 6 (menu navigation cue) — PASS, premise partially false. R7's text claimed "CharSelect and Pause already have one — reuse that cue." Verified false on inspection: CharacterSelectState and WorldMapState only play "bump" for a *blocked* move (locked slot, array edge), and PauseState plays nothing at all on Up/Down — no state anywhere had a plain per-row cue to reuse. Added it fresh to the two states the item names (MenuState, OptionsState), reusing the existing "bump" sound rather than inventing a new asset: MenuState::moveSelection() plays it once at the top (covers all three of its page branches); OptionsState plays it at the two real Up/Down key-press sites in handleInput(), deliberately not inside moveRow() itself, since moveRow() has a second, non-input caller in buildRows() that steps off an unselectable caption after a rebuild and must stay silent. OBSERVED RUNNING: a scripted Down/Up/Down sequence in the main menu shows the highlighted row moving correctly (screenshot) and playSound() executing each time without crashing; the SFX is not audible in this environment.
-
-  Item 7 (camera view clamp) — PASS, premise partially false. R7's text said "only boss arenas clamp today." Verified partially false: updateVersusCamera() already hard-clamps BOTH players to the camera view when m_player2 is set (its "hard bounds" loop, pre-existing, unchanged) — the real gap was single-player mode, which had no equivalent and could in principle outrun the camera's lag/lookahead. Added an X-only clamp (bottom deliberately left open, since the void-kill plane a few hundred px below the level must still catch a falling player rather than the screen edge arresting them first) guarded by `!m_player2 && !m_arenaLocked && !m_player->isDying()`, mirroring updateVersusCamera()'s existing hard-bounds pattern. OBSERVED RUNNING: an 8-second max-speed run on World 1-1 with periodic screenshots shows the player framed normally throughout, no crash or visible glitch — a soft confirmation (ordinary speeds rarely make the camera lag enough to visibly hit the raw edge either way), backed by the code mirroring the already-shipped, already-exercised versus-mode clamp.
-
-  Item 8 (debug console autocomplete, F6, orchestrator-added) — SKIPPED-LIVE-VERIFICATION (build/ctest only), premise confirmed true. DebugConsole::commandNames() already existed (used by `help` and the tests) but draw()'s ImGui::InputText call passed no completion flag or callback — Tab did nothing. Added a free function (ImGui's callback needs a plain C function pointer) that completes only the command name (the first word; everything after a space is free-form argument text with no fixed vocabulary to complete against), plus a small printNote() passthrough for listing tied matches by longest common prefix. Confirmed empirically, not just build-only: Game::run()'s scripted-input branch (used by every tests/scripts/*.txt run) never routes the Grave key through the same toggle check the real SFML event-polling branch has, so a scripted "press Grave" in this session's own test left the console visibly closed (screenshot). This is a genuine harness limitation, not a bug in scope here. Reachable from main() via the unchanged DebugConsole::draw() call; verified by build + ctest only, not observed running.
-
-Summary of Changes:
-- CollisionResolver::resolvePlayerVsEnemy gained a star-power branch (mirrors the existing cape-spin branch): Player::hasStarPower() defeats any touched enemy via onHitByFireball(), from any contact direction, not just a stomp.
-- PlayingState's EnemyDefeated handler now distinguishes StarKillSpin from EnemyFlip by checking live player star state (the event itself carries no kill-method data); killPlayer() now also spawns DeathEffectType::PlayerDeathHop, layered over the real death-fall the same way EnemyFlip/StarKillSpin already layer over an enemy's own squish/flip animation.
-- PlayingState::update() gained three new per-frame checks (all timer-gated, none touching the physics engine): ambient WaterBubble/LavaEmber particles keyed off tile-surface-under-player-center, WallDust keyed off the pre-existing wall-slide condition, and surface-dependent footsteps keyed off tile-surface-under-player-feet plus a level-index override for Bowser's Castle. A new m_comboParticleSub subscription bursts ParticleType::Combo on every EventType::ComboHit.
-- A single-player X-only camera-view clamp was added next to the existing (untouched) two-player hard-bounds clamp in updateVersusCamera().
-- SoundManager::playSound() gained an optional pitch parameter (default-compatible) and a new ComboHit subscription that escalates pitch per combo tier using the existing "coin" sound, since SPEC's combo_1..combo_4.wav files were never delivered as assets.
-- MenuState and OptionsState now play the existing "bump" sound on every row navigation, closing a genuine SPEC 17.3 gap that the plan mis-attributed to CharSelect/Pause already having solved.
-- DebugConsole::draw() now wires ImGuiInputTextFlags_CallbackCompletion into its InputText call with a new Tab-completion callback function.
-- 7 commits, one per item (item 2 was already DONE by R17, excluded): 5ebc540 (item 1), 53e21b5 (item 3), 747b2cf (item 4), e16bbd9 (item 5), dceb7d6 (item 6), 35c751c (item 7), 7d94fb9 (item 8). PlayingState.cpp/.hpp are touched by items 1, 3, 4 and 7 in genuinely interleaved hunks (all within enter()/update()); each commit's hunks were separated with hand-verified `git apply --cached` patches (never `git checkout --`/reset — nothing was discarded from the working tree at any point, confirmed via `git diff HEAD` = 0 lines once all 7 commits landed) so every commit is an independently compilable, correctly-scoped slice rather than one bundled non-atomic commit.
-- Two temporary level edits were used for live verification and fully reverted before their respective commits, confirmed via `git diff --stat` on the level files (empty) before each commit: assets/levels/level_1.json (spawnPoint + a "star" and "goomba" entity near the existing koopa_troopa, for the star-kill/combo run) and assets/levels/level_3.json (spawnPoint near the lava trench at tiles 40-42, for the lava-death run). A temporary saves/progress.json (marking levels 0-1 complete so World 1-3 was selectable from the world map without navigating a locked node) was deleted afterward — saves/ is gitignored and was never part of any commit.
-- Build: cmake -C shared-build.cmake, cmake --build -j 8, clean (0 errors, only pre-existing unrelated warnings in files this session did not touch). ctest: 13/13 passed, both immediately after the first full build and again after all 7 commits landed (working tree unchanged throughout the whole commit-splitting process, confirmed via `git diff HEAD` = 0).
-- Disk: an existing 5.9GB stale build/ directory was found in this worktree at session start (not from this session) and removed before configuring, per the disk-space directive; only one build tree was created this session.
----
 [2026-08-31 19:27:36] Branch: A/fix/tests-honour-assertions
 Git Fingerprint: ab16759 (worktree HEAD at session start, on worktree-agent-a10723e90fe42d5c8) / f0a59cb (dev tip at branch-cut time, confirmed "merge: R5 collision dispatch refactor") -> c50b09a (after, 1 commit, no merge, no push per plan directive)
 Fetched Remotes: yes, 19:05 local before reading repo state, and again at 19:27 before this entry. git rev-list --left-right --count dev...origin/dev = 68/0 at session start, 80/0 at session end — dev advanced by 12 commits locally during this session (aafd748), independent of this branch, consistent with concurrent agents sharing this repo's worktrees. This branch's merge-base with dev is still f0a59cb, confirmed via `git merge-base`; dev's later movement did not touch this branch.
@@ -4798,6 +4757,47 @@ Summary of Changes:
 - Dead code removed as part of the same edit: a stray `set(APP_SOURCES ${SOURCES}); list(REMOVE_ITEM ...)` reset before verify_minimap_visual, and the `list(FILTER SOURCES EXCLUDE REGEX ...)` line — both were vestiges of the old per-target-compiles-APP_SOURCES mechanism and did nothing once add_verify_test() stopped consuming ${APP_SOURCES} directly.
 - Scope respected: only SuperMarioGame/CMakeLists.txt changed and committed. Did not touch the R7-owned files, tests/verify_regressions.cpp, or assets/levels/. Did not touch the hermetic-tests/saves-sandboxing half of R11 (separate phase, per the task).
 - `build/` removed (`rm -rf build`) after the final green run and AFTER measurement; no build tree left behind. Only one build tree existed at a time throughout the session.
+---
+[2026-08-31 20:33:00] Branch: A/feature/wire-dormant-vfx-sfx
+Git Fingerprint: 2afbbb9 (worktree HEAD at session start, "merge: test targets honour assert()") -> 7d94fb9 (after, 7 commits, no merge, no push per plan directive)
+Fetched Remotes: yes, at session start before reading repo state. git rev-list --left-right --count dev...origin/dev = 86/0 at session end (dev is 86 commits ahead of origin/dev locally, 0 behind — consistent with a local-only dev not yet pushed, same pattern prior sessions recorded).
+Prompt: R7 — Dead-wiring batch (F2 + F4 + F6), items 1,3,4,5,6,7 from docs/issues/spec_feature_audit_2026-08-31.md plus orchestrator-added item 8 (F6, a plan gap: R7's header names F2+F4+F6 but none of the seven numbered items covered F6). Caution flagged: the "verified dormant 2026-08-31" audit inventory mis-recorded D20/D25/D27/D28 and got secret_finder backwards, so each item had to be re-verified against dev before implementation, not trusted as-is.
+Files Modified:
+  SuperMarioGame/include/Entities/Player.hpp, SuperMarioGame/src/Entities/Player.cpp,
+  SuperMarioGame/src/Physics/CollisionResolver.cpp, SuperMarioGame/src/Core/PlayingState.cpp,
+  SuperMarioGame/include/Core/PlayingState.hpp, SuperMarioGame/include/Core/SoundManager.hpp,
+  SuperMarioGame/src/Core/SoundManager.cpp, SuperMarioGame/src/Core/MenuState.cpp,
+  SuperMarioGame/src/Core/OptionsState.cpp, SuperMarioGame/include/Core/DebugConsole.hpp,
+  SuperMarioGame/src/Core/DebugConsole.cpp
+Reachable From Main: yes for items 1, 3, 4, 5, 6, 7 (all run every frame inside PlayingState::update()/enter(), or MenuState/OptionsState's real input handlers, all on the path from Game::run()). Item 8 is also reachable (DebugConsole::draw() is called unconditionally from Game::run(), unchanged) but its new Tab-completion callback could not be *exercised* live this session — see PASS/SKIPPED notes below.
+Verified By: ctest 13/13 (all green after every commit's final state) + live scripted runs (tests/scripts/, not committed — ad hoc /tmp scripts) for items 1/3/4/6/7; build only for item 5's audible effect and item 8's callback (see per-item notes). Full per-item breakdown:
+
+  Item 1 (star kill + player death hop) — PASS. Premise re-verified true: only DeathEffectType::EnemyFlip was ever spawned; StarKillSpin/PlayerDeathHop existed fully implemented in EntityDeathEffect.cpp (render/update logic already correct) with zero call sites. Deeper premise check found the underlying mechanic didn't exist either: touching an enemy while starred outside a stomp fell into the generic knockback+takeDamage branch, which Player::powerDown() already no-ops for a starred player — so before this fix, Star protected the player but never killed the enemy on a side touch. Added Player::hasStarPower() (decorator walk, same pattern as powerDown()'s isInvincible check) and a star-power branch in CollisionResolver::resolvePlayerVsEnemy mirroring the existing cape-spin branch (enemy.onHitByFireball(), safe against bosses since Boss::onHitByFireball() still routes through takeHit()'s own health/i-frame rules). PlayingState's EnemyDefeated handler picks StarKillSpin over EnemyFlip when either player currently has star power; killPlayer() now also spawns PlayerDeathHop. OBSERVED RUNNING: a scripted star-kill run on World 1-1 (temporary spawnPoint + a "star" and a "goomba" entity added near the existing koopa_troopa, reverted before commit) showed the koopa flying off per onHitByFireball(), "x2!"/"x3!" combo counters, and the "First Stomp" achievement firing. A death on World 1-3 (temporary spawnPoint near the lava trench at tiles 40-42, reverted before commit) produced a screenshot (zoomed crop) showing two distinct Mario sprites at different positions during the fall — the real player's own beginDeathFall() physics and the new PlayerDeathHop overlay rendering independently, confirming the wiring at runtime, not just at review.
+
+  Item 3 (four unused ParticleEmitter types) — PASS (Combo confirmed live), LavaEmber/WaterBubble/WallDust code-reviewed + exercised but not individually screenshotted. Premise true: BrickBreak/Stomp/CoinSparkle/DeathPoof were the only ParticleType values ever passed to burst(); Combo/WallDust/WaterBubble/LavaEmber had full EmitterSettings in the switch and no caller. Added: new EventBus::ScopedSubscription on EventType::ComboHit for Combo (separate from SoundManager's own subscription to the same event); a per-player, per-frame check using TileMap::getTileSurfaceType() on the bounding-box center for WaterBubble/LavaEmber (same query PhysicsEngine's water-gravity switch already uses), timer-gated at 0.4s; a WallDust check reusing the exact isOnWall() && !isOnGround() condition CollisionResolver already relies on for the wall-slide speed cap. OBSERVED RUNNING: Combo's sparkle burst is visible above the player in the same star-kill run as item 1 (World 1-1), synchronized with the "x2!"/"x3!" counters. LavaEmber's code path runs on the same frame a lava-triggered death was observed (World 1-3, same run as item 1's death test) — the death reason logged as the generic "was defeated" (Player::takeDamage -> powerDown -> PlayerDied), which is the same path the pre-existing lava-burn check uses, and my ambient check sits earlier in the same update() call — but no isolated screenshot of the ember sprite itself was captured. WaterBubble: NOT observed live — grepped every assets/levels/*.json and confirmed no shipped level contains a single "water" tile (only World 1-3 has any lava/water tile at all, and it's lava-only), matching the precedent the orchestrator flagged for R9's population pass. WallDust: attempted (a scripted jump toward the small brick step in World 1-1) but the screenshot shows the player grounded at the step's base, not airborne against it — the jump timing did not land the condition. Not confirmed live; code review only (reuses an already-tested CollisionResolver condition verbatim).
+
+  Item 4 (surface-dependent footsteps) — PASS (wired and exercised), audio not audible. Premise true: footstep_floor/footstep_grass/footstep_metalcap are loaded in SoundManager::loadAllSounds() and grepping src/+include/ found zero other references anywhere. Added PlayingState::updateFootstep(), called once per player per frame: grounded + actually moving (skips airborne/still/wall-sliding) plays a cadence-timed step (0.18s running / 0.30s walking) keyed off TileMap::getTileSurfaceType() under the feet. SPEC 11.4 lists four surfaces but only three WAVs ship in assets/sfx, so ice and every other non-ground solid tile share footstep_floor; Bowser's Castle (levelIndex 2) overrides to footstep_metalcap by level (no distinct "Metal" TileType exists) rather than by tile. OBSERVED RUNNING: the code path executes every frame across both live runs (World 1-1 and World 1-3) without crashing or throwing; SoundManager::playSound() is genuinely called. The resulting sound is not audible in this headless/no-listening environment, so this is "reachable and exercised," not "heard."
+
+  Item 5 (combo SFX escalation) — PASS (event + call path exercised), pitch change not audible. Premise true: EventType::ComboHit (published Player.cpp:incrementCombo) had two subscribers (AchievementManager, StatisticsTracker) and SoundManager never subscribed to it, despite SPEC 11.1 naming combo_1..combo_4.wav — which do not exist in assets/sfx (checked: only the 29 names loadAllSounds() already loads ship). Added a new EventBus::ScopedSubscription (m_comboHitSub, per R4/audit X-7 — not a raw discarded SubscriptionId) that calls the existing "coin" sound with pitch rising per combo tier (capped). playSound() gained an optional pitch parameter (default 1.0, source-compatible with all 17 existing call sites) and now always calls sf::Sound::setPitch() explicitly, since a pooled sf::Sound is reused across calls and a stale pitch could otherwise bleed into an unrelated later sound. OBSERVED RUNNING: same star-kill run as items 1/3 confirms the event fires at multiple tiers ("x2!", "x3!") and playSound() executes without crashing; the pitch difference itself is inaudible in this environment.
+
+  Item 6 (menu navigation cue) — PASS, premise partially false. R7's text claimed "CharSelect and Pause already have one — reuse that cue." Verified false on inspection: CharacterSelectState and WorldMapState only play "bump" for a *blocked* move (locked slot, array edge), and PauseState plays nothing at all on Up/Down — no state anywhere had a plain per-row cue to reuse. Added it fresh to the two states the item names (MenuState, OptionsState), reusing the existing "bump" sound rather than inventing a new asset: MenuState::moveSelection() plays it once at the top (covers all three of its page branches); OptionsState plays it at the two real Up/Down key-press sites in handleInput(), deliberately not inside moveRow() itself, since moveRow() has a second, non-input caller in buildRows() that steps off an unselectable caption after a rebuild and must stay silent. OBSERVED RUNNING: a scripted Down/Up/Down sequence in the main menu shows the highlighted row moving correctly (screenshot) and playSound() executing each time without crashing; the SFX is not audible in this environment.
+
+  Item 7 (camera view clamp) — PASS, premise partially false. R7's text said "only boss arenas clamp today." Verified partially false: updateVersusCamera() already hard-clamps BOTH players to the camera view when m_player2 is set (its "hard bounds" loop, pre-existing, unchanged) — the real gap was single-player mode, which had no equivalent and could in principle outrun the camera's lag/lookahead. Added an X-only clamp (bottom deliberately left open, since the void-kill plane a few hundred px below the level must still catch a falling player rather than the screen edge arresting them first) guarded by `!m_player2 && !m_arenaLocked && !m_player->isDying()`, mirroring updateVersusCamera()'s existing hard-bounds pattern. OBSERVED RUNNING: an 8-second max-speed run on World 1-1 with periodic screenshots shows the player framed normally throughout, no crash or visible glitch — a soft confirmation (ordinary speeds rarely make the camera lag enough to visibly hit the raw edge either way), backed by the code mirroring the already-shipped, already-exercised versus-mode clamp.
+
+  Item 8 (debug console autocomplete, F6, orchestrator-added) — SKIPPED-LIVE-VERIFICATION (build/ctest only), premise confirmed true. DebugConsole::commandNames() already existed (used by `help` and the tests) but draw()'s ImGui::InputText call passed no completion flag or callback — Tab did nothing. Added a free function (ImGui's callback needs a plain C function pointer) that completes only the command name (the first word; everything after a space is free-form argument text with no fixed vocabulary to complete against), plus a small printNote() passthrough for listing tied matches by longest common prefix. Confirmed empirically, not just build-only: Game::run()'s scripted-input branch (used by every tests/scripts/*.txt run) never routes the Grave key through the same toggle check the real SFML event-polling branch has, so a scripted "press Grave" in this session's own test left the console visibly closed (screenshot). This is a genuine harness limitation, not a bug in scope here. Reachable from main() via the unchanged DebugConsole::draw() call; verified by build + ctest only, not observed running.
+
+Summary of Changes:
+- CollisionResolver::resolvePlayerVsEnemy gained a star-power branch (mirrors the existing cape-spin branch): Player::hasStarPower() defeats any touched enemy via onHitByFireball(), from any contact direction, not just a stomp.
+- PlayingState's EnemyDefeated handler now distinguishes StarKillSpin from EnemyFlip by checking live player star state (the event itself carries no kill-method data); killPlayer() now also spawns DeathEffectType::PlayerDeathHop, layered over the real death-fall the same way EnemyFlip/StarKillSpin already layer over an enemy's own squish/flip animation.
+- PlayingState::update() gained three new per-frame checks (all timer-gated, none touching the physics engine): ambient WaterBubble/LavaEmber particles keyed off tile-surface-under-player-center, WallDust keyed off the pre-existing wall-slide condition, and surface-dependent footsteps keyed off tile-surface-under-player-feet plus a level-index override for Bowser's Castle. A new m_comboParticleSub subscription bursts ParticleType::Combo on every EventType::ComboHit.
+- A single-player X-only camera-view clamp was added next to the existing (untouched) two-player hard-bounds clamp in updateVersusCamera().
+- SoundManager::playSound() gained an optional pitch parameter (default-compatible) and a new ComboHit subscription that escalates pitch per combo tier using the existing "coin" sound, since SPEC's combo_1..combo_4.wav files were never delivered as assets.
+- MenuState and OptionsState now play the existing "bump" sound on every row navigation, closing a genuine SPEC 17.3 gap that the plan mis-attributed to CharSelect/Pause already having solved.
+- DebugConsole::draw() now wires ImGuiInputTextFlags_CallbackCompletion into its InputText call with a new Tab-completion callback function.
+- 7 commits, one per item (item 2 was already DONE by R17, excluded): 5ebc540 (item 1), 53e21b5 (item 3), 747b2cf (item 4), e16bbd9 (item 5), dceb7d6 (item 6), 35c751c (item 7), 7d94fb9 (item 8). PlayingState.cpp/.hpp are touched by items 1, 3, 4 and 7 in genuinely interleaved hunks (all within enter()/update()); each commit's hunks were separated with hand-verified `git apply --cached` patches (never `git checkout --`/reset — nothing was discarded from the working tree at any point, confirmed via `git diff HEAD` = 0 lines once all 7 commits landed) so every commit is an independently compilable, correctly-scoped slice rather than one bundled non-atomic commit.
+- Two temporary level edits were used for live verification and fully reverted before their respective commits, confirmed via `git diff --stat` on the level files (empty) before each commit: assets/levels/level_1.json (spawnPoint + a "star" and "goomba" entity near the existing koopa_troopa, for the star-kill/combo run) and assets/levels/level_3.json (spawnPoint near the lava trench at tiles 40-42, for the lava-death run). A temporary saves/progress.json (marking levels 0-1 complete so World 1-3 was selectable from the world map without navigating a locked node) was deleted afterward — saves/ is gitignored and was never part of any commit.
+- Build: cmake -C shared-build.cmake, cmake --build -j 8, clean (0 errors, only pre-existing unrelated warnings in files this session did not touch). ctest: 13/13 passed, both immediately after the first full build and again after all 7 commits landed (working tree unchanged throughout the whole commit-splitting process, confirmed via `git diff HEAD` = 0).
+- Disk: an existing 5.9GB stale build/ directory was found in this worktree at session start (not from this session) and removed before configuring, per the disk-space directive; only one build tree was created this session.
 ---
 [2026-08-31 20:44:28] Branch: A/fix/hermetic-tests
 Git Fingerprint: edbae74 (dev tip at branch-cut, confirmed "merge: compile APP_SOURCES once via two OBJECT libraries (R11 build half)") -> 04edd9d (after, 2 commits, no merge, no push per plan directive). Note: local `dev` itself advanced to 3ff19bf during this session (concurrent worktree activity merged R7 and R14) -- confirmed edbae74 is still an ancestor of the new dev tip (git merge-base --is-ancestor edbae74 dev => true), so this branch is cleanly behind by 19 commits, not diverged/rebased. Left un-rebased per "no merge" directive; a later integration will need to bring dev's tip in.
@@ -5680,6 +5680,23 @@ Summary of Changes:
 - USER INSTRUCTION MID-SESSION (18:30): the OOP and design-pattern work must follow g-rule-21 (learning records). Plan amended: rule 10 in §1; new lane 5E producing docs/learning/design-patterns-in-supermario.html and docs/learning/oop-solid-design-decisions.html via ~/Documents/AgentHub/scripts/new_learning_doc.js, excerpts by SuperMarioGame/tools/extract_learning_excerpts.py --check, stamped against the audited commit; Phase 6 verifies them; lane 2E keeps before/after excerpts for it. The first draft of the plan had omitted this — recorded as mistake (4).
 ---
 
+[2026-09-02 18:58:40] Branch: dev
+Git Fingerprint: 6af4f8e (before) → 6af4f8e (after, no new commits per user directive — this is a verification-only session)
+Fetched Remotes: yes, 18:53 — git rev-list --left-right --count dev...origin/dev = 0  0, dev == origin/dev exactly
+Prompt: Phase 0 (Baseline & freeze) of docs/issues/submission_sweep_plan_2026-09-02.md §6 — fresh configure+build of dev in the existing SuperMarioGame/build dir (disk-constrained: wiped the project's own CMake cache/objects/binaries, kept build/_deps to avoid re-fetching SFML/imgui/imgui-sfml/json), run ctest and verify_regressions, launch the game with tests/scripts/verify_r19_smoke.txt and confirm it reaches the menu, verify the already-closed LevelSolvability fix with verify_map_generator (not re-fixing it), then clone build/_deps to smg-lanes/_deps_template as a shared dependency cache for the Phase 2 parallel worktrees.
+Files Modified: none in the tracked source tree. logs/agent_history.log (this entry, left uncommitted). Regenerated (gitignored, not committed): SuperMarioGame/build/* (removed CMakeCache.txt, CMakeFiles/, Makefile, cmake_install.cmake, CTestTestfile.cmake, CPackConfig.cmake, CPackSourceConfig.cmake, Testing/, compile_commands.json, .cache/, imgui_layout_v2.ini, build/assets/ and all verify_*/SuperMarioGame binaries — everything except build/_deps, which was left untouched and reused by the fresh cmake configure). New: /Users/huynguyen/Documents/CS202-Cpp/smg-lanes/_deps_template (APFS clonefile copy of build/_deps, infrastructure for Phase 2 lanes, outside this repo).
+Reachable From Main: n/a — no game code was modified this session; the verification below exercises the real entry point (main.cpp -> Game::run()) via the compiled SuperMarioGame binary, not a harness substitute.
+Verified By: ctest (29/29, see discrepancy below) | ./verify_regressions binary directly (584/584 — matches plan expectation exactly) | ./verify_map_generator binary directly (8/8 PASS, includes "Test 7: ceilinged maps are actually checked now") | ran the game — ./build/SuperMarioGame --script tests/scripts/verify_r19_smoke.txt, exit code 0, log shows Entering MenuState / Exiting MenuState / Entering CharacterSelectState / Entering WorldMapState / Entering PlayingState, three screenshots written to saves/shots/ (r19_00_overworld_start.png, r19_01_after_moving.png, r19_02_paused.png, all dated today); saves/shots/r19_00_overworld_start.png visually inspected and shows a real rendered frame (World 1-1 HUD, Mario, a Goomba, brick terrace) — this was an actual GUI run on this Mac, not a headless stub.
+Summary of Changes:
+- BUILD: cleaned SuperMarioGame/build in place rather than deleting it (disk was tight — 5.6Gi free before, unchanged after; one full re-fetch of SFML/vorbis/ogg/imgui/imgui-sfml/json would not have fit safely). Preserved build/_deps (405M, untouched — verified same inode-bearing sources reused, cmake configure log shows "Found ImGui v1.91.8 in .../build/_deps/imgui-src" with no download step). Removed only the project's own generated cache/objects/binaries. `cmake .. -DCMAKE_BUILD_TYPE=Release` then `cmake --build . -j 8`: exit code 0, re-ran the build command a second time afterward and it reported "Built target X" for all 54 targets with zero recompilation and exit code 0, confirming a genuinely finished, idempotent build (not inferred from binary mtimes).
+- CTEST: 29/29 passed (100%), 23.31s total. This differs from the plan's stated expectation of 28/28. Root cause identified, not adjusted to fit: HEAD (6af4f8e, "fix: a flagpole touched during a boss fight left the level unfinishable") itself adds tests/verify_r21_flagpole_softlock.cpp, registered as ctest case #29 (verify_r21_flagpole_softlock) — this commit landed after the plan's "28/28" figure was written earlier the same session. 29/29 is the correct current count for this HEAD; the plan's 28/28 is stale by exactly one commit. No other discrepancy found.
+- VERIFY_REGRESSIONS: 584/584 checks passed, exact match to plan expectation, "ALL PASS" printed.
+- VERIFY_MAP_GENERATOR (LevelSolvability closure, per plan instruction to confirm not re-fix): all 8 cases PASS, including "Test 7: ceilinged maps are actually checked now". Read the cited code directly and confirmed it matches the plan's description: src/Utils/LevelSolvability.cpp:36-49 groundRowAt() skips the leading solid run from row 0 before searching for a floor (with an in-code comment explaining the prior vacuous-truth bug on Castle/Underground's 2-row ceiling); src/Utils/MapGenerator.cpp:658 sets the BFS goal to `attemptConfig.width - 3` (was `width - 15`, which returned before the flagpole/boss-arena/lava/bridge geometry was ever examined). Confirmed this landed in 081c4d6 ("feat(procgen): endless chunks that keep their entities, and a boss worth fighting" — a broad commit; the LevelSolvability/MapGenerator hunks are a real part of its diff despite the headline being about something else). Not re-fixed, per instruction.
+- SMOKE RUN: game window opened and rendered on this Mac (GUI available, not headless); the script's own path goes further than "reaches the menu" — it also enters World 1-1, takes damage once mid-run ("[PlayingState] Player 1 was defeated." / "Respawned. Lives remaining: 2" — a normal consequence of the scripted `hold D 2.0` walking into a Goomba, not a crash or hang), pauses, and quits cleanly. Recorded as an observation, not a defect, since the script does not attempt to avoid enemies and the game recovered exactly as designed (respawn, life decrement).
+- DEPS TEMPLATE: `cp -Rc build/_deps /Users/huynguyen/Documents/CS202-Cpp/smg-lanes/_deps_template` succeeded (exit 0). du -sh = 405M, identical to the source. `df -h /` free space: 5.6Gi before the clone, 5.6Gi after (no measurable delta) — confirmed this is a real APFS copy-on-write clone, not a full duplication, by comparing inode numbers of a sample file (sfml-src/CMakeLists.txt: source inode 135380843, clone inode 136910724 — different inodes, identical 19565-byte size, clone completed in the same second real copying of 405M could not).
+- OBSERVED BUT NOT TOUCHED (not this lane's job, per instruction): other lanes are already active in separate worktrees under smg-lanes/ (untouched, only _deps_template added alongside them) — a concurrent branch A/docs/ai-declaration committed to this same log file at 19:35, appearing after this entry's timestamp in wall-clock terms but before it in file position; left as-is, this is normal interleaving from a parallel lane and not a conflict to resolve.
+- NOT DONE (out of scope for this lane, flagged for the record): did not commit saves/config.json (locally modified: debugMode true, music 70 — user's local settings, left untouched); did not touch docs/issues/submission_sweep_plan_2026-09-02.md; made no fixes to any defect found.
+---
 [2026-09-02 19:35:00] Branch: A/docs/ai-declaration
 Git Fingerprint: 6af4f8e (before) → eae059c (after)
 Fetched Remotes: yes, 19:35
@@ -5700,20 +5717,188 @@ Summary of Changes:
 - Evidence: git log R1–R21 2026-08-31 to 09-02 shows 97 commits implementing subsystems mentioned; each R-batch documented in logs/agent_history.log with observed-running verification where applicable
 ---
 
-[2026-09-02 18:58:40] Branch: dev
-Git Fingerprint: 6af4f8e (before) → 6af4f8e (after, no new commits per user directive — this is a verification-only session)
-Fetched Remotes: yes, 18:53 — git rev-list --left-right --count dev...origin/dev = 0  0, dev == origin/dev exactly
-Prompt: Phase 0 (Baseline & freeze) of docs/issues/submission_sweep_plan_2026-09-02.md §6 — fresh configure+build of dev in the existing SuperMarioGame/build dir (disk-constrained: wiped the project's own CMake cache/objects/binaries, kept build/_deps to avoid re-fetching SFML/imgui/imgui-sfml/json), run ctest and verify_regressions, launch the game with tests/scripts/verify_r19_smoke.txt and confirm it reaches the menu, verify the already-closed LevelSolvability fix with verify_map_generator (not re-fixing it), then clone build/_deps to smg-lanes/_deps_template as a shared dependency cache for the Phase 2 parallel worktrees.
-Files Modified: none in the tracked source tree. logs/agent_history.log (this entry, left uncommitted). Regenerated (gitignored, not committed): SuperMarioGame/build/* (removed CMakeCache.txt, CMakeFiles/, Makefile, cmake_install.cmake, CTestTestfile.cmake, CPackConfig.cmake, CPackSourceConfig.cmake, Testing/, compile_commands.json, .cache/, imgui_layout_v2.ini, build/assets/ and all verify_*/SuperMarioGame binaries — everything except build/_deps, which was left untouched and reused by the fresh cmake configure). New: /Users/huynguyen/Documents/CS202-Cpp/smg-lanes/_deps_template (APFS clonefile copy of build/_deps, infrastructure for Phase 2 lanes, outside this repo).
-Reachable From Main: n/a — no game code was modified this session; the verification below exercises the real entry point (main.cpp -> Game::run()) via the compiled SuperMarioGame binary, not a harness substitute.
-Verified By: ctest (29/29, see discrepancy below) | ./verify_regressions binary directly (584/584 — matches plan expectation exactly) | ./verify_map_generator binary directly (8/8 PASS, includes "Test 7: ceilinged maps are actually checked now") | ran the game — ./build/SuperMarioGame --script tests/scripts/verify_r19_smoke.txt, exit code 0, log shows Entering MenuState / Exiting MenuState / Entering CharacterSelectState / Entering WorldMapState / Entering PlayingState, three screenshots written to saves/shots/ (r19_00_overworld_start.png, r19_01_after_moving.png, r19_02_paused.png, all dated today); saves/shots/r19_00_overworld_start.png visually inspected and shows a real rendered frame (World 1-1 HUD, Mario, a Goomba, brick terrace) — this was an actual GUI run on this Mac, not a headless stub.
+[2026-09-02 20:15:00] Branch: A/fix/moving-platform-and-spiny-egg
+Git Fingerprint: 6af4f8e (before) → 4050965 (after) [f80e178 MovingPlatform fix, 59d0a68 Spiny/Lakitu fix, 4050965 test + script]
+Fetched Remotes: yes — dev == origin/dev (0 0 via git rev-list --left-right --count dev...origin/dev), matching the plan doc's recorded baseline; this lane made no fetch-affecting changes
+Prompt: Phase 2 lane 2A of the 2026-09-02 submission sweep (docs/issues/submission_sweep_plan_2026-09-02.md §6): two independent gameplay defects — MovingPlatform::update() never calling Block::update() (animator frozen), and Spiny::isEgg being unreachable (Lakitu should drop an egg that hatches on landing per SPEC 6.1). Fix + mutation-tested regression case + observed in a scripted run + log entry, touching only MovingPlatform.cpp/.hpp, Spiny.cpp/.hpp, Lakitu.cpp/.hpp, the new test, CMakeLists.txt (registration only) and the new script.
+Files Modified: SuperMarioGame/src/Entities/MovingPlatform.cpp, SuperMarioGame/include/Entities/Spiny.hpp, SuperMarioGame/src/Entities/Lakitu.cpp, SuperMarioGame/tests/verify_2a_platform_anim_and_spiny_egg.cpp (new), SuperMarioGame/tests/scripts/verify_2a_platform_and_egg.txt (new), SuperMarioGame/CMakeLists.txt (test registration)
+Reachable From Main: yes for both. MovingPlatform::update() runs every frame for every placed platform in the real game (level_1/2/3 all place moving_platform entities via EntityFactory from LevelLoader, reached from PlayingState via GameStateManager from main()); observed its kinematics running and moving between two scripted screenshots 0.5s apart. Spiny's new default reaches every real construction path (EntityCatalogue::make<Spiny>, the only constructor call site in production, used by both LevelLoader and Lakitu's EntitySpawnRequested handler in PlayingState.cpp); observed a Lakitu-dropped egg (round red spiky sprite) falling and, in a later frame, an already-hatched walking Spiny (green spiky sprite) elsewhere in the same run.
+Verified By: ctest 30/30 (29 baseline + verify_2a_platform_anim_and_spiny_egg) on this branch's build; verify_regressions 584/584 unchanged; mutation-tested BOTH fixes independently — reverted each one (keeping the new test), rebuilt, and watched the corresponding checks in verify_2a_platform_anim_and_spiny_egg FAIL (MovingPlatform: "after half a second of update()s the animator has advanced..." failed with the call removed; Spiny: "starts in the egg state" and "does not hatch while still airborne" both failed with the default reverted to false), then restored each fix, rebuilt, and watched the same suite return to ALL PASS; also ran the game with --script tests/scripts/verify_2a_platform_and_egg.txt and read every screenshot with the Read tool (not just the log).
 Summary of Changes:
-- BUILD: cleaned SuperMarioGame/build in place rather than deleting it (disk was tight — 5.6Gi free before, unchanged after; one full re-fetch of SFML/vorbis/ogg/imgui/imgui-sfml/json would not have fit safely). Preserved build/_deps (405M, untouched — verified same inode-bearing sources reused, cmake configure log shows "Found ImGui v1.91.8 in .../build/_deps/imgui-src" with no download step). Removed only the project's own generated cache/objects/binaries. `cmake .. -DCMAKE_BUILD_TYPE=Release` then `cmake --build . -j 8`: exit code 0, re-ran the build command a second time afterward and it reported "Built target X" for all 54 targets with zero recompilation and exit code 0, confirming a genuinely finished, idempotent build (not inferred from binary mtimes).
-- CTEST: 29/29 passed (100%), 23.31s total. This differs from the plan's stated expectation of 28/28. Root cause identified, not adjusted to fit: HEAD (6af4f8e, "fix: a flagpole touched during a boss fight left the level unfinishable") itself adds tests/verify_r21_flagpole_softlock.cpp, registered as ctest case #29 (verify_r21_flagpole_softlock) — this commit landed after the plan's "28/28" figure was written earlier the same session. 29/29 is the correct current count for this HEAD; the plan's 28/28 is stale by exactly one commit. No other discrepancy found.
-- VERIFY_REGRESSIONS: 584/584 checks passed, exact match to plan expectation, "ALL PASS" printed.
-- VERIFY_MAP_GENERATOR (LevelSolvability closure, per plan instruction to confirm not re-fix): all 8 cases PASS, including "Test 7: ceilinged maps are actually checked now". Read the cited code directly and confirmed it matches the plan's description: src/Utils/LevelSolvability.cpp:36-49 groundRowAt() skips the leading solid run from row 0 before searching for a floor (with an in-code comment explaining the prior vacuous-truth bug on Castle/Underground's 2-row ceiling); src/Utils/MapGenerator.cpp:658 sets the BFS goal to `attemptConfig.width - 3` (was `width - 15`, which returned before the flagpole/boss-arena/lava/bridge geometry was ever examined). Confirmed this landed in 081c4d6 ("feat(procgen): endless chunks that keep their entities, and a boss worth fighting" — a broad commit; the LevelSolvability/MapGenerator hunks are a real part of its diff despite the headline being about something else). Not re-fixed, per instruction.
-- SMOKE RUN: game window opened and rendered on this Mac (GUI available, not headless); the script's own path goes further than "reaches the menu" — it also enters World 1-1, takes damage once mid-run ("[PlayingState] Player 1 was defeated." / "Respawned. Lives remaining: 2" — a normal consequence of the scripted `hold D 2.0` walking into a Goomba, not a crash or hang), pauses, and quits cleanly. Recorded as an observation, not a defect, since the script does not attempt to avoid enemies and the game recovered exactly as designed (respawn, life decrement).
-- DEPS TEMPLATE: `cp -Rc build/_deps /Users/huynguyen/Documents/CS202-Cpp/smg-lanes/_deps_template` succeeded (exit 0). du -sh = 405M, identical to the source. `df -h /` free space: 5.6Gi before the clone, 5.6Gi after (no measurable delta) — confirmed this is a real APFS copy-on-write clone, not a full duplication, by comparing inode numbers of a sample file (sfml-src/CMakeLists.txt: source inode 135380843, clone inode 136910724 — different inodes, identical 19565-byte size, clone completed in the same second real copying of 405M could not).
-- OBSERVED BUT NOT TOUCHED (not this lane's job, per instruction): other lanes are already active in separate worktrees under smg-lanes/ (untouched, only _deps_template added alongside them) — a concurrent branch A/docs/ai-declaration committed to this same log file at 19:35, appearing after this entry's timestamp in wall-clock terms but before it in file position; left as-is, this is normal interleaving from a parallel lane and not a conflict to resolve.
-- NOT DONE (out of scope for this lane, flagged for the record): did not commit saves/config.json (locally modified: debugMode true, music 70 — user's local settings, left untouched); did not touch docs/issues/submission_sweep_plan_2026-09-02.md; made no fixes to any defect found.
+- ROOT CAUSE 1: MovingPlatform::update() (MovingPlatform.cpp) fully overrides
+  Block::update() to own its own kinematic motion (parametric position along
+  the configured travel path — deliberately, since PhysicsEngine must not
+  integrate or tile-resolve it, per the existing isPhysicsDriven() comment),
+  but never called back into the base implementation, which is the only place
+  that advances m_animator (Block::update(), Block.cpp:38-40). The platform's
+  motion and player-carrying were correct; its texture animation was
+  permanently frozen on frame 0. Fix: call Block::update(dt) unconditionally
+  at the top of MovingPlatform::update(), before the early-return paths, so a
+  blocked/stationary platform still animates.
+- ROOT CAUSE 2: Spiny::Spiny(position, bool isEgg = false) (Spiny.hpp) — every
+  real spawn site (EntityCatalogue's make<Spiny>, the only construction path
+  EntityFactory::create() offers, used by both LevelLoader and Lakitu's
+  EntitySpawnRequested → PlayingState::spawnProjectile drop) calls the
+  single-argument overload, so isEgg was always false and Spiny::update()'s
+  already-implemented hatch-on-landing branch (show the egg sprite while
+  airborne, hatch to the walking sprite the frame isOnGround() first becomes
+  true) was permanently dead code. SPEC.md §6.1 describes Spiny generally as
+  walking "on the ground after hatching from egg" (not as a Lakitu-only
+  special case) and Lakitu specifically as dropping "Spiny eggs every 4s".
+  Fix: flip the constructor default to isEgg = true in Spiny.hpp. This is a
+  one-file fix that reaches every real construction path; the alternative,
+  more surgical fix (thread an egg flag through EntitySpawnRequest in
+  Core/GameSnapshot.hpp and have PlayingState.cpp's spawn handler call
+  setEgg(true) only for Lakitu's drops) needs three files this lane does not
+  own (EntitySpawnRequest, PlayingState.cpp, EntityCatalogue.cpp) — flagged
+  here per the brief rather than silently touched. Explicit isEgg=false
+  remains available and is exercised by verify_regressions.cpp's existing
+  ground-patrol/ledge case, which constructs a Spiny directly and holds it
+  grounded from frame 0 (so it hatches immediately either way and the test is
+  unaffected). Lakitu.cpp itself needed no behavioural change — only a
+  comment explaining why not, since the egg state now comes from Spiny's own
+  default rather than from anything Lakitu's spawn request carries.
+- TEST: tests/verify_2a_platform_anim_and_spiny_egg.cpp, registered in
+  CMakeLists.txt, ctest-run (not NO_CTEST). MovingPlatform's shipped animation
+  is a single, looping frame ({"half_platform_long", 0.15s}), so
+  Animator::update()'s effect cannot be observed from outside the class
+  through the real animation — Animator::getSprite() always returns the same
+  frame whether or not update() ran. Worked around with a local
+  ProbeMovingPlatform subclass that installs a one-shot (non-looping) probe
+  animation through the protected members Block already exposes to its own
+  subclasses, and reads back the public Animator::isDone(), which latches
+  true only once enough dt has actually reached Animator::update() — this is
+  what the mutation test flips. The Spiny half drives a real Spiny through a
+  real TileMap + PhysicsEngine (not asserted directly) to prove it starts as
+  an egg, stays an egg while airborne, and hatches the frame it actually
+  lands.
+- SCRIPT: tests/scripts/verify_2a_platform_and_egg.txt. First attempt flew
+  the player (NOCLIP) all the way to Lakitu's tile-175 spawn and overshot: by
+  the time the player arrived, Lakitu — FlyStrategy::FollowPlayer tracking the
+  player's position since level load at 100px/s — had already converged much
+  further west and ended up BEHIND the player, off-screen. Rewritten to stop
+  short (near the first moving platform, tile ~87) and wait for Lakitu to
+  close the rest of the gap and enter frame from the right instead of both
+  parties converging on each other at once. Screenshots read with the Read
+  tool: saves/shots/2a_02/2a_03 show the moving platform having visibly
+  shifted position 0.5s apart (its kinematics, running every frame in the
+  real game); saves/shots/2a_28..31_burst_w..z show a round red spiky sprite
+  (the egg, Spiny_ball_0/1) falling near the platform across four ~0.3s
+  frames, landing on it; saves/shots/2a_43_hatched_check_b shows, in the same
+  frame, a NEW egg still falling near the platform AND a separate, already
+  walking green spiky Spiny sprite (spiny_move_left) elsewhere on screen —
+  the earlier egg having hatched. HONEST LIMIT: the MovingPlatform animator
+  fix's specific effect (Animator::update() no longer skipped) is NOT
+  independently visible in any of these screenshots, because the shipped
+  animation has only one frame — a screenshot before and after the fix would
+  be pixel-identical for that reason alone. That half is verified by the
+  mutation-tested unit-level check instead (see Verified By above), not by a
+  screenshot; the platform's motion visible in the screenshots is the
+  already-correct kinematics, not the animator.
+- BUILD SETUP: build/_deps at this lane's build dir was an APFS clone whose
+  FetchContent subbuild CMakeCache.txt files still pointed at the absolute
+  path of wherever the clone was taken from
+  (/Users/huynguyen/Documents/CS202-Cpp/SuperMarioGame/SuperMarioGame/build/_deps),
+  not this worktree's path — "CMake Error: The current CMakeCache.txt
+  directory ... is different than the directory ... where CMakeCache.txt was
+  created" on first configure. Fixed by a plain text substitution of the old
+  absolute path prefix for the new one across every file under build/_deps
+  that referenced it (453 files; a mechanical rewrite of generated cache
+  text, not a re-fetch and not a deletion) — configure then succeeded and the
+  full build reused the pre-seeded dependency tree with no network access.
+  Flagging this because it is exactly the class of shared-build-tree problem
+  the plan's build-setup notes warned about, and it is not obvious the fix is
+  "just edit some cache files" until you have hit it.
+- DISK: df -h / before build 11 GiB free, after full build + all screenshots
+  7.6 GiB free (~3.4 GB consumed materialising this lane's own build/_deps
+  contents, which the AFPS clone had not yet paged in) — stayed well above
+  the 1.5 GiB stop threshold throughout.
+- saves/config.json was temporarily set to debugMode:true (required for the
+  F-key cheats used by the verification script) and restored to false before
+  finishing; not committed (git status confirms only the six intended files
+  are modified/new on this branch).
+STILL OPEN (unrelated to this lane, left for the lanes assigned to them per
+  the plan): the third HARD axe unreachable behind the arena enclosure post;
+  MapGenerator's generated vault pipe still Top entry; and everything in
+  Phase 2 lanes 2B-2E, Phase 3 onward.
+---
+[2026-09-02 20:55:00] Branch: A/fix/moving-platform-and-spiny-egg
+Git Fingerprint: 4050965/53f6505 (before this round) → cf195cb (after)
+Fetched Remotes: yes — dev == origin/dev (0 0), unchanged since the prior entry; no fetch-affecting work happened in this round
+Prompt: Coordinator review of the lane-2A submission raised that flipping Spiny's constructor default to isEgg=true changes behaviour for the 4 shipped level placements (3 in assets/levels/level_2.json, 1 in level_3.json), which my original verification (World 1-1 only) never touched. Asked for (1) a post-condition regression check that a LevelLoader-shaped Spiny reaches the hatched state once grounded, mutation-tested; (2) observing the 4 real placements live via a scripted run of World 1-2/1-3; (3) reporting honestly if any placement could not be reached. A follow-up message then cut scope: do only (1), skip (2)/(3) — record the 4 placements as unit-tested only, not observed live, and say why.
+Files Modified: SuperMarioGame/tests/verify_2a_platform_anim_and_spiny_egg.cpp
+Reachable From Main: yes for the code under test (LevelLoader really does construct Spiny via the single-argument EntityFactory::create() path for all 4 level placements — confirmed by reading LevelLoader.cpp's entity-parsing loop, which falls through to EntityFactory::create(eType, position) for any type without a special case, "spiny" included). BUT: the 4 real placements themselves were NOT observed running in a live game this session — see below.
+Verified By: ctest 30/30 (29 baseline + 1 new check in verify_2a_platform_anim_and_spiny_egg, now 3 test functions); verify_regressions 584/584 unchanged; mutation-tested the NEW check specifically (not the same mutation as the original Spiny fix — see Summary) in both directions.
+Summary of Changes:
+- GEOMETRY CHECK (read-only, informs the test but is not itself the guard):
+  read assets/levels/level_2.json and level_3.json directly. Spiny placements:
+  level_2 (45,19), (115,20), (157,20); level_3 (162,20). For all four, the
+  entity's own tile is empty and the tile immediately below it is solid
+  (three on Ice in level_2's "Ice Cavern Path", one on Ground in level_3) —
+  i.e. LevelLoader spawns each one flush against the ground with ZERO gap,
+  never falling into contact the way Lakitu's toss (and my original test)
+  does. LevelLoader.cpp confirmed to apply no ground-snap for enemies (only
+  Flagpole gets a "settled onto the floor" correction); Spiny's own
+  boundingBox is exactly one tile (32x32, Spiny.cpp), so tile-below-solid at
+  spawn really is a zero-gap resting placement, not an approximation.
+- NEW TEST: testLevelPlacedSpinyHatchesWhenRestingOnGroundAtSpawn (added to
+  the existing verify_2a_platform_anim_and_spiny_egg.cpp, now registered as
+  ctest's only home for this check — no new binary). Constructs a Spiny with
+  the single-argument constructor (LevelLoader's exact call shape) positioned
+  flush against a real TileMap's ground tile with zero gap, runs it through
+  Enemy::update() + PhysicsEngine for up to 60 frames (1s, generous), and
+  asserts the POST-CONDITION isOnGround() && !isEgg() is reached — not the
+  default value. Per the coordinator's own framing: a test that only checked
+  isEgg()==true after construction would pass even if the hatch transition
+  were completely broken, licensing the exact "stuck as an egg forever" bug
+  under review.
+- MUTATION TEST for the new check specifically (deliberately NOT the same
+  mutation as the original Spiny.hpp default-value fix, because reverting
+  that default to false would make THIS check pass trivially and
+  immediately — !isEgg() is already true from frame 0 with no transition
+  needed, so it would not exercise the thing this check actually guards).
+  Instead commented out `m_isEgg = false;` inside Spiny::update()'s
+  `if (onGround)` branch (Spiny.cpp) — simulating "the hatch trigger itself
+  is broken" — rebuilt, and watched BOTH the new check and the pre-existing
+  drop-from-height check fail (the Spiny sits on the ground forever still
+  reading isEgg()==true, so neither reaches its post-condition within its
+  time bound). Restored the line, rebuilt, watched all 30 ctest cases and
+  verify_regressions (584/584) return to green.
+- WHAT WAS NOT DONE, per the session's scope cut (recorded honestly rather
+  than implied otherwise): the coordinator's items 2 and 3 — a scripted run
+  of World 1-2 and World 1-3 photographing the 4 real placements — were
+  explicitly skipped by a follow-up instruction citing token budget. THE 4
+  SHIPPED LEVEL PLACEMENTS (level_2.json x3, level_3.json x1) WERE NOT
+  OBSERVED RUNNING IN A LIVE GAME THIS SESSION. Reasoning (Spiny::update()'s
+  onGround-gated hatch, unconditional on placement) plus the geometry check
+  above plus the new unit-level post-condition test together make it very
+  likely all four hatch correctly and promptly, but g-rule-11 is explicit
+  that reasoning is not observation, and I am recording it as such:
+  Reachable From Main for the 4 real placements specifically: no — unit
+  harness only, not observed running. If a future session has budget, the
+  cheapest way to close this is CampaignProgress::isUnlocked() via a
+  temporary saves/progress.json (levels[0].completed=true unlocks 1-2 on the
+  world map's auto-select-highest-unlocked node; also levels[1].completed=true
+  unlocks 1-3 the same way) — NOT by touching assets/levels/*.json, which
+  belong to lanes 2B (level_3) and nobody yet (level_2) this wave. That file
+  does not currently exist in this worktree (confirmed before/after this
+  session — nothing to restore) and must not be left behind marking levels
+  complete for the real user, per the standing mistake recorded in a prior
+  session's log entry.
+- _DEPS FINDING ATTRIBUTION: the coordinator confirmed the stale-absolute-
+  path problem in the pre-seeded build/_deps APFS clones (logged in the
+  previous entry) is on THEM, not this lane — they pre-seeded all five
+  concurrent lanes' dependency trees with `cp -Rc` without accounting for
+  FetchContent's subbuild CMakeCache.txt files baking in the absolute path
+  they were generated at. Re-flagging here per their explicit request, since
+  three sibling lanes share the same seeded clone and may hit the identical
+  "CMake Error: The current CMakeCache.txt directory ... is different than
+  the directory ... where CMakeCache.txt was created" — the fix is a plain
+  text substitution of the old absolute path prefix for the new one across
+  every file under build/_deps that references it (453 files in this lane's
+  case), never a deletion or a re-fetch.
+STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
+  unit-tested only, not observed live (see above, budget-gated); the third
+  HARD axe unreachable behind the arena enclosure post; MapGenerator's
+  generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---

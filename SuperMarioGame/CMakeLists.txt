@@ -478,6 +478,13 @@ add_verify_test(verify_r21_versus_and_axes "tests/verify_r21_versus_and_axes.cpp
 # reporter, because level_2's arena ends one tile short of its flagpole.
 add_verify_test(verify_r21_flagpole_softlock "tests/verify_r21_flagpole_softlock.cpp")
 
+# Submission-sweep lane 2A: MovingPlatform::update() never called back into
+# Block::update(), freezing the platform's texture animation, and
+# Spiny::isEgg was unreachable -- SPEC 6.1's "hatches from egg" had no
+# construction path that ever set it. Both are wiring gaps with the fix
+# living one file away from where the effect is observed.
+add_verify_test(verify_2a_platform_anim_and_spiny_egg "tests/verify_2a_platform_anim_and_spiny_egg.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------

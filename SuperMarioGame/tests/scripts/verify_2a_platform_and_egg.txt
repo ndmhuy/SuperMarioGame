@@ -1,0 +1,170 @@
+# Lane 2A, observed in the running game (AGENTS.md g-rule-11: reachable from
+# main() and observed, not just constructed by a verify_* harness).
+#
+# Two defects, one level (World 1-1 / assets/levels/level_1.json):
+#   1. MovingPlatform::update() never called Block::update(), so the
+#      platform's animator never advanced. The platform's OWN kinematic
+#      motion (the part that was already correct) is what a screenshot can
+#      actually show moving between two shots; the shipped animation is a
+#      single looping frame ({"half_platform_long", 0.15s}), so the specific
+#      "animator no longer frozen" effect has no photographable difference —
+#      that half of the fix is covered by verify_2a_platform_anim_and_spiny_egg
+#      (which drives Animator::isDone() directly) rather than by a screenshot.
+#   2. Spiny::isEgg was unreachable. SPEC 6.1: Lakitu "drops Spiny eggs every
+#      4s" and Spiny "walks on ground after hatching from egg". This run
+#      flies to World 1-1's Lakitu (tile 175,11) and bursts screenshots
+#      across its 4s throw interval to catch a dropped Spiny still showing
+#      the egg sprite (spiny_ball_0/1) before it lands and hatches into the
+#      walking sprite (spiny_move_left_0/1).
+#
+# PRECONDITION: "debugMode": true in <repo root>/saves/config.json (the F-key
+# cheats below are inert otherwise — DebugCheats::isArmed()). NOCLIP (F8) is
+# a PLAYER-only cheat (gravity/collision on the player); it does not affect
+# Lakitu or the Spinies it drops, which still fall and hatch under ordinary
+# physics. INVINCIBLE (F3) and INFINITE LIVES (F4) are just so a Spiny's
+# stomp-immunity/damage does not end the run before the interval elapses —
+# neither one touches the egg/hatch logic under test.
+#
+# Run with (from SuperMarioGame/):
+#   ./build/SuperMarioGame --script tests/scripts/verify_2a_platform_and_egg.txt
+#
+# Screenshots land in saves/shots/ with the 2a_ prefix.
+
+wait 2.0
+
+# START GAME -> character select -> world map (1-1 is the first node)
+press Enter
+wait 2.5
+press Enter
+wait 2.5
+press Enter
+wait 4.0
+shot 2a_00_level_start
+
+# Safety cheats, then NOCLIP so the flight east does not depend on jump
+# timing over the pits between spawn and tile 175.
+press F3
+wait 0.2
+press F4
+wait 0.2
+press F8
+wait 0.3
+
+# Spawn is tile 3 (x=96). The first moving platform sits at tile 77
+# (x=2464, MovingPlatform.hpp / level_1.json). 8s at run speed (300px/s)
+# covers 2400px, landing just short of it with the platform still ahead and
+# on screen.
+hold LShift 8.0
+hold D 8.0
+wait 8.2
+shot 2a_01_approaching_moving_platform_1
+
+# One more second closes the gap and puts the platform on screen; a second
+# shot half a second later shows it having moved along its sweep in the
+# meantime (its kinematics, unaffected by this lane's fix, but the clearest
+# already-true half of "MovingPlatform runs every frame in the real game").
+hold D 1.0
+wait 1.2
+shot 2a_02_moving_platform_1_in_frame
+wait 0.5
+shot 2a_03_moving_platform_1_after_half_a_second
+
+# STOP here (tile ~87, x~2796) rather than flying all the way to Lakitu's
+# tile-175 spawn: FlyStrategy::FollowPlayer has had Lakitu tracking the
+# player's position since level load at ENEMY_LAKITU_SPEED (100px/s), so it
+# is already most of the way here on its own, and running to meet it risks
+# overshooting past a target that is itself converging (it was — the first
+# attempt at this script flew to tile 175 and landed past the castle, with
+# Lakitu already behind Mario, off-screen). Waiting lets Lakitu close the
+# rest of the gap and enter frame from the right, which is also easier to
+# read in a screenshot than two things closing on each other at once.
+wait 7.0
+shot 2a_04_lakitu_approaching
+wait 0.6
+shot 2a_05_engaged_check
+
+# Burst across the 4s egg-throw interval (Lakitu::update(), Lakitu.cpp).
+# EnemySpinySpeed's fall from egg-drop height to the ground takes well under
+# a second, so the sampling is deliberately fine (0.3s) rather than 1s: catch
+# a dropped Spiny while it still reads as an egg (Spiny::isEgg()==true,
+# spiny_ball_0/1) rather than already hatched and walking
+# (spiny_move_left_0/1). This covers two full 4s cycles so a miss on the
+# first drop is not fatal to the run.
+wait 0.3
+shot 2a_06_burst_a
+wait 0.3
+shot 2a_07_burst_b
+wait 0.3
+shot 2a_08_burst_c
+wait 0.3
+shot 2a_09_burst_d
+wait 0.3
+shot 2a_10_burst_e
+wait 0.3
+shot 2a_11_burst_f
+wait 0.3
+shot 2a_12_burst_g
+wait 0.3
+shot 2a_13_burst_h
+wait 0.3
+shot 2a_14_burst_i
+wait 0.3
+shot 2a_15_burst_j
+wait 0.3
+shot 2a_16_burst_k
+wait 0.3
+shot 2a_17_burst_l
+wait 0.3
+shot 2a_18_burst_m
+wait 0.3
+shot 2a_19_burst_n
+wait 0.3
+shot 2a_20_burst_o
+wait 0.3
+shot 2a_21_burst_p
+wait 0.3
+shot 2a_22_burst_q
+wait 0.3
+shot 2a_23_burst_r
+wait 0.3
+shot 2a_24_burst_s
+wait 0.3
+shot 2a_25_burst_t
+wait 0.3
+shot 2a_26_burst_u
+wait 0.3
+shot 2a_27_burst_v
+wait 0.3
+shot 2a_28_burst_w
+wait 0.3
+shot 2a_29_burst_x
+wait 0.3
+shot 2a_30_burst_y
+wait 0.3
+shot 2a_31_burst_z
+wait 0.3
+shot 2a_32_burst_aa
+wait 0.3
+shot 2a_33_burst_ab
+wait 0.3
+shot 2a_34_burst_ac
+wait 0.3
+shot 2a_35_burst_ad
+wait 0.3
+shot 2a_36_burst_ae
+wait 0.3
+shot 2a_37_burst_af
+wait 0.5
+shot 2a_38_burst_ag
+wait 0.5
+shot 2a_39_burst_ah
+wait 0.5
+shot 2a_40_burst_ai
+wait 0.5
+shot 2a_41_burst_aj
+wait 1.0
+shot 2a_42_hatched_check_a
+wait 1.0
+shot 2a_43_hatched_check_b
+
+quit
