@@ -285,10 +285,11 @@ exist without deciding what it does. The three second-level abstracts each add e
 {uml('Item', 2, 'Figure 6a &mdash; Thirteen items behind one activate() call.',
      'A Mushroom, a Star and a 1-Up all answer the same question &mdash; what happens to the player who '
      'touches me &mdash; with a different body. QuestionBlock never asks which one it is holding.')}
-{uml('Block', 2, 'Figure 6b &mdash; Ten blocks, three of them stateful.',
-     'FallingPlatform and Thwomp are State machines in their own right (Idle/Shaking/Falling/Respawning; '
-     'wind-up/slam/rest/climb); Pipe and Flagpole are not &mdash; they fire once. Block does not know '
-     'the difference, which is the point of putting it here rather than in each concrete class.')}
+{uml('Block', 2, 'Figure 6b &mdash; Ten blocks, two of them stateful.',
+     'FallingPlatform and Thwomp each drive themselves through phases (Idle/Shaking/Falling/Respawning; '
+     'wind-up/slam/rest/climb) held as a plain enum &mdash; state machines, but not State-pattern '
+     'participants, which is argued in &sect;7.4. Pipe and Flagpole are stateless: they fire once. Block '
+     'does not know the difference, which is the point of putting it here rather than in each concrete class.')}
 <p><code>Item</code> and <code>Block</code> look similar &mdash; both are collidable, both are mostly
 inert until the player reaches them &mdash; and the project's own history has a concrete argument for
 keeping them as separate branches rather than merging them into one "InteractableEntity". A block's
@@ -331,8 +332,9 @@ decorators are the part worth noticing &mdash; a sixth "Star state" would have t
 to exit back into, whereas wrapping preserves it for free.</p>
 
 <h3>6.5 The pattern interfaces</h3>
-{uml('IGameState', 1, 'Figure 10 &mdash; Eight screens behind one interface (State).',
-     'GameStateManager holds a stack, so PauseState can overlay PlayingState rather than replace it.')}
+{uml('IGameState', 1, 'Figure 10 &mdash; Nine screens behind one interface (State).',
+     'GameStateManager holds the stack as a vector, not a std::stack, so render() can walk down through '
+     'an overlay: PauseState draws over PlayingState rather than replacing it.')}
 {uml('ICommand', 1, 'Figure 11 &mdash; Input as objects (Command).',
      'Every action the player can take is an object, which is what makes key rebinding possible '
      'and lets a second player use the same commands through a different binding table.')}
@@ -364,6 +366,138 @@ position setters that any code could reach. And <code>Serializer</code>'s file-p
 private even though the tests wanted them: the tests were given
 <code>Serializer::clearHighScores()</code> instead, because what they needed was the table cleared, not
 the path it lives at.</p>
+<p>Two properties of the whole tree are worth stating because they can be checked rather than asserted.
+First, <strong>no <code>class</code> in the project exposes a mutable data member</strong>: every
+declared field sits behind <code>private</code> or <code>protected</code>, and the only public data
+anywhere are <code>struct</code> aggregates whose whole purpose is to carry values across a boundary
+(<code>GameSnapshot</code>, <code>PlayerSnapshot</code>, <code>EntitySnapshot</code>,
+<code>EntityConfigEntry</code>, <code>EntityCatalogue::Entry</code>) &mdash; a simplification argued for
+in &sect;7.13 and charged as a cost there. One getter breaks the rule and is named rather than hidden:
+<code>Camera::getView()</code> returns a mutable <code>sf::View&amp;</code>, which hands a caller the
+camera's internals; narrowing it to a <code>const</code> reference plus the one mutating operation
+callers actually need is in &sect;13. Second, <strong>ownership is uniform</strong>. Every owning pointer
+in the project's own code is a <code>std::unique_ptr</code>, there is not a single <code>delete</code>
+anywhere in <code>src/</code> or <code>include/</code>, and the two apparent exceptions are both
+deliberate and commented: seven spawner lambdas in <code>DevPanel</code> that wrap a raw
+<code>new</code> in a <code>unique_ptr</code> on the same line, and the never-deleted
+<code>ResourceManager</code> instance of &sect;7.3. Shared ownership appears exactly once, for
+<code>ICommand</code>, and &sect;7.8 explains why.</p>
+
+<h3>6.8 SOLID, principle by principle</h3>
+<p>The five principles are taken one at a time below, each with the strongest evidence the codebase can
+offer <em>and</em> the place where it is knowingly not followed. The second half of each paragraph is the
+more useful one: a principle stated without its exception is a slogan, and every exception here was
+decided rather than drifted into.</p>
+
+<p><strong>Single responsibility.</strong> The evidence for is structural: physics does not know what a
+Goomba is, entities do not resolve their own collisions, <code>EntityCatalogue</code> is the single
+declaration of what an entity type <em>is</em>, and the class that owns a fight
+(<code>Boss</code>) is separate from the class that owns a level. The evidence against is one file.
+<code>PlayingState</code> is a god class: its <code>.cpp</code> is past four thousand lines and its
+header past eight hundred, and it orchestrates level loading, spawning, physics stepping, the camera,
+HUD synchronisation, boss arenas, two-player rules, time rewind, pipe transitions, cheats, the editor
+bridge and endless-mode chunking. The next largest source file in the project is under a quarter of its
+size. <strong>The decision was to document it rather than split it in submission week</strong>, and the
+reason is that the direction has already been demonstrated: <code>DevPanel</code>,
+<code>DebugCheats</code>, <code>LightingRenderer</code>, <code>PipeRenderer</code> and the
+<code>EditorBridge</code> port were all carved out of this class, each extraction verified by playing the
+game afterwards. Five more extractions in the last week, each touching the one class every mode runs
+through, would put the working build at risk to improve a number in a report. The trend is the argument;
+the remaining size is the honest cost, and it is listed in &sect;13 as work rather than as an
+achievement.</p>
+
+<p><strong>Open/closed.</strong> This is the principle the project can demonstrate mechanically rather
+than assert. Adding an entity type is <em>one row</em> in <code>EntityCatalogue</code> &mdash; the
+factory, the level parser and the editor palette all read that table, and
+<code>verify_r21_entity_registry</code> walks every enumerator from <code>0</code> to
+<code>EntityType::Count</code> and fails the suite for any row that is missing, so the openness is
+enforced by a test rather than by a convention. The same shape holds on four more axes: a new enemy
+behaviour is one <code>IMovementStrategy</code>, a new difficulty one
+<code>IDifficultyStrategy</code>, a new screen one <code>IGameState</code>, a new undoable editor
+operation one <code>IEditorCommand</code> &mdash; and none of them requires editing a
+<code>switch</code>. Where it is not held: run-time type dispatch survives in three places, each named
+with its reason. The decorator chain of &sect;7.12 is inspectable only by <code>dynamic_cast</code>, at
+seventeen sites, which is an inherent cost of that pattern rather than a lapse. Per-type serialization in
+<code>Serializer</code> and <code>LevelLoader</code> still branches on type, because the on-disk schema is
+a compatibility surface that deliberately does not follow the class hierarchy. And
+<code>PlayingState::recycleEntity</code> type-tests an expiring projectile to route it to the right
+<code>ObjectPool</code>; that one has no defence, a virtual pool tag on <code>Entity</code> would remove
+it, and it sits in &sect;13.</p>
+
+<p><strong>Liskov substitution.</strong> The evidence is that the engine's hot paths never ask what an
+entity is. <code>PhysicsEngine::update</code> takes a
+<code>std::vector&lt;std::unique_ptr&lt;Entity&gt;&gt;</code> and integrates all of it through virtuals:
+<code>getGravityMultiplier()</code> returns 0 for a block and 1 for a Goomba, so one integrator handles
+both, and <code>collidesWithTiles()</code> returns false for a dying player, which is what lets a corpse
+fall through the floor with no special case anywhere in the physics code. The sharpest measurement is in
+<code>CollisionResolver</code>: identifying both sides of a contact once cost up to twelve sequential
+<code>dynamic_cast</code>s per colliding pair per frame, and the file now contains <strong>zero</strong>
+&mdash; the four textual matches left in it are comments recording the change. Contact rules are virtual
+hooks (<code>onStomped</code>, <code>onHitFromBelow</code>, <code>onPlayerTouch</code>) over an ordered
+category pair, and every hierarchy root in the project &mdash; <code>Entity</code>,
+<code>IGameState</code>, <code>ICommand</code>, <code>IMovementStrategy</code>,
+<code>IPlayerState</code>, <code>IEditorCommand</code>, <code>IConsoleCommand</code>,
+<code>IAIPolicy</code>, <code>IEntityAdmitter</code>, <code>IDifficultyStrategy</code> &mdash; declares
+a <code>virtual</code> destructor, so deleting through a base pointer is always defined.
+<code>PlayerStateDecorator</code> is the cleanest case of the principle: it substitutes for
+<code>IPlayerState</code> by forwarding every operation to what it wraps, which is exactly why a Star can
+be layered over any form. Two honest qualifications. Four of the five player forms satisfy their
+interface partly by <em>doing nothing</em> (&sect;7.4), so their substitutability is cheap rather than
+earned. And <code>EntityFactory::createUnconfigured</code> may return <code>nullptr</code>, a weakened
+postcondition every caller has to check &mdash; accepted, because level files are hand-editable and a bad
+name must not be fatal.</p>
+
+<p><strong>Interface segregation.</strong> The interfaces added most recently are the narrowest, which
+is the direction to want. <code>IEntityAdmitter</code> has two methods and a contract written into the
+header saying what each must guarantee; <code>IEditorCommand</code> has three;
+<code>IAIPolicy</code> has three, one of them defaulted. <code>IGameState</code> asks five things every
+screen genuinely does and puts the rest &mdash; <code>isOverlay</code>, <code>onSuspend</code>,
+<code>onResume</code> &mdash; behind defaults, so a screen implements only what it needs.
+<code>IMovementStrategy</code> is segregated in a second sense: the public surface is
+<code>execute</code> plus three defaulted queries, while the three sequencing hooks are
+<code>protected</code>, so a caller cannot reach a phase and a subclass cannot reorder them. Three
+failures, all real. <code>ICommand::execute(Character&amp;)</code> is a narrow interface with too fat a
+parameter and no argument channel, which is precisely why the debug console needed a second hierarchy
+(&sect;7.10). <code>IPlayerState</code> demands five methods of implementers that mostly need one. And
+the widest interface in the codebase is not an interface at all: <code>Entity</code> and
+<code>Character</code> each declare <strong>twelve</strong> <code>friend</code> classes &mdash;
+<code>PhysicsEngine</code>, <code>CollisionResolver</code>, <code>PlayingState</code>, and then
+<code>IMovementStrategy</code> together with all eight of its concrete strategies. That list is the bill
+for &sect;7.5: moving movement out of the entity means the thing that moves it is no longer the entity,
+and it still has to write velocity. Friendship was chosen over public position and velocity setters,
+because a setter is reachable by <em>every</em> caller while a friend list is at least enumerable and
+reviewable &mdash; but nine of the twelve entries are one pattern's cost, and the smaller fix (a single
+<code>protected</code> mutation API the strategies inherit access to) is recorded in &sect;13 rather than
+claimed here.</p>
+
+<p><strong>Dependency inversion.</strong> Where a dependency crosses a layer boundary, it is inverted
+through an interface, and the examples are the load-bearing ones: <code>PhysicsEngine</code> and
+<code>CollisionResolver</code> depend on <code>Entity</code> and on <code>EntityCategory</code>, never on
+<code>Goomba</code>; <code>GameStateManager</code> depends on <code>IGameState</code>;
+<code>MapEditor</code> depends on <code>IEditorCommand</code>; the editor's entity commands depend on
+<code>IEntityAdmitter</code> rather than on <code>PlayingState</code>, which is the whole point of
+&sect;7.15; <code>AIController</code> depends on <code>IAIPolicy</code>; and <code>Game</code> consults
+<code>IDifficultyStrategy</code> instead of comparing a string. Then the cost, owned rather than
+minimised. The specification says this project has four singletons. It has <strong>twelve</strong>, and
+they are reached from everywhere: <code>Game::getInstance()</code> appears at 143 call sites in 39 files,
+<code>SoundManager::getInstance()</code> at 86 in 31, <code>EventBus::getInstance()</code> at 55 in 29.
+Every one of those is a dependency that does not appear in a constructor signature and cannot be
+substituted for a fake, which is the textbook DIP failure and is stated here as such. The reason it was
+chosen is real but partial: SFML's audio device, texture cache and event bus are genuinely process-wide,
+and a Meyers singleton gives a defined construction order where a file-scope global would load a texture
+before the graphics context exists. What that does <em>not</em> excuse is the number.
+<code>ScreenTransitionManager</code> and <code>EntityDeathEffect</code> each have exactly one caller
+outside their own implementation file &mdash; <code>PlayingState</code> &mdash; so both are singletons by
+habit rather than by necessity, and each would be better as a member of whatever owns it. Injecting
+twelve managers through the constructors of a class the size of <code>PlayingState</code> is a week's
+work carrying live regression risk, so the decision was the same as for single responsibility: document
+the number, keep the dependencies that were <em>dangerous</em> under control, and put the injection work
+in &sect;13 where a reader can see it is known rather than missed. The dangerous ones were the lifetime
+hazards, and each has a named mechanism: <code>EventBus::ScopedSubscription</code> for subscriber
+lifetime; a constant-initialised <code>g_eventBusAlive</code> flag so a <code>ScopedSubscription</code>
+destructor running after the bus is gone cannot resurrect a destroyed singleton; and the written
+rationale above <code>ResourceManager</code>'s never-deleted instance, which explains why leaking one
+fixed-size allocation at process exit is the correct answer to an undefined static destruction order.</p>
 
 <h2 id="patterns">7 &middot; Design patterns</h2>
 <p>The rubric asks for five patterns. The specification claims ten. This section takes each of the ten
