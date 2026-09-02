@@ -7000,3 +7000,22 @@ STILL OPEN (unrelated to this lane): the 4 level-placed Spinies remain
   generated vault pipe still Top entry; Phase 2 lanes 2B-2E, Phase 3 onward.
 ---
 
+[2026-09-02 21:10:00] Branch: A/docs/submission-audit
+Git Fingerprint: 87469f9 (before, = dev) → see commit below (after; audit doc + this entry only)
+Fetched Remotes: yes, 20:44 — dev...origin/dev = 65 0 (local dev 65 ahead, nothing behind)
+Prompt: Phase 6 independent audit of the submission sweep (read-only w.r.t. the project): build the report, render and inspect every PDF page, falsify factual claims in the report and features_list.md, check FACTS against reality, links/placeholders, weeklies, contributions, AI declaration. STOPPED EARLY on the user's instruction (coordinator message ~21:05) — deliverable written as an explicitly INCOMPLETE audit.
+Files Modified:
+- docs/issues/submission_audit_2026-09-02.md (NEW — the one current audit doc)
+- logs/agent_history.log
+- (regenerated then restored to HEAD, not committed: Report/SuperMarioGame/Group52_SuperMarioGame_Report.pdf, Report/SuperMarioGame/content/report_body.tex, reports/Group52_SuperMarioGame_FinalReport.html, reports/artifact_final_report.html)
+Reachable From Main: n/a — documentation only; no C++, CMake, level JSON or asset touched (frozen by the user)
+Verified By: build only — Report/SuperMarioGame/build.sh run once in this worktree (exit 0, 70 pp, 0 Overfull warnings); all 70 pages rendered with pdftoppm and looked at; every code claim checked by grep/read of include/ and src/; ctest -N read from the MAIN tree's existing build (32), nothing executed; the game was NOT run; no verify_* binary was run
+Summary of Changes:
+- 33 checks run: 19 PASS, 12 FAIL (5 minor), 1 RESOLVED-on-branch (FACTS ctests 29→32 on A/docs/facts-and-index-counts @ 1f1ec63, not yet on dev), 1 user-accepted gap (g-rule-21 records, descoped). 2 SUSPECTED findings left unverified and labelled as such.
+- Largest FAIL: both tracked report PDFs (Report/… and submission_documents/…) are byte-identical, 58 pp, dated 2026-08-31 (a159276); the source at 87469f9 builds 70 pp. The committed HTML stamp is edbae74. Phase 7 must rebuild before packaging.
+- Report prose on dev still carries the pre-5A counts: 13 singletons (:378), 35+ events (:383), Eight IGameState (:237,:334,:387,:1434), Thwomp listed as a Block/State participant (:288,:387,:1430; Thwomp.hpp:7 is an Enemy), 19 SoundManager subscriptions (:212; measured 20), 179/57 commits (:175,:182; shortlog says 419/61), "13 verification targets" (:1372), HTML date 2026-08-31 (:99). The unmerged r5a fixes §6/§7 but leaves :212, :237, :175, :1796, :1800.
+- README.md:68/:106/:107 stale (Swimming, 10 states, 21 subs). class_diagram.md is 416 diff lines behind its own generator. Dangling links: Group52_11/52.md:36,38,243 (archived audits), Group52_13/52.md:43 (deleted AnimationManager.hpp).
+- PASSED: no overlap/clipping on any page; 12 singletons, 9 states, 8 strategies, 29 events, ICommand no undo, pool = 3 types, GameSnapshot public, Visitor unclaimed, Hud subscribes to nothing, 2E fixes present (getView const, DevPanel new=0, ScopedSubscription, poolTag), HARD axe not claimed and level_3.json untouched, wrapText not a feature, 23/30 new features traced to production call sites, level-placement claims re-parsed from JSON, placeholders only the 3 deliberate ones, weeklies 5 sections + commit counts re-run (100/1/175), Member_Contributions 419/57/4 at 30f00d8, AI-declaration dates consistent with the log.
+- NOT RUN (recorded in the doc §4): game/harness execution, r5a build/render (its 50.71 pt overfull was reported by the coordinator, not observed here), submission_documents/*.pdf staleness, xlsx parity, W04–W10, achievement count (features #94 says ten, report §16.3 says 12 — SUSPECTED contradiction).
+- Mistake of mine: ran the second plan-§8 read against the worktree copy (924 lines) instead of the main tree's uncommitted copy (956 lines) and lost one round-trip before noticing the two differ; §8.20–8.22 exist only in the main tree's uncommitted working copy.
+---
