@@ -66,7 +66,7 @@ def make_c():
     # demo), which reads as "underlit" rather than "atmospheric" once
     # cropped this tight. Lift it moderately so Mario and the flower read
     # clearly; the text layer below is untouched by this.
-    game_layer = ImageEnhance.Brightness(game_layer).enhance(1.4)
+    game_layer = ImageEnhance.Brightness(game_layer).enhance(1.15)
 
     base = game_layer.convert("RGB")
 
