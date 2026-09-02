@@ -81,6 +81,7 @@ void DevPanel::draw(PlayingState& state) {
         // Not behind the overlay toggle: this one appears only in the modes it
         // applies to, so it cannot clutter an ordinary run.
         drawMatchPanel(state);
+        drawLightingPanel(state);
     }
 }
 
@@ -376,6 +377,127 @@ void DevPanel::drawMatchPanel(PlayingState& state) {
             }
         }
     }
+
+    ImGui::End();
+}
+
+void DevPanel::drawLightingPanel(PlayingState& state) {
+    // Collapsed and placed, like every other window in this file: they all used
+    // to open at ImGui's default position and stack over the player.
+    ImGui::SetNextWindowPos(ImVec2(8.0f, 320.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 340.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_FirstUseEver);
+    ImGui::Begin("Debug > Lighting (Bonus D)");
+
+    const ImVec4 dimmed = ImGui::GetStyle().Colors[ImGuiCol_TextDisabled];
+    auto wrapped = [](ImVec4 colour, const char* text) {
+        ImGui::PushStyleColor(ImGuiCol_Text, colour);
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::PopStyleColor();
+    };
+
+    // Say up front whether there is a GPU behind any of this. LightingRenderer
+    // degrades to drawing nothing on a machine with no GLSL, which is correct
+    // and completely silent — so a panel of live sliders that changed nothing on
+    // screen would read as a broken panel rather than as a driver without
+    // shaders. isOperational() performs the one-time load, hence the non-const
+    // reference.
+    const bool operational = state.m_lighting.isOperational();
+    if (operational) {
+        ImGui::TextColored(ImVec4(0.6f, 1.0f, 0.7f, 1.0f), "Shader loaded - the pass is drawing.");
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.5f, 1.0f),
+                           "No GLSL on this machine - the pass draws nothing.");
+        wrapped(dimmed, "The sliders below still move the model; nothing will change on screen.");
+    }
+
+    // The model's current answer, so a slider can be judged against a number
+    // rather than against an impression of the frame.
+    const float clock = state.m_lightingTunables.clockFrozen
+                      ? state.m_lightingTunables.frozenPhase * LightingRenderer::DAY_NIGHT_PERIOD
+                      : state.m_runElapsed;
+    const float phase = LightingRenderer::dayNightPhase(clock);
+    ImGui::Text("Phase %.3f   night %.3f   darkness %.3f", phase,
+                LightingRenderer::nightFactor(phase),
+                LightingRenderer::darknessFor(state.m_background.getTheme(), clock));
+
+    ImGui::Separator();
+    ImGui::Text("Day/night clock");
+
+    // Queued rather than written through, like every other mutation in this
+    // file: draw() runs on the render path and DevPanel's contract is that it
+    // touches nothing but its own UI state and this queue (see DevPanel.hpp).
+    bool frozen = state.m_lightingTunables.clockFrozen;
+    if (ImGui::Checkbox("Freeze at phase", &frozen)) {
+        const bool requested = frozen;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.clockFrozen = requested; });
+    }
+    float frozenPhase = state.m_lightingTunables.frozenPhase;
+    if (ImGui::SliderFloat("Phase (0 noon, 0.5 midnight)", &frozenPhase, 0.0f, 1.0f, "%.3f")) {
+        const float requested = frozenPhase;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.frozenPhase = requested; });
+    }
+    wrapped(dimmed, "Holding the cycle is what makes a night level checkable: unfrozen, "
+                    "reaching midnight means waiting up to 50 s of the 100 s period. "
+                    "Phase 0.5 reaches the full NIGHT_DARKNESS, so nothing is out of reach.");
+
+    ImGui::Separator();
+    ImGui::Text("Player lamp");
+    float playerRadius = state.m_lightingTunables.playerRadius;
+    if (ImGui::SliderFloat("Radius (px)", &playerRadius, 32.0f, 640.0f, "%.0f")) {
+        const float requested = playerRadius;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.playerRadius = requested; });
+    }
+    float breathe = state.m_lightingTunables.playerBreathe;
+    if (ImGui::SliderFloat("Breathe", &breathe, 0.0f, 0.25f, "%.3f")) {
+        const float requested = breathe;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.playerBreathe = requested; });
+    }
+    float tint[3] = {state.m_lightingTunables.playerShadowTint[0],
+                     state.m_lightingTunables.playerShadowTint[1],
+                     state.m_lightingTunables.playerShadowTint[2]};
+    if (ImGui::ColorEdit3("Shadow tint", tint)) {
+        const float r = tint[0], g = tint[1], b = tint[2];
+        queue([r, g, b](PlayingState& s) {
+            s.m_lightingTunables.playerShadowTint[0] = r;
+            s.m_lightingTunables.playerShadowTint[1] = g;
+            s.m_lightingTunables.playerShadowTint[2] = b;
+        });
+    }
+    // The single mistake this control invites, named where it is made. See
+    // LightingRenderer::Light::shadowTint.
+    wrapped(dimmed, "This is the colour of shadow the lamp has NOT cleared, not the lamp's "
+                    "own brightness. Picking something brighter than the scene draws a bright "
+                    "ring with a dark hole in it.");
+
+    ImGui::Separator();
+    ImGui::Text("Fireball lamp");
+    float fireballRadius = state.m_lightingTunables.fireballRadius;
+    if (ImGui::SliderFloat("Radius (px)##fireball", &fireballRadius, 16.0f, 480.0f, "%.0f")) {
+        const float requested = fireballRadius;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.fireballRadius = requested; });
+    }
+    float fireballIntensity = state.m_lightingTunables.fireballIntensity;
+    if (ImGui::SliderFloat("Intensity", &fireballIntensity, 0.0f, 1.0f, "%.2f")) {
+        const float requested = fireballIntensity;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.fireballIntensity = requested; });
+    }
+
+    ImGui::Separator();
+    ImGui::Text("Free camera lamp (F9)");
+    float freeCameraRadius = state.m_lightingTunables.freeCameraRadius;
+    if (ImGui::SliderFloat("Radius (px)##freecam", &freeCameraRadius, 64.0f, 960.0f, "%.0f")) {
+        const float requested = freeCameraRadius;
+        queue([requested](PlayingState& s) { s.m_lightingTunables.freeCameraRadius = requested; });
+    }
+
+    ImGui::Separator();
+    if (ImGui::Button("Reset to shipped defaults")) {
+        queue([](PlayingState& s) { s.m_lightingTunables = PlayingState::LightingTunables{}; });
+    }
+    ImGui::Text("Lamp slots in use: up to %zu", LightingRenderer::MAX_LIGHTS);
 
     ImGui::End();
 }

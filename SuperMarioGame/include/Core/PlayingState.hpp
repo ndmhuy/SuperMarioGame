@@ -584,6 +584,42 @@ private:
     // m_background, so the level file's "theme" field drives both.
     LightingRenderer m_lighting;
 
+    // Bonus D's light-pass numbers, live-tunable from Debug > Lighting.
+    //
+    // They shipped as three constexpr locals inside renderLightPass() plus two
+    // literals, so every guess at "is a 9-tile lamp the right size for a cave"
+    // cost a rebuild and a fresh run to the cave. That is the same argument the
+    // Match panel's sliders already won for the shadow's delay and the CPU's
+    // reaction time, and the reason gravity, walk speed and jump height are
+    // ImGui-tunable in the first place.
+    //
+    // Owned HERE rather than in DevPanel because renderLightPass() is the only
+    // reader and PlayingState owns the light pass; a static inside the panel
+    // would outlive the level it was tuned for. Values are world px unless
+    // stated, and every default below is the constant this replaced.
+    struct LightingTunables {
+        float playerRadius       = 290.0f;   // ~9 tiles: a cave stays readable
+        float fireballRadius     = 210.0f;   // a thrown ember, not a torch
+        float freeCameraRadius   = 460.0f;   // wider, so F9 panning stays usable
+        float playerBreathe      = 0.05f;    // fraction of radius, sinusoidal
+        float fireballIntensity  = 0.85f;    // short of 1 on purpose
+        float playerShadowTint[3] = {58.0f / 255.0f, 56.0f / 255.0f, 48.0f / 255.0f};
+
+        // Scrubbing the day/night clock rather than exposing DAY_NIGHT_PERIOD.
+        //
+        // The period only changes how LONG you wait to see a given darkness;
+        // what a level actually has to be checked at is the darkness itself, and
+        // holding the cycle at a chosen phase gets there in one drag instead of
+        // waiting up to 100 s per sample. NIGHT_DARKNESS and DAY_NIGHT_PERIOD
+        // themselves stay compile-time constants on LightingRenderer (they are
+        // a cross-file contract with radial_light.frag and with
+        // tests/verify_r21_lighting.cpp); phase 0.5 reaches the full
+        // NIGHT_DARKNESS, so the whole observable range is still covered.
+        bool  clockFrozen = false;
+        float frozenPhase = 0.5f;            // [0,1): 0 noon, 0.5 midnight
+    };
+    LightingTunables m_lightingTunables;
+
     // How a TileType becomes a sprite. Mutable because render() is where the
     // sheet and theme are pushed into it and render() is const-correct about
     // nothing else it touches either; keeping it a member rather than a local

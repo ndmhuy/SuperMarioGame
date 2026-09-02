@@ -55,6 +55,7 @@
 #include "Entities/MovingPlatform.hpp"
 #include "Entities/Player.hpp"
 #include "Graphics/Camera.hpp"
+#include "Graphics/LightingRenderer.hpp"
 #include "Physics/AABB.hpp"
 #include "Utils/Constants.hpp"
 
@@ -92,6 +93,11 @@ public:
     // camera is still at the level start returns tile 3.
     static float floorTopAt(const PlayingState& state, float worldX) {
         return state.floorBelow(worldX, 0.0f);
+    }
+
+    // LightingTunables is a private nested type; callers take it by `auto`.
+    static PlayingState::LightingTunables shippedLighting() {
+        return PlayingState::LightingTunables{};
     }
 
     // Insertion through the state's own door, so an entity placed by this
@@ -352,6 +358,54 @@ void testTheMarginIsHalfAViewOnEachSide() {
     state.exit();
 }
 
+// ---------------------------------------------------------------------------
+// 4. The lighting tunables. Same lane, and the guard that matters is that the
+//    sliders' DEFAULTS are still the constants they replaced: the whole risk in
+//    lifting five literals out of renderLightPass() into a struct is silently
+//    changing how the shipped game looks.
+// ---------------------------------------------------------------------------
+void testLightingTunablesDefaultToTheShippedConstants() {
+    section("lighting  the sliders default to exactly the values they replaced");
+
+    const auto shipped = OffCameraGateTestHooks::shippedLighting();
+
+    check(std::abs(shipped.playerRadius - 290.0f) < 0.001f,
+          "player lamp radius is still 290 px (~9 tiles)");
+    check(std::abs(shipped.fireballRadius - 210.0f) < 0.001f,
+          "fireball lamp radius is still 210 px");
+    check(std::abs(shipped.freeCameraRadius - 460.0f) < 0.001f,
+          "free-camera lamp radius is still 460 px");
+    check(std::abs(shipped.playerBreathe - 0.05f) < 0.001f,
+          "the player lamp still breathes by 5%");
+    check(std::abs(shipped.fireballIntensity - 0.85f) < 0.001f,
+          "the fireball still clears the darkness at 0.85, deliberately short of 1");
+
+    // sf::Color(58, 56, 48) was the literal. The slider stores 0..1 floats, so
+    // the round trip back to bytes has to land on the same colour — an
+    // off-by-one here is a visibly different shadow on every dark level.
+    const auto asByte = [](float f) {
+        return static_cast<int>(f * 255.0f);
+    };
+    check(asByte(shipped.playerShadowTint[0]) == 58 &&
+          asByte(shipped.playerShadowTint[1]) == 56 &&
+          asByte(shipped.playerShadowTint[2]) == 48,
+          "and the shadow tint round-trips to sf::Color(58, 56, 48) exactly");
+
+    // The clock scrub must be OFF by default, or every level ships pinned to
+    // one time of day and the day/night cycle silently stops turning.
+    check(!shipped.clockFrozen,
+          "the day/night clock is NOT frozen by default");
+    check(std::abs(shipped.frozenPhase - 0.5f) < 0.001f,
+          "and the scrub parks at midnight, the phase a night level is checked at");
+
+    // Phase 0.5 must actually be the dark end, or the scrub covers nothing:
+    // this is the coupling between the slider's range and the model.
+    check(LightingRenderer::nightFactor(0.5f) > 0.99f,
+          "phase 0.5 is full night, so the scrub reaches the whole range");
+    check(LightingRenderer::nightFactor(0.0f) < 0.01f,
+          "and phase 0 is noon");
+}
+
 int main() {
     TestSaveSandbox sandbox("r21o_offcamera_gate");
 
@@ -372,6 +426,7 @@ int main() {
     testTheGateStopsWhatItMayAndNothingElse();
     testTheRealClassesAreClassifiedCorrectly();
     testTheMarginIsHalfAViewOnEachSide();
+    testLightingTunablesDefaultToTheShippedConstants();
 
     ImGui::DestroyContext();
 

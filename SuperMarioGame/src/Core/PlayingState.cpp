@@ -2796,10 +2796,15 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
     if (m_mapEditor.isActive()) return;
 
     // Sizes in world px. A ~9-tile lamp leaves a cave readable while still
-    // hiding what is coming; a fireball is a thrown ember, not a torch.
-    constexpr float kPlayerLightRadius   = 290.0f;
-    constexpr float kFireballLightRadius = 210.0f;
-    constexpr float kFreeCameraRadius    = 460.0f;
+    // hiding what is coming; a fireball is a thrown ember, not a torch. The
+    // defaults and the reasoning for each now live on LightingTunables, so
+    // Debug > Lighting can move them without a rebuild.
+    const LightingTunables& tune = m_lightingTunables;
+    const auto tintFromSlider = [](const float rgb[3]) {
+        return sf::Color(static_cast<std::uint8_t>(rgb[0] * 255.0f),
+                         static_cast<std::uint8_t>(rgb[1] * 255.0f),
+                         static_cast<std::uint8_t>(rgb[2] * 255.0f));
+    };
 
     std::vector<LightingRenderer::Light> lights;
     lights.reserve(LightingRenderer::MAX_LIGHTS);
@@ -2812,12 +2817,13 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
         // A perfectly steady disc reads as a vignette bug. A slow 5% breathe
         // reads as a carried lamp. Driven off m_runElapsed rather than a render
         // clock so a replay lights the same way it was recorded.
-        light.radius    = kPlayerLightRadius * (1.0f + 0.05f * std::sin(m_runElapsed * 3.7f));
+        light.radius    = tune.playerRadius *
+                          (1.0f + tune.playerBreathe * std::sin(m_runElapsed * 3.7f));
         light.intensity = 1.0f;
         // A warm near-neutral SHADOW colour, not a lamp colour -- see
         // LightingRenderer::Light::shadowTint. Anything brighter than the scene
         // here draws a bright ring instead of a lamp.
-        light.shadowTint = sf::Color(58, 56, 48);
+        light.shadowTint = tintFromSlider(tune.playerShadowTint);
         lights.push_back(light);
     };
     addPlayerLight(m_player);
@@ -2830,7 +2836,7 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
     if (Game::getInstance().debugCheats().detachesCamera()) {
         LightingRenderer::Light light;
         light.worldPosition = m_camera.getView().getCenter();
-        light.radius        = kFreeCameraRadius;
+        light.radius        = tune.freeCameraRadius;
         light.intensity     = 1.0f;
         light.shadowTint    = sf::Color(44, 50, 62);
         lights.push_back(light);
@@ -2851,11 +2857,11 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
         const AABB bb = entity->getBoundingBox();
         LightingRenderer::Light light;
         light.worldPosition = {bb.x + bb.width * 0.5f, bb.y + bb.height * 0.5f};
-        light.radius        = kFireballLightRadius;
+        light.radius        = tune.fireballRadius;
         // Short of 1.0 on purpose: a fireball that cleared the darkness
         // completely would be a hole indistinguishable from the player's, and
         // the tint below only shows in shadow the lamp has NOT cleared.
-        light.intensity     = 0.85f;
+        light.intensity     = tune.fireballIntensity;
         // Ember, not flame: the shadow a fireball fails to clear goes warm, and
         // that warmth is what separates its pool of light from the player's.
         light.shadowTint    = isBossShot ? sf::Color(104, 34, 10)
@@ -2863,8 +2869,16 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
         lights.push_back(light);
     }
 
+    // Debug > Lighting can hold the cycle at a chosen phase. Feeding the
+    // renderer a synthetic elapsed time rather than adding a parameter keeps the
+    // whole feature inside the caller that owns the clock: dayNightPhase() is
+    // periodic, so phase p is reached at p * DAY_NIGHT_PERIOD seconds.
+    const float lightingClock =
+        m_lightingTunables.clockFrozen
+            ? m_lightingTunables.frozenPhase * LightingRenderer::DAY_NIGHT_PERIOD
+            : m_runElapsed;
     m_lighting.render(target, m_camera.getView(), lights,
-                      m_background.getTheme(), m_runElapsed);
+                      m_background.getTheme(), lightingClock);
 }
 
 void PlayingState::renderMatchHud(sf::RenderTarget& target) const {
