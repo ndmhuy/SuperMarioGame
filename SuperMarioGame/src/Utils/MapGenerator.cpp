@@ -525,15 +525,32 @@ void MapGenerator::buildBossArena(TileMap& tileMap,
                           config.height * TS});
     entities.push_back(std::move(bowser));
 
-    // The axe sits on the far ledge, past the bridge and inside the arena — the
-    // player has to get THROUGH the fight to reach it, which is the point of it.
-    auto axe = EntityFactory::create(EntityType::BridgeAxe,
-                                     sf::Vector2f((rightPostX + 1) * TS, postRow * TS));
-    if (axe) entities.push_back(std::move(axe));
+    // Three axes: the left end of the bridge, the far end of the bridge, and
+    // the far ledge past both posts. All three on solid tiles, because a
+    // BridgeAxe is an Item with the default gravity multiplier and one placed
+    // in mid-air over the trench would simply fall into the lava.
+    //
+    // The generator always lays out all three and PlayingState::configureBridgeAxes()
+    // prunes them to the run's difficulty (EASY 1, NORMAL 2, HARD 3) — the same
+    // rule and the same code path level_3.json goes through, so a procedural
+    // Bowser is not an easier or harder fight than the authored one. Placing a
+    // difficulty-dependent count here instead would have put the rule in two
+    // places, and the generator does not know the tier the run was started on.
+    //
+    // Deliberately clear of Bowser's own spawn at (leftX + 4, bridgeRow - 2),
+    // which covers columns leftX+4..+5: an axe standing inside him on frame one
+    // is a landmark the player cannot see.
+    const int midBridgeAxeX = trenchLast - 2;
+    for (int axeX : {trenchFirst, midBridgeAxeX, rightPostX + 1}) {
+        auto axe = EntityFactory::create(EntityType::BridgeAxe,
+                                         sf::Vector2f(axeX * TS, postRow * TS));
+        if (axe) entities.push_back(std::move(axe));
+    }
 
     std::cout << "[MapGenerator] Boss arena at tiles " << leftX << "-"
               << (leftX + BOSS_ARENA_TILES - 1) << " (bridge " << trenchFirst << "-"
-              << trenchLast << " over lava, axe at " << (rightPostX + 1) << ")" << std::endl;
+              << trenchLast << " over lava, axes at " << trenchFirst << ", "
+              << midBridgeAxeX << ", " << (rightPostX + 1) << ")" << std::endl;
 }
 
 void MapGenerator::generateSubLevel(TileMap& tileMap, std::vector<std::unique_ptr<Entity>>& entities, MapTheme theme, MapDifficulty difficulty, const std::string& returnLevelPath, sf::Vector2f returnPosition, unsigned int seed) {

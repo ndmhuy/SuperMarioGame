@@ -434,6 +434,21 @@ void PlayingState::enter() {
     });
 
     m_bridgeSub = EventBus::ScopedSubscription(EventType::BridgeChopped, [this](const GameEvent&) {
+        // Every axe has to be reached before the bridge goes; only the last one
+        // chops. m_axesRemaining <= 1 covers the single-axe fight, the last axe
+        // of a Hard fight, and m_axesTotal == 0 (an axe the map editor dropped
+        // into a running level, which configureBridgeAxes() never saw) — all
+        // three mean "this touch is the one that drops the bridge".
+        if (m_axesRemaining > 1) {
+            --m_axesRemaining;
+            std::cout << "[PlayingState] Axe reached; " << m_axesRemaining
+                      << " still to go before the bridge falls." << std::endl;
+            // A cue for the axes that do NOT chop, so reaching one is not
+            // silence. Louder feedback than nothing, cheaper than a new asset.
+            m_camera.triggerScreenShake(4.0f, 0.2f);
+            return;
+        }
+        m_axesRemaining = 0;
         chopBridge();
     });
 
@@ -1176,12 +1191,17 @@ void PlayingState::update(float dt) {
     // back to the player on the same tick the pan moved it away.
     if (Game::getInstance().debugCheats().detachesCamera()) {
         updateFreeCamera(dt);
-    } else if (m_player2) {
+    } else if (bothPlayersPresent()) {
+        // bothPlayersPresent(), not m_player2: eliminating Player 1 leaves
+        // m_player2 non-null, this branch was taken anyway, and
+        // updateVersusCamera() returns at its first line without both players —
+        // so the camera stopped moving for the rest of the match and the winner
+        // ran out of frame. See activeParticipant()'s comment.
         updateVersusCamera(dt);
-    } else if (m_player) {
+    } else if (Player* solo = activeParticipant()) {
         // Velocity drives the lookahead (task 4.3): the camera leads the player
         // in the direction they are running.
-        m_camera.follow(m_player->getPosition(), m_player->getVelocity(), dt);
+        m_camera.follow(solo->getPosition(), solo->getVelocity(), dt);
     }
     m_camera.update(dt);
 
@@ -1199,12 +1219,18 @@ void PlayingState::update(float dt) {
     // has deliberately been moved away from, and shoving them back into it would
     // undo the shot) and under NOCLIP (a ghost that cannot leave the visible
     // window is not a ghost).
+    //
+    // Written against activeParticipant() rather than m_player: the survivor of
+    // a two-player match is whichever of the two is left, and gating on
+    // `m_player && !m_player2` left an eliminated Player 1's survivor with
+    // neither this tether nor the versus one.
     const DebugCheats& cheatsForClamp = Game::getInstance().debugCheats();
-    if (m_player && !m_player2 && !m_arenaLocked && !m_player->isDying() &&
+    Player* lone = bothPlayersPresent() ? nullptr : activeParticipant();
+    if (lone && !m_arenaLocked && !lone->isDying() &&
         !cheatsForClamp.detachesCamera() && !cheatsForClamp.passesThroughSolids()) {
         const AABB view = m_camera.getVisibleBounds();
-        const AABB box = m_player->getBoundingBox();
-        sf::Vector2f position = m_player->getPosition();
+        const AABB box = lone->getBoundingBox();
+        sf::Vector2f position = lone->getPosition();
         bool moved = false;
         if (position.x < view.x) {
             position.x = view.x;
@@ -1214,8 +1240,8 @@ void PlayingState::update(float dt) {
             moved = true;
         }
         if (moved) {
-            m_player->setPosition(position);
-            m_player->setVelocity({0.0f, m_player->getVelocity().y});
+            lone->setPosition(position);
+            lone->setVelocity({0.0f, lone->getVelocity().y});
         }
     }
 
@@ -1278,6 +1304,9 @@ void PlayingState::update(float dt) {
             hudData.characterName = "mario";
             hudData.starCoinsCollected = {true, true, false}; // 2 out of 3 collected
         }
+        // Last, so it can overwrite what the two blocks above left for a player
+        // who is no longer in the level at all.
+        applyEliminatedBadges(hudData);
         syncBossHud(hudData);
         m_hud->sync(hudData);
     }
@@ -1599,6 +1628,24 @@ void PlayingState::chopBridge() {
     // The floor is gone; so is whoever was standing on it. Routed through the
     // boss's own defeat so the score, the event and the animation are the same
     // ones a fifth stomp would have produced.
+    //
+    // Ordering is load-bearing: the tiles are cleared and the defeat is taken
+    // in the SAME call, before the next physics tick, so the boss is never
+    // simulated standing on a floor that no longer exists. Boss.hpp's
+    // returnToArenaSpawn() comment records the consequence of the alternative —
+    // losing that floor by any route "other than the axe (chopBridge(), which
+    // calls defeatNow() first)" dropped Bowser clean out of the world. Anything
+    // that defers the defeat past this function has to answer that case.
+    //
+    // R21-INTEGRATION: this is the ONE line to change for "a defeated Bowser
+    // falls into the lava with his health draining". The lane that owns
+    // Bowser.*/Boss.* is adding an entry point for it — expected to be
+    // `Boss::beginLavaDeath()`, taking no arguments, called instead of
+    // defeatNow() and itself responsible for reaching the same defeat state
+    // (score, BossDefeated event, m_activeBoss teardown) once the fall
+    // finishes. It does not exist on Boss yet, so defeatNow() stands; swap it
+    // for `m_activeBoss->beginLavaDeath();` when it lands, keeping the same
+    // isDefeated() guard and the same position in this function.
     if (m_activeBoss && !m_activeBoss->isDefeated()) {
         m_activeBoss->defeatNow();
     }
@@ -2316,6 +2363,14 @@ void PlayingState::extendEndlessLevelIfNeeded() {
         if (dynamic_cast<Player*>(entity.get())) continue;
         if (type == "flagpole" || type == "castle" || type == "pipe") continue;
 
+        // An axe belongs to the fight it was generated with. If a fight is
+        // already live the boss below is dropped, so its axes have to go with
+        // it: left in the world they are landmarks that publish BridgeChopped
+        // against a DIFFERENT arena's counter, and reaching one would chop the
+        // live fight's bridge from two chunks away. Was already true of the one
+        // axe buildBossArena() used to place; it now places three.
+        if (type == "bridge_axe" && m_activeBoss) continue;
+
         // One fight at a time. findActiveBoss() takes the first Boss it finds
         // and its own comment says "one boss per level"; a second one spliced in
         // while a fight is live would be invisible to the HUD, unlockable by the
@@ -2860,8 +2915,8 @@ void PlayingState::releaseBossArena() {
     if (!m_arenaLocked) return;
     m_camera.setBounds(m_preArenaCameraBounds);
     m_camera.setScrollMode(Camera::ScrollMode::Free);
-    if (m_player) {
-        m_camera.snapTo(m_player->getBoundingBox().getCenter());
+    if (Player* fighter = activeParticipant()) {
+        m_camera.snapTo(fighter->getBoundingBox().getCenter());
     }
     m_arenaLocked = false;
     // Back to the level's own music: the fight track kept playing over the
@@ -2883,6 +2938,83 @@ void PlayingState::findActiveBoss() {
         std::cout << "[PlayingState] Boss in this level: "
                   << m_activeBoss->getDisplayName() << std::endl;
     }
+
+    // The axe roster is part of the fight this level has, and it has to be
+    // sized against the arena this call just found. See configureBridgeAxes().
+    configureBridgeAxes();
+}
+
+int PlayingState::axeQuotaForDifficulty() {
+    const std::string tier = Game::getInstance().difficulty().getId();
+    if (tier == "easy") return 1;
+    if (tier == "hard") return 3;
+    return 2;   // normal, and anything config.json has been hand-edited into
+}
+
+void PlayingState::configureBridgeAxes() {
+    m_axesTotal = 0;
+    m_axesRemaining = 0;
+
+    // Only the live fight's axes. Endless Mode splices chunk after chunk into
+    // one tilemap, so an uncollected axe from a fight two chunks back is still
+    // in m_entities and must not be counted towards this one.
+    const bool haveArena = m_activeBoss && m_activeBoss->hasArena();
+    const AABB arena = haveArena ? m_activeBoss->getArena() : AABB{};
+
+    std::vector<BridgeAxe*> axes;
+    for (const auto& entity : m_entities) {
+        auto* axe = dynamic_cast<BridgeAxe*>(entity.get());
+        if (!axe || !axe->isActive() || axe->isSwung()) continue;
+        if (haveArena) {
+            const float x = axe->getPosition().x;
+            if (x < arena.x || x >= arena.x + arena.width) continue;
+        }
+        axes.push_back(axe);
+    }
+    if (axes.empty()) return;
+
+    std::sort(axes.begin(), axes.end(), [](const BridgeAxe* a, const BridgeAxe* b) {
+        return a->getPosition().x < b->getPosition().x;
+    });
+
+    const int quota = std::min(axeQuotaForDifficulty(), static_cast<int>(axes.size()));
+
+    // Which axes survive, and why in this order:
+    //   - the RIGHTMOST always, because it is the one the arena was built
+    //     around — past Bowser, past the far post, standing on the ledge the
+    //     player lands on once the bridge is gone. Easy is exactly the fight
+    //     this level has always shipped.
+    //   - the LEFTMOST next, which is "left + right" for Normal.
+    //   - then the interior ones, left to right, which is "left + middle +
+    //     right" for Hard.
+    // A level (or a generated chunk) carrying fewer axes than the quota simply
+    // runs with what it has rather than having axes invented for it.
+    std::vector<bool> keep(axes.size(), false);
+    keep.back() = true;
+    int kept = 1;
+    if (kept < quota) {
+        keep.front() = true;
+        ++kept;
+    }
+    for (std::size_t i = 1; i + 1 < axes.size() && kept < quota; ++i) {
+        keep[i] = true;
+        ++kept;
+    }
+
+    for (std::size_t i = 0; i < axes.size(); ++i) {
+        if (keep[i]) continue;
+        // Destroyed rather than hidden: a surplus axe left inert in the world
+        // is a landmark the player walks to and nothing happens at.
+        axes[i]->destroy();
+        forgetEntity(axes[i]);
+    }
+
+    m_axesTotal = kept;
+    m_axesRemaining = kept;
+    std::cout << "[PlayingState] Bridge axes for difficulty "
+              << Game::getInstance().difficulty().getId() << ": " << kept
+              << " of " << axes.size() << " placed; all must be reached."
+              << std::endl;
 }
 
 void PlayingState::updateFootstep(Player* who, float& timer, float dt) {
@@ -2933,14 +3065,18 @@ void PlayingState::updateBossArena() {
         return;
     }
 
-    if (!m_activeBoss || !m_player || !m_activeBoss->hasArena()) return;
+    // The survivor of a two-player match, not m_player: an eliminated Player 1
+    // nulls m_player, and this whole method then returned — no arena lock, no
+    // escape clamp and no battle music for the player still fighting.
+    Player* fighter = activeParticipant();
+    if (!m_activeBoss || !fighter || !m_activeBoss->hasArena()) return;
 
     const AABB arena = m_activeBoss->getArena();
 
     if (!m_arenaLocked) {
         // Lock once the player is properly inside, not the instant they clip the
         // edge, so the camera does not snap while they are still walking in.
-        const sf::Vector2f p = m_player->getPosition();
+        const sf::Vector2f p = fighter->getPosition();
         if (p.x > arena.x + Constants::TILE_SIZE && p.x < arena.x + arena.width) {
             m_preArenaCameraBounds = m_camera.getBounds();
             m_camera.setBounds(arena);
@@ -2958,14 +3094,14 @@ void PlayingState::updateBossArena() {
     // "No escape until defeated" (SPEC 6.4): hold the player inside the arena.
     // Clamping the position rather than adding walls keeps this out of the
     // physics engine, which knows nothing about bosses.
-    const AABB box = m_player->getBoundingBox();
-    sf::Vector2f p = m_player->getPosition();
+    const AABB box = fighter->getBoundingBox();
+    sf::Vector2f p = fighter->getPosition();
     if (p.x < arena.x) {
         p.x = arena.x;
     } else if (p.x + box.width > arena.x + arena.width) {
         p.x = arena.x + arena.width - box.width;
     }
-    m_player->setPosition(p);
+    fighter->setPosition(p);
 }
 
 void PlayingState::syncBossHud(HudData& hudData) const {
@@ -2984,6 +3120,51 @@ void PlayingState::syncBossHud(HudData& hudData) const {
         hudData.bossFireHitsToStagger = bowser->getFireHitsToStagger();
     } else {
         hudData.bossFireHitsToStagger = -1;
+    }
+    // The axe route's progress, for the same reason the stagger count is here.
+    hudData.bossAxesTotal   = m_axesTotal;
+    hudData.bossAxesReached = m_axesTotal - m_axesRemaining;
+}
+
+Player* PlayingState::activeParticipant() const {
+    return m_player ? m_player : m_player2;
+}
+
+void PlayingState::rememberEliminatedIdentity(const Player* who, DeathState& death) const {
+    if (!who) return;
+    death.characterName = who->getCharacterName();
+    death.finalCoins    = who->getCoins();
+    death.finalScore    = who->getScore();
+    // Matches the label the live block builds, so the badge does not rename a
+    // CPU opponent "P2" the moment it is knocked out.
+    death.badgeLabel = m_aiController ? std::string("CPU") : std::string("P2");
+}
+
+void PlayingState::applyEliminatedBadges(HudData& hudData) const {
+    if (m_death.eliminated && !m_death.characterName.empty()) {
+        hudData.eliminated    = true;
+        hudData.characterName = m_death.characterName;
+        hudData.lives         = 0;
+        hudData.coins         = m_death.finalCoins;
+        hudData.score         = m_death.finalScore;
+        // Without this the badge showed setupTestScene()'s mock 102520/57/9:
+        // Game::getPlayer() is null once Player 1 is gone, so update()'s sync
+        // fell into its "running the test scene" fallback for a real run.
+        hudData.comboCount = 1;
+        hudData.comboTimer = 0.0f;
+    }
+
+    if (m_match.hasSecondPlayer() && m_death2.eliminated &&
+        !m_death2.characterName.empty()) {
+        // hasSecondPlayer stays TRUE for a player who is out. The badge is how
+        // the survivor is told the match is now one-sided; removing it says
+        // nothing, which is what it used to do.
+        hudData.hasSecondPlayer     = true;
+        hudData.secondEliminated    = true;
+        hudData.secondCharacterName = m_death2.characterName;
+        hudData.secondLives         = 0;
+        hudData.secondCoins         = m_death2.finalCoins;
+        hudData.secondPlayerLabel   = m_death2.badgeLabel;
     }
 }
 
@@ -3158,6 +3339,9 @@ void PlayingState::updateDeathSequence(float dt) {
 
         // Out of lives.
         death->eliminated = true;
+        // Before destroy(): this is the last frame on which anything can be
+        // asked of `who`, and the HUD needs to keep naming them afterwards.
+        rememberEliminatedIdentity(who, *death);
 
         // In versus, one player running out does not end the run — the other is
         // still playing, and ending it early would hand them the win by default.

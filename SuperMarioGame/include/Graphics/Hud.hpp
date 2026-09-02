@@ -49,6 +49,16 @@ struct HudData {
     // is a route they will not find.
     int bossFireHitsToStagger = -1;
     bool bossStaggered = false;
+    // Bridge axes already reached, out of how many this fight has. A total of 0
+    // means this fight has no axe route and the field is not drawn.
+    //
+    // Same reasoning as bossFireHitsToStagger above, and it bites harder here:
+    // the axe count now scales with difficulty and EVERY axe has to be reached
+    // before the bridge drops, so without this the player touches an axe on
+    // Hard, watches the bridge stay exactly where it was, and concludes the axe
+    // is broken rather than that two more are waiting.
+    int bossAxesTotal = 0;
+    int bossAxesReached = 0;
 
     // --- Player 2 -----------------------------------------------------------
     //
@@ -63,6 +73,22 @@ struct HudData {
     // Shown instead of "P2" when the second player is a bot, because which
     // archetype is playing changes how to play against it.
     std::string secondPlayerLabel = "P2";
+
+    // --- Elimination ---------------------------------------------------------
+    //
+    // This player has spent their last life and left the level. In a two-player
+    // match the survivor plays on, so the badge still has something to say —
+    // and what it said before was wrong in two different ways: Player 1's badge
+    // stayed on screen frozen on its last values (Hud::draw draws it
+    // unconditionally, and PlayingState stopped feeding it once
+    // Game::getPlayer() went null), while Player 2's disappeared entirely
+    // (its whole HUD block was gated on the live m_player2 pointer).
+    //
+    // Carried as an explicit fact rather than inferred from a pointer because
+    // by the time the HUD syncs the Player object has been destroy()ed and
+    // forgotten — there is nothing left to ask who it was.
+    bool eliminated = false;
+    bool secondEliminated = false;
 };
 
 class SpriteSheet;
@@ -80,18 +106,30 @@ protected:
     void draw(sf::RenderTarget& target, sf::RenderStates state) const override;
 
 private:
+    // tests/verify_r21_versus_and_axes.cpp reads back what the running game's
+    // HUD was actually handed after an elimination. Asserting against a HudData
+    // the harness composed itself would pass while the game still drew a stale
+    // badge — which is the defect — so the harness has to see m_curData.
+    friend class VersusAndAxesTestHooks;
+
     HudData m_curData;
 
     sf::Text m_scoreText, m_coinsText, m_worldText,
              m_timeLeftText, m_livesText, m_comboCountText, m_pSwitchTimeText,
              m_bossNameText, m_secondLivesText, m_secondLabelText,
-             m_bossHintText;
+             m_bossHintText, m_bossAxeText;
 
     // Draws one player's character icon and life count. Both players get the
     // same treatment; only the anchor differs, which is what makes the second
     // player look like a participant rather than an afterthought.
+    //
+    // `eliminated` dims the icon and stamps "OUT" under it. The user asked for
+    // a dead player to be SHOWN as dead rather than silently removed, and a
+    // badge that simply vanishes reads as a rendering bug from the survivor's
+    // seat.
     void drawPlayerBadge(sf::RenderTarget& target, sf::RenderStates state,
-                         const std::string& characterName, sf::Vector2f iconCentre) const;
+                         const std::string& characterName, sf::Vector2f iconCentre,
+                         bool eliminated) const;
 
     // Left edge for the coin icon. Derived from where the coin count actually
     // ended up, because that field is right-aligned and therefore moves with

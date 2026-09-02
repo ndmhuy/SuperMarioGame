@@ -23,6 +23,7 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
       m_secondLivesText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_secondLabelText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_bossHintText(ResourceManager::getInstance().getFont("PressStart2P")),
+      m_bossAxeText(ResourceManager::getInstance().getFont("PressStart2P")),
       m_itemSheet(itemSheet),
       m_playerSheet(playerSheet) {
 
@@ -82,6 +83,15 @@ Hud::Hud(sf::Vector2i windowSize, const SpriteSheet* itemSheet, const SpriteShee
     m_bossHintText.setFillColor(sf::Color(255, 200, 80));
     m_bossHintText.setOutlineColor(sf::Color(0, 0, 0, 220));
     m_bossHintText.setOutlineThickness(2.0f);
+
+    // The axe tally sits under the stagger hint and is the second half of the
+    // same message: one line says how to hurt the boss, the other says how far
+    // along the route that skips him you are. Cyan rather than the hint's amber
+    // so two lines of small text are not read as one wrapped sentence.
+    m_bossAxeText.setCharacterSize(12);
+    m_bossAxeText.setFillColor(sf::Color(140, 230, 255));
+    m_bossAxeText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    m_bossAxeText.setOutlineThickness(2.0f);
 
     // Configure health bar background
     m_healthBarOuter.setSize(sf::Vector2f(300.f, 20.f));
@@ -251,6 +261,20 @@ void Hud::sync(const HudData& data) {
         const sf::FloatRect hintBounds = m_bossHintText.getLocalBounds();
         m_bossHintText.setOrigin(sf::Vector2f(hintBounds.size.x * 0.5f, 0.0f));
         m_bossHintText.setPosition(sf::Vector2f(640.f, 186.f));
+
+        // "AXES 1/3". Drawn only when there is more than nothing to report;
+        // bossAxesTotal == 0 is "this fight has no axe route".
+        if (m_curData.bossAxesTotal > 0) {
+            char axeBuf[64];
+            std::snprintf(axeBuf, sizeof(axeBuf), "AXES %d/%d",
+                          m_curData.bossAxesReached, m_curData.bossAxesTotal);
+            m_bossAxeText.setString(axeBuf);
+        } else {
+            m_bossAxeText.setString("");
+        }
+        const sf::FloatRect axeBounds = m_bossAxeText.getLocalBounds();
+        m_bossAxeText.setOrigin(sf::Vector2f(axeBounds.size.x * 0.5f, 0.0f));
+        m_bossAxeText.setPosition(sf::Vector2f(640.f, 204.f));
     }
 }
 
@@ -337,13 +361,15 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
     target.draw(m_worldText, state);
     target.draw(m_timeLeftText, state);
 
-    drawPlayerBadge(target, state, m_curData.characterName, {72.f, 72.f});
+    drawPlayerBadge(target, state, m_curData.characterName, {72.f, 72.f},
+                    m_curData.eliminated);
     target.draw(m_livesText, state);
 
     // 5b. Player 2, given the same icon-and-lives badge as Player 1 rather than
     // a line of 12px text at the bottom of the screen.
     if (m_curData.hasSecondPlayer) {
-        drawPlayerBadge(target, state, m_curData.secondCharacterName, {292.f, 72.f});
+        drawPlayerBadge(target, state, m_curData.secondCharacterName, {292.f, 72.f},
+                        m_curData.secondEliminated);
         target.draw(m_secondLabelText, state);
         target.draw(m_secondLivesText, state);
     }
@@ -366,23 +392,46 @@ void Hud::draw(sf::RenderTarget& target, sf::RenderStates state) const {
         if (!m_bossHintText.getString().isEmpty()) {
             target.draw(m_bossHintText, state);
         }
+        if (!m_bossAxeText.getString().isEmpty()) {
+            target.draw(m_bossAxeText, state);
+        }
     }
 }
 
 void Hud::drawPlayerBadge(sf::RenderTarget& target, sf::RenderStates state,
-                          const std::string& characterName, sf::Vector2f iconCentre) const {
-    if (!m_playerSheet) return;
+                          const std::string& characterName, sf::Vector2f iconCentre,
+                          bool eliminated) const {
+    // The "OUT" stamp is drawn even when the atlas is missing, so the marker
+    // cannot be lost to the same early return that already costs the icon.
+    if (m_playerSheet) {
+        std::string charName = characterName;
+        std::transform(charName.begin(), charName.end(), charName.begin(), ::tolower);
+        sf::Sprite playerSprite = m_playerSheet->getSprite(charName + "_small_idle");
 
-    std::string charName = characterName;
-    std::transform(charName.begin(), charName.end(), charName.begin(), ::tolower);
-    sf::Sprite playerSprite = m_playerSheet->getSprite(charName + "_small_idle");
+        const sf::FloatRect bounds = playerSprite.getLocalBounds();
+        if (bounds.size.x > 0.0f && bounds.size.y > 0.0f) {
+            const float scale = 24.0f / bounds.size.y;
+            playerSprite.setScale(sf::Vector2f(scale, scale));
+            playerSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
+            playerSprite.setPosition(iconCentre);
+            // Greyed and half-transparent rather than hidden: the badge has to
+            // keep holding its slot in the row, or the survivor's badge would
+            // shift sideways the moment their opponent went out.
+            if (eliminated) playerSprite.setColor(sf::Color(110, 110, 110, 170));
+            target.draw(playerSprite, state);
+        }
+    }
 
-    const sf::FloatRect bounds = playerSprite.getLocalBounds();
-    if (bounds.size.x <= 0.0f || bounds.size.y <= 0.0f) return;
+    if (!eliminated) return;
 
-    const float scale = 24.0f / bounds.size.y;
-    playerSprite.setScale(sf::Vector2f(scale, scale));
-    playerSprite.setOrigin(sf::Vector2f(bounds.size.x * 0.5f, bounds.size.y * 0.5f));
-    playerSprite.setPosition(iconCentre);
-    target.draw(playerSprite, state);
+    sf::Text outText(ResourceManager::getInstance().getFont("PressStart2P"));
+    outText.setString("OUT");
+    outText.setCharacterSize(12);
+    outText.setFillColor(sf::Color(255, 80, 80));
+    outText.setOutlineColor(sf::Color(0, 0, 0, 220));
+    outText.setOutlineThickness(2.0f);
+    const sf::FloatRect outBounds = outText.getLocalBounds();
+    outText.setOrigin(sf::Vector2f(outBounds.size.x * 0.5f, 0.0f));
+    outText.setPosition(sf::Vector2f(iconCentre.x, iconCentre.y + 14.0f));
+    target.draw(outText, state);
 }

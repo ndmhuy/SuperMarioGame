@@ -444,6 +444,13 @@ add_verify_test(verify_multiplayer_ai "tests/verify_multiplayer_ai.cpp")
 # SKIP when sf::Shader::isAvailable() is false rather than failing the run.
 add_verify_test(verify_r21_lighting "tests/verify_r21_lighting.cpp")
 
+# Versus elimination and Bowser's bridge axes. Driven against a live
+# PlayingState (real camera, real HudData, real tilemap) because all three
+# defects it guards — the camera freezing when one player is eliminated, the
+# two badges disagreeing about a dead player, and the bridge dropping before
+# every axe has been reached — only exist on a running state.
+add_verify_test(verify_r21_versus_and_axes "tests/verify_r21_versus_and_axes.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------

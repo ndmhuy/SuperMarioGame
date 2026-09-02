@@ -194,6 +194,16 @@
     },
     {
       "type": "bridge_axe",
+      "x": 181,
+      "y": 19
+    },
+    {
+      "type": "bridge_axe",
+      "x": 186,
+      "y": 19
+    },
+    {
+      "type": "bridge_axe",
       "x": 190,
       "y": 19
     },

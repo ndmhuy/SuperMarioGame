@@ -1,0 +1,46 @@
+# R21 Lane M — the companion to verify_r21m_bowser_axes.txt: on EASY the arena
+# keeps ONE axe, and reaching it IS reaching the last one, so this is where the
+# bridge actually drops in the running game.
+#
+# Why the chop is observed here rather than in the HARD run: the third HARD axe
+# stands on the far ledge BEHIND the arena's right-hand enclosure post at
+# (189,19), and no scripted walk reached it — plain walking stalls against the
+# post and a jump that clears the post also sails over the axe. Splitting the
+# observation keeps both halves honest: the HARD run shows AXES 1/3 then 2/3
+# with the bridge still standing and Bowser still alive (which is the new
+# behaviour), and this run shows the last axe dropping the bridge (which is the
+# behaviour that must not have regressed).
+#
+# PRECONDITIONS, all temporary and all restored afterwards:
+#   * saves/config.json  "difficulty": "easy"  (1 axe) and "debugMode": true.
+#   * saves/progress.json with levels 0 and 1 completed, so the world map can
+#     reach 1-3.
+#   * level_3.json "spawnPoint" overridden to (191,19) — the far ledge, one tile
+#     EAST of the axe, so walking west touches it without needing to cross the
+#     post at all. Reverted with `git checkout` and confirmed with `git diff`.
+#
+# Run with (from SuperMarioGame/):
+#   ./build_lane_m/SuperMarioGame --script tests/scripts/verify_r21m_bowser_axe_easy_chop.txt
+
+wait 2.5
+press Enter
+wait 2.0
+press Enter
+wait 2.5
+press Right
+wait 0.4
+press Right
+wait 0.6
+press Enter
+wait 3.0
+press F3
+wait 0.5
+shot r21m_e_00_far_ledge_one_axe
+# West one tile onto the axe. A is Player 1's left; `hold` does not block
+# (InputScript.cpp:212), so the wait after it is what lets the walk happen.
+hold A 1.2
+wait 2.5
+shot r21m_e_01_bridge_dropped
+wait 3.0
+shot r21m_e_02_after_the_chop
+quit
