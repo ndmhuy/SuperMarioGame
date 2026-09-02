@@ -125,6 +125,14 @@ private:
     // last axe. Same tradeoff as the two friends above.
     friend class VersusAndAxesTestHooks;
 
+    // tests/verify_r21o_offcamera_gate.cpp reaches the camera, the entity list
+    // and the two census counters to prove BOTH halves of the off-camera update
+    // gate on a live instance: that an entity left far behind stops thinking,
+    // and that a projectile, a platform and a shadow at the same distance do
+    // not. A guard that only checked the first half would license the very bug
+    // it exists to prevent. Same tradeoff as the three friends above.
+    friend class OffCameraGateTestHooks;
+
     // Operations the dev panels request. Defined here (not in the panel) so the
     // state stays in charge of its own invariants.
     void regenerateProceduralLevel();
@@ -576,6 +584,42 @@ private:
     // m_background, so the level file's "theme" field drives both.
     LightingRenderer m_lighting;
 
+    // Bonus D's light-pass numbers, live-tunable from Debug > Lighting.
+    //
+    // They shipped as three constexpr locals inside renderLightPass() plus two
+    // literals, so every guess at "is a 9-tile lamp the right size for a cave"
+    // cost a rebuild and a fresh run to the cave. That is the same argument the
+    // Match panel's sliders already won for the shadow's delay and the CPU's
+    // reaction time, and the reason gravity, walk speed and jump height are
+    // ImGui-tunable in the first place.
+    //
+    // Owned HERE rather than in DevPanel because renderLightPass() is the only
+    // reader and PlayingState owns the light pass; a static inside the panel
+    // would outlive the level it was tuned for. Values are world px unless
+    // stated, and every default below is the constant this replaced.
+    struct LightingTunables {
+        float playerRadius       = 290.0f;   // ~9 tiles: a cave stays readable
+        float fireballRadius     = 210.0f;   // a thrown ember, not a torch
+        float freeCameraRadius   = 460.0f;   // wider, so F9 panning stays usable
+        float playerBreathe      = 0.05f;    // fraction of radius, sinusoidal
+        float fireballIntensity  = 0.85f;    // short of 1 on purpose
+        float playerShadowTint[3] = {58.0f / 255.0f, 56.0f / 255.0f, 48.0f / 255.0f};
+
+        // Scrubbing the day/night clock rather than exposing DAY_NIGHT_PERIOD.
+        //
+        // The period only changes how LONG you wait to see a given darkness;
+        // what a level actually has to be checked at is the darkness itself, and
+        // holding the cycle at a chosen phase gets there in one drag instead of
+        // waiting up to 100 s per sample. NIGHT_DARKNESS and DAY_NIGHT_PERIOD
+        // themselves stay compile-time constants on LightingRenderer (they are
+        // a cross-file contract with radial_light.frag and with
+        // tests/verify_r21_lighting.cpp); phase 0.5 reaches the full
+        // NIGHT_DARKNESS, so the whole observable range is still covered.
+        bool  clockFrozen = false;
+        float frozenPhase = 0.5f;            // [0,1): 0 noon, 0.5 midnight
+    };
+    LightingTunables m_lightingTunables;
+
     // How a TileType becomes a sprite. Mutable because render() is where the
     // sheet and theme are pushed into it and render() is const-correct about
     // nothing else it touches either; keeping it a member rather than a local
@@ -747,6 +791,42 @@ private:
     // Moves everything queued by a spawn handler this frame into m_entities.
     // Called once per frame, after every loop that walks m_entities has ended.
     void flushPendingSpawns();
+
+    // --- Off-camera update gate ------------------------------------------
+    //
+    // Endless Mode never discards a chunk it has appended, so m_entities only
+    // ever grows: extendEndlessLevelIfNeeded() splices a hundred fresh tiles of
+    // content in every time the player gets within 40 tiles of the end, and
+    // everything it spliced keeps thinking for the rest of the run. The gate
+    // below stops paying for the chunks the player has walked past.
+    //
+    // Margin is HALF THE LIVE VIEW in each axis rather than a tile constant, so
+    // nothing within two viewport widths of the camera centre is ever frozen.
+    // At the default 1280x720 view that is 20 tiles horizontally and 11
+    // vertically; the versus/co-op camera zooms out to fit both players, and
+    // deriving the margin from the view means that wider camera automatically
+    // gets a wider safe band instead of silently eating into it.
+    AABB thinkingRegion() const;
+
+    // Whether `entity` must keep updating even when it is far outside
+    // thinkingRegion(). This is a WHITELIST of what may be frozen, not a
+    // blacklist of what may not: a class added later keeps its old behaviour
+    // until someone deliberately opts it in.
+    bool freezableOffCamera(const Entity& entity) const;
+
+    // Census for the Endless append line. Written by update()'s entity pass;
+    // `m_entitiesThought + m_entitiesFrozen` is what the ungated loop used to
+    // update every frame, which is what makes the gate's effect measurable
+    // from a single run rather than from two builds.
+    //
+    // m_entitiesExempt is the honest part: entities that were out of the
+    // thinking region and kept thinking anyway because freezableOffCamera()
+    // said no. `frozen + exempt` is everything out of region, so this counter
+    // is the gate's REMAINING HEADROOM — without it the two numbers above
+    // cannot distinguish "the gate is working" from "nothing was far away".
+    std::size_t m_entitiesThought = 0;
+    std::size_t m_entitiesFrozen  = 0;
+    std::size_t m_entitiesExempt  = 0;
 
     // The single door a mid-frame spawn goes through. Wires animations and
     // difficulty immediately — so the caller still gets a fully formed entity —

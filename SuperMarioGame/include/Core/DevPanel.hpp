@@ -64,6 +64,16 @@ private:
     // them by feel needs them on sliders rather than in a rebuild.
     void drawMatchPanel(PlayingState& state);
 
+    // Debug > Lighting: Bonus D's light pass — lamp radii, the fireball's
+    // intensity, the player lamp's shadow tint, and a scrub for the day/night
+    // clock. The feature shipped with every one of those as a literal, so
+    // choosing them cost a rebuild per guess plus a fresh run back to the cave
+    // being lit. Same case as the Match panel above, and the same case gravity,
+    // walk speed and jump height are ImGui-tunable for. The values themselves
+    // live on PlayingState::LightingTunables, because renderLightPass() is
+    // their only reader.
+    void drawLightingPanel(PlayingState& state);
+
     std::vector<Action> m_pending;
 
     // Purely presentational state — owned here, not by PlayingState.

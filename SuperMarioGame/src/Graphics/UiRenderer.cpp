@@ -120,50 +120,6 @@ void UiRenderer::drawTextFitted(sf::RenderTarget& target, const std::string& tex
     drawText(target, clipped + ELLIPSIS, pos, fitted, color, centerX);
 }
 
-std::vector<std::string> UiRenderer::wrapText(const std::string& text, unsigned int size,
-                                              float maxWidth) {
-    std::vector<std::string> lines;
-    if (maxWidth <= 0.0f || text.empty()) {
-        lines.push_back(text);
-        return lines;
-    }
-
-    std::string line;
-    std::size_t i = 0;
-    while (i < text.size()) {
-        // Take the next word together with the single space that precedes it,
-        // so the space is measured as part of the candidate rather than left
-        // dangling at the end of a line.
-        std::size_t wordEnd = text.find(' ', i);
-        if (wordEnd == std::string::npos) wordEnd = text.size();
-        std::string word = text.substr(i, wordEnd - i);
-        i = (wordEnd < text.size()) ? wordEnd + 1 : text.size();
-
-        const std::string candidate = line.empty() ? word : line + " " + word;
-        if (measureTextWidth(candidate, size) <= maxWidth) {
-            line = candidate;
-            continue;
-        }
-
-        if (!line.empty()) {
-            lines.push_back(line);
-            line.clear();
-        }
-
-        // A single word wider than the box has no break opportunity, so it gets
-        // one made for it. Leaving it whole would overflow, which is the defect.
-        while (measureTextWidth(word, size) > maxWidth) {
-            std::string head = word;
-            while (head.size() > 1 && measureTextWidth(head, size) > maxWidth) head.pop_back();
-            lines.push_back(head);
-            word.erase(0, head.size());
-        }
-        line = word;
-    }
-    lines.push_back(line);
-    return lines;
-}
-
 void UiRenderer::drawMenuItems(sf::RenderTarget& target, const std::vector<UiMenuItem>& items,
                                int selectedIndex, sf::Vector2f topLeft, float rowHeight,
                                unsigned int charSize, float valueColumnX, float blinkPhase,

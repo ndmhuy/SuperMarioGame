@@ -899,11 +899,27 @@ void PlayingState::update(float dt) {
     // entity pass, so this frame's packet cannot also be replayed this frame.
     updateShadow(dt);
 
-    // 3. Update all active entities
+    // 3. Update all active entities, except the ones nobody can observe.
+    //
+    // The gate is here rather than inside each entity because "am I worth
+    // simulating" is a question about the CAMERA, and an entity has no business
+    // knowing where the camera is. See thinkingRegion() for the margin and
+    // freezableOffCamera() for what is exempt and why.
+    const AABB thinking = thinkingRegion();
+    m_entitiesThought = 0;
+    m_entitiesFrozen  = 0;
+    m_entitiesExempt  = 0;
     for (auto& entity : m_entities) {
-        if (entity && entity->isActive()) {
-            entity->update(dt);
+        if (!entity || !entity->isActive()) continue;
+        if (!entity->getBoundingBox().intersects(thinking)) {
+            if (freezableOffCamera(*entity)) {
+                ++m_entitiesFrozen;
+                continue;
+            }
+            ++m_entitiesExempt;
         }
+        ++m_entitiesThought;
+        entity->update(dt);
     }
 
     // 3. Run the physics engine pipeline (apply gravity, integrate velocity, check/resolve collisions)
@@ -2552,7 +2568,16 @@ void PlayingState::extendEndlessLevelIfNeeded() {
               << (splicedCount > 0 ? " across world tiles " + std::to_string(splicedFirstTile)
                                       + "-" + std::to_string(splicedLastTile)
                                    : std::string())
-              << "; tilemap now " << m_tileMap.getWidth() << " tiles wide." << std::endl;
+              << "; tilemap now " << m_tileMap.getWidth() << " tiles wide"
+              // The census is the whole evidence for the off-camera gate. A run
+              // never discards a chunk, so `live` is what the ungated loop used
+              // to update every single frame; `thinking` is what it costs now.
+              // Printed on the append line rather than per frame because that
+              // is the only moment the number changes by more than churn.
+              << "; entities live " << (m_entitiesThought + m_entitiesFrozen)
+              << ", thinking " << m_entitiesThought
+              << ", frozen off-camera " << m_entitiesFrozen
+              << ", exempt off-camera " << m_entitiesExempt << "." << std::endl;
 }
 
 void PlayingState::saveToSlot(int slot) {
@@ -2771,10 +2796,15 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
     if (m_mapEditor.isActive()) return;
 
     // Sizes in world px. A ~9-tile lamp leaves a cave readable while still
-    // hiding what is coming; a fireball is a thrown ember, not a torch.
-    constexpr float kPlayerLightRadius   = 290.0f;
-    constexpr float kFireballLightRadius = 210.0f;
-    constexpr float kFreeCameraRadius    = 460.0f;
+    // hiding what is coming; a fireball is a thrown ember, not a torch. The
+    // defaults and the reasoning for each now live on LightingTunables, so
+    // Debug > Lighting can move them without a rebuild.
+    const LightingTunables& tune = m_lightingTunables;
+    const auto tintFromSlider = [](const float rgb[3]) {
+        return sf::Color(static_cast<std::uint8_t>(rgb[0] * 255.0f),
+                         static_cast<std::uint8_t>(rgb[1] * 255.0f),
+                         static_cast<std::uint8_t>(rgb[2] * 255.0f));
+    };
 
     std::vector<LightingRenderer::Light> lights;
     lights.reserve(LightingRenderer::MAX_LIGHTS);
@@ -2787,12 +2817,13 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
         // A perfectly steady disc reads as a vignette bug. A slow 5% breathe
         // reads as a carried lamp. Driven off m_runElapsed rather than a render
         // clock so a replay lights the same way it was recorded.
-        light.radius    = kPlayerLightRadius * (1.0f + 0.05f * std::sin(m_runElapsed * 3.7f));
+        light.radius    = tune.playerRadius *
+                          (1.0f + tune.playerBreathe * std::sin(m_runElapsed * 3.7f));
         light.intensity = 1.0f;
         // A warm near-neutral SHADOW colour, not a lamp colour -- see
         // LightingRenderer::Light::shadowTint. Anything brighter than the scene
         // here draws a bright ring instead of a lamp.
-        light.shadowTint = sf::Color(58, 56, 48);
+        light.shadowTint = tintFromSlider(tune.playerShadowTint);
         lights.push_back(light);
     };
     addPlayerLight(m_player);
@@ -2805,7 +2836,7 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
     if (Game::getInstance().debugCheats().detachesCamera()) {
         LightingRenderer::Light light;
         light.worldPosition = m_camera.getView().getCenter();
-        light.radius        = kFreeCameraRadius;
+        light.radius        = tune.freeCameraRadius;
         light.intensity     = 1.0f;
         light.shadowTint    = sf::Color(44, 50, 62);
         lights.push_back(light);
@@ -2826,11 +2857,11 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
         const AABB bb = entity->getBoundingBox();
         LightingRenderer::Light light;
         light.worldPosition = {bb.x + bb.width * 0.5f, bb.y + bb.height * 0.5f};
-        light.radius        = kFireballLightRadius;
+        light.radius        = tune.fireballRadius;
         // Short of 1.0 on purpose: a fireball that cleared the darkness
         // completely would be a hole indistinguishable from the player's, and
         // the tint below only shows in shadow the lamp has NOT cleared.
-        light.intensity     = 0.85f;
+        light.intensity     = tune.fireballIntensity;
         // Ember, not flame: the shadow a fireball fails to clear goes warm, and
         // that warmth is what separates its pool of light from the player's.
         light.shadowTint    = isBossShot ? sf::Color(104, 34, 10)
@@ -2838,8 +2869,16 @@ void PlayingState::renderLightPass(sf::RenderTarget& target) {
         lights.push_back(light);
     }
 
+    // Debug > Lighting can hold the cycle at a chosen phase. Feeding the
+    // renderer a synthetic elapsed time rather than adding a parameter keeps the
+    // whole feature inside the caller that owns the clock: dayNightPhase() is
+    // periodic, so phase p is reached at p * DAY_NIGHT_PERIOD seconds.
+    const float lightingClock =
+        m_lightingTunables.clockFrozen
+            ? m_lightingTunables.frozenPhase * LightingRenderer::DAY_NIGHT_PERIOD
+            : m_runElapsed;
     m_lighting.render(target, m_camera.getView(), lights,
-                      m_background.getTheme(), m_runElapsed);
+                      m_background.getTheme(), lightingClock);
 }
 
 void PlayingState::renderMatchHud(sf::RenderTarget& target) const {
@@ -3936,6 +3975,73 @@ void PlayingState::flushPendingSpawns() {
     for (auto& entity : ready) {
         if (entity) m_entities.push_back(std::move(entity));
     }
+}
+
+AABB PlayingState::thinkingRegion() const {
+    const AABB visible = m_camera.getVisibleBounds();
+    // Half a view in each direction. Two independent things have to be true of
+    // this margin and both are satisfied by tying it to the live view:
+    //
+    //  - Nothing frozen may be DRAWN. render() culls to the visible bounds plus
+    //    one tile, so any positive margin covers that; half a view leaves the
+    //    whole of a screen's worth of slack on top.
+    //  - Nothing frozen may become visible before it has thought again. The
+    //    camera can jump — a pipe warp, a checkpoint respawn, applySnapshot()
+    //    during a time rewind — and each of those lands the view somewhere new
+    //    in one frame. Half a view means such a jump has to exceed a whole
+    //    screen width before it could expose an entity that has not yet ticked,
+    //    and even then it ticks on the very next frame.
+    //
+    // Concretely, at the default 1280x720 view: 20 tiles of margin horizontally,
+    // 11 vertically. The level is only 22.5 tiles tall, so in practice this is a
+    // horizontal gate, which is exactly the axis Endless Mode grows along.
+    const float marginX = visible.width  * 0.5f;
+    const float marginY = visible.height * 0.5f;
+    return AABB{visible.x - marginX, visible.y - marginY,
+                visible.width + marginX * 2.0f, visible.height + marginY * 2.0f};
+}
+
+bool PlayingState::freezableOffCamera(const Entity& entity) const {
+    // A WHITELIST, deliberately: a category added later is safe by default and
+    // has to be opted in by someone who has thought about it. Enemies and items
+    // are the two a generated chunk produces by the dozen, and the three this
+    // leaves out are each left out for a concrete reason:
+    //
+    //  - Player. Shadow Mario trails the human by up to 8 s of recorded input,
+    //    which at run speed is 2400 px — 75 tiles, far past any margin this
+    //    function could pick. Freezing it stalls the leash the whole mode is
+    //    built on. The same applies to a rival or CPU player 2, who in versus is
+    //    routinely the far one of the pair.
+    //  - Projectile. Its update() is what expires it and hands it back to
+    //    m_fireballPool / m_hammerPool / m_bossFireballPool. A frozen shot never
+    //    expires, so it flies on forever and its pool slot never returns — a
+    //    leak, not a saving.
+    //  - Block. MovingPlatform, FallingPlatform and ConveyorBelt sweep a
+    //    parametric path the player rides and returns to, and terrain lives in
+    //    TileMap rather than in m_entities, so the whole category is a handful
+    //    of near-free update()s. Nothing to win, real damage to do.
+    const EntityCategory category = entity.getCategory();
+    if (category != EntityCategory::Enemy && category != EntityCategory::Item) return false;
+
+    // An entity that does not collide with tiles has nothing in the world to
+    // stop it. Freezing only stops the entity's *brain*: PhysicsEngine::update()
+    // still integrates whatever velocity was left in it, because gating that
+    // too would need the same reasoning in a class that has no camera. So a Boo,
+    // a Lakitu, a Bullet Bill or a Piranha Plant — all of which return false
+    // here — would keep coasting on a stale velocity with nothing to correct it
+    // and nothing to hit, and a Lakitu the player merely outran would fly off
+    // for good instead of catching up. A tile-colliding enemy is bounded: it
+    // walks into a wall, or falls into a pit and dies on the void plane, both of
+    // which happen with or without this gate.
+    if (!entity.collidesWithTiles()) return false;
+
+    // The boss is one entity and its fight is the only thing in Endless Mode
+    // that is not more of the same. The arena lock keeps it on camera anyway, so
+    // this costs one pointer compare and removes a whole class of "the fight
+    // stopped while I was at the edge of the arena" report.
+    if (&entity == static_cast<const Entity*>(m_activeBoss)) return false;
+
+    return true;
 }
 
 void PlayingState::admitEntity(Entity* entity) {

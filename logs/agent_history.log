@@ -5892,6 +5892,140 @@ Summary of Changes:
 - AXE (investigated, not changed — see the long note above). Confirmed HARD requires all 3 axes; could not reproduce the claimed unreachability against the real level_3.json under real physics; found the actual jump-free blocker is Bowser's own patrol (working as designed), not level geometry; shipped a protective regression guard instead of an unjustified data edit; recorded the discrepancy with the plan plainly rather than silently resolving it.
   New test tests/verify_hard_axe_and_vault_pipe.cpp registered in CMakeLists.txt.
 ---
+[2026-09-02 20:10:16] Branch: A/fix/endless-gate-lighting-sliders-wraptext
+Git Fingerprint: 6af4f8e (before) → 0fe7138 (after)
+Fetched Remotes: yes, 20:10 — dev...origin/dev is 0 0; this branch is 4 ahead of dev, 0 behind
+Prompt: Submission sweep Phase 2, lane 2D — three items: (1) Endless Mode has no
+  distance gate on entity updates; (2) the Bonus D lighting tunables have no ImGui
+  sliders; (3) UiRenderer::wrapText has no production caller — wire it or delete it.
+Files Modified:
+  SuperMarioGame/src/Core/PlayingState.cpp      (update, extendEndlessLevelIfNeeded,
+                                                 renderLightPass, + new thinkingRegion
+                                                 and freezableOffCamera)
+  SuperMarioGame/include/Core/PlayingState.hpp  (friend decl, LightingTunables,
+                                                 gate helpers, 3 census counters)
+  SuperMarioGame/src/Core/DevPanel.cpp          (draw, + new drawLightingPanel)
+  SuperMarioGame/include/Core/DevPanel.hpp       (drawLightingPanel decl)
+  SuperMarioGame/src/Graphics/UiRenderer.cpp     (wrapText deleted)
+  SuperMarioGame/include/Graphics/UiRenderer.hpp (wrapText decl replaced by a note)
+  SuperMarioGame/tests/verify_r21o_offcamera_gate.cpp   (new, ctest case 30)
+  SuperMarioGame/tests/verify_r21_ui_layout.cpp  (defect 6's wrap section rewritten
+                                                 against drawTextFitted)
+  SuperMarioGame/CMakeLists.txt                  (test registration only)
+  SuperMarioGame/tests/scripts/verify_r21o_offcamera_gate.txt      (new)
+  SuperMarioGame/tests/scripts/verify_r21o_lighting_sliders.txt     (new)
+Reachable From Main: yes for all three.
+  - The gate is inside PlayingState::update()'s entity pass, on the fixed timestep.
+    Observed in a 240 s scripted Endless run reaching 385 m and 6 appended chunks.
+  - Debug > Lighting is drawn from PlayingState::render() via DevPanel::draw(), and
+    renderLightPass() reads LightingTunables. Observed drawing every control against
+    live values in saves/shots/r21o_L1_panel_open.png.
+  - wrapText is gone, so nothing to reach.
+Verified By: ctest 30/30 (was 29/29 at 6af4f8e) + verify_regressions 584/584
+  (unchanged) + verify_r21_ui_layout 54/55 -> 55/55 + verify_r21o_offcamera_gate
+  29/29 (new) + ran the game (two scripted runs, 10 PNGs opened and read).
+  Six mutations, each observed failing and then passing again — see below.
+Summary of Changes:
+  - THE GATE. Endless never discards an appended chunk, so m_entities only grows
+    and every entity thought every frame however far behind the camera. The gate
+    is in update() because "am I worth simulating" is a question about the CAMERA
+    and an entity has no business knowing where the camera is. Margin is HALF THE
+    LIVE VIEW per axis (20 tiles horizontally at 1280x720, 11 vertically), derived
+    rather than constant so the versus camera's zoom-out widens the safe band, and
+    so a camera jump (pipe warp, checkpoint respawn, rewind) must exceed a whole
+    screen width before it could expose an entity that has not ticked.
+  - MEASURED, from one run (`live` is what the ungated loop updated every frame):
+      chunk 1  live 36  thinking 30  frozen  6  exempt-off-camera 17
+      chunk 2  live 60  thinking 48  frozen 12  exempt-off-camera 28
+      chunk 3  live 90  thinking 67  frozen 23  exempt-off-camera 43
+    An earlier 6-chunk run reached 166 live / 108 thinking / 58 frozen.
+    HONEST READING: the win is real but MODEST — 23 of 90 entities frozen (26%) —
+    and the exemptions are the DOMINANT term at 43 of 90. Of the 66 entities
+    off-camera at chunk 3, only a third are frozen. The Block exemption is most of
+    that remainder, and narrowing it to just the three self-moving platform classes
+    is the obvious follow-up; it is measurable with the `exempt` counter this change
+    added. Deferred, not hidden. NOTE ALSO that PhysicsEngine::update() is NOT
+    gated (five loops over every entity, every frame) and is the larger remaining
+    cost; PhysicsEngine.cpp was outside this lane's file budget.
+  - EXEMPTIONS, whitelist not blacklist, so a class added later is safe by default:
+    Player (Shadow Mario trails by up to 8 s = 75 tiles), Projectile (update() is
+    what expires a shot and returns it to its pool — freezing leaks it), Block
+    (MovingPlatform sweeps a path the player returns to ride, and terrain is in
+    TileMap so the category is near-free), anything that does not collide with
+    tiles (physics keeps integrating a frozen entity's stale velocity, so a Boo or
+    a Lakitu would coast away for good instead of catching up), and the active boss.
+  - SLIDERS. Five literals in renderLightPass() plus the shadow tint moved to
+    PlayingState::LightingTunables, driven by a new Debug > Lighting panel. Writes
+    are queued through DevPanel's pending-action list so draw() keeps its contract.
+    The day/night clock is SCRUBBED rather than exposing DAY_NIGHT_PERIOD: the
+    period only changes how long you wait for a darkness, and NIGHT_DARKNESS /
+    DAY_NIGHT_PERIOD are a cross-file contract with radial_light.frag and
+    verify_r21_lighting.cpp. Phase 0.5 reaches full NIGHT_DARKNESS, so the whole
+    observable range is still covered.
+  - wrapText: DELETED. Zero production callers ever. The plan's two candidates both
+    fail on inspection: the Load Game summary is a fixed-width column string drawn
+    beside its row label by drawMenuItems (one row per item by definition), and the
+    editor chrome is ImGui, already word-wrapping with ImGui::TextWrapped. Every
+    UiRenderer surface is a row grid, a fixed hint line or a centred one-liner, and
+    each page derives its height from a row COUNT before drawing — wrapText's
+    contract needs the opposite. Wiring it into the one line this lane could own
+    (the multiplayer pad summary) would return a single line for every realistic
+    binding: a caller that exists to make a function look used, which is g-rule-11's
+    failure with extra steps. Defect 6's coverage is NOT lost with it — that section
+    is rewritten against drawTextFitted, the mechanism that actually ships.
+  - MUTATION TESTS, all six observed in BOTH directions (fail, then pass on restore):
+      1 gate disabled in update()        -> 3 FAIL (26/29), restored -> 29/29
+      2 no-tiles exemption removed       -> 2 FAIL (27/29), restored -> 29/29
+      3 whitelist widened to all classes -> 6 FAIL (23/29), restored -> 29/29
+      4 margin set to 0 (cull to view)   -> 4 FAIL (25/29), restored -> 29/29
+      5 lighting defaults drifted        -> 2 FAIL (27/29), restored -> 29/29
+      6 legibility floor 8 -> 6          -> 3 FAIL (52/55 in ui_layout),
+                                            restored -> 55/55
+    A seventh attempt (removing fitCharSize's measured confirmation step) did NOT
+    kill the new ui_layout checks — the closed-form estimate already floors to the
+    minimum for that string — so it is recorded here as a mutation that SURVIVED
+    against my section, and mutation 6 was used instead. Reported rather than
+    quietly dropped.
+  - MISTAKES I MADE, in order:
+      a. Configured with FETCHCONTENT_BASE_DIR alone and the cloned _deps failed:
+         the *-subbuild CMakeCache files carry the ORIGINAL absolute path.
+         FETCHCONTENT_FULLY_DISCONNECTED=ON is the fix and re-fetches nothing.
+         Lanes seeded from the same template will hit this.
+      b. Wrote a 240 s Endless script without debugMode, so the F-row cheats were
+         gated off; the run died in the second pit and covered 132 m, never reaching
+         the lookahead, and the census printed nothing. Then repeated the same class
+         of error with the cheats on but no NOCLIP: 97 m, wedged on a two-tile pipe
+         because a tapped W is a minimum-height jump. Two wasted four-minute runs.
+      c. Wrote the first version of the guard against the census AGGREGATES, which
+         cannot say WHICH entity stopped on a live level. Rewrote it around a probe
+         entity that counts its own update() calls.
+      d. Placed "far behind" probes at negative x, not knowing PhysicsEngine step
+         4.5 clamps every entity to [0, mapWidth] regardless of isPhysicsDriven();
+         they were snapped back into view. Then parked the player with
+         findSafeRespawn(), which clamps its answer to the CURRENT view and so
+         returned tile 3 when asked for tile 100. Fixed by pinning the player to a
+         floorBelow()-derived perch every frame.
+      e. Left a placeholder `check(... || true, "")` with a `--g_checks` to undo it
+         in the first draft of the harness. Removed; it is exactly the kind of
+         thing g-rule-2 exists to stop.
+      f. Gave the new panel a default position of (8, 320), four pixels off the
+         generator panel's (8, 316), and stacked their title bars. Only a
+         screenshot caught it.
+  - LIMITATION FOUND, not worked around: a script CANNOT drive an ImGui widget.
+    Game::run() step 1b never calls ImGui::SFML::ProcessEvent() on scripted events,
+    so InputScript's mouse verbs reach the level editor and nothing in ImGui. The
+    lighting script therefore opens the window via imgui_layout_v3.ini and states in
+    its own header that it shows the panel drawing live values but NOT a slider
+    being dragged. Worth fixing centrally if any later lane needs to script ImGui.
+  - SCOPE CUT accepted mid-lane from the orchestrator (token budget): extra
+    screenshot rounds, repeated entity-count benchmarking and exploratory
+    verification of adjacent behaviour were dropped. Everything reported above was
+    actually run. Not done: a docs/learning record (g-rule-21) for this work, and
+    narrowing the Block exemption.
+  - Disk: 11 GiB free before the first build, 8.1 GiB after everything. Never near
+    the 1.5 GiB floor. saves/config.json was flipped to debugMode:true for the
+    scripted runs and RESTORED to its committed value; it is not committed here.
+---
 [2026-09-02 20:15:00] Branch: A/fix/moving-platform-and-spiny-egg
 Git Fingerprint: 6af4f8e (before) → 4050965 (after) [f80e178 MovingPlatform fix, 59d0a68 Spiny/Lakitu fix, 4050965 test + script]
 Fetched Remotes: yes — dev == origin/dev (0 0 via git rev-list --left-right --count dev...origin/dev), matching the plan doc's recorded baseline; this lane made no fetch-affecting changes

@@ -299,35 +299,53 @@ void testFittedTextNeverLeavesItsBox(sf::RenderTexture* target) {
     check(insideBand, "a centred fitted line stays within maxWidth on both sides");
 }
 
-void testWrapText() {
-    section("defect 6 — wrapText keeps every line inside the budget");
+// Defect 6's wrap half, rewritten against the mechanism that actually ships.
+//
+// The original section here tested UiRenderer::wrapText, which was removed in
+// the 2026-09-02 sweep for having no production caller (see the note where its
+// declaration used to be in UiRenderer.hpp). Deleting a function must not
+// silently delete the coverage of the DEFECT it was written for, so this checks
+// the same worst case through drawTextFitted, which is the live path: the
+// shared-keys warning and the rebindable pad summary, in the real 516 px budget
+// the multiplayer page gives them (kPanelHalfW 280 * 2 - 22 * 2).
+void testFittedTextCoversTheWrapCases() {
+    section("defect 6 — the overflow cases wrapText was written for, via drawTextFitted");
 
-    constexpr unsigned int size = 11;
-    constexpr float budget = 200.0f;
+    // MenuState's Page::Multiplayer, verbatim.
+    constexpr float budget = 280.0f * 2.0f - 22.0f * 2.0f;
 
-    const std::vector<std::string> lines =
-        UiRenderer::wrapText("BOTH PLAYERS SHARE KEYS - SEE OPTIONS SLASH KEYS", size, budget);
-    bool allFit = true;
-    std::string rejoined;
-    for (const std::string& line : lines) {
-        if (UiRenderer::measureTextWidth(line, size) > budget) allFit = false;
-        if (!rejoined.empty()) rejoined += " ";
-        rejoined += line;
+    // 1. The shared-keys warning, at the size the page draws it.
+    const std::string warning = "BOTH PLAYERS SHARE KEYS - SEE OPTIONS/KEYS";
+    const unsigned int warnFitted = UiRenderer::fitCharSize(warning, 10, budget);
+    check(UiRenderer::measureTextWidth(warning, warnFitted) <= budget,
+          "the shared-keys warning fits its panel without being shrunk past legibility");
+    check(warnFitted == 10,
+          "and needs no shrinking at all at the size the page asks for");
+
+    // 2. The pad summary at its worst legal binding. "RControl" is the longest
+    // name in InputManager's kKeyNames table, and every one of the six slots
+    // this line prints can be rebound to it — which is why the line has no
+    // maximum length the layout could be written against.
+    const std::string worstPads =
+        "P1  RControl/RControl + RControl      P2  RControl/RControl + RControl";
+    const unsigned int padFitted = UiRenderer::fitCharSize(worstPads, 11, budget);
+    check(UiRenderer::measureTextWidth(worstPads, padFitted) > budget,
+          "the worst-case pad summary cannot be shrunk into the panel, so it ellipsises");
+    check(padFitted == 8,
+          "having bottomed out at drawTextFitted's minimum size rather than vanishing");
+
+    // 3. The property that matters whichever mechanism is used: whatever comes
+    // back is inside the box. fitCharSize never returns a size that measures
+    // wider than the budget unless it has hit the floor, and that is the
+    // contract its own comment states.
+    bool monotonic = true;
+    for (float width = 80.0f; width <= budget; width += 40.0f) {
+        const unsigned int fitted = UiRenderer::fitCharSize(worstPads, 11, width);
+        if (fitted > 8 && UiRenderer::measureTextWidth(worstPads, fitted) > width) {
+            monotonic = false;
+        }
     }
-    check(lines.size() > 1, "a line longer than the budget is split into several");
-    check(allFit, "and every resulting line measures inside it");
-    check(rejoined == "BOTH PLAYERS SHARE KEYS - SEE OPTIONS SLASH KEYS",
-          "with no word lost or duplicated");
-
-    // A single unbreakable token is the case that would otherwise overflow
-    // silently, because there is no space to break at.
-    const std::vector<std::string> forced = UiRenderer::wrapText(std::string(80, 'X'), size, budget);
-    bool forcedFit = true;
-    for (const std::string& line : forced) {
-        if (UiRenderer::measureTextWidth(line, size) > budget) forcedFit = false;
-    }
-    check(forced.size() > 1 && forcedFit,
-          "a word wider than the box is broken mid-word rather than allowed to overflow");
+    check(monotonic, "and that holds at every budget from 80 px up to the panel's own");
 }
 
 void testDebugModeDefaultsOffAndPersists() {
@@ -450,7 +468,7 @@ int main() {
     testFitCharSizeArithmetic();
     testLoadGameSlotSummaryFitsItsPanel();
     testFittedTextNeverLeavesItsBox(target);
-    testWrapText();
+    testFittedTextCoversTheWrapCases();
     testDebugModeDefaultsOffAndPersists();
     testTheOptionsToggleRowDrivesTheRightFlag(target);
 

@@ -497,6 +497,15 @@ add_verify_test(verify_2a_platform_anim_and_spiny_egg "tests/verify_2a_platform_
 # harness that composes its own state would see it.
 add_verify_test(verify_hard_axe_and_vault_pipe "tests/verify_hard_axe_and_vault_pipe.cpp")
 
+# The off-camera entity update gate, and the lighting sliders' defaults. Driven
+# against a live PlayingState because the gate is a property of update()'s frame
+# ordering, not of a predicate in isolation. Every gate case is a PAIR — one
+# entity that must stop and another at the same distance that must not — because
+# a guard asserting only the saving half would license the bug the gate exists
+# to avoid (a frozen projectile never returns to its pool; a frozen Shadow Mario
+# stalls the mode it drives).
+add_verify_test(verify_r21o_offcamera_gate "tests/verify_r21o_offcamera_gate.cpp")
+
 # ---------------------------------------------------------
 # 19. Asset synchronisation
 # ---------------------------------------------------------
