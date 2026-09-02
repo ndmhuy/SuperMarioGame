@@ -28,6 +28,23 @@
 // and testMovingPlatformAnimatorAdvances fails; put the isEgg default back to
 // false in Spiny.hpp and testSpinyDefaultsToEggAndHatchesOnLanding fails.
 //
+// A third case, added after review: flipping Spiny's default changes every
+// construction site, including the four places Spiny is placed directly in
+// shipped level data (3 in assets/levels/level_2.json, 1 in level_3.json) via
+// LevelLoader -- which calls EntityFactory::create(type, position), i.e. the
+// same single-argument constructor, with the entity positioned flush against
+// the ground tile below it (checked directly against both JSON files: each
+// placement's own tile is empty and the tile immediately below it is solid,
+// zero gap -- no falling-into-contact the way Lakitu's toss or the test above
+// exercises). testLevelPlacedSpinyHatchesWhenRestingOnGroundAtSpawn asserts
+// the POST-CONDITION such a placement needs -- that it actually reaches
+// isOnGround() && !isEgg() -- rather than the default value, which would pass
+// even if the hatch transition itself were broken and a placement stayed an
+// egg forever. It is mutation-tested against exactly that: comment out
+// `m_isEgg = false;` inside Spiny::update()'s `if (onGround)` branch and the
+// test times out (never reaches the post-condition) rather than passing
+// vacuously.
+//
 // Run via:  ctest -R verify_2a_platform_anim_and_spiny_egg --output-on-failure
 #include "Core/Game.hpp"
 #include "Entities/MovingPlatform.hpp"
@@ -193,6 +210,58 @@ void testSpinyDefaultsToEggAndHatchesOnLanding() {
     check(!alreadyHatched.isEgg(), "explicit isEgg=false still constructs an already-hatched Spiny");
 }
 
+// ---------------------------------------------------------------------------
+// Review follow-up: the four level-placed Spinies (LevelLoader, single-arg
+// construction) sit flush against ground at spawn rather than falling into
+// it from a height -- a different initial condition from the test above, and
+// the one that actually matches assets/levels/level_2.json's three
+// placements and level_3.json's one. Asserts the post-condition (it reaches
+// the walking state), not the constructor's default value.
+// ---------------------------------------------------------------------------
+void testLevelPlacedSpinyHatchesWhenRestingOnGroundAtSpawn() {
+    section("a Spiny built the way LevelLoader builds it (single-arg, resting flush on ground "
+            "at spawn) reaches the walking state -- not stuck as an egg");
+
+    TileMap map;
+    map.initialize(10, 10);
+    // Mirrors the real placements verified directly against level_2.json /
+    // level_3.json: the entity's own tile is empty, the tile immediately
+    // below it is solid, and the entity sits at exactly tx*TILE_SIZE,
+    // ty*TILE_SIZE -- zero gap, so there is no falling-into-contact to rely
+    // on the way the airborne-drop test above does.
+    const int tileX = 5, tileY = 5;
+    map.setTile(tileX, tileY + 1, TileType::Ground);
+    Game::getInstance().setTileMap(&map);
+
+    PhysicsEngine physics;
+    std::vector<std::unique_ptr<Entity>> entities;
+    // Single-argument construction -- exactly what LevelLoader does
+    // (EntityFactory::create(EntityType::Spiny, position), which resolves to
+    // EntityCatalogue's make<Spiny> and the same one-argument overload).
+    entities.push_back(std::make_unique<Spiny>(
+        sf::Vector2f{tileX * Constants::TILE_SIZE, tileY * Constants::TILE_SIZE}));
+    Spiny* spiny = static_cast<Spiny*>(entities[0].get());
+
+    bool hatchedOnceGrounded = false;
+    // 60 frames = 1 real second, generous for an entity that starts flush
+    // against solid ground -- it should take at most a frame or two.
+    for (int frame = 0; frame < 60 && spiny->isActive(); ++frame) {
+        entities[0]->update(DT);
+        physics.update(entities, map, DT);
+        if (spiny->isOnGround() && !spiny->isEgg()) {
+            hatchedOnceGrounded = true;
+            break;
+        }
+    }
+    check(hatchedOnceGrounded,
+          "reaches isOnGround() && !isEgg() within one second of resting on ground -- the "
+          "post-condition a level placement actually needs; a placement that landed exactly "
+          "like this and stayed an egg forever would fail this check regardless of what the "
+          "constructor's default is");
+
+    Game::getInstance().setTileMap(nullptr);
+}
+
 }  // namespace
 
 int main() {
@@ -204,6 +273,7 @@ int main() {
 
     testMovingPlatformAnimatorAdvances();
     testSpinyDefaultsToEggAndHatchesOnLanding();
+    testLevelPlacedSpinyHatchesWhenRestingOnGroundAtSpawn();
 
     std::cout << "\n----------------------------------------\n";
     if (g_failures > 0) {
