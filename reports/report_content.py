@@ -1235,25 +1235,116 @@ shipping" is not.</li>
 <h2 id="conclusion">14 &middot; Conclusion and future work</h2>
 <p>The project delivers a complete, playable platformer whose value as coursework lies in its
 architecture: ten design patterns, each introduced because a concrete problem demanded it, over a
-four-level abstract hierarchy that the engine drives without ever asking what an object is. Adding a new
-enemy means one class and one catalogue row; adding a new level means a JSON file.</p>
-<p>The more useful outcome is what the defects taught. Three of the five problems in &sect;10 were the
-same failure in different clothes &mdash; a fact duplicated in two places, drifting apart, with nothing
-comparing them. The project's answer, now a standing rule, is that the commit which creates the second
-copy also creates the test that fails when the copies disagree. The fourth, the Windows crash, is a
-reminder that "it works on my machine" is exactly the evidence undefined behaviour is best at
-manufacturing.</p>
-<h3>Future work</h3>
+four-level abstract hierarchy that the engine drives without ever asking what an object is. Adding a
+new enemy means one class and one catalogue row; adding a new level means a JSON file.</p>
+<p>The more useful outcome is what the defects taught, and it is a single lesson repeated: a fact
+stored in two places drifts apart, and nothing notices unless something compares them. The standing
+answer &mdash; the commit that creates the second copy also creates the test that fails when the
+copies disagree &mdash; is now the project's most-used rule, and &sect;12.4 traces it back to the
+three defects that bought it. The Windows crash taught the other half: "it works on my machine" is
+exactly the evidence undefined behaviour is best at manufacturing.</p>
+
+<h3>14.1 Future work: the far horizons</h3>
+<blockquote><strong>None of what follows is part of this submission.</strong> Two of the three exist
+as real branches that are <em>deliberately</em> kept off <code>dev</code>; the third is a direction
+with no branch at all. The game on <code>dev</code> ships the hand-authored campaign and the
+heuristic AI opponent, and plays identically with every branch below dropped &mdash; which is the
+property that lets them be experiments rather than liabilities. Nothing here should be read as a
+feature that nearly landed. What is <em>missing</em> from this submission, as opposed to beyond it,
+is in &sect;13.</blockquote>
+
+<h4>Learned agents: a trained policy behind the seam that already exists</h4>
+<p><span class="tag no">Not delivered</span> &mdash; <strong>branch
+<code>A/rl-neural-policy</code>, deliberately unmerged.</strong></p>
+<p>The shipped game already draws the line a learning agent would need. <code>AIController</code>
+does the sensing and the actuating &mdash; it reads the tilemap and the entity list into an
+<code>AIObservation</code>, and it turns an <code>AIAction</code> back into calls on a real
+<code>Player</code>. What it does not do is decide. That sits behind one virtual function,
+<code>IAIPolicy::decide(const AIObservation&amp;)</code>, returning an <code>AIAction</code>
+(<code>include/Entities/IAIPolicy.hpp</code>), with the shipped <code>HeuristicPolicy</code> as the
+baseline any trained policy would have to beat. Four properties of that seam were chosen for this
+horizon specifically, because each is cheap now and expensive to retrofit: the observation is
+<strong>fixed-size and normalised</strong>, so an easy opponent sees <code>Unknown</code> outside
+its vision radius rather than a smaller grid and one network accepts every difficulty;
+<code>AIAction</code> is <strong>the same seven buttons a human presses</strong> and that
+<code>PlayerFramePacket</code> already records for Shadow Mario, so a recorded human match is
+imitation-learning data without a conversion step; the exploration noise lives in the controller
+rather than the policy, so it applies identically to both implementations; and
+<code>decide()</code> is synchronous and allocation-free on the hot path.</p>
+<p>What a trained policy would still need from the engine is the honest part of this horizon, and it
+is three things, none of them small:</p>
 <ul>
-<li>Add an AddressSanitizer job to CI now that the suite is hermetic (&sect;13) &mdash; the tool that would
-have found &sect;10.1 on its first run.</li>
-<li>Wrap the entity list in a type whose <code>push_back</code> only the flush step can reach, so the
-&sect;10.1 invariant is impossible to break rather than merely easy to keep.</li>
-<li>Playtest and tune the Bowser fight, and record enough playtests to correct the harness-to-playtest
-imbalance.</li>
-<li>Populate the campaign levels with the six implemented-but-unplaced enemy types, and place at least
-one hidden block so the <code>secret_finder</code> achievement is reachable without the editor.</li>
+<li><strong>Headless, accelerated stepping.</strong> Training wants thousands of episodes; the game
+runs at 60&nbsp;fps with a window open. This needs a loop that steps the simulation without
+rendering and without sleeping, and <code>PlayingState</code> assumes a render target exists in
+several places.</li>
+<li><strong>Determinism, or an explicit decision to live without it.</strong>
+<code>ReplayRecorder</code>'s own header documents why the simulation is not reproducible from
+inputs alone: float physics, an entity list that spawns and prunes mid-frame, and strategies that
+read a shared singleton. Model-free learning survives that, because it only needs transitions &mdash;
+but anything that must replay a trajectory exactly is ruled out until the sources of divergence are
+removed one at a time.</li>
+<li><strong>A reward log.</strong> The branch's <code>RewardTracker</code> shows the shape this
+should take: it subscribes to events the game <em>already publishes</em>, so no gameplay code knows
+a reward exists, and it writes one row per <em>decision</em> rather than per frame, because logging
+idle frames fills the file with duplicates of the same state.</li>
 </ul>
+<p>The branch carries <code>NeuralPolicy</code>, <code>RewardTracker</code>,
+<code>ExperienceLog</code>, a verification harness and a design document
+(<code>docs/rl_training.md</code>). One detail there is worth repeating as engineering, whatever
+happens to the learning: the observation layout is treated as a <em>versioned contract</em>, and
+loading a weight file whose version does not match is refused rather than guessed, because a
+silently misaligned input layer produces a policy that acts confidently and arbitrarily &mdash; the
+hardest failure to diagnose from outside.</p>
+
+<h4>Learned level generation, with the game as the oracle</h4>
+<p><span class="tag no">Not delivered</span> &mdash; <strong>branch
+<code>A/mapgen-gan-plan</code>, stacked on the RL branch and equally unmerged.</strong></p>
+<p>The shipped <code>MapGenerator</code> is a single left-to-right pass of <em>independent</em>
+probability rolls: an elevation profile, a per-column pit roll, uniform decoration and enemy rates.
+That structure cannot express what makes a Mario level good, and the limitation is architectural
+rather than a matter of tuning: independent rolls produce no rhythm or phrasing, no difficulty curve
+across the level's length, and almost never a <em>composed</em> challenge where a pit and an enemy
+and a moving platform are one obstacle rather than three coincidences. A learned generator attacks
+exactly those three, because it learns tile <em>neighbourhoods</em> from levels a designer actually
+made. The direction is a DCGAN over the public VGLC <em>Super Mario Bros.</em> corpus, with levels
+authored in this project's own editor as a second corpus, generating chunks that are stitched,
+repaired and filtered rather than played raw.</p>
+<p>The interesting half is the loop between the two horizons, and it has a name in the literature
+&mdash; agent-in-the-loop generation, and adversarial curriculum generation after it. Each side
+supplies what the other cannot: the generator gives an agent unlimited varied levels so it does not
+overfit three hand-made maps, and the agent gives the generator a <strong>playability
+oracle</strong>. A GAN learns what levels look like; only something that plays them knows what they
+play like. In this project's plan the cheap half of that oracle runs first, before any agent:
+<code>LevelSolvability::isPathReachable</code> certifies that walking and jumping can connect the
+start column to the goal, so an unplayable candidate is rejected without spending an episode on
+it.</p>
+<p>That oracle is also the one piece of this side project that has already paid rent on the main
+line, and it is the model for how the rest should behave if it ever does. The original branch built
+a full oracle &mdash; per-frame ballistic simulation plus a bottleneck-cost search that grades
+difficulty. What came back to <code>dev</code> is a deliberately simplified, dependency-free
+reimplementation: a column-reachability search bounded by the game's own walk, run and jump
+constants, keeping the question the project actually needs answered ("is a required move impossible
+at all?") and dropping the one it does not ("how hard is the hardest required move?"). The header
+says so in as many words. Cherry-picking one honest reimplementation is the whole of what these
+branches owe the submission; the rest stays where it is.</p>
+
+<h4>One engine horizon: two players over a network</h4>
+<p><span class="tag no">Not delivered</span> &mdash; <strong>a direction, with no branch.</strong></p>
+<p>Two-player is local today: both players share one process, one keyboard and one camera. Putting
+them on two machines is a genuine horizon rather than a task, and the reason is a decision the
+project already made for other purposes. <code>ReplayRecorder</code> records a stream of
+<code>GameSnapshot</code> <em>state</em>, not a stream of inputs, and the header explains why: the
+simulation is not deterministic, so re-running the inputs would not reproduce the run. That single
+fact rules out the cheap netcode &mdash; lockstep input exchange, which is what a deterministic
+simulation buys you &mdash; and points at authoritative state replication instead, which is the
+shape the existing snapshot stream already has. What is missing is a transport, a decision about who
+simulates authoritatively, delta encoding (a snapshot is a whole entity list, sent whole), and
+client-side reconciliation for the latency that remains. Each of those is a project, and naming them
+is more useful than promising the feature.</p>
+<p>Which is the point of listing only three horizons. Everything here is a direction with its first
+real obstacle named, on the reasoning that a future-work section whose items have no known obstacles
+has not been thought about yet.</p>
 
 <h2 id="refs">15 &middot; References</h2>
 <ul>
