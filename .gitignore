@@ -82,3 +82,6 @@ SuperMarioGame/assets/levels/custom/
 # docs/Group52_XX/) — reproducible on demand, never a second copy to keep in
 # sync (g-rule-19).
 *.zip
+# Split-archive parts of the submission zip (zip -s). *.zip catches the last
+# part only; these catch 52.z01, 52.z02, ... which are the same build output.
+*.z[0-9][0-9]
